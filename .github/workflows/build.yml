@@ -7,6 +7,7 @@ on:
   push:
     branches: [ "dev-live" ]
 
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,6 +18,8 @@ jobs:
         with:
           submodules: 'true'
           token: ${{ secrets.CI_TOKEN }}
+      - name: Clone Dalamud
+        run: git -C /home/runner clone https://github.com/goatcorp/dalamud-distrib.git
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -25,6 +28,8 @@ jobs:
         run: dotnet restore
       - name: Build
         run: dotnet build --no-restore
+        env:
+          DALAMUD_HOME: /home/runner/dalamud-distrib
       - uses: actions/upload-artifact@v4
         with:
           name: MareSempiterne
