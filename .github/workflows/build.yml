@@ -22,6 +22,8 @@ jobs:
         run: curl --output /home/runner/dalamud-distrib.zip -L "https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/latest.zip"
       - name: Extract Dalamud binaries
         run: unzip /home/runner/dalamud-distrib.zip
+      - name: List dalamud files
+        run: ls /home/runner/dalamud-distrib
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
