@@ -23,7 +23,7 @@ jobs:
       - name: Extract Dalamud binaries
         run: unzip /home/runner/dalamud-distrib.zip
       - name: List dalamud files
-        run: ls /home/runner/dalamud-distrib
+        run: ls /home/runner
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
