@@ -31,10 +31,10 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
       - name: Build
-        run: dotnet build --no-restore
+        run: dotnet build --configuration Release --no-restore
         env:
           DALAMUD_HOME: /home/runner/dalamud-distrib
       - uses: actions/upload-artifact@v4
         with:
           name: MareSempiterne
-          path: MareSynchronos/bin/x64/Debug/Release/MareSempiterne/latest.zip
+          path: MareSynchronos/bin/x64/Release/MareSempiterne/latest.zip
