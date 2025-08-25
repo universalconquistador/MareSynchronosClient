@@ -215,14 +215,28 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
 
         return await _dalamudUtil.RunOnFrameworkThread(() =>
         {
-            var collName = "Mare_" + uid;
-            var collId = _penumbraCreateNamedTemporaryCollection.Invoke(collName);
-            logger.LogTrace("Creating Temp Collection {collName}, GUID: {collId}", collName, collId);
-            return collId;
+            // Collection name can stay as you had it.
+            var collectionName = $"Mare_{uid}";
 
+            // New requirement: provide an identity string.
+            // Keep it stable and attributable to your plugin.
+            // If you can, prefer a constant like your plugin’s internal name.
+            var identity = "MareSempiterne"; // or "MareSynchronos" / _pi.InternalName if available
+
+            // New IPC: returns error code + out Guid
+            var ec = _penumbraCreateNamedTemporaryCollection.Invoke(identity, collectionName, out var collId);
+
+            if (ec != PenumbraApiEc.Success || collId == Guid.Empty)
+            {
+                logger.LogError("CreateTemporaryCollection failed: {Ec} (identity: {Identity}, name: {Name})",
+                    ec, identity, collectionName);
+                return Guid.Empty;
+            }
+
+            logger.LogTrace("Created Temp Collection {Name}, GUID: {Id}", collectionName, collId);
+            return collId;
         }).ConfigureAwait(false);
     }
-
     public async Task<Dictionary<string, HashSet<string>>?> GetCharacterData(ILogger logger, GameObjectHandler handler)
     {
         if (!APIAvailable) return null;
