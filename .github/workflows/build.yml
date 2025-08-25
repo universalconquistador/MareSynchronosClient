@@ -19,7 +19,7 @@ jobs:
           submodules: 'true'
           token: ${{ secrets.CI_TOKEN }}
       - name: Clone Dalamud
-        run: git -C /home/runner clone https://github.com/goatcorp/dalamud-distrib.git
+        run: git -C /home/runner clone --depth=1 https://github.com/goatcorp/dalamud-distrib.git
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
