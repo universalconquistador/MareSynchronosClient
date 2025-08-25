@@ -18,8 +18,10 @@ jobs:
         with:
           submodules: 'true'
           token: ${{ secrets.CI_TOKEN }}
-      - name: Clone Dalamud
-        run: git -C /home/runner clone --depth=1 https://github.com/goatcorp/dalamud-distrib.git
+      - name: Download Dalamud binaries
+        run: curl --output /home/runner/dalamud-distrib.zip "https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/latest.zip"
+      - name: Extract Dalamud binaries
+        run: unzip /home/runner/dalamud-distrib.zip
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
