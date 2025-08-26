@@ -81,27 +81,30 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     }
 
     public async Task<HttpResponseMessage> SendRequestAsync(HttpMethod method, Uri uri,
-        CancellationToken? ct = null, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseContentRead)
+        CancellationToken? ct = null, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseContentRead,
+        bool withToken = true)
     {
         using var requestMessage = new HttpRequestMessage(method, uri);
-        return await SendRequestInternalAsync(requestMessage, ct, httpCompletionOption).ConfigureAwait(false);
+        return await SendRequestInternalAsync(requestMessage, ct, httpCompletionOption, withToken).ConfigureAwait(false);
     }
 
-    public async Task<HttpResponseMessage> SendRequestAsync<T>(HttpMethod method, Uri uri, T content, CancellationToken ct) where T : class
+    public async Task<HttpResponseMessage> SendRequestAsync<T>(HttpMethod method, Uri uri, T content, CancellationToken ct,
+        bool withToken = true) where T : class
     {
         using var requestMessage = new HttpRequestMessage(method, uri);
         if (content is not ByteArrayContent)
             requestMessage.Content = JsonContent.Create(content);
         else
             requestMessage.Content = content as ByteArrayContent;
-        return await SendRequestInternalAsync(requestMessage, ct).ConfigureAwait(false);
+        return await SendRequestInternalAsync(requestMessage, ct, withToken: withToken).ConfigureAwait(false);
     }
 
-    public async Task<HttpResponseMessage> SendRequestStreamAsync(HttpMethod method, Uri uri, ProgressableStreamContent content, CancellationToken ct)
+    public async Task<HttpResponseMessage> SendRequestStreamAsync(HttpMethod method, Uri uri, ProgressableStreamContent content,
+        CancellationToken ct, bool withToken = true)
     {
         using var requestMessage = new HttpRequestMessage(method, uri);
         requestMessage.Content = content;
-        return await SendRequestInternalAsync(requestMessage, ct).ConfigureAwait(false);
+        return await SendRequestInternalAsync(requestMessage, ct, withToken: withToken).ConfigureAwait(false);
     }
 
     public async Task WaitForDownloadSlotAsync(CancellationToken token)
@@ -144,10 +147,13 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     }
 
     private async Task<HttpResponseMessage> SendRequestInternalAsync(HttpRequestMessage requestMessage,
-        CancellationToken? ct = null, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseContentRead)
+        CancellationToken? ct = null, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseContentRead, bool withToken = true)
     {
-        var token = await _tokenProvider.GetToken().ConfigureAwait(false);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        if (withToken)
+        {
+            var token = await _tokenProvider.GetToken().ConfigureAwait(false);
+            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
 
         if (requestMessage.Content != null && requestMessage.Content is not StreamContent && requestMessage.Content is not ByteArrayContent)
         {

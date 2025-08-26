@@ -18,6 +18,7 @@ public class DownloadFileTransfer : FileTransfer
         }
         get => Dto.Size;
     }
+    public string? DirectDownloadUrl => ((DownloadFileDto)TransferDto).DirectDownloadUrl;
 
     public long TotalRaw => Dto.RawSize;
     private DownloadFileDto Dto => (DownloadFileDto)TransferDto;
