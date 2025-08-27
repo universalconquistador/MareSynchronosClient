@@ -42,5 +42,5 @@ jobs:
           path: MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne/
       - name: Deploy plugin to dev environment
         run: >
-          "curl --header \"X-Deploy-Key: ${{ secrets.DEPLOY_DEV_SECRET }}\" --request POST --data-binary \"@MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne.json\" https://dev.maresempiterne.io/redux/deploy/client-manifest &&"
-          "curl --header \"X-Deploy-Key: ${{ secrets.DEPLOY_DEV_SECRET }}\" --request POST --data-binary \"@MareSynchronos/bin/x64/Release/MareSempiterne/latest.zip\" https://dev.maresempiterne.io/redux/deploy/client-package/install"
+          curl --header "X-Deploy-Key: ${{ secrets.DEPLOY_DEV_SECRET }}" --request POST --data-binary "@MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne.json" https://dev.maresempiterne.io/redux/deploy/client-manifest &&
+          curl --header "X-Deploy-Key: ${{ secrets.DEPLOY_DEV_SECRET }}" --request POST --data-binary "@MareSynchronos/bin/x64/Release/MareSempiterne/latest.zip" https://dev.maresempiterne.io/redux/deploy/client-package/install
