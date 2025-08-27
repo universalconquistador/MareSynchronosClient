@@ -285,7 +285,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
         var downloadBatches = batchDownloads.GroupBy(f => f.DownloadUri.Host + ":" + f.DownloadUri.Port, StringComparer.Ordinal).ToArray();
 
-        Logger.LogWarning("Downloading {direct} files directly, and {batchtotal} in {batches} batches.", directDownloads.Count, batchDownloads.Count, downloadBatches.Count());
+        Logger.LogInformation("Downloading {direct} files directly, and {batchtotal} in {batches} batches.", directDownloads.Count, batchDownloads.Count, downloadBatches.Count());
 
         // Create download status trackers for the batch downloads
         foreach (var downloadBatch in downloadBatches)
