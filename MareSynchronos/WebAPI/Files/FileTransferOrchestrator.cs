@@ -15,11 +15,19 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     private readonly ConcurrentDictionary<Guid, bool> _downloadReady = new();
     private readonly HttpClient _httpClient;
     private readonly MareConfigService _mareConfig;
-    private readonly object _semaphoreModificationLock = new();
     private readonly TokenProvider _tokenProvider;
+
+    // Download slots
+    private readonly object _semaphoreModificationLock = new();
     private int _availableDownloadSlots;
     private SemaphoreSlim _downloadSemaphore;
     private int CurrentlyUsedDownloadSlots => _availableDownloadSlots - _downloadSemaphore.CurrentCount;
+
+    // Upload slots
+    private readonly object _uploadModificationLock = new();
+    private int _availableUploadSlots;
+    private SemaphoreSlim _uploadSemaphore;
+    private int CurrentlyUsedUploadSlots => _availableUploadSlots - _uploadSemaphore.CurrentCount;
 
     public FileTransferOrchestrator(ILogger<FileTransferOrchestrator> logger, MareConfigService mareConfig,
         MareMediator mediator, TokenProvider tokenProvider, HttpClient httpClient) : base(logger, mediator)
@@ -32,6 +40,9 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
 
         _availableDownloadSlots = mareConfig.Current.ParallelDownloads;
         _downloadSemaphore = new(_availableDownloadSlots, _availableDownloadSlots);
+
+        _availableUploadSlots = mareConfig.Current.ParallelUploads;
+        _uploadSemaphore = new(_availableUploadSlots, _availableUploadSlots);
 
         Mediator.Subscribe<ConnectedMessage>(this, (msg) =>
         {
@@ -73,6 +84,18 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
         {
             _downloadSemaphore.Release();
             Mediator.Publish(new DownloadLimitChangedMessage());
+        }
+        catch (SemaphoreFullException)
+        {
+            // ignore
+        }
+    }
+
+    public void ReleaseUploadSlot()
+    {
+        try
+        {
+            _uploadSemaphore.Release();
         }
         catch (SemaphoreFullException)
         {
@@ -144,6 +167,20 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
             return long.MaxValue;
         }
         return Math.Clamp(dividedLimit, 1, long.MaxValue);
+    }
+
+    public async Task WaitForUploadSlotAsync(CancellationToken token)
+    {
+        lock (_semaphoreModificationLock)
+        {
+            if (_availableUploadSlots != _mareConfig.Current.ParallelUploads && _availableUploadSlots == _uploadSemaphore.CurrentCount)
+            {
+                _availableUploadSlots = _mareConfig.Current.ParallelUploads;
+                _uploadSemaphore = new(_availableUploadSlots, _availableUploadSlots);
+            }
+        }
+
+        await _uploadSemaphore.WaitAsync(token).ConfigureAwait(false);
     }
 
     private async Task<HttpResponseMessage> SendRequestInternalAsync(HttpRequestMessage requestMessage,
