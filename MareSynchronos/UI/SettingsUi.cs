@@ -213,6 +213,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.BigText("Transfer Settings");
 
         int maxParallelDownloads = _configService.Current.ParallelDownloads;
+        int maxParallelUploads = _configService.Current.ParallelUploads;
         bool useAlternativeUpload = _configService.Current.UseAlternativeFileUpload;
         int downloadSpeedLimit = _configService.Current.DownloadSpeedLimitInBytes;
 
@@ -257,6 +258,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("This will attempt to upload files in one go instead of a stream. Typically not necessary to enable. Use if you have upload issues.");
+
+        if (ImGui.SliderInt("Maximum Parallel Uploads", ref maxParallelUploads, 1, 10))
+        {
+            _configService.Current.ParallelUploads = maxParallelUploads;
+            _configService.Save();
+        }
 
         ImGui.Separator();
         _uiShared.BigText("Transfer UI");
