@@ -30,6 +30,19 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             serverConfigService.Current.Version = 2;
             serverConfigService.Save();
         }
+
+        // Floof left us a means to version the server.json to make updates to the client configs prior to services loading
+        if (serverConfigService.Current.Version == 2)
+        {
+            _logger.LogInformation("Migrating Server Config V2 => V3");
+            var centralServer = serverConfigService.Current.ServerStorage.Find(f => f.ServerName.Equals("Mare Sempiterne.io Server", StringComparison.Ordinal));
+            if (centralServer != null)
+            {
+                centralServer.ServerName = ApiController.MainServer;
+            }
+            serverConfigService.Current.Version = 3;
+            serverConfigService.Save();
+        }
     }
 
     public Task StartAsync(CancellationToken cancellationToken)

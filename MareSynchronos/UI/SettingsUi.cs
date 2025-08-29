@@ -77,7 +77,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         FileCacheManager fileCacheManager,
         FileCompactor fileCompactor, ApiController apiController,
         IpcManager ipcManager, CacheMonitor cacheMonitor,
-        DalamudUtilService dalamudUtilService, HttpClient httpClient) : base(logger, mediator, "Mare Synchronos Settings", performanceCollector)
+        DalamudUtilService dalamudUtilService, HttpClient httpClient) : base(logger, mediator, "Player Sync Settings", performanceCollector)
     {
         _configService = configService;
         _pairManager = pairManager;
@@ -178,7 +178,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _lastTab = "BlockedTransfers";
         UiSharedService.ColorTextWrapped("Files that you attempted to upload or download that were forbidden to be transferred by their creators will appear here. " +
                              "If you see file paths from your drive here, then those files were not allowed to be uploaded. If you see hashes, those files were not allowed to be downloaded. " +
-                             "Ask your paired friend to send you the mod in question through other means, acquire the mod yourself or pester the mod creator to allow it to be sent over Mare.",
+                             "Ask your paired friend to send you the mod in question through other means, acquire the mod yourself or pester the mod creator to allow it to be sent over Player Sync.",
             ImGuiColors.DalamudGrey);
 
         if (ImGui.BeginTable("TransfersTable", 2, ImGuiTableFlags.SizingStretchProp))
@@ -641,7 +641,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.IconText(FontAwesomeIcon.UserCog);
         ImGui.SameLine();
         UiSharedService.TextWrapped(") -> \"Character Data Hub\".");
-        if (_uiShared.IconTextButton(FontAwesomeIcon.Running, "Open Mare Character Data Hub"))
+        if (_uiShared.IconTextButton(FontAwesomeIcon.Running, "Open Player Sync Character Data Hub"))
         {
             Mediator.Publish(new UiToggleMessage(typeof(CharaDataHubUi)));
         }
@@ -651,7 +651,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         _uiShared.BigText("Storage");
 
-        UiSharedService.TextWrapped("Mare stores downloaded files from paired people permanently. This is to improve loading performance and requiring less downloads. " +
+        UiSharedService.TextWrapped("Player Sync stores downloaded files from paired people permanently. This is to improve loading performance and requiring less downloads. " +
             "The storage governs itself by clearing data beyond the set storage size. Please set the storage size accordingly. It is not necessary to manually clear the storage.");
 
         _uiShared.DrawFileScanState();
@@ -668,7 +668,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         }
 
         ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("Monitoring Mare Storage Folder: " + (_cacheMonitor.MareWatcher?.Path ?? "Not monitoring"));
+        ImGui.TextUnformatted("Monitoring Player Sync Storage Folder: " + (_cacheMonitor.MareWatcher?.Path ?? "Not monitoring"));
         if (string.IsNullOrEmpty(_cacheMonitor.MareWatcher?.Path))
         {
             ImGui.SameLine();
@@ -699,8 +699,8 @@ public class SettingsUi : WindowMediatorSubscriberBase
                     _cacheMonitor.StopMonitoring();
                 }
             }
-            UiSharedService.AttachToolTip("Stops the monitoring for both Penumbra and Mare Storage. "
-                + "Do not stop the monitoring, unless you plan to move the Penumbra and Mare Storage folders, to ensure correct functionality of Mare." + Environment.NewLine
+            UiSharedService.AttachToolTip("Stops the monitoring for both Penumbra and Player Sync Storage. "
+                + "Do not stop the monitoring, unless you plan to move the Penumbra and Player Sync Storage folders, to ensure correct functionality of Player Sync." + Environment.NewLine
                 + "If you stop the monitoring to move folders around, resume it after you are finished moving the files."
                 + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
         }
@@ -716,7 +716,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         bool isLinux = _dalamudUtilService.IsWine;
         if (!useFileCompactor && !isLinux)
         {
-            UiSharedService.ColorTextWrapped("Hint: To free up space when using Mare consider enabling the File Compactor", ImGuiColors.DalamudYellow);
+            UiSharedService.ColorTextWrapped("Hint: To free up space when using Player Sync consider enabling the File Compactor", ImGuiColors.DalamudYellow);
         }
         if (isLinux || !_cacheMonitor.StorageisNTFS) ImGui.BeginDisabled();
         if (ImGui.Checkbox("Use file compactor", ref useFileCompactor))
@@ -737,7 +737,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                     _cacheMonitor.RecalculateFileCacheSize(CancellationToken.None);
                 });
             }
-            UiSharedService.AttachToolTip("This will run compression on all files in your current Mare Storage." + Environment.NewLine
+            UiSharedService.AttachToolTip("This will run compression on all files in your current Player Sync Storage." + Environment.NewLine
                 + "You do not need to run this manually if you keep the file compactor enabled.");
             ImGui.SameLine();
             if (_uiShared.IconTextButton(FontAwesomeIcon.File, "Decompact all files in storage"))
@@ -748,7 +748,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                     _cacheMonitor.RecalculateFileCacheSize(CancellationToken.None);
                 });
             }
-            UiSharedService.AttachToolTip("This will run decompression on all files in your current Mare Storage.");
+            UiSharedService.AttachToolTip("This will run decompression on all files in your current Player Sync Storage.");
         }
         else
         {
@@ -762,7 +762,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGuiHelpers.ScaledDummy(new Vector2(10, 10));
 
         ImGui.Separator();
-        UiSharedService.TextWrapped("File Storage validation can make sure that all files in your local Mare Storage are valid. " +
+        UiSharedService.TextWrapped("File Storage validation can make sure that all files in your local Player Sync Storage are valid. " +
             "Run the validation before you clear the Storage for no reason. " + Environment.NewLine +
             "This operation, depending on how many files you have in your storage, can take a while and will be CPU and drive intensive.");
         using (ImRaii.Disabled(_validationTask != null && !_validationTask.IsCompleted))
@@ -825,7 +825,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         }
         UiSharedService.AttachToolTip("You normally do not need to do this. THIS IS NOT SOMETHING YOU SHOULD BE DOING TO TRY TO FIX SYNC ISSUES." + Environment.NewLine
             + "This will solely remove all downloaded data from all players and will require you to re-download everything again." + Environment.NewLine
-            + "Mares storage is self-clearing and will not surpass the limit you have set it to." + Environment.NewLine
+            + "Player Syncs storage is self-clearing and will not surpass the limit you have set it to." + Environment.NewLine
             + "If you still think you need to do this hold CTRL while pressing the button.");
         if (!_readClearCache)
             ImGui.EndDisabled();
@@ -912,14 +912,14 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Current.EnableRightClickMenus = enableRightClickMenu;
             _configService.Save();
         }
-        _uiShared.DrawHelpText("This will add Mare related right click menu entries in the game UI on paired players.");
+        _uiShared.DrawHelpText("This will add Player Sync related right click menu entries in the game UI on paired players.");
 
         if (ImGui.Checkbox("Display status and visible pair count in Server Info Bar", ref enableDtrEntry))
         {
             _configService.Current.EnableDtrEntry = enableDtrEntry;
             _configService.Save();
         }
-        _uiShared.DrawHelpText("This will add Mare connection status and visible pair count in the Server Info Bar.\nYou can further configure this through your Dalamud Settings.");
+        _uiShared.DrawHelpText("This will add Player Sync connection status and visible pair count in the Server Info Bar.\nYou can further configure this through your Dalamud Settings.");
 
         using (ImRaii.Disabled(!enableDtrEntry))
         {
@@ -1039,7 +1039,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
 
-        if (ImGui.Checkbox("Show Mare Profiles on Hover", ref showProfiles))
+        if (ImGui.Checkbox("Show Player Sync Profiles on Hover", ref showProfiles))
         {
             Mediator.Publish(new ClearProfileDataMessage());
             _configService.Current.ProfilesShow = showProfiles;
@@ -1156,14 +1156,14 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _playerPerformanceConfigService.Current.ShowPerformanceIndicator = showPerformanceIndicator;
             _playerPerformanceConfigService.Save();
         }
-        _uiShared.DrawHelpText("Will show a performance indicator when players exceed defined thresholds in Mares UI." + Environment.NewLine + "Will use warning thresholds.");
+        _uiShared.DrawHelpText("Will show a performance indicator when players exceed defined thresholds in Player Syncs UI." + Environment.NewLine + "Will use warning thresholds.");
         bool warnOnExceedingThresholds = _playerPerformanceConfigService.Current.WarnOnExceedingThresholds;
         if (ImGui.Checkbox("Warn on loading in players exceeding performance thresholds", ref warnOnExceedingThresholds))
         {
             _playerPerformanceConfigService.Current.WarnOnExceedingThresholds = warnOnExceedingThresholds;
             _playerPerformanceConfigService.Save();
         }
-        _uiShared.DrawHelpText("Mare will print a warning in chat once per session of meeting those people. Will not warn on players with preferred permissions.");
+        _uiShared.DrawHelpText("Player Sync will print a warning in chat once per session of meeting those people. Will not warn on players with preferred permissions.");
         using (ImRaii.Disabled(!warnOnExceedingThresholds && !showPerformanceIndicator))
         {
             using var indent = ImRaii.PushIndent();
@@ -1173,7 +1173,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 _playerPerformanceConfigService.Current.WarnOnPreferredPermissionsExceedingThresholds = warnOnPref;
                 _playerPerformanceConfigService.Save();
             }
-            _uiShared.DrawHelpText("Mare will also print warnings and show performance indicator for players where you enabled preferred permissions. If warning in general is disabled, this will not produce any warnings.");
+            _uiShared.DrawHelpText("Player Sync will also print warnings and show performance indicator for players where you enabled preferred permissions. If warning in general is disabled, this will not produce any warnings.");
         }
         using (ImRaii.Disabled(!showPerformanceIndicator && !warnOnExceedingThresholds))
         {
@@ -1416,7 +1416,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
             {
                 if (selectedServer.SecretKeys.Any() || useOauth)
                 {
-                    UiSharedService.ColorTextWrapped("Characters listed here will automatically connect to the selected Mare service with the settings as provided below." +
+                    UiSharedService.ColorTextWrapped("Characters listed here will automatically connect to the selected Player Sync service with the settings as provided below." +
                         " Make sure to enter the character names correctly or use the 'Add current character' button at the bottom.", ImGuiColors.DalamudYellow);
                     int i = 0;
                     _uiShared.DrawUpdateOAuthUIDsButton(selectedServer);
@@ -1589,12 +1589,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
                             _uiShared.DrawUIDComboForAuthentication(i, item, selectedServer.ServerUri, _logger);
                         }
                         bool isAutoLogin = item.AutoLogin;
-                        if (ImGui.Checkbox("Automatically login to Mare", ref isAutoLogin))
+                        if (ImGui.Checkbox("Automatically login to Player Sync", ref isAutoLogin))
                         {
                             item.AutoLogin = isAutoLogin;
                             _serverConfigurationManager.Save();
                         }
-                        _uiShared.DrawHelpText("When enabled and logging into this character in XIV, Mare will automatically connect to the current service.");
+                        _uiShared.DrawHelpText("When enabled and logging into this character in XIV, Player Sync will automatically connect to the current service.");
                         if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete Character") && UiSharedService.CtrlPressed())
                             _serverConfigurationManager.RemoveCharacterFromServer(idx, item);
                         UiSharedService.AttachToolTip("Hold CTRL to delete this entry.");
@@ -1726,7 +1726,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                         selectedServer.ForceWebSockets = forceWebSockets;
                         _serverConfigurationManager.Save();
                     }
-                    _uiShared.DrawHelpText("On wine, Mare will automatically fall back to ServerSentEvents/LongPolling, even if WebSockets is selected. "
+                    _uiShared.DrawHelpText("On wine, Player Sync will automatically fall back to ServerSentEvents/LongPolling, even if WebSockets is selected. "
                         + "WebSockets are known to crash XIV entirely on wine 8.5 shipped with Dalamud. "
                         + "Only enable this if you are not running wine 8.5." + Environment.NewLine
                         + "Note: If the issue gets resolved at some point this option will be removed.");
@@ -1947,7 +1947,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted("Community and Support:");
         ImGui.SameLine();
-        if (ImGui.Button("Mare Synchronos Discord"))
+        if (ImGui.Button("Player Sync Discord"))
         {
             Util.OpenLink("https://discord.gg/mpNdkrTRjW");
         }

@@ -106,7 +106,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
 
     public void StopMonitoring()
     {
-        Logger.LogInformation("Stopping monitoring of Penumbra and Mare storage folders");
+        Logger.LogInformation("Stopping monitoring of Penumbra and Player Sync storage folders");
         MareWatcher?.Dispose();
         PenumbraWatcher?.Dispose();
         MareWatcher = null;
@@ -121,15 +121,15 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
         if (string.IsNullOrEmpty(marePath) || !Directory.Exists(marePath))
         {
             MareWatcher = null;
-            Logger.LogWarning("Mare file path is not set, cannot start the FSW for Mare.");
+            Logger.LogWarning("Player Sync file path is not set, cannot start the FSW for Sync.");
             return;
         }
 
         DriveInfo di = new(new DirectoryInfo(_configService.Current.CacheFolder).Root.FullName);
         StorageisNTFS = string.Equals("NTFS", di.DriveFormat, StringComparison.OrdinalIgnoreCase);
-        Logger.LogInformation("Mare Storage is on NTFS drive: {isNtfs}", StorageisNTFS);
+        Logger.LogInformation("Player Sync Storage is on NTFS drive: {isNtfs}", StorageisNTFS);
 
-        Logger.LogDebug("Initializing Mare FSW on {path}", marePath);
+        Logger.LogDebug("Initializing Sync FSW on {path}", marePath);
         MareWatcher = new()
         {
             Path = marePath,
@@ -150,7 +150,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
 
     private void MareWatcher_FileChanged(object sender, FileSystemEventArgs e)
     {
-        Logger.LogTrace("Mare FSW: FileChanged: {change} => {path}", e.ChangeType, e.FullPath);
+        Logger.LogTrace("Player Sync FSW: FileChanged: {change} => {path}", e.ChangeType, e.FullPath);
 
         if (!AllowedFileExtensions.Any(ext => e.FullPath.EndsWith(ext, StringComparison.OrdinalIgnoreCase))) return;
 
@@ -478,7 +478,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
         if (string.IsNullOrEmpty(_configService.Current.CacheFolder) || !Directory.Exists(_configService.Current.CacheFolder))
         {
             cacheDirExists = false;
-            Logger.LogWarning("Mare Cache directory is not set or does not exist.");
+            Logger.LogWarning("Player Sync Cache directory is not set or does not exist.");
         }
         if (!penDirExists || !cacheDirExists)
         {

@@ -56,7 +56,7 @@ internal partial class CharaDataHubUi
                 _configService.Current.NearbyDrawWisps = showWisps;
                 _configService.Save();
             }
-            _uiSharedService.DrawHelpText("When enabled, Mare will draw floating wisps where other's poses are in the world.");
+            _uiSharedService.DrawHelpText("When enabled, Player Sync will draw floating wisps where other's poses are in the world.");
             int poseDetectionDistance = _configService.Current.NearbyDistanceFilter;
             UiSharedService.ScaledNextItemWidth(100);
             if (ImGui.SliderInt("Detection Distance", ref poseDetectionDistance, 5, 1000))
@@ -71,7 +71,7 @@ internal partial class CharaDataHubUi
                 _configService.Current.NearbyShowAlways = alwaysShow;
                 _configService.Save();
             }
-            _uiSharedService.DrawHelpText("This will allow Mare to continue the calculation of position of wisps etc. active outside of the 'Poses Nearby' tab." + UiSharedService.TooltipSeparator
+            _uiSharedService.DrawHelpText("This will allow Player Sync to continue the calculation of position of wisps etc. active outside of the 'Poses Nearby' tab." + UiSharedService.TooltipSeparator
                 + "Note: The wisps etc. will disappear during combat and performing.");
         });
 
