@@ -28,8 +28,8 @@ public sealed class IpcCallerMoodles : IIpcCaller
         _moodlesApiVersion = pi.GetIpcSubscriber<int>("Moodles.Version");
         _moodlesOnChange = pi.GetIpcSubscriber<IPlayerCharacter, object>("Moodles.StatusManagerModified");
         _moodlesGetStatus = pi.GetIpcSubscriber<string, string>("Moodles.GetStatusManagerByName");
-        _moodlesSetStatus = pi.GetIpcSubscriber<string, string, object>("GagSpeak.SetStatusManagerByName");
-        _moodlesRevertStatus = pi.GetIpcSubscriber<string, object>("GagSpeak.ClearStatusManagerByName");
+        _moodlesSetStatus = pi.GetIpcSubscriber<string, string, object>("Moodles.GagSpeak.SetStatusManagerByName");
+        _moodlesRevertStatus = pi.GetIpcSubscriber<string, object>("Moodles.GagSpeak.ClearStatusManagerByName");
 
         _moodlesOnChange.Subscribe(OnMoodlesChange);
 
