@@ -344,7 +344,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                         break;
 
                     case PlayerChanges.Moodles:
-                        await _ipcManager.Moodles.SetStatusAsync(handler.Address, charaData.MoodlesData).ConfigureAwait(false);
+                        await _ipcManager.Moodles.SetStatusAsync(handler.Name, charaData.MoodlesData).ConfigureAwait(false);
                         break;
 
                     case PlayerChanges.PetNames:
@@ -616,7 +616,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             Logger.LogDebug("[{applicationId}] Restoring Honorific for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
             await _ipcManager.Honorific.ClearTitleAsync(address).ConfigureAwait(false);
             Logger.LogDebug("[{applicationId}] Restoring Moodles for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
-            await _ipcManager.Moodles.RevertStatusAsync(address).ConfigureAwait(false);
+            await _ipcManager.Moodles.RevertStatusAsync(name).ConfigureAwait(false);
             Logger.LogDebug("[{applicationId}] Restoring Pet Nicknames for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
             await _ipcManager.PetNames.ClearPlayerData(address).ConfigureAwait(false);
         }
