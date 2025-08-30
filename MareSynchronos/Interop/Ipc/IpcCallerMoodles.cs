@@ -1,4 +1,5 @@
 ﻿using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using MareSynchronos.Services;
@@ -12,24 +13,23 @@ public sealed class IpcCallerMoodles : IIpcCaller
     private readonly ICallGateSubscriber<int> _moodlesApiVersion;
     private readonly ICallGateSubscriber<IPlayerCharacter, object> _moodlesOnChange;
     private readonly ICallGateSubscriber<string, string> _moodlesGetStatus;
-    private readonly ICallGateSubscriber<string, string, object> _moodlesSetStatus;
-    private readonly ICallGateSubscriber<string, object> _moodlesRevertStatus;
     private readonly ILogger<IpcCallerMoodles> _logger;
     private readonly DalamudUtilService _dalamudUtil;
     private readonly MareMediator _mareMediator;
+
+    IDalamudPluginInterface _pi;
 
     public IpcCallerMoodles(ILogger<IpcCallerMoodles> logger, IDalamudPluginInterface pi, DalamudUtilService dalamudUtil,
         MareMediator mareMediator)
     {
         _logger = logger;
+        _pi = pi;
         _dalamudUtil = dalamudUtil;
         _mareMediator = mareMediator;
 
         _moodlesApiVersion = pi.GetIpcSubscriber<int>("Moodles.Version");
         _moodlesOnChange = pi.GetIpcSubscriber<IPlayerCharacter, object>("Moodles.StatusManagerModified");
         _moodlesGetStatus = pi.GetIpcSubscriber<string, string>("Moodles.GetStatusManagerByName");
-        _moodlesSetStatus = pi.GetIpcSubscriber<string, string, object>("GagSpeak.SetStatusManagerByName");
-        _moodlesRevertStatus = pi.GetIpcSubscriber<string, object>("GagSpeak.ClearStatusManagerByName");
 
         _moodlesOnChange.Subscribe(OnMoodlesChange);
 
@@ -81,7 +81,7 @@ public sealed class IpcCallerMoodles : IIpcCaller
         if (!APIAvailable) return;
         try
         {
-            await _dalamudUtil.RunOnFrameworkThread(() => _moodlesSetStatus.InvokeAction(playerName, status)).ConfigureAwait(false);
+            await _dalamudUtil.RunOnFrameworkThread(() => _pi.GetIpcProvider<string, string, object>("GagSpeak.SetStatusManagerByName").SendMessage(playerName, status)).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -94,7 +94,7 @@ public sealed class IpcCallerMoodles : IIpcCaller
         if (!APIAvailable) return;
         try
         {
-            await _dalamudUtil.RunOnFrameworkThread(() => _moodlesRevertStatus.InvokeAction(playerName)).ConfigureAwait(false);
+            await _dalamudUtil.RunOnFrameworkThread(() => _pi.GetIpcProvider<string, object>("GagSpeak.ClearStatusManagerByName").SendMessage(playerName)).ConfigureAwait(false);
         }
         catch (Exception e)
         {
