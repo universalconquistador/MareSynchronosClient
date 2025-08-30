@@ -36,9 +36,19 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
         {
             _logger.LogInformation("Migrating Server Config V2 => V3");
             var centralServer = serverConfigService.Current.ServerStorage.Find(f => f.ServerName.Equals("Mare Sempiterne.io Server", StringComparison.Ordinal));
+            var devServer = serverConfigService.Current.ServerStorage.Find(f => f.ServerUri.Equals("wss://dev.maresempiterne.io", StringComparison.Ordinal));
             if (centralServer != null)
             {
                 centralServer.ServerName = ApiController.MainServer;
+                centralServer.ServerUri = ApiController.MainServiceUri;
+            }
+            if (devServer != null)
+            {
+                _logger.LogInformation("Setting dev server information.");
+                var mainUri = new Uri(ApiController.MainServiceUri);
+                var newDev = $"{mainUri.Scheme}://dev.{mainUri.Host}";
+                devServer.ServerName = ApiController.MainServer + " - Dev";
+                devServer.ServerUri = newDev;
             }
             serverConfigService.Current.Version = 3;
             serverConfigService.Save();

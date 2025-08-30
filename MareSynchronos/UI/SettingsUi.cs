@@ -1949,7 +1949,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.SameLine();
         if (ImGui.Button("Player Sync Discord"))
         {
-            Util.OpenLink("https://discord.gg/mpNdkrTRjW");
+            Util.OpenLink("https://discord.gg/playersync");
         }
         ImGui.Separator();
         if (ImGui.BeginTabBar("mainTabBar"))
