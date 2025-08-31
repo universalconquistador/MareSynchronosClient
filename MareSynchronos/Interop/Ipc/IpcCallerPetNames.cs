@@ -30,15 +30,15 @@ public sealed class IpcCallerPetNames : IIpcCaller
         _dalamudUtil = dalamudUtil;
         _mareMediator = mareMediator;
 
-        _petnamesReady = pi.GetIpcSubscriber<object>("PetRenamer.Ready");
-        _petnamesDisposing = pi.GetIpcSubscriber<object>("PetRenamer.Disposing");
+        _petnamesReady = pi.GetIpcSubscriber<object>("PetRenamer.OnReady");
+        _petnamesDisposing = pi.GetIpcSubscriber<object>("PetRenamer.OnDisposing");
         _apiVersion = pi.GetIpcSubscriber<(uint, uint)>("PetRenamer.ApiVersion");
-        _enabled = pi.GetIpcSubscriber<bool>("PetRenamer.Enabled");
+        _enabled = pi.GetIpcSubscriber<bool>("PetRenamer.IsEnabled");
 
-        _playerDataChanged = pi.GetIpcSubscriber<string, object>("PetRenamer.PlayerDataChanged");
+        _playerDataChanged = pi.GetIpcSubscriber<string, object>("PetRenamer.OnPlayerDataChanged");
         _getPlayerData = pi.GetIpcSubscriber<string>("PetRenamer.GetPlayerData");
         _setPlayerData = pi.GetIpcSubscriber<string, object>("PetRenamer.SetPlayerData");
-        _clearPlayerData = pi.GetIpcSubscriber<ushort, object>("PetRenamer.ClearPlayerData");
+        _clearPlayerData = pi.GetIpcSubscriber<ushort, object>("PetRenamer.ClearPlayerIPCData");
 
         _petnamesReady.Subscribe(OnPetNicknamesReady);
         _petnamesDisposing.Subscribe(OnPetNicknamesDispose);
@@ -56,7 +56,7 @@ public sealed class IpcCallerPetNames : IIpcCaller
             APIAvailable = _enabled?.InvokeFunc() ?? false;
             if (APIAvailable)
             {
-                APIAvailable = _apiVersion?.InvokeFunc() is { Item1: 3, Item2: >= 1 };
+                APIAvailable = _apiVersion?.InvokeFunc() is { Item1: 4, Item2: >= 0 };
             }
         }
         catch
@@ -84,7 +84,7 @@ public sealed class IpcCallerPetNames : IIpcCaller
         {
             string localNameData = _getPlayerData.InvokeFunc();
             return string.IsNullOrEmpty(localNameData) ? string.Empty : localNameData;
-        } 
+        }
         catch (Exception e)
         {
             _logger.LogWarning(e, "Could not obtain Pet Nicknames data");
