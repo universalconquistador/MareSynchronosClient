@@ -560,10 +560,10 @@ internal sealed partial class CharaDataHubUi
 
     private void DrawMcdOnline()
     {
-        _uiSharedService.BigText("Mare Character Data Online");
+        _uiSharedService.BigText("Player Sync Character Data Online");
 
-        DrawHelpFoldout("In this tab you can create, view and edit your own Mare Character Data that is stored on the server." + Environment.NewLine + Environment.NewLine
-            + "Mare Character Data Online functions similar to the previous MCDF standard for exporting your character, except that you do not have to send a file to the other person but solely a code." + Environment.NewLine + Environment.NewLine
+        DrawHelpFoldout("In this tab you can create, view and edit your own Player Sync Character Data that is stored on the server." + Environment.NewLine + Environment.NewLine
+            + "Player Sync Character Data Online functions similar to the previous MCDF standard for exporting your character, except that you do not have to send a file to the other person but solely a code." + Environment.NewLine + Environment.NewLine
             + "There would be a bit too much to explain here on what you can do here in its entirety, however, all elements in this tab have help texts attached what they are used for. Please review them carefully." + Environment.NewLine + Environment.NewLine
             + "Be mindful that when you share your Character Data with other people there is a chance that, with the help of unsanctioned 3rd party plugins, your appearance could be stolen irreversibly, just like when using MCDF.");
 

@@ -13,7 +13,7 @@ namespace MareSynchronos.Services;
 
 public sealed class CommandManagerService : IDisposable
 {
-    private const string _commandName = "/mare";
+    private const string _commandName = "/sync";
 
     private readonly ApiController _apiController;
     private readonly ICommandManager _commandManager;
@@ -36,13 +36,13 @@ public sealed class CommandManagerService : IDisposable
         _mareConfigService = mareConfigService;
         _commandManager.AddHandler(_commandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Opens the Mare Synchronos UI" + Environment.NewLine + Environment.NewLine +
+            HelpMessage = "Opens the Player Sync UI" + Environment.NewLine + Environment.NewLine +
                 "Additionally possible commands:" + Environment.NewLine +
-                "\t /mare toggle - Disconnects from Mare, if connected. Connects to Mare, if disconnected" + Environment.NewLine +
-                "\t /mare toggle on|off - Connects or disconnects to Mare respectively" + Environment.NewLine +
-                "\t /mare gpose - Opens the Mare Character Data Hub window" + Environment.NewLine +
-                "\t /mare analyze - Opens the Mare Character Data Analysis window" + Environment.NewLine +
-                "\t /mare settings - Opens the Mare Settings window"
+                "\t /sync toggle - Disconnects from Player Sync, if connected. Connects to Player Sync, if disconnected" + Environment.NewLine +
+                "\t /sync toggle on|off - Connects or disconnects to Player Sync respectively" + Environment.NewLine +
+                "\t /sync gpose - Opens the Player Sync Character Data Hub window" + Environment.NewLine +
+                "\t /sync analyze - Opens the Player Sync Character Data Analysis window" + Environment.NewLine +
+                "\t /sync settings - Opens the Player Sync Settings window"
         });
     }
 
@@ -72,7 +72,7 @@ public sealed class CommandManagerService : IDisposable
         {
             if (_apiController.ServerState == WebAPI.SignalR.Utils.ServerState.Disconnecting)
             {
-                _mediator.Publish(new NotificationMessage("Mare disconnecting", "Cannot use /toggle while Mare Synchronos is still disconnecting",
+                _mediator.Publish(new NotificationMessage("Player Sync", "Cannot use /toggle while Player Sync is still disconnecting",
                     NotificationType.Error));
             }
 

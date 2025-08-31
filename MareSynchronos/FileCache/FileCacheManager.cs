@@ -418,7 +418,7 @@ public sealed class FileCacheManager : IHostedService
             if (!_ipcManager.Penumbra.APIAvailable || string.IsNullOrEmpty(_ipcManager.Penumbra.ModDirectory))
             {
                 _mareMediator.Publish(new NotificationMessage("Penumbra not connected",
-                    "Could not load local file cache data. Penumbra is not connected or not properly set up. Please enable and/or configure Penumbra properly to use Mare. After, reload Mare in the Plugin installer.",
+                    "Could not load local file cache data. Penumbra is not connected or not properly set up. Please enable and/or configure Penumbra properly to use Player Sync. After, reload Player Sync in the Plugin installer.",
                     MareConfiguration.Models.NotificationType.Error));
             }
 
