@@ -32,7 +32,7 @@ public sealed class IpcCallerPetNames : IIpcCaller
 
         _petnamesReady = pi.GetIpcSubscriber<object>("PetRenamer.OnReady");
         _petnamesDisposing = pi.GetIpcSubscriber<object>("PetRenamer.OnDisposing");
-        _apiVersion = pi.GetIpcSubscriber<(uint, uint)>("PetRenamer.GetApiVersion");
+        _apiVersion = pi.GetIpcSubscriber<(uint, uint)>("PetRenamer.ApiVersion");
         _enabled = pi.GetIpcSubscriber<bool>("PetRenamer.IsEnabled");
 
         _playerDataChanged = pi.GetIpcSubscriber<string, object>("PetRenamer.OnPlayerDataChanged");
