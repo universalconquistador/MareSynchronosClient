@@ -38,7 +38,7 @@ public sealed class IpcCallerPetNames : IIpcCaller
         _playerDataChanged = pi.GetIpcSubscriber<string, object>("PetRenamer.OnPlayerDataChanged");
         _getPlayerData = pi.GetIpcSubscriber<string>("PetRenamer.GetPlayerData");
         _setPlayerData = pi.GetIpcSubscriber<string, object>("PetRenamer.SetPlayerData");
-        _clearPlayerData = pi.GetIpcSubscriber<ushort, object>("PetRenamer.ClearPlayerData");
+        _clearPlayerData = pi.GetIpcSubscriber<ushort, object>("PetRenamer.ClearPlayerIPCData");
 
         _petnamesReady.Subscribe(OnPetNicknamesReady);
         _petnamesDisposing.Subscribe(OnPetNicknamesDispose);
