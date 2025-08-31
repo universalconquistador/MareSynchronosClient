@@ -37,11 +37,15 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             _logger.LogInformation("Migrating Server Config V2 => V3");
             var centralServer = serverConfigService.Current.ServerStorage.Find(f => f.ServerName.Equals("Mare Sempiterne.io Server", StringComparison.Ordinal));
             var devServer = serverConfigService.Current.ServerStorage.Find(f => f.ServerUri.Equals("wss://dev.maresempiterne.io", StringComparison.Ordinal));
+
+            // Migrate the main entry server
             if (centralServer != null)
             {
                 centralServer.ServerName = ApiController.MainServer;
                 centralServer.ServerUri = ApiController.MainServiceUri;
             }
+
+            // Migrate dev, if we have one defined
             if (devServer != null)
             {
                 _logger.LogInformation("Setting dev server information.");
@@ -50,6 +54,15 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
                 devServer.ServerName = ApiController.MainServer + " - Dev";
                 devServer.ServerUri = newDev;
             }
+
+            // The startup checks if the 1st entry matches the ServiceURI constants before we get here
+            // Since it doesn't, until we migrate, we get a duplicate entry we must remove
+            serverConfigService.Current.ServerStorage.RemoveAll(f => f.SecretKeys == null || !f.SecretKeys.Any());
+
+            // Reset us back to the first server in the list
+            serverConfigService.Current.CurrentServer = 0;
+
+            // Bump server.json for migration code flow
             serverConfigService.Current.Version = 3;
             serverConfigService.Save();
         }
