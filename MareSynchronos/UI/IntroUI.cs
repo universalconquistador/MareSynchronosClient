@@ -211,7 +211,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 
             if (ImGui.Button("Join the Player Sync Discord"))
             {
-                Util.OpenLink("https://discord.gg/playersync");
+                Util.OpenLink("https://discord.gg/BzaqbfFFmn");
             }
 
             UiSharedService.TextWrapped("For all other non official services you will have to contact the appropriate service provider how to obtain a secret key.");

@@ -72,7 +72,7 @@ public sealed class CommandManagerService : IDisposable
         {
             if (_apiController.ServerState == WebAPI.SignalR.Utils.ServerState.Disconnecting)
             {
-                _mediator.Publish(new NotificationMessage("Player Sync", "Cannot use /toggle while Player Sync is still disconnecting",
+                _mediator.Publish(new NotificationMessage("Player Sync disconnecting", "Cannot use /toggle while Player Sync is still disconnecting",
                     NotificationType.Error));
             }
 
