@@ -63,7 +63,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     // theme state
     private ThemePalette _theme = new();         
     private ThemePalette _themeWorking = new();   
-    private string _selectedPreset = "Blue";
+    private string _selectedPreset = "Player Sync";
     private bool _showThemeInline = false;
     private ThemePalette _themeBeforeEdit = new();
     private enum SurfaceBg { Popup, Window } 

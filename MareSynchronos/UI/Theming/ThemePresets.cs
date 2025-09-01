@@ -491,5 +491,67 @@ public static class ThemePresets
             Link = new(0.65f, 0.77f, 0.55f, 1.00f),
             LinkHover = new(0.76f, 0.86f, 0.66f, 1.00f),
         },
+
+        ["Royal Floof"] = new ThemePalette
+        {
+            PanelBg = new(0.02f, 0.02f, 0.02f, 0.98f),
+            PanelBorder = new(0.50f, 0.50f, 0.50f, 1.00f),
+            HeaderBg = new(0.06f, 0.06f, 0.06f, 1.00f),
+
+            Accent = new(0.20f, 1.00f, 0.35f, 1.00f),
+
+            TextPrimary = new(0.20f, 1.00f, 0.35f, 1.00f),
+            TextSecondary = new(0.50f, 0.95f, 0.55f, 1.00f),
+            TextDisabled = new(0.30f, 0.60f, 0.35f, 1.00f),
+
+            Link = new(0.30f, 1.00f, 0.50f, 1.00f),
+            LinkHover = new(0.40f, 1.00f, 0.60f, 1.00f),
+
+            Btn = new(0.08f, 0.08f, 0.08f, 1.00f),
+            BtnHovered = new(0.20f, 1.00f, 0.35f, 1.00f),
+            BtnActive = new(0.12f, 0.60f, 0.25f, 1.00f),
+        },
+
+        ["Player Sync"] = new ThemePalette
+        {
+            PanelBg = new(0.06f, 0.07f, 0.10f, 0.98f),
+
+            PanelBorder = new(0.45f, 0.55f, 0.65f, 1.00f),
+
+            HeaderBg = new(0.12f, 0.18f, 0.28f, 1.00f),
+
+            Accent = new(0.25f, 0.55f, 0.95f, 1.00f),
+
+            TextPrimary = new(0.82f, 0.88f, 1.00f, 1.00f),   
+            TextSecondary = new(0.66f, 0.72f, 0.84f, 1.00f),   
+            TextDisabled = new(0.45f, 0.50f, 0.60f, 1.00f),   
+
+            Link = new(0.35f, 0.75f, 1.00f, 1.00f),
+            LinkHover = new(0.55f, 0.85f, 1.00f, 1.00f),
+
+            Btn = new(0.12f, 0.16f, 0.22f, 1.00f),
+            BtnHovered = new(0.25f, 0.55f, 0.95f, 1.00f),
+            BtnActive = new(0.18f, 0.40f, 0.75f, 1.00f),
+        },
+
+        ["Diavolish"] = new ThemePalette
+        {
+            PanelBg = new(0.05f, 0.05f, 0.05f, 0.98f),
+            PanelBorder = new(0.40f, 0.40f, 0.40f, 1.00f),
+            HeaderBg = new(0.12f, 0.08f, 0.08f, 1.00f),
+            Accent = new(0.90f, 0.15f, 0.15f, 1.00f),
+
+            TextPrimary = new(1.00f, 0.95f, 0.95f, 1.00f), // white-pink tint
+            TextSecondary = new(0.85f, 0.70f, 0.70f, 1.00f),
+            TextDisabled = new(0.55f, 0.35f, 0.35f, 1.00f),
+
+            Link = new(0.95f, 0.25f, 0.25f, 1.00f),
+            LinkHover = new(1.00f, 0.40f, 0.40f, 1.00f),
+
+            Btn = new(0.12f, 0.12f, 0.12f, 1.00f),
+            BtnHovered = new(0.90f, 0.20f, 0.20f, 1.00f),
+            BtnActive = new(0.70f, 0.15f, 0.15f, 1.00f),
+        }
+
     };
 }
