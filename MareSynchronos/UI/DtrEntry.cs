@@ -88,7 +88,7 @@ public sealed class DtrEntry : IDisposable, IHostedService
     private IDtrBarEntry CreateEntry()
     {
         _logger.LogTrace("Creating new DtrBar entry");
-        var entry = _dtrBar.Get("Mare Synchronos");
+        var entry = _dtrBar.Get("Player Sync");
         entry.OnClick = _ => _mareMediator.Publish(new UiToggleMessage(typeof(CompactUi)));
 
         return entry;
@@ -146,19 +146,19 @@ public sealed class DtrEntry : IDisposable, IHostedService
                         .Select(x => string.Format("{0}", _configService.Current.PreferNoteInDtrTooltip ? x.GetNote() ?? x.PlayerName : x.PlayerName));
                 }
 
-                tooltip = $"Mare Synchronos: Connected{Environment.NewLine}----------{Environment.NewLine}{string.Join(Environment.NewLine, visiblePairs)}";
+                tooltip = $"Player Sync: Connected{Environment.NewLine}----------{Environment.NewLine}{string.Join(Environment.NewLine, visiblePairs)}";
                 colors = _configService.Current.DtrColorsPairsInRange;
             }
             else
             {
-                tooltip = "Mare Synchronos: Connected";
+                tooltip = "Player Sync: Connected";
                 colors = _configService.Current.DtrColorsDefault;
             }
         }
         else
         {
             text = "\uE044 \uE04C";
-            tooltip = "Mare Synchronos: Not Connected";
+            tooltip = "Player Sync: Not Connected";
             colors = _configService.Current.DtrColorsNotConnected;
         }
 

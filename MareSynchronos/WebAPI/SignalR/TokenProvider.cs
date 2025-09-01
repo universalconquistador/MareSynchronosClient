@@ -115,10 +115,10 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
             if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
                 if (isRenewal)
-                    Mediator.Publish(new NotificationMessage("Error refreshing token", "Your authentication token could not be renewed. Try reconnecting to Mare manually.",
+                    Mediator.Publish(new NotificationMessage("Error refreshing token", "Your authentication token could not be renewed. Try reconnecting to Player Sync manually.",
                     NotificationType.Error));
                 else
-                    Mediator.Publish(new NotificationMessage("Error generating token", "Your authentication token could not be generated. Check Mares Main UI (/mare in chat) to see the error message.",
+                    Mediator.Publish(new NotificationMessage("Error generating token", "Your authentication token could not be generated. Check Player Sync Main UI (/sync in chat) to see the error message.",
                     NotificationType.Error));
                 Mediator.Publish(new DisconnectedMessage());
                 throw new MareAuthFailureException(response);
@@ -139,7 +139,7 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
         {
             _tokenCache.TryRemove(identifier, out _);
             Mediator.Publish(new NotificationMessage("Invalid system clock", "The clock of your computer is invalid. " +
-                "Mare will not function properly if the time zone is not set correctly. " +
+                "Player Sync will not function properly if the time zone is not set correctly. " +
                 "Please set your computers time zone correctly and keep your clock synchronized with the internet.",
                 NotificationType.Error));
             throw new InvalidOperationException($"JwtToken is behind DateTime.UtcNow, DateTime.UtcNow is possibly wrong. DateTime.UtcNow is {DateTime.UtcNow}, JwtToken.ValidTo is {jwtToken.ValidTo}");

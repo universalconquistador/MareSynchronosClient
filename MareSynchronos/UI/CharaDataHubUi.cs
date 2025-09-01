@@ -79,7 +79,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
                          UiSharedService uiSharedService, ServerConfigurationManager serverConfigurationManager,
                          DalamudUtilService dalamudUtilService, FileDialogManager fileDialogManager, PairManager pairManager,
                          CharaDataGposeTogetherManager charaDataGposeTogetherManager)
-        : base(logger, mediator, "Mare Synchronos Character Data Hub###MareSynchronosCharaDataUI", performanceCollectorService)
+        : base(logger, mediator, "Player Sync Character Data Hub###MareSynchronosCharaDataUI", performanceCollectorService)
     {
         SetWindowSizeConstraints();
 
@@ -865,7 +865,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
     {
         _uiSharedService.BigText("Mare Character Data File Export");
 
-        DrawHelpFoldout("This feature allows you to pack your character into a MCDF file and manually send it to other people. MCDF files can officially only be imported during GPose through Mare. " +
+        DrawHelpFoldout("This feature allows you to pack your character into a MCDF file and manually send it to other people. MCDF files can officially only be imported during GPose through Player Sync. " +
             "Be aware that the possibility exists that people write unofficial custom exporters to extract the containing data.");
 
         ImGuiHelpers.ScaledDummy(5);
@@ -1054,7 +1054,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
             _configService.Current.OpenMareHubOnGposeStart = openInGpose;
             _configService.Save();
         }
-        _uiSharedService.DrawHelpText("This will automatically open the import menu when loading into Gpose. If unchecked you can open the menu manually with /mare gpose");
+        _uiSharedService.DrawHelpText("This will automatically open the import menu when loading into Gpose. If unchecked you can open the menu manually with /sync gpose");
         bool downloadDataOnConnection = _configService.Current.DownloadMcdDataOnConnection;
         if (ImGui.Checkbox("Download MCD Online Data on connecting", ref downloadDataOnConnection))
         {

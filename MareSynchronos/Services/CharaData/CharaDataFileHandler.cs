@@ -291,7 +291,7 @@ public sealed class CharaDataFileHandler : IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failure Saving Mare Chara File, deleting output");
+            _logger.LogError(ex, "Failure Saving Player Sync Chara File, deleting output");
             File.Delete(tempFilePath);
         }
     }

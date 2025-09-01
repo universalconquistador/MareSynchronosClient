@@ -126,7 +126,7 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
             {
                 _shownPenumbraUnavailable = true;
                 _mareMediator.Publish(new NotificationMessage("Penumbra inactive",
-                    "Your Penumbra installation is not active or out of date. Update Penumbra and/or the Enable Mods setting in Penumbra to continue to use Mare. If you just updated Penumbra, ignore this message.",
+                    "Your Penumbra installation is not active or out of date. Update Penumbra and/or the Enable Mods setting in Penumbra to continue to use Player Sync. If you just updated Penumbra, ignore this message.",
                     NotificationType.Error));
             }
         }
@@ -215,15 +215,11 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
 
         return await _dalamudUtil.RunOnFrameworkThread(() =>
         {
-            // Collection name can stay as you had it.
             var collectionName = $"Mare_{uid}";
 
-            // New requirement: provide an identity string.
-            // Keep it stable and attributable to your plugin.
-            // If you can, prefer a constant like your plugin’s internal name.
-            var identity = "MareSempiterne"; // or "MareSynchronos" / _pi.InternalName if available
+            // New requirement in API6: provide an identity string.
+            var identity = "PlayerSync";
 
-            // New IPC: returns error code + out Guid
             var ec = _penumbraCreateNamedTemporaryCollection.Invoke(identity, collectionName, out var collId);
 
             if (ec != PenumbraApiEc.Success || collId == Guid.Empty)

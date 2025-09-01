@@ -37,7 +37,7 @@ public static class Strings
             "The service holds no information about which mod files belong to which mod.");
 
         public readonly string Paragraph6 = Loc.Localize("Paragraph6",
-            "This service is provided as-is. In case of abuse join the Mare Synchronos Discord.");
+            "This service is provided as-is. In case of abuse join the Player Sync Discord.");
 
         public readonly string ReadLabel = Loc.Localize("ReadLabel", "READ THIS CAREFULLY");
     }
