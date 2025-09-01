@@ -57,7 +57,11 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
 
             // The startup checks if the 1st entry matches the ServiceURI constants before we get here
             // Since it doesn't, until we migrate, we get a duplicate entry we must remove
-            serverConfigService.Current.ServerStorage.RemoveAll(f => f.SecretKeys == null || !f.SecretKeys.Any());
+            // For fresh installs we need to ensure we don't remove the default entry
+            if (serverConfigService.Current.ServerStorage.Count > 1)
+            {
+                serverConfigService.Current.ServerStorage.RemoveAll(f => f.SecretKeys == null || !f.SecretKeys.Any());
+            }
 
             // Reset us back to the first server in the list
             serverConfigService.Current.CurrentServer = 0;
