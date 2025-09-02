@@ -1,0 +1,16 @@
+name: Deploy to Production
+
+on: workflow_dispatch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all workflow run artifacts
+        uses: actions/download-artifact@v4
+      - name: Re-zip plugin
+        run: zip -r latest.zip MareSempiterne
+      - name: Deploy plugin to prod environment
+        run: >
+          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@MareSempiterneManifest/MareSempiterne.json" https://playersync.io/redux/deploy/client-manifest &&
+          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@latest.zip" https://playersync.io/redux/deploy/client-package/install
