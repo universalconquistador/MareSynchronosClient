@@ -6,11 +6,30 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Download all workflow run artifacts
-        uses: actions/download-artifact@v4
-      - name: Re-zip plugin
-        run: zip -r latest.zip MareSempiterne
-      - name: Deploy plugin to prod environment
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+          token: ${{ secrets.CI_TOKEN }}
+      - name: Download Dalamud binaries
+        run: curl --output /home/runner/dalamud-distrib.zip -L "https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/latest.zip"
+      - name: Extract Dalamud binaries
+        run: unzip /home/runner/dalamud-distrib.zip -d /home/runner/dalamud-distrib
+      - name: List dalamud files
+        run: ls /home/runner/dalamud-distrib
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Restore dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+        env:
+          DALAMUD_HOME: /home/runner/dalamud-distrib
+
+      - name: Deploy plugin to dev environment
         run: >
-          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@MareSempiterneManifest/MareSempiterne.json" https://playersync.io/redux/deploy/client-manifest &&
-          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@latest.zip" https://playersync.io/redux/deploy/client-package/install
+          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne.json" https://playersync.io/redux/deploy/client-manifest &&
+          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@MareSynchronos/bin/x64/Release/MareSempiterne/latest.zip" https://playersync.io/redux/deploy/client-package/install
+
