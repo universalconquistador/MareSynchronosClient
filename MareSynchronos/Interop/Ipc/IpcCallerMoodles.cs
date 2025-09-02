@@ -1,5 +1,4 @@
 ﻿using Dalamud.Game.ClientState.Objects.SubKinds;
-using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using MareSynchronos.Services;
@@ -12,24 +11,25 @@ public sealed class IpcCallerMoodles : IIpcCaller
 {
     private readonly ICallGateSubscriber<int> _moodlesApiVersion;
     private readonly ICallGateSubscriber<IPlayerCharacter, object> _moodlesOnChange;
-    private readonly ICallGateSubscriber<string, string> _moodlesGetStatus;
+    private readonly ICallGateSubscriber<nint, string> _moodlesGetStatus;
+    private readonly ICallGateSubscriber<nint, string, object> _moodlesSetStatus;
+    private readonly ICallGateSubscriber<nint, object> _moodlesRevertStatus;
     private readonly ILogger<IpcCallerMoodles> _logger;
     private readonly DalamudUtilService _dalamudUtil;
     private readonly MareMediator _mareMediator;
-
-    IDalamudPluginInterface _pi;
 
     public IpcCallerMoodles(ILogger<IpcCallerMoodles> logger, IDalamudPluginInterface pi, DalamudUtilService dalamudUtil,
         MareMediator mareMediator)
     {
         _logger = logger;
-        _pi = pi;
         _dalamudUtil = dalamudUtil;
         _mareMediator = mareMediator;
 
         _moodlesApiVersion = pi.GetIpcSubscriber<int>("Moodles.Version");
         _moodlesOnChange = pi.GetIpcSubscriber<IPlayerCharacter, object>("Moodles.StatusManagerModified");
-        _moodlesGetStatus = pi.GetIpcSubscriber<string, string>("Moodles.GetStatusManagerByName");
+        _moodlesGetStatus = pi.GetIpcSubscriber<nint, string>("Moodles.GetStatusManagerByPtrV2");
+        _moodlesSetStatus = pi.GetIpcSubscriber<nint, string, object>("Moodles.SetStatusManagerByPtrV2");
+        _moodlesRevertStatus = pi.GetIpcSubscriber<nint, object>("Moodles.ClearStatusManagerByPtrV2");
 
         _moodlesOnChange.Subscribe(OnMoodlesChange);
 
@@ -47,7 +47,7 @@ public sealed class IpcCallerMoodles : IIpcCaller
     {
         try
         {
-            APIAvailable = _moodlesApiVersion.InvokeFunc() == 1;
+            APIAvailable = _moodlesApiVersion.InvokeFunc() == 3;
         }
         catch
         {
@@ -60,13 +60,13 @@ public sealed class IpcCallerMoodles : IIpcCaller
         _moodlesOnChange.Unsubscribe(OnMoodlesChange);
     }
 
-    public async Task<string?> GetStatusAsync(string playerName)
+    public async Task<string?> GetStatusAsync(nint address)
     {
         if (!APIAvailable) return null;
 
         try
         {
-            return await _dalamudUtil.RunOnFrameworkThread(() => _moodlesGetStatus.InvokeFunc(playerName)).ConfigureAwait(false);
+            return await _dalamudUtil.RunOnFrameworkThread(() => _moodlesGetStatus.InvokeFunc(address)).ConfigureAwait(false);
 
         }
         catch (Exception e)
@@ -76,12 +76,12 @@ public sealed class IpcCallerMoodles : IIpcCaller
         }
     }
 
-    public async Task SetStatusAsync(string playerName, string status)
+    public async Task SetStatusAsync(nint pointer, string status)
     {
         if (!APIAvailable) return;
         try
         {
-            await _dalamudUtil.RunOnFrameworkThread(() => _pi.GetIpcProvider<string, string, object>("GagSpeak.SetStatusManagerByName").SendMessage(playerName, status)).ConfigureAwait(false);
+            await _dalamudUtil.RunOnFrameworkThread(() => _moodlesSetStatus.InvokeAction(pointer, status)).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -89,12 +89,12 @@ public sealed class IpcCallerMoodles : IIpcCaller
         }
     }
 
-    public async Task RevertStatusAsync(string playerName)
+    public async Task RevertStatusAsync(nint pointer)
     {
         if (!APIAvailable) return;
         try
         {
-            await _dalamudUtil.RunOnFrameworkThread(() => _pi.GetIpcProvider<string, object>("GagSpeak.ClearStatusManagerByName").SendMessage(playerName)).ConfigureAwait(false);
+            await _dalamudUtil.RunOnFrameworkThread(() => _moodlesRevertStatus.InvokeAction(pointer)).ConfigureAwait(false);
         }
         catch (Exception e)
         {
