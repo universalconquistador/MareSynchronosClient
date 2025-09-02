@@ -216,7 +216,7 @@ public class PlayerDataFactory
             playerFragment!.HeelsData = await getHeelsOffset.ConfigureAwait(false);
             _logger.LogDebug("Heels is now: {heels}", playerFragment!.HeelsData);
 
-            playerFragment!.MoodlesData = await _ipcManager.Moodles.GetStatusAsync(playerRelatedObject.Name).ConfigureAwait(false) ?? string.Empty;
+            playerFragment!.MoodlesData = await _ipcManager.Moodles.GetStatusAsync(playerRelatedObject.Address).ConfigureAwait(false) ?? string.Empty;
             _logger.LogDebug("Moodles is now: {moodles}", playerFragment!.MoodlesData);
 
             playerFragment!.PetNamesData = _ipcManager.PetNames.GetLocalNames();
