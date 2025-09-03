@@ -45,10 +45,10 @@ public partial class ApiController
         await _mareHub!.SendAsync(nameof(GroupClear), group).ConfigureAwait(false);
     }
 
-    public async Task<GroupJoinDto> GroupCreate()
+    public async Task<GroupJoinDto> GroupCreate(bool showNsfwWarning)
     {
         CheckConnection();
-        return await _mareHub!.InvokeAsync<GroupJoinDto>(nameof(GroupCreate)).ConfigureAwait(false);
+        return await _mareHub!.InvokeAsync<GroupJoinDto>(nameof(GroupCreate), showNsfwWarning).ConfigureAwait(false);
     }
 
     public async Task<List<string>> GroupCreateTempInvite(GroupDto group, int amount)
