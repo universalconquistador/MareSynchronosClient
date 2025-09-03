@@ -1,7 +1,9 @@
-# Mare Synchronos Dalamud Plugin
+# Player Sync Dalamud Plugin
 
-Available at [This dalamud Repo](https://raw.githubusercontent.com/MareSynchronos/repo/main/plogonmaster.json)
+Available at [This dalamud Repo](https://playersync.io/download/plugin/repo.json)
 
-# [Mare Synchronos Discord](https://discord.gg/5HVveFefcB)
+# [Player Sync Discord](https://discord.gg/BzaqbfFFmn)
 
-Readme TBD
+A fork of the late great Mare Synchronos that synchronizes your FFXIV mods with other players.
+
+So far this fork is compatible with the final version of the classic Mare API, though we have added some optional extensions to the API.
