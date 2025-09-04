@@ -1,4 +1,5 @@
 ﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
@@ -94,6 +95,15 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         else
         {
             ImGui.TextUnformatted("You are about to join the Syncshell " + _groupJoinInfo.GroupAliasOrGID + " by " + _groupJoinInfo.OwnerAliasOrUID);
+            ImGuiHelpers.ScaledDummy(2f);
+            if (_groupJoinInfo.ShowNsfwWarning ?? false)
+            {
+                _uiSharedService.IconText(FontAwesomeIcon.HeartCircleExclamation, ImGuiColors.DalamudRed);
+                ImGui.SameLine(35 * ImGuiHelpers.GlobalScale);
+                ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "Not Safe for Work (NSFW): " + Environment.NewLine +
+                    "The staff of this Syncshell have indicated that this Syncshell permits some degree of NSFW content. " + Environment.NewLine +
+                    "Note that you are still expected to be aware of, and follow, any rules set by the staff of this Syncshell.");
+            }
             ImGuiHelpers.ScaledDummy(2f);
             ImGui.TextUnformatted("This Syncshell staff has set the following suggested Syncshell permissions:");
             ImGui.AlignTextToFramePadding();
