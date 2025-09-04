@@ -36,6 +36,7 @@ public class DrawFolderGroup : DrawFolderBase
     private bool IsModerator => IsOwner || _groupFullInfoDto.GroupUserInfo.IsModerator();
     private bool IsOwner => string.Equals(_groupFullInfoDto.OwnerUID, _apiController.UID, StringComparison.Ordinal);
     private bool IsPinned => _groupFullInfoDto.GroupUserInfo.IsPinned();
+    private bool ShowNsfwWarning => _groupFullInfoDto.ShowNsfwWarning ?? false;
 
     protected override float DrawIcon()
     {
@@ -74,6 +75,20 @@ public class DrawFolderGroup : DrawFolderBase
             ImGui.AlignTextToFramePadding();
             _uiSharedService.IconText(FontAwesomeIcon.Thumbtack);
             UiSharedService.AttachToolTip("You are pinned in " + _groupFullInfoDto.GroupAliasOrGID);
+        }
+        ImGui.SameLine();
+        if (ShowNsfwWarning)
+        {
+            string staffText = "The staff of this syncshell";
+            if (IsOwner || IsModerator)
+            {
+                staffText = "You";
+            }
+            ImGui.AlignTextToFramePadding();
+            _uiSharedService.IconText(FontAwesomeIcon.HeartCircleExclamation, ImGuiColors.DalamudRed);
+            UiSharedService.AttachToolTip("Not Safe for Work (NSFW): " + Environment.NewLine +
+                staffText + " have indicated that this syncshell permits some degree of NSFW content. " + Environment.NewLine +
+                "Note that you are still expected to be aware of, and follow, any rules set by the staff of this syncshell.");
         }
         ImGui.SameLine();
         return ImGui.GetCursorPosX();
