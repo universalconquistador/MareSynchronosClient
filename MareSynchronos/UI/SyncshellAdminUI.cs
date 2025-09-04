@@ -62,8 +62,22 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
         using var id = ImRaii.PushId("syncshell_admin_" + GroupFullInfo.GID);
 
+        float uidLineHeight;
         using (_uiSharedService.UidFont.Push())
+        {
             ImGui.TextUnformatted(GroupFullInfo.GroupAliasOrGID + " Administrative Panel");
+            uidLineHeight = ImGui.GetTextLineHeight();
+        }
+
+        if (GroupFullInfo.Group.ShowNsfwWarning ?? false)
+        {
+            ImGui.SameLine();
+            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + uidLineHeight / 2.0f - ImGui.GetTextLineHeight() / 2.0f + 4.0f);
+            _uiSharedService.IconText(FontAwesomeIcon.HeartCircleExclamation, ImGuiColors.DalamudRed);
+            UiSharedService.AttachToolTip("Not Safe for Work (NSFW): " + Environment.NewLine +
+                "You have indicated that this syncshell permits some degree of NSFW content. " + Environment.NewLine +
+                "Users are still expected to be aware of, and follow, any rules set by the staff of this syncshell.");
+        }
 
         ImGui.Separator();
         var perm = GroupFullInfo.GroupPermissions;

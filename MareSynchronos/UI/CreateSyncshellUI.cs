@@ -19,7 +19,6 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
     private readonly UiSharedService _uiSharedService;
     private bool _errorGroupCreate;
     private GroupJoinDto? _lastCreatedGroup;
-    private bool _createShowNsfwWarning = false;
 
     public CreateSyncshellUI(ILogger<CreateSyncshellUI> logger, MareMediator mareMediator, ApiController apiController, UiSharedService uiSharedService,
         PerformanceCollectorService performanceCollectorService)
@@ -45,11 +44,11 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
 
         if (_lastCreatedGroup == null)
         {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Create Syncshell"))
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Create SFW Syncshell"))
             {
                 try
                 {
-                    _lastCreatedGroup = _apiController.GroupCreate(_createShowNsfwWarning).Result;
+                    _lastCreatedGroup = _apiController.GroupCreate(showNsfwWarning: false).Result;
                 }
                 catch
                 {
@@ -57,7 +56,25 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
                     _errorGroupCreate = true;
                 }
             }
+            UiSharedService.AttachToolTip("By creating a Safe for Work (SFW) Syncshell, users will not be advised about the possibility of NSFW content." + Environment.NewLine +
+                "This cannot be changed later.");
             ImGui.SameLine();
+            ImGui.TextUnformatted(" OR ");
+            ImGui.SameLine();
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.HeartCircleExclamation, "Create NSFW Syncshell"))
+            {
+                try
+                {
+                    _lastCreatedGroup = _apiController.GroupCreate(showNsfwWarning: true).Result;
+                }
+                catch
+                {
+                    _lastCreatedGroup = null;
+                    _errorGroupCreate = true;
+                }
+            }
+            UiSharedService.AttachToolTip("By creating a Not Safe for Work (NSFW) Syncshell, users will be advised that it permits some degree of NSFW content." + Environment.NewLine +
+                "This cannot be changed later.");
         }
 
         ImGui.Separator();
@@ -68,12 +85,6 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
                 "- You can own up to " + _apiController.ServerInfo.MaxGroupsCreatedByUser + " Syncshells on this server." + Environment.NewLine +
                 "- You can join up to " + _apiController.ServerInfo.MaxGroupsJoinedByUser + " Syncshells on this server (including your own)" + Environment.NewLine +
                 "- Syncshells on this server can have a maximum of " + _apiController.ServerInfo.MaxGroupUserCount + " users");
-            ImGuiHelpers.ScaledDummy(2f);
-            using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed))
-            {
-                ImGui.Checkbox(FontAwesomeIcon.HeartCircleExclamation.ToIconString() + "Not Safe for Work (NSFW) indicator: " + Environment.NewLine +
-                    "Show the NSFW indicator for this syncshell so that members are aware that this syncshell is intended to permit some degree of NSFW content.", ref _createShowNsfwWarning);
-            }
             ImGuiHelpers.ScaledDummy(2f);
             ImGui.TextUnformatted("Your current Syncshell preferred permissions are:");
             ImGui.AlignTextToFramePadding();
