@@ -73,7 +73,6 @@ public class CompactUi : WindowMediatorSubscriberBase
         _ipcManager = ipcManager;
         _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _uiSharedService);
 
-        AllowPinning = false;
         AllowClickthrough = false;
         TitleBarButtons = new()
         {
