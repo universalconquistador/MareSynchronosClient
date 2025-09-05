@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 
 namespace MareSynchronos.WebAPI.Files;
 
@@ -172,7 +173,52 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         try
         {
             response = await _orchestrator.SendRequestAsync(HttpMethod.Get, requestUrl, ct, HttpCompletionOption.ResponseHeadersRead, withToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+
+            var headersBuilder = new StringBuilder();
+            if (response.RequestMessage != null)
+            {
+                headersBuilder.AppendLine("DefaultRequestHeaders:");
+                foreach (var header in _orchestrator.DefaultRequestHeaders)
+                {
+                    foreach (var value in header.Value)
+                    {
+                        headersBuilder.AppendLine($"\"{header.Key}\": \"{value}\"");
+                    }
+                }
+                headersBuilder.AppendLine("RequestMessage.Headers:");
+                foreach (var header in response.RequestMessage.Headers)
+                {
+                    foreach (var value in header.Value)
+                    {
+                        headersBuilder.AppendLine($"\"{header.Key}\": \"{value}\"");
+                    }
+                }
+                if (response.RequestMessage.Content != null)
+                {
+                    headersBuilder.AppendLine("RequestMessage.Content.Headers:");
+                    foreach (var header in response.RequestMessage.Content.Headers)
+                    {
+                        foreach (var value in header.Value)
+                        {
+                            headersBuilder.AppendLine($"\"{header.Key}\": \"{value}\"");
+                        }
+                    }
+                }
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Dump some helpful debugging info
+                string responseText = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                Logger.LogWarning("Unsuccessful status code for {requestUrl} is {statusCode}, request headers: \n{headers}\n, response text: \n\"{responseText}\"", requestUrl, response.StatusCode, headersBuilder.ToString(), responseText);
+
+                // Raise an exception etc
+                response.EnsureSuccessStatusCode();
+            }
+            else
+            {
+                Logger.LogDebug("Successful response for {requestUrl} is {statusCode}, request headers: \n{headers}", requestUrl, response.StatusCode, headersBuilder.ToString());
+            }
         }
         catch (HttpRequestException ex)
         {
@@ -181,6 +227,8 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             {
                 throw new InvalidDataException($"Http error {ex.StatusCode} (cancelled: {ct.IsCancellationRequested}): {requestUrl}", ex);
             }
+
+            return;
         }
 
         ThrottledStream? stream = null;
