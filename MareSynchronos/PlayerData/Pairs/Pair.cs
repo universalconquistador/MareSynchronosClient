@@ -72,7 +72,7 @@ public class Pair
             OnClicked = (a) => _mediator.Publish(new ProfileOpenStandaloneMessage(this)),
             UseDefaultPrefix = false,
             PrefixChar = 'P',
-            PrefixColor = 526
+            PrefixColor = 530
         });
 
         args.AddMenuItem(new MenuItem()
@@ -81,7 +81,7 @@ public class Pair
             OnClicked = (a) => ApplyLastReceivedData(forced: true),
             UseDefaultPrefix = false,
             PrefixChar = 'P',
-            PrefixColor = 526
+            PrefixColor = 530
         });
 
         args.AddMenuItem(new MenuItem()
@@ -90,7 +90,7 @@ public class Pair
             OnClicked = (a) => _mediator.Publish(new OpenPermissionWindow(this)),
             UseDefaultPrefix = false,
             PrefixChar = 'P',
-            PrefixColor = 526
+            PrefixColor = 530
         });
 
         args.AddMenuItem(new MenuItem()
@@ -99,7 +99,7 @@ public class Pair
             OnClicked = (a) => _mediator.Publish(new CyclePauseMessage(UserData)),
             UseDefaultPrefix = false,
             PrefixChar = 'P',
-            PrefixColor = 526
+            PrefixColor = 530
         });
     }
 
