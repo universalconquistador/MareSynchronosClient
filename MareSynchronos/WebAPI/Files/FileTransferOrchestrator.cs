@@ -192,6 +192,10 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
             var token = await _tokenProvider.GetToken().ConfigureAwait(false);
             requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
+        else
+        {
+            requestMessage.Headers.Authorization = null;
+        }
 
         if (requestMessage.Content != null && requestMessage.Content is not StreamContent && requestMessage.Content is not ByteArrayContent)
         {
