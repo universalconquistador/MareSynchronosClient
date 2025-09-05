@@ -484,7 +484,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         }
 
         List<IDrawFolder> groupFolders = new();
-        foreach (var group in _pairManager.GroupPairs.Select(g => g.Key).OrderBy(g => g.GroupAliasOrGID, StringComparer.OrdinalIgnoreCase))
+        foreach (var group in _pairManager.GroupPairs.Select(g => g.Key).OrderBy(g => _serverManager.GetNoteForGid(g.GID) ?? g.GroupAliasOrGID, StringComparer.OrdinalIgnoreCase))
         {
             var allGroupPairs = ImmutablePairList(allPairs
                 .Where(u => FilterGroupUsers(u, group)));
