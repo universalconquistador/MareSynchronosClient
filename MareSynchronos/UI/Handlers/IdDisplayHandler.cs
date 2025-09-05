@@ -60,6 +60,7 @@ public class IdDisplayHandler
                 {
                     _serverManager.SetNoteForGid(_editEntry, _editComment, save: true);
                 }
+                _mediator.Publish(new RefreshUiMessage());
 
                 _editComment = _serverManager.GetNoteForGid(group.GID) ?? string.Empty;
                 _editEntry = group.GID;
@@ -74,6 +75,7 @@ public class IdDisplayHandler
             if (ImGui.InputTextWithHint("", "Name/Notes", ref _editComment, 255, ImGuiInputTextFlags.EnterReturnsTrue))
             {
                 _serverManager.SetNoteForGid(group.GID, _editComment, save: true);
+                _mediator.Publish(new RefreshUiMessage());
                 _editEntry = string.Empty;
             }
 
@@ -146,6 +148,7 @@ public class IdDisplayHandler
                 {
                     _serverManager.SetNoteForGid(_editEntry, _editComment, save: true);
                 }
+                _mediator.Publish(new RefreshUiMessage());
 
                 _editComment = pair.GetNote() ?? string.Empty;
                 _editEntry = pair.UserData.UID;
@@ -166,6 +169,7 @@ public class IdDisplayHandler
             {
                 _serverManager.SetNoteForUid(pair.UserData.UID, _editComment);
                 _serverManager.SaveNotes();
+                _mediator.Publish(new RefreshUiMessage());
                 _editEntry = string.Empty;
             }
 
