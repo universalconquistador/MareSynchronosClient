@@ -62,6 +62,7 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     public Uri? FilesCdnUri { private set; get; }
     public List<FileTransfer> ForbiddenTransfers { get; } = [];
     public bool IsInitialized => FilesCdnUri != null;
+    public HttpRequestHeaders DefaultRequestHeaders => _httpClient.DefaultRequestHeaders;
 
     public void ClearDownloadRequest(Guid guid)
     {
