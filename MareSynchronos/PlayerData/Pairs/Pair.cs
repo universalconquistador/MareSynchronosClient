@@ -71,7 +71,7 @@ public class Pair
             Name = openProfileSeString,
             OnClicked = (a) => _mediator.Publish(new ProfileOpenStandaloneMessage(this)),
             UseDefaultPrefix = false,
-            PrefixChar = 'M',
+            PrefixChar = 'P',
             PrefixColor = 526
         });
 
@@ -80,7 +80,7 @@ public class Pair
             Name = reapplyDataSeString,
             OnClicked = (a) => ApplyLastReceivedData(forced: true),
             UseDefaultPrefix = false,
-            PrefixChar = 'M',
+            PrefixChar = 'P',
             PrefixColor = 526
         });
 
@@ -89,7 +89,7 @@ public class Pair
             Name = changePermissions,
             OnClicked = (a) => _mediator.Publish(new OpenPermissionWindow(this)),
             UseDefaultPrefix = false,
-            PrefixChar = 'M',
+            PrefixChar = 'P',
             PrefixColor = 526
         });
 
@@ -98,7 +98,7 @@ public class Pair
             Name = cyclePauseState,
             OnClicked = (a) => _mediator.Publish(new CyclePauseMessage(UserData)),
             UseDefaultPrefix = false,
-            PrefixChar = 'M',
+            PrefixChar = 'P',
             PrefixColor = 526
         });
     }
