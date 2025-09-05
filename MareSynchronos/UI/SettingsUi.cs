@@ -39,7 +39,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
     private readonly ApiController _apiController;
     private readonly CacheMonitor _cacheMonitor;
     private readonly MareConfigService _configService;
-    private readonly ConcurrentDictionary<GameObjectHandler, Dictionary<string, FileDownloadStatus>> _currentDownloads = new();
+    private readonly ConcurrentDictionary<GameObjectHandler, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly HttpClient _httpClient;
     private readonly FileCacheManager _fileCacheManager;

@@ -8,6 +8,7 @@ using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI.Files.Models;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 
@@ -15,17 +16,20 @@ namespace MareSynchronos.WebAPI.Files;
 
 public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 {
-    private readonly Dictionary<string, FileDownloadStatus> _downloadStatus;
+    private readonly ConcurrentDictionary<string, FileDownloadStatus> _downloadStatus;
     private readonly FileCompactor _fileCompactor;
     private readonly FileCacheManager _fileDbManager;
     private readonly FileTransferOrchestrator _orchestrator;
+
+    // Guards access to _activeDownloadStreams
+    private readonly object _downloadInfoLock = new object();
     private readonly List<ThrottledStream> _activeDownloadStreams;
 
     public FileDownloadManager(ILogger<FileDownloadManager> logger, MareMediator mediator,
         FileTransferOrchestrator orchestrator,
         FileCacheManager fileCacheManager, FileCompactor fileCompactor) : base(logger, mediator)
     {
-        _downloadStatus = new Dictionary<string, FileDownloadStatus>(StringComparer.Ordinal);
+        _downloadStatus = new ConcurrentDictionary<string, FileDownloadStatus>(StringComparer.Ordinal);
         _orchestrator = orchestrator;
         _fileDbManager = fileCacheManager;
         _fileCompactor = fileCompactor;
@@ -33,12 +37,15 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
         Mediator.Subscribe<DownloadLimitChangedMessage>(this, (msg) =>
         {
-            if (!_activeDownloadStreams.Any()) return;
-            var newLimit = _orchestrator.DownloadLimitPerSlot();
-            Logger.LogTrace("Setting new Download Speed Limit to {newLimit}", newLimit);
-            foreach (var stream in _activeDownloadStreams)
+            lock (_downloadInfoLock)
             {
-                stream.BandwidthLimit = newLimit;
+                if (!_activeDownloadStreams.Any()) return;
+                var newLimit = _orchestrator.DownloadLimitPerSlot();
+                Logger.LogTrace("Setting new Download Speed Limit to {newLimit}", newLimit);
+                foreach (var stream in _activeDownloadStreams)
+                {
+                    stream.BandwidthLimit = newLimit;
+                }
             }
         });
     }
@@ -84,16 +91,19 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
     protected override void Dispose(bool disposing)
     {
         ClearDownload();
-        foreach (var stream in _activeDownloadStreams.ToList())
+        lock (_downloadInfoLock)
         {
-            try
+            foreach (var stream in _activeDownloadStreams.ToList())
             {
-                stream.Dispose();
-            }
-            catch
-            {
-                // do nothing
-                //
+                try
+                {
+                    stream.Dispose();
+                }
+                catch
+                {
+                    // do nothing
+                    //
+                }
             }
         }
         base.Dispose(disposing);
@@ -142,7 +152,10 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
         await WaitForDownloadReady(fileTransfer, requestId, ct).ConfigureAwait(false);
 
-        _downloadStatus[downloadGroup].DownloadStatus = DownloadStatus.Downloading;
+        if (_downloadStatus.TryGetValue(downloadGroup, out var downloadStatus))
+        {
+            downloadStatus.DownloadStatus = DownloadStatus.Downloading;
+        }
 
         var requestUrl = MareFiles.CacheGetFullPath(fileTransfer[0].DownloadUri, requestId);
 
@@ -183,7 +196,12 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 var limit = _orchestrator.DownloadLimitPerSlot();
                 Logger.LogTrace("Starting Download with a speed limit of {limit} to {tempPath}", limit, destinationFilename);
                 stream = new ThrottledStream(await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false), limit);
-                _activeDownloadStreams.Add(stream);
+
+                lock (_downloadInfoLock)
+                {
+                    _activeDownloadStreams.Add(stream);
+                }
+
                 while ((bytesRead = await stream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -222,7 +240,11 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         {
             if (stream != null)
             {
-                _activeDownloadStreams.Remove(stream);
+                lock (_downloadInfoLock)
+                {
+                    _activeDownloadStreams.Remove(stream);
+                }
+
                 await stream.DisposeAsync().ConfigureAwait(false);
             }
         }
@@ -310,6 +332,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         },
         async (fileGroup, token) =>
         {
+            if (!_downloadStatus.TryGetValue(fileGroup.Key, out FileDownloadStatus? downloadStatus)) return;
             // let server predownload files
             var requestIdResponse = await _orchestrator.SendRequestAsync(HttpMethod.Post, MareFiles.RequestEnqueueFullPath(fileGroup.First().DownloadUri),
                 fileGroup.Select(c => c.Hash), token).ConfigureAwait(false);
@@ -324,9 +347,9 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             FileInfo fi = new(blockFile);
             try
             {
-                _downloadStatus[fileGroup.Key].DownloadStatus = DownloadStatus.WaitingForSlot;
+                downloadStatus.DownloadStatus = DownloadStatus.WaitingForSlot;
                 await _orchestrator.WaitForDownloadSlotAsync(token).ConfigureAwait(false);
-                _downloadStatus[fileGroup.Key].DownloadStatus = DownloadStatus.WaitingForQueue;
+                downloadStatus.DownloadStatus = DownloadStatus.WaitingForQueue;
                 Progress<long> progress = new((bytesDownloaded) =>
                 {
                     try
@@ -421,7 +444,8 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         },
         async (directDownload, token) =>
         {
-            var downloadTracker = _downloadStatus[directDownload.DirectDownloadUrl!];
+            if (!_downloadStatus.TryGetValue(directDownload.DirectDownloadUrl!, out var downloadTracker))
+                return;
 
             Progress<long> progress = new((bytesDownloaded) =>
             {
@@ -468,7 +492,6 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
             // Decompress from tempFilename to finalFilename
             // TODO: Really we shouldn't stream to a temp file only to read it all into one buffer to decompress and write back out
-            downloadTracker = _downloadStatus.GetValueOrDefault(directDownload.DirectDownloadUrl!);
             downloadTracker.TransferredFiles = 1;
             downloadTracker.DownloadStatus = DownloadStatus.Decompressing;
 

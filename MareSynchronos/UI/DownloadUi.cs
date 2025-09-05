@@ -15,7 +15,7 @@ namespace MareSynchronos.UI;
 public class DownloadUi : WindowMediatorSubscriberBase
 {
     private readonly MareConfigService _configService;
-    private readonly ConcurrentDictionary<GameObjectHandler, Dictionary<string, FileDownloadStatus>> _currentDownloads = new();
+    private readonly ConcurrentDictionary<GameObjectHandler, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly FileUploadManager _fileTransferManager;
     private readonly UiSharedService _uiShared;
