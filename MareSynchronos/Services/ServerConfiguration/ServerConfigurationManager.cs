@@ -513,8 +513,7 @@ public class ServerConfigurationManager
         {
             var baseUri = serverUri.Replace("wss://", "https://").Replace("ws://", "http://");
             var oauthCheckUri = MareAuth.GetUIDsFullPath(new Uri(baseUri));
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            var response = await _httpClient.GetAsync(oauthCheckUri).ConfigureAwait(false);
+            var response = await _httpClient.GetWithBearerAuthAsync(oauthCheckUri, token).ConfigureAwait(false);
             var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             return await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(responseStream).ConfigureAwait(false) ?? [];
         }
@@ -578,5 +577,19 @@ public class ServerConfigurationManager
     {
         CurrentServer.HttpTransportType = httpTransportType;
         Save();
+    }
+}
+
+internal static class HttpClientExtensions
+{
+    public static Task<HttpResponseMessage> GetWithBearerAuthAsync(this HttpClient client, Uri? requestUri, string? bearerToken, CancellationToken cancellationToken = default)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        if (!string.IsNullOrEmpty(bearerToken))
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
+        }
+
+        return client.SendAsync(request);
     }
 }
