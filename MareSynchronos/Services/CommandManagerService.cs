@@ -14,6 +14,7 @@ namespace MareSynchronos.Services;
 public sealed class CommandManagerService : IDisposable
 {
     private const string _commandName = "/sync";
+    private const string _secondaryCommandName = "/psync";
 
     private readonly ApiController _apiController;
     private readonly ICommandManager _commandManager;
@@ -44,11 +45,13 @@ public sealed class CommandManagerService : IDisposable
                 "\t /sync analyze - Opens the Player Sync Character Data Analysis window" + Environment.NewLine +
                 "\t /sync settings - Opens the Player Sync Settings window"
         });
+        _commandManager.AddHandler(_secondaryCommandName, new CommandInfo(OnCommand) {HelpMessage = "Opens the Player Sync UI" });
     }
 
     public void Dispose()
     {
         _commandManager.RemoveHandler(_commandName);
+        _commandManager.RemoveHandler(_secondaryCommandName);
     }
 
     private void OnCommand(string command, string args)
