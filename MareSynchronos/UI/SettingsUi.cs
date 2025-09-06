@@ -1,4 +1,4 @@
-﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
@@ -358,7 +358,8 @@ public class SettingsUi : WindowMediatorSubscriberBase
                     ImGui.TableSetupColumn("Uploaded");
                     ImGui.TableSetupColumn("Size");
                     ImGui.TableHeadersRow();
-                    foreach (var transfer in _fileTransferManager.CurrentUploads.ToArray())
+                    var uploads = _fileTransferManager.CurrentUploadList;
+                    foreach (var transfer in uploads)
                     {
                         var color = UiSharedService.UploadColor((transfer.Transferred, transfer.Total));
                         var col = ImRaii.PushColor(ImGuiCol.Text, color);
