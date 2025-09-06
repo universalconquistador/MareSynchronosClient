@@ -246,9 +246,15 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted("0 = No limit/infinite");
 
-        if (ImGui.SliderInt("Maximum Parallel Downloads", ref maxParallelDownloads, 1, 10))
+        if (ImGui.SliderInt("Maximum Parallel Downloads", ref maxParallelDownloads, 1, 30))
         {
             _configService.Current.ParallelDownloads = maxParallelDownloads;
+            _configService.Save();
+        }
+
+        if (ImGui.SliderInt("Maximum Parallel Uploads", ref maxParallelUploads, 1, 10))
+        {
+            _configService.Current.ParallelUploads = maxParallelUploads;
             _configService.Save();
         }
 
@@ -258,12 +264,6 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("This will attempt to upload files in one go instead of a stream. Typically not necessary to enable. Use if you have upload issues.");
-
-        if (ImGui.SliderInt("Maximum Parallel Uploads", ref maxParallelUploads, 1, 10))
-        {
-            _configService.Current.ParallelUploads = maxParallelUploads;
-            _configService.Save();
-        }
 
         ImGui.Separator();
         _uiShared.BigText("Transfer UI");
