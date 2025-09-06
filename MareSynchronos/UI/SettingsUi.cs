@@ -344,64 +344,6 @@ public class SettingsUi : WindowMediatorSubscriberBase
         if (!showUploading) ImGui.EndDisabled();
         if (!showTransferBars) ImGui.EndDisabled();
 
-        if (_apiController.IsConnected)
-        {
-            ImGuiHelpers.ScaledDummy(5);
-            ImGui.Separator();
-            ImGuiHelpers.ScaledDummy(10);
-            using var tree = ImRaii.TreeNode("Speed Test to Servers");
-            if (tree)
-            {
-                if (_downloadServersTask == null || ((_downloadServersTask?.IsCompleted ?? false) && (!_downloadServersTask?.IsCompletedSuccessfully ?? false)))
-                {
-                    if (_uiShared.IconTextButton(FontAwesomeIcon.GroupArrowsRotate, "Update Download Server List"))
-                    {
-                        _downloadServersTask = GetDownloadServerList();
-                    }
-                }
-                if (_downloadServersTask != null && _downloadServersTask.IsCompleted && !_downloadServersTask.IsCompletedSuccessfully)
-                {
-                    UiSharedService.ColorTextWrapped("Failed to get download servers from service, see /xllog for more information", ImGuiColors.DalamudRed);
-                }
-                if (_downloadServersTask != null && _downloadServersTask.IsCompleted && _downloadServersTask.IsCompletedSuccessfully)
-                {
-                    if (_speedTestTask == null || _speedTestTask.IsCompleted)
-                    {
-                        if (_uiShared.IconTextButton(FontAwesomeIcon.ArrowRight, "Start Speedtest"))
-                        {
-                            _speedTestTask = RunSpeedTest(_downloadServersTask.Result!, _speedTestCts?.Token ?? CancellationToken.None);
-                        }
-                    }
-                    else if (!_speedTestTask.IsCompleted)
-                    {
-                        UiSharedService.ColorTextWrapped("Running Speedtest to File Servers...", ImGuiColors.DalamudYellow);
-                        UiSharedService.ColorTextWrapped("Please be patient, depending on usage and load this can take a while.", ImGuiColors.DalamudYellow);
-                        if (_uiShared.IconTextButton(FontAwesomeIcon.Ban, "Cancel speedtest"))
-                        {
-                            _speedTestCts?.Cancel();
-                            _speedTestCts?.Dispose();
-                            _speedTestCts = new();
-                        }
-                    }
-                    if (_speedTestTask != null && _speedTestTask.IsCompleted)
-                    {
-                        if (_speedTestTask.Result != null && _speedTestTask.Result.Count != 0)
-                        {
-                            foreach (var result in _speedTestTask.Result)
-                            {
-                                UiSharedService.TextWrapped(result);
-                            }
-                        }
-                        else
-                        {
-                            UiSharedService.ColorTextWrapped("Speedtest completed with no results", ImGuiColors.DalamudYellow);
-                        }
-                    }
-                }
-            }
-            ImGuiHelpers.ScaledDummy(10);
-        }
-
         ImGui.Separator();
         _uiShared.BigText("Current Transfers");
 
