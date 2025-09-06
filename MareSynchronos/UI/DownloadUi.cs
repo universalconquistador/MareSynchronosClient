@@ -1,4 +1,4 @@
-﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Colors;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Handlers;
@@ -75,9 +75,9 @@ public class DownloadUi : WindowMediatorSubscriberBase
         {
             try
             {
-                if (_fileTransferManager.CurrentUploads.Any())
+                var currentUploads = _fileTransferManager.CurrentUploadList;
+                if (currentUploads.Count > 0)
                 {
-                    var currentUploads = _fileTransferManager.CurrentUploads.ToList();
                     var totalUploads = currentUploads.Count;
 
                     var doneUploads = currentUploads.Count(c => c.IsTransferred);
@@ -214,7 +214,7 @@ public class DownloadUi : WindowMediatorSubscriberBase
     {
         if (_uiShared.EditTrackerPosition) return true;
         if (!_configService.Current.ShowTransferWindow && !_configService.Current.ShowTransferBars) return false;
-        if (!_currentDownloads.Any() && !_fileTransferManager.CurrentUploads.Any() && !_uploadingPlayers.Any()) return false;
+        if (!_currentDownloads.Any() && _fileTransferManager.CurrentUploadCount <= 0 && !_uploadingPlayers.Any()) return false;
         if (!IsOpen) return false;
         return true;
     }

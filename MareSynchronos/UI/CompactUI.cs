@@ -1,4 +1,4 @@
-﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
@@ -335,7 +335,7 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     private void DrawTransfers()
     {
-        var currentUploads = _fileTransferManager.CurrentUploads.ToList();
+        var currentUploads = _fileTransferManager.CurrentUploadList;
         ImGui.AlignTextToFramePadding();
         _uiSharedService.IconText(FontAwesomeIcon.Upload);
         ImGui.SameLine(35 * ImGuiHelpers.GlobalScale);
