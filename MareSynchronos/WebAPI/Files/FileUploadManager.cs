@@ -341,7 +341,15 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                 {
                     using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() waiting for slot for " + fileToUpload.Hash))
                     {
-                        await _orchestrator.WaitForUploadSlotAsync(token).ConfigureAwait(false);
+                        try
+                        {
+                            await _orchestrator.WaitForUploadSlotAsync(token).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogError(ex, "UploadUnverifiedFiles() wait for slot encountered exception for {hash}", fileToUpload.Hash);
+                            throw;
+                        }
                     }
 
                     // We could compress all at once before waiting for the parallel upload slot, but might as well stagger compression
@@ -351,8 +359,11 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                     {
                         compressedData = await _fileDbManager.GetCompressedFileData(fileToUpload.Hash, token).ConfigureAwait(false);
                     }
-                    _currentUploads.Single(e => string.Equals(e.Hash, compressedData.Item1, StringComparison.Ordinal)).Total = compressedData.Item2.Length;
 
+                    lock (_currentUploadsLock)
+                    {
+                        _currentUploads.Single(e => string.Equals(e.Hash, compressedData.Item1, StringComparison.Ordinal)).Total = compressedData.Item2.Length;
+                    }
 
                     Logger.LogDebug("[{hash}] Starting upload for {filePath}", compressedData.Item1, _fileDbManager.GetFileCacheByHash(compressedData.Item1)!.ResolvedFilepath);
                     using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() uploading " + fileToUpload.Hash))
