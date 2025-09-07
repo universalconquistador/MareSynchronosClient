@@ -1054,7 +1054,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
             _configService.Current.OpenMareHubOnGposeStart = openInGpose;
             _configService.Save();
         }
-        _uiSharedService.DrawHelpText("This will automatically open the import menu when loading into Gpose. If unchecked you can open the menu manually with /sync gpose");
+        _uiSharedService.DrawHelpText($"This will automatically open the import menu when loading into Gpose. If unchecked you can open the menu manually with {CommandAlias.Active} gpose");
         bool downloadDataOnConnection = _configService.Current.DownloadMcdDataOnConnection;
         if (ImGui.Checkbox("Download MCD Online Data on connecting", ref downloadDataOnConnection))
         {
