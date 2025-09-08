@@ -257,11 +257,11 @@ public class TopTabMenu
         {
             if (showBroadcastingSyncshells)
             {
-                _broadcastManager.StopListening();
+                _broadcastManager.StartListening();
             }
             else
             {
-                _broadcastManager.StartListening();
+                _broadcastManager.StopListening();
             }
         }
         UiSharedService.AttachToolTip("Show Syncshells broadcasting in your location for easy joining." + Environment.NewLine + Environment.NewLine +
