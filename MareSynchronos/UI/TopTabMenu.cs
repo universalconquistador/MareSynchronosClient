@@ -1,8 +1,10 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
+using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.PlayerData.Pairs;
@@ -19,6 +21,7 @@ public class TopTabMenu
     private readonly MareMediator _mareMediator;
 
     private readonly PairManager _pairManager;
+    private readonly IBroadcastManager _broadcastManager;
     private readonly UiSharedService _uiSharedService;
     private string _filter = string.Empty;
     private int _globalControlCountdown = 0;
@@ -26,11 +29,12 @@ public class TopTabMenu
     private string _pairToAdd = string.Empty;
 
     private SelectedTab _selectedTab = SelectedTab.None;
-    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, UiSharedService uiSharedService)
+    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService)
     {
         _mareMediator = mareMediator;
         _apiController = apiController;
         _pairManager = pairManager;
+        _broadcastManager = broadcastManager;
         _uiSharedService = uiSharedService;
     }
 
@@ -40,6 +44,7 @@ public class TopTabMenu
         Individual,
         Syncshell,
         Filter,
+        Broadcast,
         UserConfig
     }
 
@@ -56,6 +61,7 @@ public class TopTabMenu
             _filter = value;
         }
     }
+
     private SelectedTab TabSelection
     {
         get => _selectedTab; set
@@ -68,11 +74,13 @@ public class TopTabMenu
             _selectedTab = value;
         }
     }
+    
     public void Draw()
     {
         var availableWidth = ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X;
         var spacing = ImGui.GetStyle().ItemSpacing;
-        var buttonX = (availableWidth - (spacing.X * 3)) / 4f;
+        int buttonCount = Enum.GetValues<SelectedTab>().Length - 1;
+        var buttonX = (availableWidth - (spacing.X * (buttonCount - 1))) / (float)buttonCount;
         var buttonY = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Pause).Y;
         var buttonSize = new Vector2(buttonX, buttonY);
         var drawList = ImGui.GetWindowDrawList();
@@ -81,6 +89,7 @@ public class TopTabMenu
 
         ImGuiHelpers.ScaledDummy(spacing.Y / 2f);
 
+        // Individual tab
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
@@ -97,6 +106,7 @@ public class TopTabMenu
         }
         UiSharedService.AttachToolTip("Individual Pair Menu");
 
+        // Syncshell tab
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
@@ -113,6 +123,7 @@ public class TopTabMenu
         }
         UiSharedService.AttachToolTip("Syncshell Menu");
 
+        // Filter tab
         ImGui.SameLine();
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
@@ -131,6 +142,29 @@ public class TopTabMenu
         }
         UiSharedService.AttachToolTip("Filter");
 
+        // Broadcast tab
+        ImGui.SameLine();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var x = ImGui.GetCursorScreenPos();
+            using (ImRaii.PushColor(ImGuiCol.Text, _broadcastManager.IsBroadcasting() ? ImGuiColors.HealerGreen : ImGuiColors.DalamudWhite))
+            {
+                if (ImGui.Button(FontAwesomeIcon.Wifi.ToIconString(), buttonSize))
+                {
+                    TabSelection = TabSelection == SelectedTab.Broadcast ? SelectedTab.None : SelectedTab.Broadcast;
+                }
+            }
+
+            ImGui.SameLine();
+            var xAfter = ImGui.GetCursorScreenPos();
+            if (TabSelection == SelectedTab.Broadcast)
+                drawList.AddLine(x with { Y = x.Y + buttonSize.Y + spacing.Y },
+                    xAfter with { Y = xAfter.Y + buttonSize.Y + spacing.Y, X = xAfter.X - spacing.X },
+                    underlineColor, 2);
+        }
+        UiSharedService.AttachToolTip("Syncshell Broadcast");
+
+        // UserConfig tab
         ImGui.SameLine();
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
@@ -167,6 +201,10 @@ public class TopTabMenu
         else if (TabSelection == SelectedTab.Filter)
         {
             DrawFilter(availableWidth, spacing.X);
+        }
+        else if (TabSelection == SelectedTab.Broadcast)
+        {
+            DrawBroadcast(availableWidth, spacing.X);
         }
         else if (TabSelection == SelectedTab.UserConfig)
         {
@@ -209,6 +247,60 @@ public class TopTabMenu
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Ban, "Clear"))
         {
             Filter = string.Empty;
+        }
+    }
+
+    private void DrawBroadcast(float availableXWidth, float spacingX)
+    {
+        bool showBroadcastingSyncshells = _broadcastManager.IsListening;
+        if (ImGui.Checkbox("Show broadcasting Syncshells", ref showBroadcastingSyncshells))
+        {
+            if (showBroadcastingSyncshells)
+            {
+                _broadcastManager.StopListening();
+            }
+            else
+            {
+                _broadcastManager.StartListening();
+            }
+        }
+        UiSharedService.AttachToolTip("Show Syncshells broadcasting in your location for easy joining." + Environment.NewLine + Environment.NewLine +
+            "Use the menu for a Syncshell that you own or moderate to broadcast it to players nearby.");
+
+        if (showBroadcastingSyncshells)
+        {
+            string? broadcastGroupId = _broadcastManager.BroadcastingGroupId;
+            if (broadcastGroupId != null)
+            {
+                ImGuiHelpers.ScaledDummy(4.0f);
+
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen))
+                {
+                    var header = "Broadcasting";
+                    var headerSize = ImGui.CalcTextSize(header);
+                    ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (headerSize.X / 2));
+                    ImGui.TextUnformatted(header);
+
+                    using (_uiSharedService.UidFont.Push())
+                    {
+                        var groupName = broadcastGroupId;
+                        if (_pairManager.Groups.Keys.FirstOrDefault(group => group.GID == groupName) is GroupData group)
+                        {
+                            groupName = group.AliasOrGID;
+                        }
+                        var groupNameTextSize = ImGui.CalcTextSize(groupName);
+                        ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (groupNameTextSize.X / 2));
+                        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 6.0f * ImGui.GetWindowDpiScale());
+                        ImGui.TextUnformatted(groupName);
+                    }
+                }
+                ImGuiHelpers.ScaledDummy(4.0f);
+
+                if (_uiSharedService.IconTextButton(FontAwesomeIcon.Stop, "Stop Broadcasting", ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X))
+                {
+                    _broadcastManager.StopBroadcasting();
+                }
+            }
         }
     }
 

@@ -19,16 +19,18 @@ public class DrawFolderGroup : DrawFolderBase
     private readonly GroupFullInfoDto _groupFullInfoDto;
     private readonly IdDisplayHandler _idDisplayHandler;
     private readonly MareMediator _mareMediator;
+    private readonly IBroadcastManager _broadcastManager;
 
     public DrawFolderGroup(string id, GroupFullInfoDto groupFullInfoDto, ApiController apiController,
         IImmutableList<DrawUserPair> drawPairs, IImmutableList<Pair> allPairs, TagHandler tagHandler, IdDisplayHandler idDisplayHandler,
-        MareMediator mareMediator, UiSharedService uiSharedService) :
+        MareMediator mareMediator, UiSharedService uiSharedService, IBroadcastManager broadcastManager) :
         base(id, drawPairs, allPairs, tagHandler, uiSharedService)
     {
         _groupFullInfoDto = groupFullInfoDto;
         _apiController = apiController;
         _idDisplayHandler = idDisplayHandler;
         _mareMediator = mareMediator;
+        _broadcastManager = broadcastManager;
     }
 
     protected override bool RenderIfEmpty => true;
@@ -41,7 +43,10 @@ public class DrawFolderGroup : DrawFolderBase
     {
         ImGui.AlignTextToFramePadding();
 
-        _uiSharedService.IconText(_groupFullInfoDto.GroupPermissions.IsDisableInvites() ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users);
+        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, _broadcastManager.BroadcastingGroupId == _groupFullInfoDto.GID))
+        {
+            _uiSharedService.IconText(_groupFullInfoDto.GroupPermissions.IsDisableInvites() ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users);
+        }
         if (_groupFullInfoDto.GroupPermissions.IsDisableInvites())
         {
             UiSharedService.AttachToolTip("Syncshell " + _groupFullInfoDto.GroupAliasOrGID + " is closed for invites");
@@ -155,6 +160,27 @@ public class DrawFolderGroup : DrawFolderBase
             {
                 ImGui.CloseCurrentPopup();
                 _mareMediator.Publish(new OpenSyncshellAdminPanel(_groupFullInfoDto));
+            }
+            if (_broadcastManager.IsListening)
+            {
+                ImGui.Separator();
+                ImGui.TextUnformatted("Broadcasting");
+                if (_broadcastManager.BroadcastingGroupId == _groupFullInfoDto.GID)
+                {
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Wifi, "Stop Broadcasting", menuWidth, true))
+                    {
+                        ImGui.CloseCurrentPopup();
+                        _broadcastManager.StopBroadcasting();
+                    }
+                }
+                else
+                {
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Wifi, "Start Broadcasting", menuWidth, true))
+                    {
+                        ImGui.CloseCurrentPopup();
+                        _broadcastManager.StartBroadcasting(_groupFullInfoDto.Group.GID);
+                    }
+                }
             }
         }
     }
