@@ -19,6 +19,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private readonly ApiController _apiController;
     private readonly UiSharedService _uiSharedService;
     private string _desiredSyncshellToJoin = string.Empty;
+    private string? _prefillSyncshellToJoin = null;
     private GroupJoinInfoDto? _groupJoinInfo = null;
     private DefaultPermissionsDto _ownPermissions = null!;
     private string _previousPassword = string.Empty;
@@ -37,13 +38,15 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         };
 
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => IsOpen = false);
+        Mediator.Subscribe<PrefillJoinSyncshellParameters>(this, message => _prefillSyncshellToJoin = message.GroupId);
 
         Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;
     }
 
     public override void OnOpen()
     {
-        _desiredSyncshellToJoin = string.Empty;
+        _desiredSyncshellToJoin = _prefillSyncshellToJoin ?? string.Empty;
+        _prefillSyncshellToJoin = null;
         _syncshellPassword = string.Empty;
         _previousPassword = string.Empty;
         _groupJoinInfo = null;

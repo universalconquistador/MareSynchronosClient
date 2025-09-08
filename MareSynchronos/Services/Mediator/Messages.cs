@@ -64,6 +64,7 @@ public record DownloadReadyMessage(Guid RequestId) : MessageBase;
 public record DownloadStartedMessage(GameObjectHandler DownloadId, ConcurrentDictionary<string, FileDownloadStatus> DownloadStatus) : MessageBase;
 public record DownloadFinishedMessage(GameObjectHandler DownloadId) : MessageBase;
 public record UiToggleMessage(Type UiType) : MessageBase;
+public record PrefillJoinSyncshellParameters(string GroupId) : MessageBase;
 public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading) : MessageBase;
 public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
