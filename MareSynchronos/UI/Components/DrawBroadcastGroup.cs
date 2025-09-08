@@ -67,11 +67,6 @@ public class DrawBroadcastGroup
             DrawName(posX, rightSide);
         }
         _wasHovered = ImGui.IsItemHovered();
-        if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
-        {
-            // TODO: Show broadcast join modal
-            _mediator.Publish(new NotificationMessage("TEMP: Joining Group", $"TEMP: Joining {_broadcast.GroupAliasOrGID}", MareConfiguration.Models.NotificationType.Info));
-        }
     }
 
     private void DrawMenu()
@@ -125,7 +120,8 @@ public class DrawBroadcastGroup
         {
             if (_uiSharedService.IconButton(joinIcon))
             {
-                // TODO: Show broadcast join modal
+                _mediator.Publish(new UiToggleMessage(typeof(JoinSyncshellUI)));
+                _mediator.Publish(new PrefillJoinSyncshellParameters(_broadcast.Group.GID));
             }
         }
         UiSharedService.AttachToolTip(IsJoined
