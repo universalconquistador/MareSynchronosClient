@@ -224,6 +224,12 @@ public partial class ApiController
         return Task.CompletedTask;
     }
 
+    public Task Client_BroadcastListeningChanged(bool isListening)
+    {
+        ExecuteSafely(() => Mediator.Publish(new BroadcastListeningChanged(isListening)));
+        return Task.CompletedTask;
+    }
+
     public void OnDownloadReady(Action<Guid> act)
     {
         if (_initialized) return;
@@ -384,6 +390,12 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_GposeLobbyPushWorldData), act);
+    }
+
+    public void OnBroadcastListeningChanged(Action<bool> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_BroadcastListeningChanged), act);
     }
 
     private void ExecuteSafely(Action act)

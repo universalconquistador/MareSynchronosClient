@@ -1,4 +1,5 @@
-﻿using MareSynchronos.API.Dto.Group;
+﻿using MareSynchronos.API.Dto.CharaData;
+using MareSynchronos.API.Dto.Group;
 using MareSynchronos.WebAPI.SignalR.Utils;
 using Microsoft.AspNetCore.SignalR.Client;
 
@@ -115,6 +116,30 @@ public partial class ApiController
     {
         CheckConnection();
         await _mareHub!.SendAsync(nameof(GroupUnbanUser), groupPair).ConfigureAwait(false);
+    }
+
+    public async Task BroadcastStartListening(string ident)
+    {
+        CheckConnection();
+        await _mareHub!.InvokeAsync(nameof(BroadcastStartListening), ident).ConfigureAwait(false);
+    }
+
+    public async Task BroadcastStopListening()
+    {
+        CheckConnection();
+        await _mareHub!.InvokeAsync(nameof(BroadcastStopListening)).ConfigureAwait(false);
+    }
+
+    public async Task<List<GroupBroadcastDto>> BroadcastSendReceive(WorldData location, List<string> visibleIdents, BroadcastSendDto sendDto)
+    {
+        CheckConnection();
+        return await _mareHub!.InvokeAsync<List<GroupBroadcastDto>>(nameof(BroadcastSendReceive), location, visibleIdents, sendDto).ConfigureAwait(false);
+    }
+
+    public async Task<List<GroupBroadcastDto>> BroadcastReceive(WorldData location, List<string> visibleIdents)
+    {
+        CheckConnection();
+        return await _mareHub!.InvokeAsync<List<GroupBroadcastDto>>(nameof(BroadcastReceive), location, visibleIdents).ConfigureAwait(false);
     }
 
     private void CheckConnection()
