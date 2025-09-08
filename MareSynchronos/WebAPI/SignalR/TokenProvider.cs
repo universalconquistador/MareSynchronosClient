@@ -118,7 +118,7 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
                     Mediator.Publish(new NotificationMessage("Error refreshing token", "Your authentication token could not be renewed. Try reconnecting to Player Sync manually.",
                     NotificationType.Error));
                 else
-                    Mediator.Publish(new NotificationMessage("Error generating token", "Your authentication token could not be generated. Check Player Sync Main UI (/sync in chat) to see the error message.",
+                    Mediator.Publish(new NotificationMessage("Error generating token", $"Your authentication token could not be generated. Check Player Sync Main UI ({CommandAlias.Active} in chat) to see the error message.",
                     NotificationType.Error));
                 Mediator.Publish(new DisconnectedMessage());
                 throw new MareAuthFailureException(response);
