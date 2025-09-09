@@ -76,6 +76,10 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         foreach (var upload in _pendingUploads.Values)
         {
             upload.Skip = true;
+            if (!upload.Started)
+            {
+                _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(upload.Hash, upload));
+            }
         }
     }
 
@@ -306,6 +310,8 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                 return;
             }
 
+            transfer.Started = true;
+
             // We could compress all at once before waiting for the parallel upload slot, but might as well stagger compression
             // just to avoid any possible CPU hitch from trying to compress too many files at once.
             (string, byte[]) compressedData;
@@ -315,11 +321,6 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             }
 
             transfer.Total = compressedData.Item2.Length;
-            if (transfer.Skip)
-            {
-                Logger.LogDebug("[{hash}] Skipping upload", compressedData.Item1);
-                return;
-            }
 
             Logger.LogDebug("[{hash}] Starting upload for {filePath}", compressedData.Item1, _fileDbManager.GetFileCacheByHash(compressedData.Item1)!.ResolvedFilepath);
             using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() uploading " + transfer.Hash))
