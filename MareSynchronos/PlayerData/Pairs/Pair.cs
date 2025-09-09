@@ -9,6 +9,7 @@ using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.Utils;
+using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.PlayerData.Pairs;
@@ -22,12 +23,14 @@ public class Pair
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private CancellationTokenSource _applicationCts = new();
     private OnlineUserIdentDto? _onlineUserIdentDto = null;
+    private readonly ApiController _apiController;
 
-    public Pair(ILogger<Pair> logger, UserFullPairDto userPair, PairHandlerFactory cachedPlayerFactory,
+    public Pair(ILogger<Pair> logger, UserFullPairDto userPair, PairHandlerFactory cachedPlayerFactory, ApiController apiController,
         MareMediator mediator, ServerConfigurationManager serverConfigurationManager)
     {
         _logger = logger;
         UserPair = userPair;
+        _apiController = apiController;
         _cachedPlayerFactory = cachedPlayerFactory;
         _mediator = mediator;
         _serverConfigurationManager = serverConfigurationManager;
@@ -62,10 +65,12 @@ public class Pair
         SeStringBuilder seStringBuilder2 = new();
         SeStringBuilder seStringBuilder3 = new();
         SeStringBuilder seStringBuilder4 = new();
+        SeStringBuilder seStringBuilder5 = new();
         var openProfileSeString = seStringBuilder.AddText("Open Profile").Build();
         var reapplyDataSeString = seStringBuilder2.AddText("Reapply last data").Build();
         var cyclePauseState = seStringBuilder3.AddText("Cycle pause state").Build();
         var changePermissions = seStringBuilder4.AddText("Change Permissions").Build();
+        var pairIndividually = seStringBuilder5.AddText("Pair individually").Build();
         args.AddMenuItem(new MenuItem()
         {
             Name = openProfileSeString,
@@ -97,6 +102,15 @@ public class Pair
         {
             Name = cyclePauseState,
             OnClicked = (a) => _mediator.Publish(new CyclePauseMessage(UserData)),
+            UseDefaultPrefix = false,
+            PrefixChar = 'P',
+            PrefixColor = 530
+        });
+
+        args.AddMenuItem(new MenuItem()
+        {
+            Name = pairIndividually,
+            OnClicked = (a) =>  _ = _apiController.UserAddPair(new(UserData), true),
             UseDefaultPrefix = false,
             PrefixChar = 'P',
             PrefixColor = 530

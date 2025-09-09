@@ -188,7 +188,7 @@ public class TopTabMenu
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.UserPlus, "Add"))
             {
-                _ = _apiController.UserAddPair(new(new(_pairToAdd)));
+                _ = _apiController.UserAddPair(new(new(_pairToAdd)), false);
                 _pairToAdd = string.Empty;
             }
         }
