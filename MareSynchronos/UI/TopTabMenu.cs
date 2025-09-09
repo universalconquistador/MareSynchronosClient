@@ -14,7 +14,7 @@ using System.Numerics;
 
 namespace MareSynchronos.UI;
 
-public class TopTabMenu
+public class TopTabMenu : IMediatorSubscriber
 {
     private readonly ApiController _apiController;
 
@@ -25,8 +25,10 @@ public class TopTabMenu
     private readonly UiSharedService _uiSharedService;
     private string _filter = string.Empty;
     private int _globalControlCountdown = 0;
+    private bool _predictedIsListeningForBroadcasts;
 
     private string _pairToAdd = string.Empty;
+    MareMediator IMediatorSubscriber.Mediator => _mareMediator;
 
     private SelectedTab _selectedTab = SelectedTab.None;
     public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService)
@@ -36,6 +38,7 @@ public class TopTabMenu
         _pairManager = pairManager;
         _broadcastManager = broadcastManager;
         _uiSharedService = uiSharedService;
+        mareMediator.Subscribe<BroadcastListeningChanged>(this, message => _predictedIsListeningForBroadcasts = message.isListening);
     }
 
     private enum SelectedTab
@@ -252,7 +255,7 @@ public class TopTabMenu
 
     private void DrawBroadcast(float availableXWidth, float spacingX)
     {
-        bool showBroadcastingSyncshells = _broadcastManager.IsListening;
+        bool showBroadcastingSyncshells = _predictedIsListeningForBroadcasts;
         if (ImGui.Checkbox("Show broadcasting Syncshells", ref showBroadcastingSyncshells))
         {
             if (showBroadcastingSyncshells)
@@ -263,6 +266,7 @@ public class TopTabMenu
             {
                 _broadcastManager.StopListening();
             }
+            _predictedIsListeningForBroadcasts = showBroadcastingSyncshells;
         }
         UiSharedService.AttachToolTip("Show Syncshells broadcasting in your location for easy joining." + Environment.NewLine + Environment.NewLine +
             "Use the menu for a Syncshell that you own or moderate to broadcast it to players nearby.");

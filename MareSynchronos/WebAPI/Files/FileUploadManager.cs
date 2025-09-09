@@ -298,6 +298,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             catch (Exception ex)
             {
                 Logger.LogError(ex, "UploadUnverifiedFiles() wait for slot encountered exception for {hash}", transfer.Hash);
+                _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(transfer.Hash, transfer));
                 throw;
             }
         }
