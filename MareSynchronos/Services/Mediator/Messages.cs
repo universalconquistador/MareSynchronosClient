@@ -66,6 +66,7 @@ public record DownloadFinishedMessage(GameObjectHandler DownloadId) : MessageBas
 public record UiToggleMessage(Type UiType) : MessageBase;
 public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading) : MessageBase;
 public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;
+public record UserAddPairMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
 public record ReceivePairingMessageMessage(UserData UserData) : MessageBase;
 public record PauseMessage(UserData UserData) : MessageBase;

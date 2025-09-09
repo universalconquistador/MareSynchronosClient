@@ -9,7 +9,6 @@ using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.Utils;
-using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.PlayerData.Pairs;
@@ -23,14 +22,12 @@ public class Pair
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private CancellationTokenSource _applicationCts = new();
     private OnlineUserIdentDto? _onlineUserIdentDto = null;
-    private readonly ApiController _apiController;
 
-    public Pair(ILogger<Pair> logger, UserFullPairDto userPair, PairHandlerFactory cachedPlayerFactory, ApiController apiController,
+    public Pair(ILogger<Pair> logger, UserFullPairDto userPair, PairHandlerFactory cachedPlayerFactory,
         MareMediator mediator, ServerConfigurationManager serverConfigurationManager)
     {
         _logger = logger;
         UserPair = userPair;
-        _apiController = apiController;
         _cachedPlayerFactory = cachedPlayerFactory;
         _mediator = mediator;
         _serverConfigurationManager = serverConfigurationManager;
@@ -110,7 +107,7 @@ public class Pair
         args.AddMenuItem(new MenuItem()
         {
             Name = pairIndividually,
-            OnClicked = (a) =>  _ = _apiController.UserAddPair(new(UserData), true),
+            OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
             UseDefaultPrefix = false,
             PrefixChar = 'P',
             PrefixColor = 530
