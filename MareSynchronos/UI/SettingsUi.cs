@@ -567,6 +567,14 @@ public class SettingsUi : WindowMediatorSubscriberBase
         }
         _uiShared.DrawHelpText("Having modified game files will still mark your logs with UNSUPPORTED and you will not receive support, message shown or not." + UiSharedService.TooltipSeparator
             + "Keeping LOD enabled can lead to more crashes. Use at your own risk.");
+
+        bool throttleUploads = _configService.Current.DebugThrottleUploads;
+        if (ImGui.Checkbox("Throttle uploads to be very very slow", ref throttleUploads))
+        {
+            _configService.Current.DebugThrottleUploads = throttleUploads;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Artificially slow down your uploads, for testing the upload system.");
     }
 
     private void DrawFileStorageSettings()

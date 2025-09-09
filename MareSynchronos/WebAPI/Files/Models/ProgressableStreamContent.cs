@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using MareSynchronos.MareConfiguration;
+using System.Net;
 
 namespace MareSynchronos.WebAPI.Files.Models;
 
@@ -9,13 +10,14 @@ public class ProgressableStreamContent : StreamContent
     private readonly IProgress<UploadProgress>? _progress;
     private readonly Stream _streamToWrite;
     private bool _contentConsumed;
+    private readonly MareConfigService _mareConfigService;
 
-    public ProgressableStreamContent(Stream streamToWrite, IProgress<UploadProgress>? downloader)
-        : this(streamToWrite, _defaultBufferSize, downloader)
+    public ProgressableStreamContent(Stream streamToWrite, MareConfigService mareConfigService, IProgress<UploadProgress>? downloader)
+        : this(streamToWrite, _defaultBufferSize, mareConfigService, downloader)
     {
     }
 
-    public ProgressableStreamContent(Stream streamToWrite, int bufferSize, IProgress<UploadProgress>? progress)
+    public ProgressableStreamContent(Stream streamToWrite, int bufferSize, MareConfigService mareConfigService, IProgress<UploadProgress>? progress)
         : base(streamToWrite, bufferSize)
     {
         if (streamToWrite == null)
@@ -30,6 +32,7 @@ public class ProgressableStreamContent : StreamContent
 
         _streamToWrite = streamToWrite;
         _bufferSize = bufferSize;
+        _mareConfigService = mareConfigService;
         _progress = progress;
     }
 
@@ -64,6 +67,11 @@ public class ProgressableStreamContent : StreamContent
                 uploaded += length;
                 _progress?.Report(new UploadProgress(uploaded, size));
                 await stream.WriteAsync(buffer.AsMemory(0, length)).ConfigureAwait(false);
+
+                if (_mareConfigService.Current.DebugThrottleUploads)
+                {
+                    await Task.Delay(100).ConfigureAwait(false);
+                }
             }
         }
     }
