@@ -14,6 +14,7 @@ public class UploadFileTransfer : FileTransfer
     public CancellationToken CancellationToken => _manualCancellationToken.Token;
     private CancellationTokenSource _manualCancellationToken { get; }
     public bool Skip { get; set; }
+    public bool Started { get; set; }
     public Task CompletionTask { get; set; } 
 
     public void Cancel()
