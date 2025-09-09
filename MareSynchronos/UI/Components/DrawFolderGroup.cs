@@ -43,9 +43,19 @@ public class DrawFolderGroup : DrawFolderBase
     {
         ImGui.AlignTextToFramePadding();
 
-        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, _broadcastManager.BroadcastingGroupId == _groupFullInfoDto.GID))
+        bool isBroadcasting = _broadcastManager.BroadcastingGroupId == _groupFullInfoDto.GID;
+        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, isBroadcasting))
         {
-            _uiSharedService.IconText(_groupFullInfoDto.GroupPermissions.IsDisableInvites() ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users);
+            FontAwesomeIcon icon;
+            if (isBroadcasting)
+            {
+                icon = FontAwesomeIcon.BroadcastTower;
+            }
+            else
+            {
+                icon = _groupFullInfoDto.GroupPermissions.IsDisableInvites() ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users;
+            }
+            _uiSharedService.IconText(icon);
         }
         if (_groupFullInfoDto.GroupPermissions.IsDisableInvites())
         {

@@ -258,12 +258,12 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         ImGui.BeginChild("list", new Vector2(_windowContentWidth, ySize), border: false);
 
+        _broadcastsFolder?.Draw();
+
         foreach (var item in _drawFolders)
         {
             item.Draw();
         }
-
-        _broadcastsFolder?.Draw();
 
         ImGui.EndChild();
     }
