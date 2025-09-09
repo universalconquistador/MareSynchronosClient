@@ -9,6 +9,7 @@ using MareSynchronos.UI;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI.Files.Models;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
@@ -22,6 +23,8 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
     private readonly ServerConfigurationManager _serverManager;
     private readonly Dictionary<string, DateTime> _verifiedUploadedHashes = new(StringComparer.Ordinal);
     private CancellationTokenSource? _uploadCancellationTokenSource = new();
+
+    private readonly ConcurrentDictionary<string, UploadFileTransfer> _pendingUploads = new(StringComparer.Ordinal);
 
     public FileUploadManager(ILogger<FileUploadManager> logger, MareMediator mediator,
         MareConfigService mareConfigService,
@@ -40,46 +43,40 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         });
     }
 
-    private readonly object _currentUploadsLock = new object();
-    private List<FileTransfer> _currentUploads { get; } = [];
-    public bool IsUploading => _currentUploads.Count > 0;
+    public bool IsUploading => CurrentUploadCount > 0;
     public List<FileTransfer> CurrentUploadList
     {
         get
         {
-            lock (_currentUploadsLock)
-            {
-                return new List<FileTransfer>(_currentUploads);
-            }
+            return new List<FileTransfer>(_pendingUploads.Values);
         }
     }
+
     public int CurrentUploadCount
     {
         get
         {
-            lock (_currentUploadsLock)
-            {
-                return _currentUploads.Count;
-            }
+            return _pendingUploads.Count;
         }
     }
 
     public bool CancelUpload()
     {
-        lock (_currentUploadsLock)
+        foreach (var upload in _pendingUploads.Values)
         {
-            if (_currentUploads.Any())
-            {
-                Logger.LogDebug("Cancelling current upload");
-                _uploadCancellationTokenSource?.Cancel();
-                _uploadCancellationTokenSource?.Dispose();
-                _uploadCancellationTokenSource = null;
-                _currentUploads.Clear();
-                return true;
-            }
+            upload.Cancel();
+            _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(upload.Hash, upload));
         }
 
         return false;
+    }
+
+    public void SkipUnstartedFiles()
+    {
+        foreach (var upload in _pendingUploads.Values)
+        {
+            upload.Skip = true;
+        }
     }
 
     public async Task DeleteAllFiles()
@@ -151,7 +148,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
 
     public async Task<CharacterData> UploadFiles(CharacterData data, List<UserData> visiblePlayers)
     {
-        CancelUpload();
+        SkipUnstartedFiles();
 
         _uploadCancellationTokenSource = new CancellationTokenSource();
         var uploadToken = _uploadCancellationTokenSource.Token;
@@ -215,10 +212,13 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         _uploadCancellationTokenSource?.Cancel();
         _uploadCancellationTokenSource?.Dispose();
         _uploadCancellationTokenSource = null;
-        lock (_currentUploadsLock)
+
+        foreach (var transfer in _pendingUploads.Values)
         {
-            _currentUploads.Clear();
+            transfer.Cancel();
+            _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(transfer.Hash, transfer));
         }
+
         _verifiedUploadedHashes.Clear();
     }
 
@@ -262,9 +262,9 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         {
             try
             {
-                lock (_currentUploadsLock)
+                if (_pendingUploads.TryGetValue(fileHash, out var upload))
                 {
-                    _currentUploads.Single(f => string.Equals(f.Hash, fileHash, StringComparison.Ordinal)).Transferred = prog.Uploaded;
+                    upload.Transferred = prog.Uploaded;
                 }
             }
             catch (Exception ex)
@@ -283,6 +283,60 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         Logger.LogDebug("[{hash}] Upload Status: {status}", fileHash, response.StatusCode);
     }
 
+    private async Task PerformUpload(UploadFileTransfer transfer, CancellationToken token)
+    {
+        using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() waiting for slot for " + transfer.Hash))
+        {
+            try
+            {
+                await _orchestrator.WaitForUploadSlotAsync(token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "UploadUnverifiedFiles() wait for slot encountered exception for {hash}", transfer.Hash);
+                throw;
+            }
+        }
+
+        try
+        {
+            if (transfer.Skip)
+            {
+                Logger.LogDebug("[{hash}] Skipping compression and upload", transfer.Hash);
+                return;
+            }
+
+            // We could compress all at once before waiting for the parallel upload slot, but might as well stagger compression
+            // just to avoid any possible CPU hitch from trying to compress too many files at once.
+            (string, byte[]) compressedData;
+            using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() compressing " + transfer.Hash))
+            {
+                compressedData = await _fileDbManager.GetCompressedFileData(transfer.Hash, token).ConfigureAwait(false);
+            }
+
+            transfer.Total = compressedData.Item2.Length;
+            if (transfer.Skip)
+            {
+                Logger.LogDebug("[{hash}] Skipping upload", compressedData.Item1);
+                return;
+            }
+
+            Logger.LogDebug("[{hash}] Starting upload for {filePath}", compressedData.Item1, _fileDbManager.GetFileCacheByHash(compressedData.Item1)!.ResolvedFilepath);
+            using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() uploading " + transfer.Hash))
+            {
+                await UploadFile(compressedData.Item2, transfer.Hash, true, token).ConfigureAwait(false);
+            }
+
+            _verifiedUploadedHashes[transfer.Hash] = DateTime.UtcNow;
+        }
+        finally
+        {
+            _orchestrator.ReleaseUploadSlot();
+
+            _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(transfer.Hash, transfer));
+        }
+    }
+
     private async Task UploadUnverifiedFiles(HashSet<string> unverifiedUploadHashes, List<UserData> visiblePlayers, CancellationToken uploadToken)
     {
         unverifiedUploadHashes = unverifiedUploadHashes.Where(h => _fileDbManager.GetFileCacheByHash(h) != null).ToHashSet(StringComparer.Ordinal);
@@ -290,102 +344,44 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         Logger.LogDebug("Verifying {count} files sequentially", unverifiedUploadHashes.Count);
         var filesToUpload = await FilesSend([.. unverifiedUploadHashes], visiblePlayers.Select(p => p.UID).ToList(), uploadToken).ConfigureAwait(false);
 
-        foreach (var file in filesToUpload.Where(f => !f.IsForbidden).DistinctBy(f => f.Hash))
+        using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() parallel v2 upload"))
         {
-            try
+            var task = Parallel.ForEachAsync(filesToUpload.Where(f => !f.IsForbidden).DistinctBy(f => f.Hash), new ParallelOptions()
             {
-                lock (_currentUploadsLock)
+                MaxDegreeOfParallelism = filesToUpload.Count,
+                CancellationToken = uploadToken,
+            }, async (file, token) =>
+            {
+                var upload = _pendingUploads.GetOrAdd(file.Hash, hash =>
                 {
-                    _currentUploads.Add(new UploadFileTransfer(file)
+                    var transfer = new UploadFileTransfer(file, token)
                     {
-                        Total = new FileInfo(_fileDbManager.GetFileCacheByHash(file.Hash)!.ResolvedFilepath).Length,
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Tried to request file {hash} but file was not present", file.Hash);
-            }
-        }
+                        Total = new FileInfo(_fileDbManager.GetFileCacheByHash(file.Hash)!.ResolvedFilepath).Length
+                    };
 
-        foreach (var file in filesToUpload.Where(c => c.IsForbidden))
-        {
-            if (_orchestrator.ForbiddenTransfers.TrueForAll(f => !string.Equals(f.Hash, file.Hash, StringComparison.Ordinal)))
-            {
-                _orchestrator.ForbiddenTransfers.Add(new UploadFileTransfer(file)
-                {
-                    LocalFile = _fileDbManager.GetFileCacheByHash(file.Hash)?.ResolvedFilepath ?? string.Empty,
-                });
-            }
-
-            _verifiedUploadedHashes[file.Hash] = DateTime.UtcNow;
-        }
-
-        using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() parallel upload"))
-        {
-            List<FileTransfer> uploads;
-            
-            lock (_currentUploadsLock)
-            {
-                uploads = _currentUploads.Where(f => f.CanBeTransferred && !f.IsTransferred).ToList();
-            }
-
-            if (uploads.Count > 0)
-            {
-                var uploadTask = Parallel.ForEachAsync(uploads, new ParallelOptions()
-                {
-                    MaxDegreeOfParallelism = uploads.Count,
-                    CancellationToken = uploadToken,
-                },
-                async (fileToUpload, token) =>
-                {
-                    using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() waiting for slot for " + fileToUpload.Hash))
+                    if (file.IsForbidden)
                     {
-                        try
+                        // If there isn't an entry in the forbidden transfers list for this hash, add this one
+                        if (_orchestrator.ForbiddenTransfers.TrueForAll(f => !string.Equals(f.Hash, file.Hash, StringComparison.Ordinal)))
                         {
-                            await _orchestrator.WaitForUploadSlotAsync(token).ConfigureAwait(false);
+                            _orchestrator.ForbiddenTransfers.Add(transfer);
                         }
-                        catch (Exception ex)
-                        {
-                            Logger.LogError(ex, "UploadUnverifiedFiles() wait for slot encountered exception for {hash}", fileToUpload.Hash);
-                            throw;
-                        }
-                    }
 
-                    // We could compress all at once before waiting for the parallel upload slot, but might as well stagger compression
-                    // just to avoid any possible CPU hitch from trying to compress too many files at once.
-                    (string, byte[]) compressedData;
-                    using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() compressing " + fileToUpload.Hash))
+                        _verifiedUploadedHashes[file.Hash] = DateTime.UtcNow;
+                        transfer.CompletionTask = Task.CompletedTask;
+                    }
+                    else if (transfer.CanBeTransferred && !transfer.IsTransferred)
                     {
-                        compressedData = await _fileDbManager.GetCompressedFileData(fileToUpload.Hash, token).ConfigureAwait(false);
+                        transfer.CompletionTask = PerformUpload(transfer, transfer.CancellationToken);
                     }
 
-                    lock (_currentUploadsLock)
-                    {
-                        _currentUploads.Single(e => string.Equals(e.Hash, compressedData.Item1, StringComparison.Ordinal)).Total = compressedData.Item2.Length;
-                    }
-
-                    Logger.LogDebug("[{hash}] Starting upload for {filePath}", compressedData.Item1, _fileDbManager.GetFileCacheByHash(compressedData.Item1)!.ResolvedFilepath);
-                    using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() uploading " + fileToUpload.Hash))
-                    {
-                        await UploadFile(compressedData.Item2, fileToUpload.Hash, true, token).ConfigureAwait(false);
-                    }
-
-                    _orchestrator.ReleaseUploadSlot();
+                    return transfer;
                 });
 
-                await uploadTask.ConfigureAwait(false);
-            }
-        }
+                await upload.CompletionTask.ConfigureAwait(false);
+            });
 
-        lock (_currentUploadsLock)
-        {
-            foreach (var file in unverifiedUploadHashes.Where(c => !_currentUploads.Exists(u => string.Equals(u.Hash, c, StringComparison.Ordinal))))
-            {
-                _verifiedUploadedHashes[file] = DateTime.UtcNow;
-            }
-
-            _currentUploads.Clear();
+            await task.ConfigureAwait(false);
         }
     }
 }
