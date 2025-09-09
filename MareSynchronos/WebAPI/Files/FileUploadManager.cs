@@ -346,44 +346,51 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         Logger.LogDebug("Verifying {count} files sequentially", unverifiedUploadHashes.Count);
         var filesToUpload = await FilesSend([.. unverifiedUploadHashes], visiblePlayers.Select(p => p.UID).ToList(), uploadToken).ConfigureAwait(false);
 
-        using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() parallel v2 upload"))
+        if (filesToUpload.Count > 0)
         {
-            var task = Parallel.ForEachAsync(filesToUpload.Where(f => !f.IsForbidden).DistinctBy(f => f.Hash), new ParallelOptions()
+            using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() parallel v2 upload"))
             {
-                MaxDegreeOfParallelism = filesToUpload.Count,
-                CancellationToken = uploadToken,
-            }, async (file, token) =>
-            {
-                var upload = _pendingUploads.GetOrAdd(file.Hash, hash =>
+                var task = Parallel.ForEachAsync(filesToUpload.Where(f => !f.IsForbidden).DistinctBy(f => f.Hash), new ParallelOptions()
                 {
-                    var transfer = new UploadFileTransfer(file, token)
+                    MaxDegreeOfParallelism = filesToUpload.Count,
+                    CancellationToken = uploadToken,
+                }, async (file, token) =>
+                {
+                    var upload = _pendingUploads.GetOrAdd(file.Hash, hash =>
                     {
-                        Total = new FileInfo(_fileDbManager.GetFileCacheByHash(file.Hash)!.ResolvedFilepath).Length
-                    };
-
-                    if (file.IsForbidden)
-                    {
-                        // If there isn't an entry in the forbidden transfers list for this hash, add this one
-                        if (_orchestrator.ForbiddenTransfers.TrueForAll(f => !string.Equals(f.Hash, file.Hash, StringComparison.Ordinal)))
+                        var transfer = new UploadFileTransfer(file, token)
                         {
-                            _orchestrator.ForbiddenTransfers.Add(transfer);
+                            Total = new FileInfo(_fileDbManager.GetFileCacheByHash(file.Hash)!.ResolvedFilepath).Length
+                        };
+
+                        if (file.IsForbidden)
+                        {
+                            // If there isn't an entry in the forbidden transfers list for this hash, add this one
+                            if (_orchestrator.ForbiddenTransfers.TrueForAll(f => !string.Equals(f.Hash, file.Hash, StringComparison.Ordinal)))
+                            {
+                                _orchestrator.ForbiddenTransfers.Add(transfer);
+                            }
+
+                            _verifiedUploadedHashes[file.Hash] = DateTime.UtcNow;
+                            transfer.CompletionTask = Task.CompletedTask;
+                        }
+                        else if (transfer.CanBeTransferred && !transfer.IsTransferred)
+                        {
+                            transfer.CompletionTask = PerformUpload(transfer, transfer.CancellationToken);
                         }
 
-                        _verifiedUploadedHashes[file.Hash] = DateTime.UtcNow;
-                        transfer.CompletionTask = Task.CompletedTask;
-                    }
-                    else if (transfer.CanBeTransferred && !transfer.IsTransferred)
-                    {
-                        transfer.CompletionTask = PerformUpload(transfer, transfer.CancellationToken);
-                    }
+                        return transfer;
+                    });
 
-                    return transfer;
+                    await upload.CompletionTask.ConfigureAwait(false);
                 });
 
-                await upload.CompletionTask.ConfigureAwait(false);
-            });
-
-            await task.ConfigureAwait(false);
+                await task.ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            Logger.LogDebug("All files were already on the server.");
         }
     }
 }
