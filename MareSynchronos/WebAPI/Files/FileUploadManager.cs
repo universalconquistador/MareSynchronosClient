@@ -39,7 +39,13 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
 
         Mediator.Subscribe<DisconnectedMessage>(this, (msg) =>
         {
+            Logger.LogDebug("Disconnected from service - cancelling any uploads.");
             Reset();
+        });
+        Mediator.Subscribe<ZoneSwitchStartMessage>(this, (msg) =>
+        {
+            Logger.LogDebug("Changing zones - cancelling any uploads.");
+            CancelUpload();
         });
     }
 

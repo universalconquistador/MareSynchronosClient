@@ -230,6 +230,8 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _allGroups[dto.Group].Owner = dto.Owner;
         _allGroups[dto.Group].GroupPermissions = dto.GroupPermissions;
 
+        Mediator.Publish(new GroupInfoChanged(dto));
+
         RecreateLazy();
     }
 
