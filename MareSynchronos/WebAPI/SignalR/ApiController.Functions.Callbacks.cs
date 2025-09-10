@@ -108,9 +108,13 @@ public partial class ApiController
 
     public Task Client_ReceivePairingMessage(UserDto dto)
     {
-        Logger.LogDebug("Client_ReceivePairingMessage: {dto}", dto);
-        //ExecuteSafely(() => Mediator.Publish(new ReceivePairingMessageMessage(dto.User)));
-        ExecuteSafely(() => ReceivePairingMessage(dto.User));
+        Logger.LogDebug("Got a request to pair from {uid}", dto.User.UID);
+        var pair = _pairManager.GetPairByUID(dto.User.UID);
+        if (pair == null) return Task.CompletedTask;
+        var player = pair.PlayerName;
+        Logger.LogDebug("Got a request to pair from {uid} mapping to {player}.", dto.User.UID, player);
+        Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
+            $"Player {player} would like to pair. To accept, right click their name, or from a Syncshell, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(7.5)));
         return Task.CompletedTask;
     }
 
@@ -300,6 +304,7 @@ public partial class ApiController
 
     public void OnReceivePairingMessage(Action<UserDto> act)
     {
+        Logger.LogDebug("ReceievedPairingMessage");
         if (!_initialized) return;
         _mareHub!.On(nameof(Client_ReceivePairingMessage), act);
     }
