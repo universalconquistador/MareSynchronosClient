@@ -109,7 +109,8 @@ public partial class ApiController
     public Task Client_ReceivePairingMessage(UserDto dto)
     {
         Logger.LogDebug("Client_ReceivePairingMessage: {dto}", dto);
-        ExecuteSafely(() => Mediator.Publish(new ReceivePairingMessageMessage(dto.User)));
+        //ExecuteSafely(() => Mediator.Publish(new ReceivePairingMessageMessage(dto.User)));
+        ExecuteSafely(() => ReceivePairingMessage(dto.User));
         return Task.CompletedTask;
     }
 

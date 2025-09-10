@@ -59,7 +59,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Mediator.Subscribe<HubReconnectingMessage>(this, (msg) => MareHubOnReconnecting(msg.Exception));
         Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
-        Mediator.Subscribe<ReceivePairingMessageMessage>(this, (msg) => _ = ReceivePairingMessage(msg.UserData));
+        //Mediator.Subscribe<ReceivePairingMessageMessage>(this, (msg) => _ = ReceivePairingMessage(msg.UserData));
         Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
         Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData));
 
@@ -354,7 +354,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         return Task.CompletedTask;
     }
 
-    public async Task ReceivePairingMessage(UserData userData)
+    public void ReceivePairingMessage(UserData userData)
     {
         Logger.LogDebug("Got a request to pair from {uid}", userData.UID);
         var pair = _pairManager.GetPairByUID(userData.UID);
@@ -436,7 +436,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Logger.LogDebug("Initializing data");
         OnDownloadReady((guid) => _ = Client_DownloadReady(guid));
         OnReceiveServerMessage((sev, msg) => _ = Client_ReceiveServerMessage(sev, msg));
-        OnReceivePairingMessage((dto) => _ = Client_ReceivePairingMessage(dto));
+        OnReceivePairingMessage(dto => _ = Client_ReceivePairingMessage(dto));
         OnUpdateSystemInfo((dto) => _ = Client_UpdateSystemInfo(dto));
 
         OnUserSendOffline((dto) => _ = Client_UserSendOffline(dto));
