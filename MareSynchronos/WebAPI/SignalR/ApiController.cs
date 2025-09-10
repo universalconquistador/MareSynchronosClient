@@ -356,9 +356,11 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public async Task ReceivePairingMessage(UserData userData)
     {
+        Logger.LogDebug("Got a request to pair from {uid}", userData.UID);
         var pair = _pairManager.GetPairByUID(userData.UID);
         if (pair == null) return;
         var player = pair.PlayerName;
+        Logger.LogDebug("Got a request to pair from {uid} mapping to {player}.", userData.UID, player);
         Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
             $"Player {player} would like to pair. To accept, right click their name, or from a Syncshell, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(7.5)));
     }
