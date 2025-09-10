@@ -106,6 +106,13 @@ public partial class ApiController
         return Task.CompletedTask;
     }
 
+    public Task Client_ReceivePairingMessage(UserDto dto)
+    {
+        Logger.LogDebug("Client_ReceivePairingMessage: {dto}", dto);
+        ExecuteSafely(() => Mediator.Publish(new ReceivePairingMessageMessage(dto.User)));
+        return Task.CompletedTask;
+    }
+
     public Task Client_UpdateSystemInfo(SystemInfoDto systemInfo)
     {
         SystemInfoDto = systemInfo;
@@ -288,6 +295,12 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_ReceiveServerMessage), act);
+    }
+
+    public void OnReceivePairingMessage(Action<UserDto> act)
+    {
+        if (!_initialized) return;
+        _mareHub!.On(nameof(Client_ReceivePairingMessage), act);
     }
 
     public void OnUpdateSystemInfo(Action<SystemInfoDto> act)

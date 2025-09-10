@@ -3,6 +3,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
@@ -182,7 +183,7 @@ public class DrawUserPair
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Pair individually", _menuWidth, true))
             {
-                _ = _apiController.UserAddPair(new(_pair.UserData));
+                _ = _apiController.UserAddPair(new(_pair.UserData), true);
             }
             UiSharedService.AttachToolTip("Pair individually with " + entryUID);
         }

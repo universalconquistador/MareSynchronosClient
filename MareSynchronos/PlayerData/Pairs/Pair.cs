@@ -62,10 +62,12 @@ public class Pair
         SeStringBuilder seStringBuilder2 = new();
         SeStringBuilder seStringBuilder3 = new();
         SeStringBuilder seStringBuilder4 = new();
+        SeStringBuilder seStringBuilder5 = new();
         var openProfileSeString = seStringBuilder.AddText("Open Profile").Build();
         var reapplyDataSeString = seStringBuilder2.AddText("Reapply last data").Build();
         var cyclePauseState = seStringBuilder3.AddText("Cycle pause state").Build();
         var changePermissions = seStringBuilder4.AddText("Change Permissions").Build();
+        var pairIndividually = seStringBuilder5.AddText("Pair individually").Build();
         args.AddMenuItem(new MenuItem()
         {
             Name = openProfileSeString,
@@ -97,6 +99,15 @@ public class Pair
         {
             Name = cyclePauseState,
             OnClicked = (a) => _mediator.Publish(new CyclePauseMessage(UserData)),
+            UseDefaultPrefix = false,
+            PrefixChar = 'P',
+            PrefixColor = 530
+        });
+
+        args.AddMenuItem(new MenuItem()
+        {
+            Name = pairIndividually,
+            OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
             UseDefaultPrefix = false,
             PrefixChar = 'P',
             PrefixColor = 530

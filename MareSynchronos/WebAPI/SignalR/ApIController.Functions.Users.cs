@@ -28,10 +28,10 @@ public partial class ApiController
         }
     }
 
-    public async Task UserAddPair(UserDto user)
+    public async Task UserAddPair(UserDto user, bool pairNotice)
     {
         if (!IsConnected) return;
-        await _mareHub!.SendAsync(nameof(UserAddPair), user).ConfigureAwait(false);
+        await _mareHub!.SendAsync(nameof(UserAddPair), user, pairNotice).ConfigureAwait(false);
     }
 
     public async Task UserDelete()
