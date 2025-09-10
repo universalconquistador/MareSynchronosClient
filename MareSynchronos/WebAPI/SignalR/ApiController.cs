@@ -59,7 +59,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Mediator.Subscribe<HubReconnectingMessage>(this, (msg) => MareHubOnReconnecting(msg.Exception));
         Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
-        Mediator.Subscribe<ReceivePairingMessageMessage>(this, (msg) => _ = ReceivePairingMessage(msg.UserData));
         Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
         Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData));
 
@@ -352,15 +351,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         }, cts.Token).ContinueWith((t) => cts.Dispose());
 
         return Task.CompletedTask;
-    }
-
-    public async Task ReceivePairingMessage(UserData userData)
-    {
-        var pair = _pairManager.GetPairByUID(userData.UID);
-        if (pair == null) return;
-        var player = pair.PlayerName;
-        Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
-            $"Player {player} would like to pair. To accept, right click their name, or from a Syncshell, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(7.5)));
     }
 
     public async Task PauseAsync(UserData userData)

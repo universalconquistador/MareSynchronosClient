@@ -104,14 +104,18 @@ public class Pair
             PrefixColor = 530
         });
 
-        args.AddMenuItem(new MenuItem()
+        // Only show the option to pair if we don't already have a pairing
+        if (IndividualPairStatus == IndividualPairStatus.None)
         {
-            Name = pairIndividually,
-            OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
-            UseDefaultPrefix = false,
-            PrefixChar = 'P',
-            PrefixColor = 530
-        });
+            args.AddMenuItem(new MenuItem()
+            {
+                Name = pairIndividually,
+                OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
+                UseDefaultPrefix = false,
+                PrefixChar = 'P',
+                PrefixColor = 530
+            });
+        }
     }
 
     public void ApplyData(OnlineUserCharaDataDto data)
