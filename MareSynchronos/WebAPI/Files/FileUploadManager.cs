@@ -334,8 +334,6 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             {
                 await UploadFile(compressedData.Item2, transfer.Hash, true, token).ConfigureAwait(false);
             }
-
-            _verifiedUploadedHashes[transfer.Hash] = DateTime.UtcNow;
         }
         finally
         {

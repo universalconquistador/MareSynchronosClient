@@ -366,7 +366,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             var totalUploaded = currentUploads.Sum(c => c.Transferred);
             var totalToUpload = currentUploads.Sum(c => c.Total);
 
-            ImGui.TextUnformatted($"{doneUploads}/{totalUploads}");
+            ImGui.TextUnformatted($"{totalUploads} remaining");
             var uploadText = $"({UiSharedService.ByteToString(totalUploaded)}/{UiSharedService.ByteToString(totalToUpload)})";
             var textSize = ImGui.CalcTextSize(uploadText);
             ImGui.SameLine(_windowContentWidth - textSize.X);
