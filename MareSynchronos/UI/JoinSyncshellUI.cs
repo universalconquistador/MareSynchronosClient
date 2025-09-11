@@ -19,10 +19,13 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private readonly ApiController _apiController;
     private readonly UiSharedService _uiSharedService;
     private string _desiredSyncshellToJoin = string.Empty;
+    private string? _prefillSyncshellToJoin = null;
     private GroupJoinInfoDto? _groupJoinInfo = null;
     private DefaultPermissionsDto _ownPermissions = null!;
     private string _previousPassword = string.Empty;
     private string _syncshellPassword = string.Empty;
+    private bool _desiredPasswordless = false;
+    private bool _passwordless = false;
 
     public JoinSyncshellUI(ILogger<JoinSyncshellUI> logger, MareMediator mediator,
         UiSharedService uiSharedService, ApiController apiController, PerformanceCollectorService performanceCollectorService) 
@@ -37,13 +40,21 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         };
 
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => IsOpen = false);
+        Mediator.Subscribe<PrefillJoinSyncshellParameters>(this, message =>
+        {
+            _prefillSyncshellToJoin = message.GroupId;
+            _desiredPasswordless = message.ExpectPasswordless;
+        });
 
         Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;
     }
 
     public override void OnOpen()
     {
-        _desiredSyncshellToJoin = string.Empty;
+        _desiredSyncshellToJoin = _prefillSyncshellToJoin ?? string.Empty;
+        _prefillSyncshellToJoin = null;
+        _passwordless = _desiredPasswordless;
+        _desiredPasswordless = false;
         _syncshellPassword = string.Empty;
         _previousPassword = string.Empty;
         _groupJoinInfo = null;
@@ -73,8 +84,18 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("Syncshell Password");
             ImGui.SameLine(200);
-            ImGui.InputTextWithHint("##syncshellpw", "Password", ref _syncshellPassword, 50, ImGuiInputTextFlags.Password);
-            using (ImRaii.Disabled(string.IsNullOrEmpty(_desiredSyncshellToJoin) || string.IsNullOrEmpty(_syncshellPassword)))
+            if (!_passwordless)
+            {
+                ImGui.InputTextWithHint("##syncshellpw", "Password", ref _syncshellPassword, 50, ImGuiInputTextFlags.Password);
+            }
+            else
+            {
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
+                {
+                    ImGui.TextUnformatted("(None)");
+                }
+            }
+            using (ImRaii.Disabled(string.IsNullOrEmpty(_desiredSyncshellToJoin)))
             {
                 if (_uiSharedService.IconTextButton(Dalamud.Interface.FontAwesomeIcon.Plus, "Join Syncshell"))
                 {
@@ -94,6 +115,15 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         else
         {
             ImGui.TextUnformatted("You are about to join the Syncshell " + _groupJoinInfo.GroupAliasOrGID + " by " + _groupJoinInfo.OwnerAliasOrUID);
+            if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.Description))
+            {
+                ImGuiHelpers.ScaledDummy(2f);
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
+                    ImGui.TextUnformatted("Description");
+                ImGuiHelpers.ScaledDummy(2f);
+                ImGui.TextWrapped(_groupJoinInfo.PublicData.Description);
+                ImGui.Separator();
+            }
             ImGuiHelpers.ScaledDummy(2f);
             ImGui.TextUnformatted("This Syncshell staff has set the following suggested Syncshell permissions:");
             ImGui.AlignTextToFramePadding();

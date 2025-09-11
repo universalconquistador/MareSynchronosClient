@@ -10,6 +10,7 @@ public class MareConfig : IMareConfiguration
     public bool AcceptedAgreement { get; set; } = false;
     public string CacheFolder { get; set; } = string.Empty;
     public bool DisableOptionalPluginWarnings { get; set; } = false;
+    public bool ShowPairingRequestNotification { get; set; } = true;
     public bool EnableDtrEntry { get; set; } = false;
     public bool ShowUidInDtrTooltip { get; set; } = true;
     public bool PreferNoteInDtrTooltip { get; set; } = false;
@@ -31,7 +32,7 @@ public class MareConfig : IMareConfiguration
     public int ParallelDownloads { get; set; } = 15;
     public int DownloadSpeedLimitInBytes { get; set; } = 0;
     public DownloadSpeeds DownloadSpeedType { get; set; } = DownloadSpeeds.MBps;
-    public int ParallelUploads { get; set; } = 1;
+    public int ParallelUploads { get; set; } = 5;
     public bool PreferNotesOverNamesForVisible { get; set; } = false;
     public float ProfileDelay { get; set; } = 1.5f;
     public bool ProfilePopoutRight { get; set; } = false;
@@ -57,8 +58,10 @@ public class MareConfig : IMareConfiguration
     public bool UseAlternativeFileUpload { get; set; } = false;
     public bool UseCompactor { get; set; } = false;
     public bool DebugStopWhining { get; set; } = false;
+    public bool DebugThrottleUploads { get; set; } = false;
     public bool AutoPopulateEmptyNotesFromCharaName { get; set; } = false;
     public int Version { get; set; } = 1;
     public NotificationLocation WarningNotification { get; set; } = NotificationLocation.Both;
     public bool UseFocusTarget { get; set; } = false;
+    public bool ListenForBroadcasts { get; set; } = false;
 }

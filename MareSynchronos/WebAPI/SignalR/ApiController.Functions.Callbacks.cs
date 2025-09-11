@@ -47,8 +47,15 @@ public partial class ApiController
         Logger.LogTrace("Client_GroupPairChangeUserInfo: {dto}", userInfo);
         ExecuteSafely(() =>
         {
-            if (string.Equals(userInfo.UID, UID, StringComparison.Ordinal)) _pairManager.SetGroupStatusInfo(userInfo);
-            else _pairManager.SetGroupPairStatusInfo(userInfo);
+            if (string.Equals(userInfo.UID, UID, StringComparison.Ordinal))
+            {
+                _pairManager.SetGroupStatusInfo(userInfo);
+                Mediator.Publish(new GroupMembershipChanged(userInfo));
+            }
+            else
+            {
+                _pairManager.SetGroupPairStatusInfo(userInfo);
+            }
         });
         return Task.CompletedTask;
     }
@@ -103,6 +110,21 @@ public partial class ApiController
                 break;
         }
 
+        return Task.CompletedTask;
+    }
+
+    public Task Client_ReceivePairingMessage(UserDto dto)
+    {
+        Logger.LogDebug("Got a request to pair from {uid}", dto.User.UID);
+        var pair = _pairManager.GetPairByUID(dto.User.UID);
+        if (pair == null) return Task.CompletedTask;
+        var player = string.IsNullOrEmpty(pair.PlayerName) ? dto.User.AliasOrUID : pair.PlayerName;
+        Logger.LogDebug("Got a request to pair from {uid} mapping to {player}.", dto.User.UID, player);
+        if (_mareConfigService.Current.ShowPairingRequestNotification)
+        {
+            Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
+                $"Player {player} would like to pair. To accept, right click their character, or use the triple-dot menu next to their name, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(7.5)));
+        }
         return Task.CompletedTask;
     }
 
@@ -224,6 +246,12 @@ public partial class ApiController
         return Task.CompletedTask;
     }
 
+    public Task Client_BroadcastListeningChanged(bool isListening)
+    {
+        ExecuteSafely(() => Mediator.Publish(new BroadcastListeningChanged(isListening)));
+        return Task.CompletedTask;
+    }
+
     public void OnDownloadReady(Action<Guid> act)
     {
         if (_initialized) return;
@@ -282,6 +310,13 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_ReceiveServerMessage), act);
+    }
+
+    public void OnReceivePairingMessage(Action<UserDto> act)
+    {
+        Logger.LogDebug("ReceievedPairingMessage");
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_ReceivePairingMessage), act);
     }
 
     public void OnUpdateSystemInfo(Action<SystemInfoDto> act)
@@ -384,6 +419,12 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_GposeLobbyPushWorldData), act);
+    }
+
+    public void OnBroadcastListeningChanged(Action<bool> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_BroadcastListeningChanged), act);
     }
 
     private void ExecuteSafely(Action act)

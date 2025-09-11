@@ -567,6 +567,14 @@ public class SettingsUi : WindowMediatorSubscriberBase
         }
         _uiShared.DrawHelpText("Having modified game files will still mark your logs with UNSUPPORTED and you will not receive support, message shown or not." + UiSharedService.TooltipSeparator
             + "Keeping LOD enabled can lead to more crashes. Use at your own risk.");
+
+        bool throttleUploads = _configService.Current.DebugThrottleUploads;
+        if (ImGui.Checkbox("Throttle uploads to be very very slow", ref throttleUploads))
+        {
+            _configService.Current.DebugThrottleUploads = throttleUploads;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Artificially slow down your uploads, for testing the upload system.");
     }
 
     private void DrawFileStorageSettings()
@@ -1017,6 +1025,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.Separator();
 
         var disableOptionalPluginWarnings = _configService.Current.DisableOptionalPluginWarnings;
+        var pairingRequestNotifs = _configService.Current.ShowPairingRequestNotification;
         var onlineNotifs = _configService.Current.ShowOnlineNotifications;
         var onlineNotifsPairsOnly = _configService.Current.ShowOnlineNotificationsOnlyForIndividualPairs;
         var onlineNotifsNamedOnly = _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs;
@@ -1064,6 +1073,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will not show any \"Warning\" labeled messages for missing optional plugins.");
+        if (ImGui.Checkbox("Enable pairing request notifications", ref pairingRequestNotifs))
+        {
+            _configService.Current.ShowPairingRequestNotification = pairingRequestNotifs;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner when a player requests to pair through the context menu.");
         if (ImGui.Checkbox("Enable online notifications", ref onlineNotifs))
         {
             _configService.Current.ShowOnlineNotifications = onlineNotifs;
