@@ -32,7 +32,7 @@ public class MareConfig : IMareConfiguration
     public int ParallelDownloads { get; set; } = 15;
     public int DownloadSpeedLimitInBytes { get; set; } = 0;
     public DownloadSpeeds DownloadSpeedType { get; set; } = DownloadSpeeds.MBps;
-    public int ParallelUploads { get; set; } = 1;
+    public int ParallelUploads { get; set; } = 5;
     public bool PreferNotesOverNamesForVisible { get; set; } = false;
     public float ProfileDelay { get; set; } = 1.5f;
     public bool ProfilePopoutRight { get; set; } = false;
