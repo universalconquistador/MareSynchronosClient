@@ -24,6 +24,8 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private DefaultPermissionsDto _ownPermissions = null!;
     private string _previousPassword = string.Empty;
     private string _syncshellPassword = string.Empty;
+    private bool _desiredPasswordless = false;
+    private bool _passwordless = false;
 
     public JoinSyncshellUI(ILogger<JoinSyncshellUI> logger, MareMediator mediator,
         UiSharedService uiSharedService, ApiController apiController, PerformanceCollectorService performanceCollectorService) 
@@ -38,7 +40,11 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         };
 
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => IsOpen = false);
-        Mediator.Subscribe<PrefillJoinSyncshellParameters>(this, message => _prefillSyncshellToJoin = message.GroupId);
+        Mediator.Subscribe<PrefillJoinSyncshellParameters>(this, message =>
+        {
+            _prefillSyncshellToJoin = message.GroupId;
+            _desiredPasswordless = message.ExpectPasswordless;
+        });
 
         Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;
     }
@@ -47,6 +53,8 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     {
         _desiredSyncshellToJoin = _prefillSyncshellToJoin ?? string.Empty;
         _prefillSyncshellToJoin = null;
+        _passwordless = _desiredPasswordless;
+        _desiredPasswordless = false;
         _syncshellPassword = string.Empty;
         _previousPassword = string.Empty;
         _groupJoinInfo = null;
@@ -76,7 +84,17 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("Syncshell Password");
             ImGui.SameLine(200);
-            ImGui.InputTextWithHint("##syncshellpw", "Password", ref _syncshellPassword, 50, ImGuiInputTextFlags.Password);
+            if (!_passwordless)
+            {
+                ImGui.InputTextWithHint("##syncshellpw", "Password", ref _syncshellPassword, 50, ImGuiInputTextFlags.Password);
+            }
+            else
+            {
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
+                {
+                    ImGui.TextUnformatted("(None)");
+                }
+            }
             using (ImRaii.Disabled(string.IsNullOrEmpty(_desiredSyncshellToJoin)))
             {
                 if (_uiSharedService.IconTextButton(Dalamud.Interface.FontAwesomeIcon.Plus, "Join Syncshell"))
