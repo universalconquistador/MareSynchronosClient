@@ -193,7 +193,10 @@ public class DrawFolderGroup : DrawFolderBase
                             _broadcastManager.StartBroadcasting(_groupFullInfoDto.Group.GID);
                         }
                     }
-                    UiSharedService.AttachToolTip("This Syncshell has no password!\nHold CTRL and click if you are sure you want to broadcast this passwordless Syncshell.");
+                    if (_groupFullInfoDto.PublicData.KnownPasswordless)
+                    {
+                        UiSharedService.AttachToolTip("This Syncshell has no password!\nHold CTRL and click if you are sure you want to broadcast this passwordless Syncshell.");
+                    }
                 }
             }
         }

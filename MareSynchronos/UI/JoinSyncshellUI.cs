@@ -102,6 +102,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
                 ImGuiHelpers.ScaledDummy(2f);
                 ImGui.TextUnformatted("Description");
                 ImGui.TextWrapped(_groupJoinInfo.PublicData.Description);
+                ImGui.Separator();
             }
             ImGuiHelpers.ScaledDummy(2f);
             ImGui.TextUnformatted("This Syncshell staff has set the following suggested Syncshell permissions:");
