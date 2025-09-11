@@ -347,7 +347,15 @@ public class CompactUi : WindowMediatorSubscriberBase
     {
         var currentUploads = _fileTransferManager.CurrentUploadList;
         ImGui.AlignTextToFramePadding();
-        _uiSharedService.IconText(FontAwesomeIcon.Upload);
+        if (_configService.Current.DebugThrottleUploads)
+        {
+            _uiSharedService.IconText(FontAwesomeIcon.ExclamationTriangle);
+            UiSharedService.AttachToolTip("You have upload throttling enabled, which is artificially slowing your uploads.\nYou can turn this off in Settings > Debug.");
+        }
+        else
+        {
+            _uiSharedService.IconText(FontAwesomeIcon.Upload);
+        }
         ImGui.SameLine(35 * ImGuiHelpers.GlobalScale);
 
         if (currentUploads.Any())
