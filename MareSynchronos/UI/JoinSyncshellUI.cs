@@ -100,7 +100,9 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.Description))
             {
                 ImGuiHelpers.ScaledDummy(2f);
-                ImGui.TextUnformatted("Description");
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
+                    ImGui.TextUnformatted("Description");
+                ImGuiHelpers.ScaledDummy(2f);
                 ImGui.TextWrapped(_groupJoinInfo.PublicData.Description);
                 ImGui.Separator();
             }
