@@ -118,12 +118,12 @@ public partial class ApiController
         Logger.LogDebug("Got a request to pair from {uid}", dto.User.UID);
         var pair = _pairManager.GetPairByUID(dto.User.UID);
         if (pair == null) return Task.CompletedTask;
-        var player = pair.PlayerName;
+        var player = pair.PlayerName ?? dto.User.AliasOrUID;
         Logger.LogDebug("Got a request to pair from {uid} mapping to {player}.", dto.User.UID, player);
         if (_mareConfigService.Current.ShowPairingRequestNotification)
         {
             Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
-                $"Player {player} would like to pair. To accept, right click their name, or from a Syncshell, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(7.5)));
+                $"Player {player} would like to pair. To accept, right click their character, or use the triple-dot menu next to their name, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(7.5)));
         }
         return Task.CompletedTask;
     }
