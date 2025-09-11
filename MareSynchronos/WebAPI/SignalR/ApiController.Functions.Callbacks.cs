@@ -118,7 +118,7 @@ public partial class ApiController
         Logger.LogDebug("Got a request to pair from {uid}", dto.User.UID);
         var pair = _pairManager.GetPairByUID(dto.User.UID);
         if (pair == null) return Task.CompletedTask;
-        var player = pair.PlayerName ?? dto.User.AliasOrUID;
+        var player = string.IsNullOrEmpty(pair.PlayerName) ? dto.User.AliasOrUID : pair.PlayerName;
         Logger.LogDebug("Got a request to pair from {uid} mapping to {player}.", dto.User.UID, player);
         if (_mareConfigService.Current.ShowPairingRequestNotification)
         {
