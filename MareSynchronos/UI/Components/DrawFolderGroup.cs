@@ -117,6 +117,10 @@ public class DrawFolderGroup : DrawFolderBase
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.ArrowCircleLeft, "Leave Syncshell", menuWidth, true) && UiSharedService.CtrlPressed())
         {
             _ = _apiController.GroupLeave(_groupFullInfoDto);
+            if (_broadcastManager.BroadcastingGroupId == _groupFullInfoDto.Group.GID)
+            {
+                _broadcastManager.StopBroadcasting();
+            }
             ImGui.CloseCurrentPopup();
         }
         UiSharedService.AttachToolTip("Hold CTRL and click to leave this Syncshell" + (!string.Equals(_groupFullInfoDto.OwnerUID, _apiController.UID, StringComparison.Ordinal)
