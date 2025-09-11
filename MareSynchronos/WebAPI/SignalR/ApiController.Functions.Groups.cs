@@ -40,6 +40,12 @@ public partial class ApiController
         return await _mareHub!.InvokeAsync<bool>(nameof(GroupChangePassword), groupPassword).ConfigureAwait(false);
     }
 
+    public async Task GroupSetDescription(GroupDto group, string newDescription)
+    {
+        CheckConnection();
+        await _mareHub!.InvokeAsync(nameof(GroupSetDescription), group, newDescription).ConfigureAwait(false);
+    }
+
     public async Task GroupClear(GroupDto group)
     {
         CheckConnection();
@@ -136,10 +142,10 @@ public partial class ApiController
         return await _mareHub!.InvokeAsync<List<GroupBroadcastDto>>(nameof(BroadcastSendReceive), location, visibleIdents, sendDto).ConfigureAwait(false);
     }
 
-    public async Task<List<GroupBroadcastDto>> BroadcastReceive(WorldData location, List<string> visibleIdents)
+    public async Task<List<GroupBroadcastDto>> BroadcastReceive(WorldData location)
     {
         CheckConnection();
-        return await _mareHub!.InvokeAsync<List<GroupBroadcastDto>>(nameof(BroadcastReceive), location, visibleIdents).ConfigureAwait(false);
+        return await _mareHub!.InvokeAsync<List<GroupBroadcastDto>>(nameof(BroadcastReceive), location).ConfigureAwait(false);
     }
 
     private void CheckConnection()

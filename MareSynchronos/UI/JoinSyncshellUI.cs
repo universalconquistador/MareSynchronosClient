@@ -97,6 +97,12 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         else
         {
             ImGui.TextUnformatted("You are about to join the Syncshell " + _groupJoinInfo.GroupAliasOrGID + " by " + _groupJoinInfo.OwnerAliasOrUID);
+            if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.Description))
+            {
+                ImGuiHelpers.ScaledDummy(2f);
+                ImGui.TextUnformatted("Description");
+                ImGui.TextWrapped(_groupJoinInfo.PublicData.Description);
+            }
             ImGuiHelpers.ScaledDummy(2f);
             ImGui.TextUnformatted("This Syncshell staff has set the following suggested Syncshell permissions:");
             ImGui.AlignTextToFramePadding();
