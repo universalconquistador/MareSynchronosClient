@@ -57,6 +57,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Mediator.Subscribe<HubClosedMessage>(this, (msg) => MareHubOnClosed(msg.Exception));
         Mediator.Subscribe<HubReconnectedMessage>(this, (msg) => _ = MareHubOnReconnectedAsync());
         Mediator.Subscribe<HubReconnectingMessage>(this, (msg) => MareHubOnReconnecting(msg.Exception));
+        Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
         Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
         Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData));
@@ -423,6 +424,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Logger.LogDebug("Initializing data");
         OnDownloadReady((guid) => _ = Client_DownloadReady(guid));
         OnReceiveServerMessage((sev, msg) => _ = Client_ReceiveServerMessage(sev, msg));
+        OnReceivePairingMessage((dto) => _ = Client_ReceivePairingMessage(dto));
         OnUpdateSystemInfo((dto) => _ = Client_UpdateSystemInfo(dto));
 
         OnUserSendOffline((dto) => _ = Client_UserSendOffline(dto));
@@ -451,6 +453,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         OnGposeLobbyPushCharacterData((dto) => _ = Client_GposeLobbyPushCharacterData(dto));
         OnGposeLobbyPushPoseData((dto, data) => _ = Client_GposeLobbyPushPoseData(dto, data));
         OnGposeLobbyPushWorldData((dto, data) => _ = Client_GposeLobbyPushWorldData(dto, data));
+
+        OnBroadcastListeningChanged(isListening => _ = Client_BroadcastListeningChanged(isListening));
 
         _healthCheckTokenSource?.Cancel();
         _healthCheckTokenSource?.Dispose();

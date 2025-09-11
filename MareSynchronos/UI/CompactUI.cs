@@ -36,6 +36,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly DrawEntityFactory _drawEntityFactory;
     private readonly FileUploadManager _fileTransferManager;
     private readonly PairManager _pairManager;
+    private readonly IBroadcastManager _broadcastManager;
     private readonly SelectTagForPairUi _selectGroupForPairUi;
     private readonly SelectPairForTagUi _selectPairsForGroupUi;
     private readonly IpcManager _ipcManager;
@@ -44,6 +45,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly TagHandler _tagHandler;
     private readonly UiSharedService _uiSharedService;
     private List<IDrawFolder> _drawFolders;
+    private DrawFolderBroadcasts? _broadcastsFolder;
     private Pair? _lastAddedUser;
     private string _lastAddedUserComment = string.Empty;
     private Vector2 _lastPosition = Vector2.One;
@@ -55,6 +57,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private float _windowContentWidth;
 
     public CompactUi(ILogger<CompactUi> logger, UiSharedService uiShared, MareConfigService configService, ApiController apiController, PairManager pairManager,
+        IBroadcastManager broadcastManager,
         ServerConfigurationManager serverManager, MareMediator mediator, FileUploadManager fileTransferManager,
         TagHandler tagHandler, DrawEntityFactory drawEntityFactory, SelectTagForPairUi selectTagForPairUi, SelectPairForTagUi selectPairForTagUi,
         PerformanceCollectorService performanceCollectorService, IpcManager ipcManager)
@@ -64,6 +67,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         _configService = configService;
         _apiController = apiController;
         _pairManager = pairManager;
+        _broadcastManager = broadcastManager;
         _serverManager = serverManager;
         _fileTransferManager = fileTransferManager;
         _tagHandler = tagHandler;
@@ -71,7 +75,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         _selectGroupForPairUi = selectTagForPairUi;
         _selectPairsForGroupUi = selectPairForTagUi;
         _ipcManager = ipcManager;
-        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _uiSharedService);
+        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService);
 
         AllowClickthrough = false;
         TitleBarButtons = new()
@@ -125,7 +129,11 @@ public class CompactUi : WindowMediatorSubscriberBase
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => UiSharedService_GposeEnd());
         Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.DownloadId] = msg.DownloadStatus);
         Mediator.Subscribe<DownloadFinishedMessage>(this, (msg) => _currentDownloads.TryRemove(msg.DownloadId, out _));
-        Mediator.Subscribe<RefreshUiMessage>(this, (msg) => _drawFolders = GetDrawFolders().ToList());
+        Mediator.Subscribe<RefreshUiMessage>(this, (msg) =>
+        {
+            _drawFolders = GetDrawFolders().ToList();
+            _broadcastsFolder = GetBroadcastsFolder();
+        });
 
         Flags |= ImGuiWindowFlags.NoDocking;
 
@@ -250,6 +258,8 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         ImGui.BeginChild("list", new Vector2(_windowContentWidth, ySize), border: false);
 
+        _broadcastsFolder?.Draw();
+
         foreach (var item in _drawFolders)
         {
             item.Draw();
@@ -337,7 +347,15 @@ public class CompactUi : WindowMediatorSubscriberBase
     {
         var currentUploads = _fileTransferManager.CurrentUploadList;
         ImGui.AlignTextToFramePadding();
-        _uiSharedService.IconText(FontAwesomeIcon.Upload);
+        if (_configService.Current.DebugThrottleUploads)
+        {
+            _uiSharedService.IconText(FontAwesomeIcon.ExclamationTriangle);
+            UiSharedService.AttachToolTip("You have upload throttling enabled, which is artificially slowing your uploads.\nYou can turn this off in Settings > Debug.");
+        }
+        else
+        {
+            _uiSharedService.IconText(FontAwesomeIcon.Upload);
+        }
         ImGui.SameLine(35 * ImGuiHelpers.GlobalScale);
 
         if (currentUploads.Any())
@@ -348,7 +366,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             var totalUploaded = currentUploads.Sum(c => c.Transferred);
             var totalToUpload = currentUploads.Sum(c => c.Total);
 
-            ImGui.TextUnformatted($"{doneUploads}/{totalUploads}");
+            ImGui.TextUnformatted($"{totalUploads} remaining");
             var uploadText = $"({UiSharedService.ByteToString(totalUploaded)}/{UiSharedService.ByteToString(totalToUpload)})";
             var textSize = ImGui.CalcTextSize(uploadText);
             ImGui.SameLine(_windowContentWidth - textSize.X);
@@ -557,6 +575,11 @@ public class CompactUi : WindowMediatorSubscriberBase
             ImmutablePairList(allPairs.Where(u => u.Key.IsOneSidedPair))));
 
         return drawFolders;
+    }
+
+    private DrawFolderBroadcasts? GetBroadcastsFolder()
+    {
+        return _broadcastManager.IsListening ? _drawEntityFactory.CreateDrawFolderBroadcasts(_broadcastManager.AvailableBroadcastGroups, _pairManager.Groups.Values.ToList()) : null;
     }
 
     private string GetServerError()

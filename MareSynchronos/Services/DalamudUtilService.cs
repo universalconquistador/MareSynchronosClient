@@ -544,6 +544,11 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return result;
     }
 
+    internal IEnumerable<string> GetVisiblePlayerIdents()
+    {
+        return _playerCharas.Keys;
+    }
+
     private unsafe void CheckCharacterForDrawing(nint address, string characterName)
     {
         var gameObj = (GameObject*)address;

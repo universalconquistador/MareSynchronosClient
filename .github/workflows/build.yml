@@ -44,4 +44,3 @@ jobs:
         with:
           name: MareSempiterneManifest
           path: MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne.json
-        
