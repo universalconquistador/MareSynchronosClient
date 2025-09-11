@@ -10,6 +10,7 @@ public class MareConfig : IMareConfiguration
     public bool AcceptedAgreement { get; set; } = false;
     public string CacheFolder { get; set; } = string.Empty;
     public bool DisableOptionalPluginWarnings { get; set; } = false;
+    public bool ShowPairingRequestNotification { get; set; } = true;
     public bool EnableDtrEntry { get; set; } = false;
     public bool ShowUidInDtrTooltip { get; set; } = true;
     public bool PreferNoteInDtrTooltip { get; set; } = false;

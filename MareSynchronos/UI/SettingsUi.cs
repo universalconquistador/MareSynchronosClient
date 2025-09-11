@@ -1017,6 +1017,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.Separator();
 
         var disableOptionalPluginWarnings = _configService.Current.DisableOptionalPluginWarnings;
+        var pairingRequestNotifs = _configService.Current.ShowPairingRequestNotification;
         var onlineNotifs = _configService.Current.ShowOnlineNotifications;
         var onlineNotifsPairsOnly = _configService.Current.ShowOnlineNotificationsOnlyForIndividualPairs;
         var onlineNotifsNamedOnly = _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs;
@@ -1064,6 +1065,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will not show any \"Warning\" labeled messages for missing optional plugins.");
+        if (ImGui.Checkbox("Enable pairing request notifications", ref pairingRequestNotifs))
+        {
+            _configService.Current.ShowPairingRequestNotification = pairingRequestNotifs;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner when a player requests to pair through the context menu.");
         if (ImGui.Checkbox("Enable online notifications", ref onlineNotifs))
         {
             _configService.Current.ShowOnlineNotifications = onlineNotifs;
