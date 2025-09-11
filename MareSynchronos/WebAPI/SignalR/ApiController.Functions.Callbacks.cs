@@ -315,7 +315,7 @@ public partial class ApiController
     public void OnReceivePairingMessage(Action<UserDto> act)
     {
         Logger.LogDebug("ReceievedPairingMessage");
-        if (!_initialized) return;
+        if (_initialized) return;
         _mareHub!.On(nameof(Client_ReceivePairingMessage), act);
     }
 
