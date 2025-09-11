@@ -185,11 +185,15 @@ public class DrawFolderGroup : DrawFolderBase
                 }
                 else
                 {
-                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Wifi, "Start Broadcasting", menuWidth, true))
+                    using (ImRaii.Disabled(_groupFullInfoDto.PublicData.KnownPasswordless && !UiSharedService.CtrlPressed()))
                     {
-                        ImGui.CloseCurrentPopup();
-                        _broadcastManager.StartBroadcasting(_groupFullInfoDto.Group.GID);
+                        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Wifi, "Start Broadcasting", menuWidth, true))
+                        {
+                            ImGui.CloseCurrentPopup();
+                            _broadcastManager.StartBroadcasting(_groupFullInfoDto.Group.GID);
+                        }
                     }
+                    UiSharedService.AttachToolTip("This Syncshell has no password!\nHold CTRL and click if you are sure you want to broadcast this passwordless Syncshell.");
                 }
             }
         }

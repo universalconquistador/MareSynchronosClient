@@ -304,7 +304,7 @@ namespace MareSynchronos.PlayerData.Pairs
                 {
                     Logger.LogTrace("Receiving broadcast groups for {location}...", locationString);
 
-                    broadcasts = await _apiController.BroadcastReceive(location, visibleIdents).ConfigureAwait(false);
+                    broadcasts = await _apiController.BroadcastReceive(location).ConfigureAwait(false);
                 }
 
                 Logger.LogTrace("Received {count} groups.", broadcasts.Count);
