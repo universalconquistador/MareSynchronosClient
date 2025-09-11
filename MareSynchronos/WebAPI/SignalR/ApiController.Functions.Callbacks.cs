@@ -47,8 +47,15 @@ public partial class ApiController
         Logger.LogTrace("Client_GroupPairChangeUserInfo: {dto}", userInfo);
         ExecuteSafely(() =>
         {
-            if (string.Equals(userInfo.UID, UID, StringComparison.Ordinal)) _pairManager.SetGroupStatusInfo(userInfo);
-            else _pairManager.SetGroupPairStatusInfo(userInfo);
+            if (string.Equals(userInfo.UID, UID, StringComparison.Ordinal))
+            {
+                _pairManager.SetGroupStatusInfo(userInfo);
+                Mediator.Publish(new GroupMembershipChanged(userInfo));
+            }
+            else
+            {
+                _pairManager.SetGroupPairStatusInfo(userInfo);
+            }
         });
         return Task.CompletedTask;
     }

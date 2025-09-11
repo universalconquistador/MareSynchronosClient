@@ -79,6 +79,6 @@ public class DrawEntityFactory
 
     public DrawFolderBroadcasts CreateDrawFolderBroadcasts(IReadOnlyList<GroupBroadcastDto> broadcasts, List<GroupFullInfoDto> groups)
     {
-        return new DrawFolderBroadcasts(broadcasts.Select(broadcast => CreateDrawBroadcastGroup(broadcast, groups)).ToImmutableList(), _tagHandler, _uiSharedService);
+        return new DrawFolderBroadcasts(broadcasts.OrderByDescending(broadcast => broadcast.CurrentMemberCount).Select(broadcast => CreateDrawBroadcastGroup(broadcast, groups)).ToImmutableList(), _tagHandler, _uiSharedService);
     }
 }

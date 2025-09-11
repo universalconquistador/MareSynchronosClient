@@ -97,5 +97,7 @@ public record GPoseLobbyReceivePoseData(UserData UserData, PoseData PoseData) : 
 public record GPoseLobbyReceiveWorldData(UserData UserData, WorldData WorldData) : MessageBase;
 public record OpenCharaDataHubWithFilterMessage(UserData UserData) : MessageBase;
 public record BroadcastListeningChanged(bool isListening) : MessageBase;
+public record GroupMembershipChanged(GroupPairUserInfoDto Dto) : MessageBase;
+public record GroupInfoChanged(GroupInfoDto GroupInfo) : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name

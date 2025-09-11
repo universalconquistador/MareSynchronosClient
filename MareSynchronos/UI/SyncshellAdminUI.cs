@@ -12,6 +12,8 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
+using System.Numerics;
+using System.Text;
 
 namespace MareSynchronos.UI.Components.Popup;
 
@@ -30,6 +32,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private Task<int>? _pruneTestTask;
     private Task<int>? _pruneTask;
     private int _pruneDays = 14;
+    private Memory<byte> _descriptionBuffer = new byte[2000];
 
     public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService)
@@ -50,6 +53,11 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             MinimumSize = new(700, 500),
             MaximumSize = new(700, 2000),
         };
+        Mediator.Subscribe<GroupInfoChanged>(this, message =>
+        {
+            System.Text.Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.Description, _descriptionBuffer.Span);
+        });
+        System.Text.Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.Description, _descriptionBuffer.Span);
     }
 
     public GroupFullInfoDto GroupFullInfo { get; private set; }
@@ -65,6 +73,17 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         using (_uiSharedService.UidFont.Push())
             ImGui.TextUnformatted(GroupFullInfo.GroupAliasOrGID + " Administrative Panel");
 
+        if (GroupFullInfo.PublicData.KnownPasswordless)
+        {
+            using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed))
+            {
+                _uiSharedService.IconText(FontAwesomeIcon.ExclamationTriangle);
+
+                ImGui.SameLine();
+                ImGui.TextUnformatted("This Syncshell has no password.");
+            }
+        }
+
         ImGui.Separator();
         var perm = GroupFullInfo.GroupPermissions;
 
@@ -72,6 +91,17 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
         if (tabbar)
         {
+            var descriptionTab = ImRaii.TabItem("Description");
+            if (descriptionTab)
+            {
+                ImGui.InputTextMultiline("###description_input", _descriptionBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300));
+                if (_uiSharedService.IconTextButton(FontAwesomeIcon.Save, "Save"))
+                {
+                    _ = _apiController.GroupSetDescription(new(GroupFullInfo.Group), Encoding.UTF8.GetString(_descriptionBuffer.Span.Slice(0, _descriptionBuffer.Span.IndexOf((byte)0))));
+                }
+            }
+            descriptionTab.Dispose();
+
             var inviteTab = ImRaii.TabItem("Invites");
             if (inviteTab)
             {
@@ -422,7 +452,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                     ImGui.SetNextItemWidth(availableWidth - buttonSize - textSize - spacing * 2);
                     ImGui.InputTextWithHint("##changepw", "Min 10 characters", ref _newPassword, 50);
                     ImGui.SameLine();
-                    using (ImRaii.Disabled(_newPassword.Length < 10))
+                    using (ImRaii.Disabled((_newPassword.Length > 0 && _newPassword.Length < 10) || (_newPassword == string.Empty && !UiSharedService.CtrlPressed())))
                     {
                         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Passport, "Change Password"))
                         {
@@ -430,7 +460,12 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                             _newPassword = string.Empty;
                         }
                     }
-                    UiSharedService.AttachToolTip("Password requires to be at least 10 characters long. This action is irreversible.");
+                    var tooltip = "Password requires to be at least 10 characters long. This action is irreversible.";
+                    if (_newPassword == string.Empty)
+                    {
+                        tooltip += Environment.NewLine + Environment.NewLine + "WARNING: A Syncshell without a password can be joined by anyone with the Syncshell ID\nor that it is broadcast to. Hold CTRL if you are sure you want to not have a password\non this Syncshell.";
+                    }
+                    UiSharedService.AttachToolTip(tooltip);
 
                     if (!_pwChangeSuccess)
                     {

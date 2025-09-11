@@ -229,6 +229,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _allGroups[dto.Group].Group = dto.Group;
         _allGroups[dto.Group].Owner = dto.Owner;
         _allGroups[dto.Group].GroupPermissions = dto.GroupPermissions;
+        _allGroups[dto.Group].PublicData = dto.PublicData;
+
+        Mediator.Publish(new GroupInfoChanged(dto));
 
         RecreateLazy();
     }

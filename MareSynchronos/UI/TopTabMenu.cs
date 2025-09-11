@@ -7,6 +7,7 @@ using Dalamud.Utility;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
@@ -23,22 +24,22 @@ public class TopTabMenu : IMediatorSubscriber
     private readonly PairManager _pairManager;
     private readonly IBroadcastManager _broadcastManager;
     private readonly UiSharedService _uiSharedService;
+    private readonly MareConfigService _mareConfigService;
     private string _filter = string.Empty;
     private int _globalControlCountdown = 0;
-    private bool _predictedIsListeningForBroadcasts;
 
     private string _pairToAdd = string.Empty;
     MareMediator IMediatorSubscriber.Mediator => _mareMediator;
 
     private SelectedTab _selectedTab = SelectedTab.None;
-    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService)
+    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, MareConfigService mareConfigService)
     {
         _mareMediator = mareMediator;
         _apiController = apiController;
         _pairManager = pairManager;
         _broadcastManager = broadcastManager;
         _uiSharedService = uiSharedService;
-        mareMediator.Subscribe<BroadcastListeningChanged>(this, message => _predictedIsListeningForBroadcasts = message.isListening);
+        _mareConfigService = mareConfigService;
     }
 
     private enum SelectedTab
@@ -255,7 +256,7 @@ public class TopTabMenu : IMediatorSubscriber
 
     private void DrawBroadcast(float availableXWidth, float spacingX)
     {
-        bool showBroadcastingSyncshells = _predictedIsListeningForBroadcasts;
+        bool showBroadcastingSyncshells = _mareConfigService.Current.ListenForBroadcasts;
         if (ImGui.Checkbox("Show broadcasting Syncshells", ref showBroadcastingSyncshells))
         {
             if (showBroadcastingSyncshells)
@@ -266,7 +267,8 @@ public class TopTabMenu : IMediatorSubscriber
             {
                 _broadcastManager.StopListening();
             }
-            _predictedIsListeningForBroadcasts = showBroadcastingSyncshells;
+            _mareConfigService.Current.ListenForBroadcasts = showBroadcastingSyncshells;
+            _mareConfigService.Save();
         }
         UiSharedService.AttachToolTip("Show Syncshells broadcasting in your location for easy joining." + Environment.NewLine + Environment.NewLine +
             "Use the menu for a Syncshell that you own or moderate to broadcast it to players nearby.");

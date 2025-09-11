@@ -1,5 +1,7 @@
-﻿using MareSynchronos.API.Dto.CharaData;
+﻿using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.API.Dto.Group;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
@@ -70,8 +72,11 @@ namespace MareSynchronos.PlayerData.Pairs
 
     public class BroadcastManager : DisposableMediatorSubscriberBase, IBroadcastManager
     {
+        private readonly ILogger<BroadcastManager> _logger;
         private readonly ApiController _apiController;
         private readonly DalamudUtilService _dalamudUtilService;
+        private readonly PairManager _pairManager;
+        private readonly MareConfigService _mareConfigService;
 
         private DateTimeOffset _nextPeriodicPoll;
         private readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(5);
@@ -82,16 +87,75 @@ namespace MareSynchronos.PlayerData.Pairs
 
         public BroadcastManager(ILogger<BroadcastManager> logger, MareMediator mediator,
             ApiController apiController,
-            DalamudUtilService dalamudUtilService)
+            DalamudUtilService dalamudUtilService,
+            PairManager pairManager,
+            MareConfigService mareConfigService)
             : base(logger, mediator)
         {
+            _logger = logger;
             _apiController = apiController;
             _dalamudUtilService = dalamudUtilService;
+            _pairManager = pairManager;
+            _mareConfigService = mareConfigService;
 
             Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, OnDelayedFrameworkUpdate);
-            Mediator.Subscribe<ConnectedMessage>(this, _ => IsListening = false);
+            Mediator.Subscribe<BroadcastListeningChanged>(this, message =>
+            {
+                mareConfigService.Current.ListenForBroadcasts = message.isListening;
+                mareConfigService.Save();
+            });
+            Mediator.Subscribe<ConnectedMessage>(this, _ =>
+            {
+                IsListening = false;
+                if (_mareConfigService.Current.ListenForBroadcasts)
+                {
+                    StartListening();
+                }
+            });
             Mediator.Subscribe<DisconnectedMessage>(this, _ => IsListening = false);
             Mediator.Subscribe<BroadcastListeningChanged>(this, message => IsListening = message.isListening);
+            Mediator.Subscribe<GroupMembershipChanged>(this, message =>
+            {
+                // If we have been demodded, make sure we aren't still trying to broadcast
+                if (message.Dto.GID == BroadcastingGroupId)
+                {
+                    var isNowMod = message.Dto.GroupUserInfo.IsModerator();
+                    var group = _pairManager.Groups.Values.FirstOrDefault(g => g.GID == message.Dto.GID);
+
+                    var isOwner = false;
+                    if (group != null)
+                    {
+                        isOwner = group.OwnerUID == _apiController.UID;
+                    }
+
+                    if (!(isOwner || isNowMod))
+                    {
+                        _logger.LogDebug("Demodded while broadcasting group {gid} - stopping broadcast attempts.", message.Dto.GID);
+                        StopBroadcasting();
+                    }
+                }
+            });
+            Mediator.Subscribe<GroupInfoChanged>(this, message =>
+            {
+                // If we have lost ownership, make sure we aren't still trying to broadcast
+                if (message.GroupInfo.GID == BroadcastingGroupId)
+                {
+                    var isMod = false;
+                    var group = _pairManager.Groups.Values.FirstOrDefault(g => g.GID == message.GroupInfo.GID);
+                    if (group != null)
+                    {
+                        isMod = group.GroupPairUserInfos[_apiController.UID].IsModerator();
+                    }
+                    
+                    var isNowOwner = message.GroupInfo.OwnerUID == _apiController.UID;
+
+                    if (!(isNowOwner || isMod))
+                    {
+                        _logger.LogDebug("No longer owner or mod while broadcasting group {gid} - stopping broadcast attempts.", message.GroupInfo.GID);
+                        StopBroadcasting();
+                    }
+                }
+            });
         }
 
         public IReadOnlyList<GroupBroadcastDto> AvailableBroadcastGroups { get; private set; } = Array.Empty<GroupBroadcastDto>();
@@ -240,7 +304,7 @@ namespace MareSynchronos.PlayerData.Pairs
                 {
                     Logger.LogTrace("Receiving broadcast groups for {location}...", locationString);
 
-                    broadcasts = await _apiController.BroadcastReceive(location, visibleIdents).ConfigureAwait(false);
+                    broadcasts = await _apiController.BroadcastReceive(location).ConfigureAwait(false);
                 }
 
                 Logger.LogTrace("Received {count} groups.", broadcasts.Count);
