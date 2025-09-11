@@ -120,8 +120,11 @@ public partial class ApiController
         if (pair == null) return Task.CompletedTask;
         var player = pair.PlayerName;
         Logger.LogDebug("Got a request to pair from {uid} mapping to {player}.", dto.User.UID, player);
-        Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
-            $"Player {player} would like to pair. To accept, right click their name, or from a Syncshell, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(7.5)));
+        if (_mareConfigService.Current.ShowPairingRequestNotification)
+        {
+            Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
+                $"Player {player} would like to pair. To accept, right click their name, or from a Syncshell, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(7.5)));
+        }
         return Task.CompletedTask;
     }
 
