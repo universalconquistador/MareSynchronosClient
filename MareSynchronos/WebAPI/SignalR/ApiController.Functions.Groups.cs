@@ -46,10 +46,10 @@ public partial class ApiController
         await _mareHub!.InvokeAsync(nameof(GroupSetDescription), group, newDescription).ConfigureAwait(false);
     }
 
-    public async Task GroupClear(GroupDto group)
+    public async Task GroupClear(GroupDto group, bool clearOnlyGuestUsers)
     {
         CheckConnection();
-        await _mareHub!.SendAsync(nameof(GroupClear), group).ConfigureAwait(false);
+        await _mareHub!.SendAsync(nameof(GroupClear), group, clearOnlyGuestUsers).ConfigureAwait(false);
     }
 
     public async Task<GroupJoinDto> GroupCreate()
