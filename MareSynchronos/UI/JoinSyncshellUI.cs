@@ -43,7 +43,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         Mediator.Subscribe<PrefillJoinSyncshellParameters>(this, message =>
         {
             _prefillSyncshellToJoin = message.GroupId;
-            _desiredPasswordless = message.ExpectPasswordless;
+            _desiredPasswordless = message.ExpectPasswordless || message.IsGuestModeEnabled;
         });
 
         Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;
@@ -92,7 +92,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             {
                 using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
                 {
-                    ImGui.TextUnformatted("(None)");
+                    ImGui.TextUnformatted("(None) - You will join as a guest user.");
                 }
             }
             using (ImRaii.Disabled(string.IsNullOrEmpty(_desiredSyncshellToJoin)))

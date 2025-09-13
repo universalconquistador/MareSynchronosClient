@@ -168,6 +168,9 @@ public class DrawFolderGroup : DrawFolderBase
 
         if (IsModerator || IsOwner)
         {
+            var groupPerms = _groupFullInfoDto.GroupPermissions;
+            bool enabledGuest = groupPerms.IsEnableGuestMode();
+
             ImGui.Separator();
             ImGui.TextUnformatted("Syncshell Admin Functions");
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Cog, "Open Admin Panel", menuWidth, true))
@@ -186,6 +189,33 @@ public class DrawFolderGroup : DrawFolderBase
                         ImGui.CloseCurrentPopup();
                         _broadcastManager.StopBroadcasting();
                     }
+
+                    if (!enabledGuest)
+                    {
+                        using (ImRaii.Disabled(!_groupFullInfoDto.GroupPermissions.IsEnableGuestMode() && !UiSharedService.CtrlPressed()))
+                        {
+                            if (_uiSharedService.IconTextButton(FontAwesomeIcon.PersonWalkingLuggage, "Enable Guest Mode", menuWidth, true))
+                            {
+                                ImGui.CloseCurrentPopup();
+                                groupPerms.SetEnableGuestMode(true);
+                                _ = _apiController.GroupChangeGroupPermissionState(new(_groupFullInfoDto.Group, groupPerms));
+                            }
+                        }
+                        if (_groupFullInfoDto.PublicData.GuestModeEnabled)
+                        {
+                            UiSharedService.AttachToolTip("Players will be able to join the Syncshell without a password.\nHold CTRL and click if you are sure you want to enable this.");
+                        }
+                    }
+                    else
+                    {
+                        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Disable Guest Mode", menuWidth, true))
+                        {
+                            ImGui.CloseCurrentPopup();
+                            groupPerms.SetEnableGuestMode(false);
+                            _ = _apiController.GroupChangeGroupPermissionState(new(_groupFullInfoDto.Group, groupPerms));
+                        }
+                    }
+
                 }
                 else
                 {
