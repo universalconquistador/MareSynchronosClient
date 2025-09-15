@@ -288,7 +288,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                 {
                     using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
                     {
-                        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Broom, "Clear Entire Syncshell"))
+                        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Broom, "Clear Syncshell"))
                         {
                             _ = _apiController.GroupClear(new(GroupFullInfo.Group), false);
                         }

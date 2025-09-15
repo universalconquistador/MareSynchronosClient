@@ -201,10 +201,7 @@ public class DrawFolderGroup : DrawFolderBase
                                 _ = _apiController.GroupChangeGroupPermissionState(new(_groupFullInfoDto.Group, groupPerms));
                             }
                         }
-                        if (_groupFullInfoDto.PublicData.GuestModeEnabled)
-                        {
-                            UiSharedService.AttachToolTip("Players will be able to join the Syncshell without a password.\nHold CTRL and click if you are sure you want to enable this.");
-                        }
+                        UiSharedService.AttachToolTip("Players will be able to join the Syncshell without a password.\nHold CTRL and click if you are sure you want to enable this.");
                     }
                     else
                     {
