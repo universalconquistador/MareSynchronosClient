@@ -26,6 +26,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private string _syncshellPassword = string.Empty;
     private bool _desiredPasswordless = false;
     private bool _passwordless = false;
+    private bool _isGuestModeEnabled = false;
 
     public JoinSyncshellUI(ILogger<JoinSyncshellUI> logger, MareMediator mediator,
         UiSharedService uiSharedService, ApiController apiController, PerformanceCollectorService performanceCollectorService) 
@@ -44,6 +45,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         {
             _prefillSyncshellToJoin = message.GroupId;
             _desiredPasswordless = message.ExpectPasswordless;
+            _isGuestModeEnabled = message.IsGuestModeEnabled;
         });
 
         Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;
@@ -92,7 +94,13 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             {
                 using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
                 {
-                    ImGui.TextUnformatted("(None)");
+                    if (_isGuestModeEnabled)
+                    {
+                        ImGui.TextUnformatted("(None) - You will join as a guest user.");
+                    } else
+                    {
+                        ImGui.TextUnformatted("(None)");
+                    }
                 }
             }
             using (ImRaii.Disabled(string.IsNullOrEmpty(_desiredSyncshellToJoin)))

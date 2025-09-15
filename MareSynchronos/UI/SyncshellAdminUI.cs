@@ -84,6 +84,17 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             }
         }
 
+        if (GroupFullInfo.GroupPermissions.IsEnableGuestMode())
+        {
+            using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudYellow))
+            {
+                _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage);
+
+                ImGui.SameLine();
+                ImGui.TextUnformatted("This Syncshell has guest mode enabled.");
+            }
+        }
+
         ImGui.Separator();
         var perm = GroupFullInfo.GroupPermissions;
 
@@ -195,7 +206,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                                 UiSharedService.ColorText(onlineText, boolcolor);
 
                                 ImGui.TableNextColumn(); // special flags
-                                if (pair.Value != null && (pair.Value.Value.IsModerator() || pair.Value.Value.IsPinned()))
+                                if (pair.Value != null && (pair.Value.Value.IsModerator() || pair.Value.Value.IsPinned() || pair.Value.Value.IsGuest()))
                                 {
                                     if (pair.Value.Value.IsModerator())
                                     {
@@ -206,6 +217,11 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                                     {
                                         _uiSharedService.IconText(FontAwesomeIcon.Thumbtack);
                                         UiSharedService.AttachToolTip("Pinned");
+                                    }
+                                    if (pair.Value.Value.IsGuest())
+                                    {
+                                        _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage);
+                                        UiSharedService.AttachToolTip("Guest");
                                     }
                                 }
                                 else
@@ -272,12 +288,22 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                 {
                     using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
                     {
-                        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Broom, "Clear Syncshell"))
+                        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Broom, "Clear Entire Syncshell"))
                         {
-                            _ = _apiController.GroupClear(new(GroupFullInfo.Group));
+                            _ = _apiController.GroupClear(new(GroupFullInfo.Group), false);
                         }
                     }
                     UiSharedService.AttachToolTip("This will remove all non-pinned, non-moderator users from the Syncshell."
+                        + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
+
+                    using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
+                    {
+                        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Broom, "Clear Guests Only"))
+                        {
+                            _ = _apiController.GroupClear(new(GroupFullInfo.Group), true);
+                        }
+                    }
+                    UiSharedService.AttachToolTip("This will remove all users who joined with no password (guests) from the Syncshell."
                         + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
 
                     ImGuiHelpers.ScaledDummy(2f);
@@ -471,6 +497,12 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                     {
                         UiSharedService.ColorTextWrapped("Failed to change the password. Password requires to be at least 10 characters long.", ImGuiColors.DalamudYellow);
                     }
+
+
+
+                    ImGuiHelpers.ScaledDummy(2f);
+                    ImGui.Separator();
+                    ImGuiHelpers.ScaledDummy(2f);
 
                     if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Delete Syncshell") && UiSharedService.CtrlPressed() && UiSharedService.ShiftPressed())
                     {
