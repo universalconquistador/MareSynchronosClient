@@ -84,6 +84,17 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             }
         }
 
+        if (GroupFullInfo.GroupPermissions.IsEnableGuestMode())
+        {
+            using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudYellow))
+            {
+                _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage);
+
+                ImGui.SameLine();
+                ImGui.TextUnformatted("This Syncshell has guest mode enabled.");
+            }
+        }
+
         ImGui.Separator();
         var perm = GroupFullInfo.GroupPermissions;
 
