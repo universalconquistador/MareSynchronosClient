@@ -182,8 +182,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                             foreach (var pair in groupedPairs.OrderBy(p =>
                             {
                                 if (p.Value == null) return 10;
-                                if (p.Value.Value.IsModerator()) return 0;
-                                if (p.Value.Value.IsPinned()) return 1;
+                                if (p.Value.Value.IsModerator()) return 1;
+                                if (p.Value.Value.IsPinned()) return 2;
+                                if (p.Value.Value.IsGuest()) return 0;
                                 return 10;
                             }).ThenBy(p => p.Key.GetNote() ?? p.Key.UserData.AliasOrUID, StringComparer.OrdinalIgnoreCase))
                             {
@@ -212,11 +213,13 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                                     {
                                         _uiSharedService.IconText(FontAwesomeIcon.UserShield);
                                         UiSharedService.AttachToolTip("Moderator");
+                                        if (pair.Value.Value.IsGuest()) ImGui.SameLine();
                                     }
                                     if (pair.Value.Value.IsPinned())
                                     {
                                         _uiSharedService.IconText(FontAwesomeIcon.Thumbtack);
                                         UiSharedService.AttachToolTip("Pinned");
+                                        if (pair.Value.Value.IsGuest()) ImGui.SameLine();
                                     }
                                     if (pair.Value.Value.IsGuest())
                                     {
