@@ -242,15 +242,14 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
 
         try
         {
-            await UploadFileStream(compressedFile, fileHash, _mareConfigService.Current.UseAlternativeFileUpload, postProgress, uploadToken).ConfigureAwait(false);
+            await UploadFileStream(compressedFile, fileHash, postProgress, uploadToken).ConfigureAwait(false);
             _verifiedUploadedHashes[fileHash] = DateTime.UtcNow;
         }
         catch (Exception ex)
         {
-            if (!_mareConfigService.Current.UseAlternativeFileUpload && ex is not OperationCanceledException)
+            if (ex is not OperationCanceledException)
             {
-                Logger.LogWarning(ex, "[{hash}] Error during file upload, trying alternative file upload", fileHash);
-                await UploadFileStream(compressedFile, fileHash, munged: true, postProgress, uploadToken).ConfigureAwait(false);
+                Logger.LogWarning(ex, "[{hash}] Error during file upload", fileHash);
             }
             else
             {
@@ -259,13 +258,8 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         }
     }
 
-    private async Task UploadFileStream(byte[] compressedFile, string fileHash, bool munged, bool postProgress, CancellationToken uploadToken)
+    private async Task UploadFileStream(byte[] compressedFile, string fileHash, bool postProgress, CancellationToken uploadToken)
     {
-        if (munged)
-        {
-            FileDownloadManager.MungeBuffer(compressedFile.AsSpan());
-        }
-
         using var ms = new MemoryStream(compressedFile);
 
         Progress<UploadProgress>? prog = !postProgress ? null : new((prog) =>
@@ -286,10 +280,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         var streamContent = new ProgressableStreamContent(ms, _mareConfigService, prog);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         HttpResponseMessage response;
-        if (!munged)
-            response = await _orchestrator.SendRequestStreamAsync(HttpMethod.Post, MareFiles.ServerFilesUploadFullPath(_orchestrator.FilesCdnUri!, fileHash), streamContent, uploadToken).ConfigureAwait(false);
-        else
-            response = await _orchestrator.SendRequestStreamAsync(HttpMethod.Post, MareFiles.ServerFilesUploadMunged(_orchestrator.FilesCdnUri!, fileHash), streamContent, uploadToken).ConfigureAwait(false);
+        response = await _orchestrator.SendRequestStreamAsync(HttpMethod.Post, MareFiles.ServerFilesUploadFullPath(_orchestrator.FilesCdnUri!, fileHash), streamContent, uploadToken).ConfigureAwait(false);
         Logger.LogDebug("[{hash}] Upload Status: {status}", fileHash, response.StatusCode);
     }
 
