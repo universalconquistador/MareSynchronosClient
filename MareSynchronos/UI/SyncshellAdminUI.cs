@@ -125,6 +125,30 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                     _ = _apiController.GroupChangeGroupPermissionState(new(GroupFullInfo.Group, perm));
                 }
 
+                bool enabledGuest = perm.IsEnableGuestMode();
+                if (!enabledGuest)
+                {
+                    using (ImRaii.Disabled(!GroupFullInfo.GroupPermissions.IsEnableGuestMode() && !UiSharedService.CtrlPressed()))
+                    {
+                        if (_uiSharedService.IconTextButton(FontAwesomeIcon.PersonWalkingLuggage, "Enable Guest Mode"))
+                        {
+                            perm.SetEnableGuestMode(true);
+                            _ = _apiController.GroupChangeGroupPermissionState(new(GroupFullInfo.Group, perm));
+                        }
+                    }
+                    UiSharedService.AttachToolTip("Players will be able to join the Syncshell without a password.\nHold CTRL and click if you are sure you want to enable this.");
+                }
+                else
+                {
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Disable Guest Mode"))
+                    {
+                        perm.SetEnableGuestMode(false);
+                        _ = _apiController.GroupChangeGroupPermissionState(new(GroupFullInfo.Group, perm));
+                    }
+                }
+
+                ImGuiHelpers.ScaledDummy(2f);
+                ImGui.Separator();
                 ImGuiHelpers.ScaledDummy(2f);
 
                 UiSharedService.TextWrapped("One-time invites work as single-use passwords. Use those if you do not want to distribute your Syncshell password.");
@@ -151,7 +175,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                     {
                         ImGui.SetClipboardText(invites);
                     }
-                }
+                }                
             }
             inviteTab.Dispose();
 
@@ -426,7 +450,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             {
                 bool isDisableAnimations = perm.IsPreferDisableAnimations();
                 bool isDisableSounds = perm.IsPreferDisableSounds();
-                bool isDisableVfx = perm.IsPreferDisableVFX();
+                bool isDisableVfx = perm.IsPreferDisableVFX();                
 
                 ImGui.AlignTextToFramePadding();
                 ImGui.Text("Suggest Sound Sync");
