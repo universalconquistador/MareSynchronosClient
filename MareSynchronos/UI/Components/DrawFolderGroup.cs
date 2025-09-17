@@ -184,7 +184,6 @@ public class DrawFolderGroup : DrawFolderBase
                 {
                     if (_uiSharedService.IconTextButton(FontAwesomeIcon.PersonWalkingLuggage, "Enable Guest Mode", menuWidth, true))
                     {
-                        ImGui.CloseCurrentPopup();
                         groupPerms.SetEnableGuestMode(true);
                         _ = _apiController.GroupChangeGroupPermissionState(new(_groupFullInfoDto.Group, groupPerms));
                     }
@@ -195,7 +194,6 @@ public class DrawFolderGroup : DrawFolderBase
             {
                 if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Disable Guest Mode", menuWidth, true))
                 {
-                    ImGui.CloseCurrentPopup();
                     groupPerms.SetEnableGuestMode(false);
                     _ = _apiController.GroupChangeGroupPermissionState(new(_groupFullInfoDto.Group, groupPerms));
                 }
@@ -208,7 +206,6 @@ public class DrawFolderGroup : DrawFolderBase
                 {
                     if (_uiSharedService.IconTextButton(FontAwesomeIcon.Stop, "Stop Broadcasting", menuWidth, true))
                     {
-                        ImGui.CloseCurrentPopup();
                         _broadcastManager.StopBroadcasting();
                     }
                 }
@@ -218,7 +215,6 @@ public class DrawFolderGroup : DrawFolderBase
                     {
                         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Wifi, "Start Broadcasting", menuWidth, true))
                         {
-                            ImGui.CloseCurrentPopup();
                             _broadcastManager.StartBroadcasting(_groupFullInfoDto.Group.GID);
                         }
                         UiSharedService.AttachToolTip("Begin broadcasting your Syncshell to players around you.");
