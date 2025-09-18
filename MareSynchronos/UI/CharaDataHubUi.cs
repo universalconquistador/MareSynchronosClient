@@ -863,7 +863,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
 
     private void DrawMcdfExport()
     {
-        _uiSharedService.BigText("Mare Character Data File Export");
+        _uiSharedService.BigText("Player Sync Character Data File Export");
 
         DrawHelpFoldout("This feature allows you to pack your character into a MCDF file and manually send it to other people. MCDF files can officially only be imported during GPose through Player Sync. " +
             "Be aware that the possibility exists that people write unofficial custom exporters to extract the containing data.");

@@ -1,10 +1,17 @@
-name: Build & Deploy to Prod
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
-on: workflow_dispatch
+name: Build Prod
+
+on:
+  push:
+    branches: [ "prod-live" ]
+
 
 jobs:
-  deploy:
+  prod-build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,9 +34,13 @@ jobs:
         run: dotnet build --configuration Release --no-restore
         env:
           DALAMUD_HOME: /home/runner/dalamud-distrib
-
-      - name: Deploy plugin to dev environment
-        run: >
-          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne.json" https://playersync.io/redux/deploy/client-manifest &&
-          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@MareSynchronos/bin/x64/Release/MareSempiterne/latest.zip" https://playersync.io/redux/deploy/client-package/install
-
+      - name: Prepare artifact
+        run: unzip MareSynchronos/bin/x64/Release/MareSempiterne/latest.zip -d MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MareSempiterne
+          path: MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MareSempiterneManifest
+          path: MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne.json
