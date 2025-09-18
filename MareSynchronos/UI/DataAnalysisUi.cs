@@ -44,7 +44,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
         PerformanceCollectorService performanceCollectorService, UiSharedService uiSharedService,
         PlayerPerformanceConfigService playerPerformanceConfig, TransientResourceManager transientResourceManager,
         TransientConfigService transientConfigService)
-        : base(logger, mediator, "Mare Character Data Analysis", performanceCollectorService)
+        : base(logger, mediator, "Player Sync Character Data Analysis", performanceCollectorService)
     {
         _characterAnalyzer = characterAnalyzer;
         _ipcManager = ipcManager;
