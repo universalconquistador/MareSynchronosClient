@@ -492,7 +492,7 @@ public class DrawUserPair
                 else if (userinfo.IsGuest())
                 {
                     icon = FontAwesomeIcon.PersonWalkingLuggage;
-                    text = "User a guest in this syncshell";
+                    text = "User is guest in this syncshell";
                 }
             }
 
