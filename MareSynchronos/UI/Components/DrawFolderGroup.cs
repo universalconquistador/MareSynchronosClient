@@ -38,6 +38,7 @@ public class DrawFolderGroup : DrawFolderBase
     private bool IsModerator => IsOwner || _groupFullInfoDto.GroupUserInfo.IsModerator();
     private bool IsOwner => string.Equals(_groupFullInfoDto.OwnerUID, _apiController.UID, StringComparison.Ordinal);
     private bool IsPinned => _groupFullInfoDto.GroupUserInfo.IsPinned();
+    private bool IsGuest => _groupFullInfoDto.GroupUserInfo.IsGuest();
 
     protected override float DrawIcon()
     {
@@ -89,6 +90,12 @@ public class DrawFolderGroup : DrawFolderBase
             ImGui.AlignTextToFramePadding();
             _uiSharedService.IconText(FontAwesomeIcon.Thumbtack);
             UiSharedService.AttachToolTip("You are pinned in " + _groupFullInfoDto.GroupAliasOrGID);
+        }
+        else if (IsGuest)
+        {
+            ImGui.AlignTextToFramePadding();
+            _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage);
+            UiSharedService.AttachToolTip("You are a guest in " + _groupFullInfoDto.GroupAliasOrGID);
         }
         ImGui.SameLine();
         return ImGui.GetCursorPosX();
