@@ -489,6 +489,11 @@ public class DrawUserPair
                     icon = FontAwesomeIcon.Thumbtack;
                     text = "User is pinned in this syncshell";
                 }
+                else if (userinfo.IsGuest())
+                {
+                    icon = FontAwesomeIcon.PersonWalkingLuggage;
+                    text = "User a guest in this syncshell";
+                }
             }
 
             if (!string.IsNullOrEmpty(text))
