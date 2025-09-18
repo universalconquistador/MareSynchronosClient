@@ -5,7 +5,7 @@ name: Build & Deploy to Dev
 
 on:
   push:
-    branches: [ "prod-live" ]
+    branches: [ "dev-live" ]
 
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
         with:
           name: MareSempiterne
           path: MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: MareSempiterneManifest
-          path: MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne.json
+      - name: Deploy plugin to dev environment
+        run: >
+          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_DEV_SECRET }}" --request POST --data-binary "@MareSynchronos/bin/x64/Release/MareSempiterne/MareSempiterne.json" https://dev.playersync.io/redux/deploy/client-manifest &&
+          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_DEV_SECRET }}" --request POST --data-binary "@MareSynchronos/bin/x64/Release/MareSempiterne/latest.zip" https://dev.playersync.io/redux/deploy/client-package/install
