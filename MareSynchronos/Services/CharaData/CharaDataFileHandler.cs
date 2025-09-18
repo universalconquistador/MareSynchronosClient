@@ -141,7 +141,7 @@ public sealed class CharaDataFileHandler : IDisposable
             using var reader = new BinaryReader(lz4Stream);
             var loadedCharaFile = MareCharaFileHeader.FromBinaryReader(filePath, reader);
 
-            _logger.LogInformation("Read Mare Chara File");
+            _logger.LogInformation("Read Player Sync Chara File");
             _logger.LogInformation("Version: {ver}", (loadedCharaFile?.Version ?? -1));
             long expectedLength = 0;
             if (loadedCharaFile != null)
