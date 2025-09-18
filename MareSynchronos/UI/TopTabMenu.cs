@@ -257,7 +257,7 @@ public class TopTabMenu : IMediatorSubscriber
     private void DrawBroadcast(float availableXWidth, float spacingX)
     {
         bool showBroadcastingSyncshells = _mareConfigService.Current.ListenForBroadcasts;
-        if (ImGui.Checkbox("Show broadcasting Syncshells", ref showBroadcastingSyncshells))
+        if (ImGui.Checkbox("Enable Broadcast Features", ref showBroadcastingSyncshells))
         {
             if (showBroadcastingSyncshells)
             {

@@ -214,7 +214,6 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         int maxParallelDownloads = _configService.Current.ParallelDownloads;
         int maxParallelUploads = _configService.Current.ParallelUploads;
-        bool useAlternativeUpload = _configService.Current.UseAlternativeFileUpload;
         int downloadSpeedLimit = _configService.Current.DownloadSpeedLimitInBytes;
 
         ImGui.AlignTextToFramePadding();
@@ -257,13 +256,6 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Current.ParallelUploads = maxParallelUploads;
             _configService.Save();
         }
-
-        if (ImGui.Checkbox("Use Alternative Upload Method", ref useAlternativeUpload))
-        {
-            _configService.Current.UseAlternativeFileUpload = useAlternativeUpload;
-            _configService.Save();
-        }
-        _uiShared.DrawHelpText("This will attempt to upload files in one go instead of a stream. Typically not necessary to enable. Use if you have upload issues.");
 
         ImGui.Separator();
         _uiShared.BigText("Transfer UI");
@@ -425,83 +417,6 @@ public class SettingsUi : WindowMediatorSubscriberBase
     private Task<List<string>?>? _downloadServersTask = null;
     private Task<List<string>?>? _speedTestTask = null;
     private CancellationTokenSource? _speedTestCts;
-
-    private async Task<List<string>?> RunSpeedTest(List<string> servers, CancellationToken token)
-    {
-        List<string> speedTestResults = new();
-        foreach (var server in servers)
-        {
-            HttpResponseMessage? result = null;
-            Stopwatch? st = null;
-            try
-            {
-                result = await _fileTransferOrchestrator.SendRequestAsync(HttpMethod.Get, new Uri(new Uri(server), "speedtest/run"), token, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                result.EnsureSuccessStatusCode();
-                using CancellationTokenSource speedtestTimeCts = new();
-                speedtestTimeCts.CancelAfter(TimeSpan.FromSeconds(10));
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(speedtestTimeCts.Token, token);
-                long readBytes = 0;
-                st = Stopwatch.StartNew();
-                try
-                {
-                    var stream = await result.Content.ReadAsStreamAsync(linkedCts.Token).ConfigureAwait(false);
-                    byte[] buffer = new byte[8192];
-                    while (!speedtestTimeCts.Token.IsCancellationRequested)
-                    {
-                        var currentBytes = await stream.ReadAsync(buffer, linkedCts.Token).ConfigureAwait(false);
-                        if (currentBytes == 0)
-                            break;
-                        readBytes += currentBytes;
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    _logger.LogWarning("Speedtest to {server} cancelled", server);
-                }
-                st.Stop();
-                _logger.LogInformation("Downloaded {bytes} from {server} in {time}", UiSharedService.ByteToString(readBytes), server, st.Elapsed);
-                var bps = (long)((readBytes) / st.Elapsed.TotalSeconds);
-                speedTestResults.Add($"{server}: ~{UiSharedService.ByteToString(bps)}/s");
-            }
-            catch (HttpRequestException ex)
-            {
-                if (result != null)
-                {
-                    var res = await result!.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    speedTestResults.Add($"{server}: {ex.Message} - {res}");
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogWarning("Speedtest on {server} cancelled", server);
-                speedTestResults.Add($"{server}: Cancelled by user");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Some exception");
-            }
-            finally
-            {
-                st?.Stop();
-            }
-        }
-        return speedTestResults;
-    }
-
-    private async Task<List<string>?> GetDownloadServerList()
-    {
-        try
-        {
-            var result = await _fileTransferOrchestrator.SendRequestAsync(HttpMethod.Get, new Uri(_fileTransferOrchestrator.FilesCdnUri!, "files/downloadServers"), CancellationToken.None).ConfigureAwait(false);
-            result.EnsureSuccessStatusCode();
-            return await JsonSerializer.DeserializeAsync<List<string>>(await result.Content.ReadAsStreamAsync().ConfigureAwait(false)).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to get download server list");
-            throw;
-        }
-    }
 
     private void DrawDebug()
     {

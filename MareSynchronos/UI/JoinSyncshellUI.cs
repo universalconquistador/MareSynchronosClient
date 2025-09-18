@@ -26,6 +26,8 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private string _syncshellPassword = string.Empty;
     private bool _desiredPasswordless = false;
     private bool _passwordless = false;
+    private bool _isGuestModeEnabled = false;
+    private bool _guestmode = false;
 
     public JoinSyncshellUI(ILogger<JoinSyncshellUI> logger, MareMediator mediator,
         UiSharedService uiSharedService, ApiController apiController, PerformanceCollectorService performanceCollectorService) 
@@ -44,6 +46,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         {
             _prefillSyncshellToJoin = message.GroupId;
             _desiredPasswordless = message.ExpectPasswordless;
+            _isGuestModeEnabled = message.IsGuestModeEnabled;
         });
 
         Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;
@@ -54,7 +57,9 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         _desiredSyncshellToJoin = _prefillSyncshellToJoin ?? string.Empty;
         _prefillSyncshellToJoin = null;
         _passwordless = _desiredPasswordless;
+        _guestmode = _isGuestModeEnabled;
         _desiredPasswordless = false;
+        _isGuestModeEnabled = false;
         _syncshellPassword = string.Empty;
         _previousPassword = string.Empty;
         _groupJoinInfo = null;
@@ -84,16 +89,23 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("Syncshell Password");
             ImGui.SameLine(200);
-            if (!_passwordless)
-            {
-                ImGui.InputTextWithHint("##syncshellpw", "Password", ref _syncshellPassword, 50, ImGuiInputTextFlags.Password);
-            }
-            else
+            if (_passwordless || _guestmode)
             {
                 using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
                 {
-                    ImGui.TextUnformatted("(None)");
+                    if (_guestmode)
+                    {
+                        ImGui.TextUnformatted("(None) - You will join as a guest user.");
+                    }
+                    else
+                    {
+                        ImGui.TextUnformatted("(None)");
+                    }
                 }
+            }
+            else
+            {
+                ImGui.InputTextWithHint("##syncshellpw", "Password", ref _syncshellPassword, 50, ImGuiInputTextFlags.Password);
             }
             using (ImRaii.Disabled(string.IsNullOrEmpty(_desiredSyncshellToJoin)))
             {
