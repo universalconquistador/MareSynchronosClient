@@ -14,13 +14,6 @@ namespace MareSynchronos.WebAPI;
 
 public partial class ApiController
 {
-    public Task Client_DownloadReady(Guid requestId)
-    {
-        Logger.LogDebug("Server sent {requestId} ready", requestId);
-        Mediator.Publish(new DownloadReadyMessage(requestId));
-        return Task.CompletedTask;
-    }
-
     public Task Client_GroupChangePermissions(GroupPermissionDto groupPermission)
     {
         Logger.LogTrace("Client_GroupChangePermissions: {perm}", groupPermission);
@@ -123,7 +116,7 @@ public partial class ApiController
         if (_mareConfigService.Current.ShowPairingRequestNotification)
         {
             Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
-                $"Player {player} would like to pair. To accept, right click their character, or use the triple-dot menu next to their name, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(7.5)));
+                $"Player {player} would like to pair. To accept, right click their character, or use the triple-dot menu next to their name, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(15)));
         }
         return Task.CompletedTask;
     }
@@ -250,12 +243,6 @@ public partial class ApiController
     {
         ExecuteSafely(() => Mediator.Publish(new BroadcastListeningChanged(isListening)));
         return Task.CompletedTask;
-    }
-
-    public void OnDownloadReady(Action<Guid> act)
-    {
-        if (_initialized) return;
-        _mareHub!.On(nameof(Client_DownloadReady), act);
     }
 
     public void OnGroupChangePermissions(Action<GroupPermissionDto> act)

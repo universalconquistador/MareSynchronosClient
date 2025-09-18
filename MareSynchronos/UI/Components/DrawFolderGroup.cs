@@ -38,6 +38,7 @@ public class DrawFolderGroup : DrawFolderBase
     private bool IsModerator => IsOwner || _groupFullInfoDto.GroupUserInfo.IsModerator();
     private bool IsOwner => string.Equals(_groupFullInfoDto.OwnerUID, _apiController.UID, StringComparison.Ordinal);
     private bool IsPinned => _groupFullInfoDto.GroupUserInfo.IsPinned();
+    private bool IsGuest => _groupFullInfoDto.GroupUserInfo.IsGuest();
 
     protected override float DrawIcon()
     {
@@ -89,6 +90,12 @@ public class DrawFolderGroup : DrawFolderBase
             ImGui.AlignTextToFramePadding();
             _uiSharedService.IconText(FontAwesomeIcon.Thumbtack);
             UiSharedService.AttachToolTip("You are pinned in " + _groupFullInfoDto.GroupAliasOrGID);
+        }
+        else if (IsGuest)
+        {
+            ImGui.AlignTextToFramePadding();
+            _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage);
+            UiSharedService.AttachToolTip("You are a guest in " + _groupFullInfoDto.GroupAliasOrGID);
         }
         ImGui.SameLine();
         return ImGui.GetCursorPosX();
@@ -168,6 +175,9 @@ public class DrawFolderGroup : DrawFolderBase
 
         if (IsModerator || IsOwner)
         {
+            var groupPerms = _groupFullInfoDto.GroupPermissions;
+            bool enabledGuest = groupPerms.IsEnableGuestMode();
+
             ImGui.Separator();
             ImGui.TextUnformatted("Syncshell Admin Functions");
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Cog, "Open Admin Panel", menuWidth, true))
@@ -175,31 +185,54 @@ public class DrawFolderGroup : DrawFolderBase
                 ImGui.CloseCurrentPopup();
                 _mareMediator.Publish(new OpenSyncshellAdminPanel(_groupFullInfoDto));
             }
+            if (!enabledGuest)
+            {
+                using (ImRaii.Disabled(!_groupFullInfoDto.GroupPermissions.IsEnableGuestMode() && !UiSharedService.CtrlPressed()))
+                {
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.PersonWalkingLuggage, "Enable Guest Mode", menuWidth, true))
+                    {
+                        groupPerms.SetEnableGuestMode(true);
+                        _ = _apiController.GroupChangeGroupPermissionState(new(_groupFullInfoDto.Group, groupPerms));
+                    }
+                }
+                UiSharedService.AttachToolTip("Players will be able to join the Syncshell without a password.\nHold CTRL and click if you are sure you want to enable this.");
+            }
+            else
+            {
+                if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Disable Guest Mode", menuWidth, true))
+                {
+                    groupPerms.SetEnableGuestMode(false);
+                    _ = _apiController.GroupChangeGroupPermissionState(new(_groupFullInfoDto.Group, groupPerms));
+                }
+            }
             if (_broadcastManager.IsListening)
             {
                 ImGui.Separator();
                 ImGui.TextUnformatted("Broadcasting");
                 if (_broadcastManager.BroadcastingGroupId == _groupFullInfoDto.GID)
                 {
-                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Wifi, "Stop Broadcasting", menuWidth, true))
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Stop, "Stop Broadcasting", menuWidth, true))
                     {
-                        ImGui.CloseCurrentPopup();
                         _broadcastManager.StopBroadcasting();
                     }
                 }
                 else
                 {
-                    using (ImRaii.Disabled(_groupFullInfoDto.PublicData.KnownPasswordless && !UiSharedService.CtrlPressed()))
+                    using (ImRaii.Disabled((_groupFullInfoDto.PublicData.KnownPasswordless || _groupFullInfoDto.GroupPermissions.IsEnableGuestMode()) && !UiSharedService.CtrlPressed()))
                     {
                         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Wifi, "Start Broadcasting", menuWidth, true))
                         {
-                            ImGui.CloseCurrentPopup();
                             _broadcastManager.StartBroadcasting(_groupFullInfoDto.Group.GID);
                         }
+                        UiSharedService.AttachToolTip("Begin broadcasting your Syncshell to players around you.");
                     }
-                    if (_groupFullInfoDto.PublicData.KnownPasswordless)
+                    if (_groupFullInfoDto.PublicData.KnownPasswordless )
                     {
                         UiSharedService.AttachToolTip("This Syncshell has no password!\nHold CTRL and click if you are sure you want to broadcast this passwordless Syncshell.");
+                    }
+                    else if (_groupFullInfoDto.GroupPermissions.IsEnableGuestMode())
+                    {
+                        UiSharedService.AttachToolTip("This Syncshell has Guest Mode enabled!\nHold CTRL and click if you are sure you want to broadcast this Syncshell with no password.");
                     }
                 }
             }

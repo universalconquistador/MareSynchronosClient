@@ -84,6 +84,17 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             }
         }
 
+        if (GroupFullInfo.GroupPermissions.IsEnableGuestMode())
+        {
+            using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudYellow))
+            {
+                _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage);
+
+                ImGui.SameLine();
+                ImGui.TextUnformatted("This Syncshell has guest mode enabled.");
+            }
+        }
+
         ImGui.Separator();
         var perm = GroupFullInfo.GroupPermissions;
 
@@ -114,6 +125,30 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                     _ = _apiController.GroupChangeGroupPermissionState(new(GroupFullInfo.Group, perm));
                 }
 
+                bool enabledGuest = perm.IsEnableGuestMode();
+                if (!enabledGuest)
+                {
+                    using (ImRaii.Disabled(!GroupFullInfo.GroupPermissions.IsEnableGuestMode() && !UiSharedService.CtrlPressed()))
+                    {
+                        if (_uiSharedService.IconTextButton(FontAwesomeIcon.PersonWalkingLuggage, "Enable Guest Mode"))
+                        {
+                            perm.SetEnableGuestMode(true);
+                            _ = _apiController.GroupChangeGroupPermissionState(new(GroupFullInfo.Group, perm));
+                        }
+                    }
+                    UiSharedService.AttachToolTip("Players will be able to join the Syncshell without a password.\nHold CTRL and click if you are sure you want to enable this.");
+                }
+                else
+                {
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Disable Guest Mode"))
+                    {
+                        perm.SetEnableGuestMode(false);
+                        _ = _apiController.GroupChangeGroupPermissionState(new(GroupFullInfo.Group, perm));
+                    }
+                }
+
+                ImGuiHelpers.ScaledDummy(2f);
+                ImGui.Separator();
                 ImGuiHelpers.ScaledDummy(2f);
 
                 UiSharedService.TextWrapped("One-time invites work as single-use passwords. Use those if you do not want to distribute your Syncshell password.");
@@ -140,7 +175,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                     {
                         ImGui.SetClipboardText(invites);
                     }
-                }
+                }                
             }
             inviteTab.Dispose();
 
@@ -171,8 +206,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                             foreach (var pair in groupedPairs.OrderBy(p =>
                             {
                                 if (p.Value == null) return 10;
-                                if (p.Value.Value.IsModerator()) return 0;
-                                if (p.Value.Value.IsPinned()) return 1;
+                                if (p.Value.Value.IsModerator()) return 1;
+                                if (p.Value.Value.IsPinned()) return 2;
+                                if (p.Value.Value.IsGuest()) return 0;
                                 return 10;
                             }).ThenBy(p => p.Key.GetNote() ?? p.Key.UserData.AliasOrUID, StringComparer.OrdinalIgnoreCase))
                             {
@@ -195,17 +231,24 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                                 UiSharedService.ColorText(onlineText, boolcolor);
 
                                 ImGui.TableNextColumn(); // special flags
-                                if (pair.Value != null && (pair.Value.Value.IsModerator() || pair.Value.Value.IsPinned()))
+                                if (pair.Value != null && (pair.Value.Value.IsModerator() || pair.Value.Value.IsPinned() || pair.Value.Value.IsGuest()))
                                 {
                                     if (pair.Value.Value.IsModerator())
                                     {
                                         _uiSharedService.IconText(FontAwesomeIcon.UserShield);
                                         UiSharedService.AttachToolTip("Moderator");
+                                        if (pair.Value.Value.IsGuest()) ImGui.SameLine();
                                     }
                                     if (pair.Value.Value.IsPinned())
                                     {
                                         _uiSharedService.IconText(FontAwesomeIcon.Thumbtack);
                                         UiSharedService.AttachToolTip("Pinned");
+                                        if (pair.Value.Value.IsGuest()) ImGui.SameLine();
+                                    }
+                                    if (pair.Value.Value.IsGuest())
+                                    {
+                                        _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage);
+                                        UiSharedService.AttachToolTip("Guest");
                                     }
                                 }
                                 else
@@ -274,10 +317,20 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                     {
                         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Broom, "Clear Syncshell"))
                         {
-                            _ = _apiController.GroupClear(new(GroupFullInfo.Group));
+                            _ = _apiController.GroupClear(new(GroupFullInfo.Group), false);
                         }
                     }
                     UiSharedService.AttachToolTip("This will remove all non-pinned, non-moderator users from the Syncshell."
+                        + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
+
+                    using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
+                    {
+                        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Broom, "Clear Guests Only"))
+                        {
+                            _ = _apiController.GroupClear(new(GroupFullInfo.Group), true);
+                        }
+                    }
+                    UiSharedService.AttachToolTip("This will remove all users who joined with no password (guests) from the Syncshell."
                         + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
 
                     ImGuiHelpers.ScaledDummy(2f);
@@ -397,7 +450,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             {
                 bool isDisableAnimations = perm.IsPreferDisableAnimations();
                 bool isDisableSounds = perm.IsPreferDisableSounds();
-                bool isDisableVfx = perm.IsPreferDisableVFX();
+                bool isDisableVfx = perm.IsPreferDisableVFX();                
 
                 ImGui.AlignTextToFramePadding();
                 ImGui.Text("Suggest Sound Sync");
@@ -471,6 +524,12 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                     {
                         UiSharedService.ColorTextWrapped("Failed to change the password. Password requires to be at least 10 characters long.", ImGuiColors.DalamudYellow);
                     }
+
+
+
+                    ImGuiHelpers.ScaledDummy(2f);
+                    ImGui.Separator();
+                    ImGuiHelpers.ScaledDummy(2f);
 
                     if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Delete Syncshell") && UiSharedService.CtrlPressed() && UiSharedService.ShiftPressed())
                     {

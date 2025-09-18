@@ -148,7 +148,7 @@ public class DrawBroadcastGroup
             if (_uiSharedService.IconButton(joinIcon))
             {
                 _mediator.Publish(new UiToggleMessage(typeof(JoinSyncshellUI)));
-                _mediator.Publish(new PrefillJoinSyncshellParameters(_broadcast.Group.GID, _broadcast.Passwordless));
+                _mediator.Publish(new PrefillJoinSyncshellParameters(_broadcast.Group.GID, _broadcast.Passwordless, _broadcast.IsGuestModeEnabled));
             }
         }
         UiSharedService.AttachToolTip(joinTooltip);
