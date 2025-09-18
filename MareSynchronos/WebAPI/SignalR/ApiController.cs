@@ -422,7 +422,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         if (_mareHub == null) return;
 
         Logger.LogDebug("Initializing data");
-        OnDownloadReady((guid) => _ = Client_DownloadReady(guid));
         OnReceiveServerMessage((sev, msg) => _ = Client_ReceiveServerMessage(sev, msg));
         OnReceivePairingMessage((dto) => _ = Client_ReceivePairingMessage(dto));
         OnUpdateSystemInfo((dto) => _ = Client_UpdateSystemInfo(dto));

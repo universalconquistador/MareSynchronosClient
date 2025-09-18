@@ -12,7 +12,6 @@ namespace MareSynchronos.WebAPI.Files;
 
 public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
 {
-    private readonly ConcurrentDictionary<Guid, bool> _downloadReady = new();
     private readonly HttpClient _httpClient;
     private readonly MareConfigService _mareConfig;
     private readonly TokenProvider _tokenProvider;
@@ -54,31 +53,12 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
         {
             FilesCdnUri = null;
         });
-        Mediator.Subscribe<DownloadReadyMessage>(this, (msg) =>
-        {
-            _downloadReady[msg.RequestId] = true;
-        });
     }
 
     public Uri? FilesCdnUri { private set; get; }
     public List<FileTransfer> ForbiddenTransfers { get; } = [];
     public bool IsInitialized => FilesCdnUri != null;
     public HttpRequestHeaders DefaultRequestHeaders => _httpClient.DefaultRequestHeaders;
-
-    public void ClearDownloadRequest(Guid guid)
-    {
-        _downloadReady.Remove(guid, out _);
-    }
-
-    public bool IsDownloadReady(Guid guid)
-    {
-        if (_downloadReady.TryGetValue(guid, out bool isReady) && isReady)
-        {
-            return true;
-        }
-
-        return false;
-    }
 
     public void ReleaseDownloadSlot()
     {
