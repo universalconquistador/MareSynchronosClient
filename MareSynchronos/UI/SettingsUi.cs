@@ -949,6 +949,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         var disableOptionalPluginWarnings = _configService.Current.DisableOptionalPluginWarnings;
         var pairingRequestNotifs = _configService.Current.ShowPairingRequestNotification;
+        var broadcastNotifs = _configService.Current.ShowAvailableBroadcastsNotification;
         var onlineNotifs = _configService.Current.ShowOnlineNotifications;
         var onlineNotifsPairsOnly = _configService.Current.ShowOnlineNotificationsOnlyForIndividualPairs;
         var onlineNotifsNamedOnly = _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs;
@@ -1002,6 +1003,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner when a player requests to pair through the context menu.");
+        if (ImGui.Checkbox("Enable broadcast notifications", ref broadcastNotifs))
+        {
+            _configService.Current.ShowAvailableBroadcastsNotification = broadcastNotifs;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner the first time a broadcast is available in your zone.");
         if (ImGui.Checkbox("Enable online notifications", ref onlineNotifs))
         {
             _configService.Current.ShowOnlineNotifications = onlineNotifs;

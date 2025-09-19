@@ -80,6 +80,7 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private DateTimeOffset _nextPeriodicPoll;
         private readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(5);
+        private bool _sentBroadcastAvailableNotification = false;
 
         private volatile int _startingListening = 0;
         private volatile int _stoppingListening = 0;
@@ -98,6 +99,7 @@ namespace MareSynchronos.PlayerData.Pairs
             _pairManager = pairManager;
             _mareConfigService = mareConfigService;
 
+            Mediator.Subscribe<ZoneSwitchStartMessage>(this, _ => _sentBroadcastAvailableNotification = false);
             Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, OnDelayedFrameworkUpdate);
             Mediator.Subscribe<BroadcastListeningChanged>(this, message =>
             {
@@ -324,6 +326,15 @@ namespace MareSynchronos.PlayerData.Pairs
                 {
                     AvailableBroadcastGroups = broadcasts.AsReadOnly();
                     Mediator.Publish(new RefreshUiMessage());
+
+                    if (AvailableBroadcastGroups.Count > 0
+                        && _mareConfigService.Current.ShowAvailableBroadcastsNotification
+                        && !_sentBroadcastAvailableNotification
+                        && !IsBroadcastingGroup)
+                    {
+                        Mediator.Publish(new NotificationMessage("Broadcasts Available", $"{AvailableBroadcastGroups.Count} broadcasts at your location. Open the Player Sync window to browse and join them.", MareConfiguration.Models.NotificationType.Info));
+                        _sentBroadcastAvailableNotification = true;
+                    }
                 }
 
                 _nextPeriodicPoll = DateTimeOffset.UtcNow + _pollInterval;
