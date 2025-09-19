@@ -106,10 +106,6 @@ namespace MareSynchronos.PlayerData.Pairs
             });
             Mediator.Subscribe<ConnectedMessage>(this, _ =>
             {
-                // TEMP: For now, reset to not listening when connected to make sure we don't overwhelm the servers
-                _mareConfigService.Current.ListenForBroadcasts = false;
-                _mareConfigService.Save();
-
                 IsListening = false;
                 if (_mareConfigService.Current.ListenForBroadcasts)
                 {
@@ -118,10 +114,6 @@ namespace MareSynchronos.PlayerData.Pairs
             });
             Mediator.Subscribe<DisconnectedMessage>(this, _ =>
             {
-                // TEMP: For now, reset to not listening when disconnected to make sure we don't overwhelm the servers
-                _mareConfigService.Current.ListenForBroadcasts = false;
-                _mareConfigService.Save();
-
                 IsListening = false;
             });
             Mediator.Subscribe<BroadcastListeningChanged>(this, message => IsListening = message.isListening);
