@@ -15,9 +15,10 @@ public class MareConfig : IMareConfiguration
     public bool ShowUidInDtrTooltip { get; set; } = true;
     public bool PreferNoteInDtrTooltip { get; set; } = false;
     public bool UseColorsInDtr { get; set; } = true;
-    public DtrEntry.Colors DtrColorsDefault { get; set; } = default;
-    public DtrEntry.Colors DtrColorsNotConnected { get; set; } = new(Glow: 0x0428FFu);
-    public DtrEntry.Colors DtrColorsPairsInRange { get; set; } = new(Glow: 0xFFBA47u);
+    public SeStringTextColors DtrColorsDefault { get; set; } = default;
+    public SeStringTextColors DtrColorsNotConnected { get; set; } = new(Glow: 0x0428FFu);
+    public SeStringTextColors DtrColorsPairsInRange { get; set; } = new(Glow: 0xFFBA47u);
+    public SeStringTextColors DtrColorsBroadcasting { get; set; } = new(Glow: 0x5CB027u);
     public bool EnableRightClickMenus { get; set; } = true;
     public NotificationLocation ErrorNotification { get; set; } = NotificationLocation.Both;
     public string ExportFolder { get; set; } = string.Empty;
