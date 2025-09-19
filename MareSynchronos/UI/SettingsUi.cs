@@ -142,7 +142,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         DrawSettingsContent();
     }
-    private static bool InputDtrColors(string label, ref DtrEntry.Colors colors)
+    private static bool InputDtrColors(string label, ref SeStringTextColors colors)
     {
         using var id = ImRaii.PushId(label);
         var innerSpacing = ImGui.GetStyle().ItemInnerSpacing.X;
@@ -767,6 +767,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var dtrColorsDefault = _configService.Current.DtrColorsDefault;
         var dtrColorsNotConnected = _configService.Current.DtrColorsNotConnected;
         var dtrColorsPairsInRange = _configService.Current.DtrColorsPairsInRange;
+        var dtrColorsBroadcasting = _configService.Current.DtrColorsBroadcasting;
         var preferNotesInsteadOfName = _configService.Current.PreferNotesOverNamesForVisible;
         var useFocusTarget = _configService.Current.UseFocusTarget;
         var groupUpSyncshells = _configService.Current.GroupUpSyncshells;
@@ -828,6 +829,13 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 if (InputDtrColors("Pairs in Range", ref dtrColorsPairsInRange))
                 {
                     _configService.Current.DtrColorsPairsInRange = dtrColorsPairsInRange;
+                    _configService.Save();
+                }
+
+                ImGui.SameLine();
+                if (InputDtrColors("Broadcasting", ref dtrColorsBroadcasting))
+                {
+                    _configService.Current.DtrColorsBroadcasting = dtrColorsBroadcasting;
                     _configService.Save();
                 }
             }

@@ -23,12 +23,10 @@ public sealed class DtrEntry : IDisposable, IHostedService
     private readonly ILogger<DtrEntry> _logger;
     private readonly MareMediator _mareMediator;
     private readonly PairManager _pairManager;
+    private readonly IBroadcastManager _broadcastManager;
     private Task? _runTask;
-    private string? _text;
-    private string? _tooltip;
-    private Colors _colors;
 
-    public DtrEntry(ILogger<DtrEntry> logger, IDtrBar dtrBar, ConfigurationServiceBase<MareConfig> configService, MareMediator mareMediator, PairManager pairManager, ApiController apiController)
+    public DtrEntry(ILogger<DtrEntry> logger, IDtrBar dtrBar, ConfigurationServiceBase<MareConfig> configService, MareMediator mareMediator, PairManager pairManager, IBroadcastManager broadcastManager, ApiController apiController)
     {
         _logger = logger;
         _dtrBar = dtrBar;
@@ -36,6 +34,7 @@ public sealed class DtrEntry : IDisposable, IHostedService
         _configService = configService;
         _mareMediator = mareMediator;
         _pairManager = pairManager;
+        _broadcastManager = broadcastManager;
         _apiController = apiController;
     }
 
@@ -78,9 +77,6 @@ public sealed class DtrEntry : IDisposable, IHostedService
     {
         if (!_entry.IsValueCreated) return;
         _logger.LogInformation("Clearing entry");
-        _text = null;
-        _tooltip = null;
-        _colors = default;
 
         _entry.Value.Shown = false;
     }
@@ -123,13 +119,33 @@ public sealed class DtrEntry : IDisposable, IHostedService
             _entry.Value.Shown = true;
         }
 
-        string text;
         string tooltip;
-        Colors colors;
+        SeStringBuilder textBuilder = new SeStringBuilder();
         if (_apiController.IsConnected)
         {
+            tooltip = "Player Sync: Connected";
+
+            // Add the broadcast info
+            if (_broadcastManager.IsListening)
+            {
+                var color = _broadcastManager.IsBroadcasting()
+                    ? _configService.Current.DtrColorsBroadcasting
+                    : default;
+                textBuilder.AddColoredText($"\uE038 {_broadcastManager.AvailableBroadcastGroups.Count} ",
+                    _configService.Current.UseColorsInDtr
+                    ? color
+                    : default);
+
+                if (_broadcastManager.IsBroadcasting())
+                {
+                    tooltip += $"{Environment.NewLine}Broadcasting {_broadcastManager.BroadcastingGroupId}";
+                }
+
+                tooltip += $"{Environment.NewLine}{_broadcastManager.AvailableBroadcastGroups.Count} Broadcasts Nearby";
+            }
+
             var pairCount = _pairManager.GetVisibleUserCount();
-            text = $"\uE044 {pairCount}";
+            var pairColor = _configService.Current.DtrColorsDefault;
             if (pairCount > 0)
             {
                 IEnumerable<string> visiblePairs;
@@ -146,53 +162,38 @@ public sealed class DtrEntry : IDisposable, IHostedService
                         .Select(x => string.Format("{0}", _configService.Current.PreferNoteInDtrTooltip ? x.GetNote() ?? x.PlayerName : x.PlayerName));
                 }
 
-                tooltip = $"Player Sync: Connected{Environment.NewLine}----------{Environment.NewLine}{string.Join(Environment.NewLine, visiblePairs)}";
-                colors = _configService.Current.DtrColorsPairsInRange;
+                tooltip += $"{Environment.NewLine}----------{Environment.NewLine}{string.Join(Environment.NewLine, visiblePairs)}";
+                pairColor = _configService.Current.DtrColorsPairsInRange;
             }
-            else
-            {
-                tooltip = "Player Sync: Connected";
-                colors = _configService.Current.DtrColorsDefault;
-            }
+
+            textBuilder.AddColoredText($"\uE044 {pairCount}", _configService.Current.UseColorsInDtr ? pairColor : default);
         }
         else
         {
-            text = "\uE044 \uE04C";
+            textBuilder.AddColoredText("\uE044 \uE04C", _configService.Current.UseColorsInDtr ? _configService.Current.DtrColorsNotConnected : default);
             tooltip = "Player Sync: Not Connected";
-            colors = _configService.Current.DtrColorsNotConnected;
         }
 
-        if (!_configService.Current.UseColorsInDtr)
-            colors = default;
-
-        if (!string.Equals(text, _text, StringComparison.Ordinal) || !string.Equals(tooltip, _tooltip, StringComparison.Ordinal) || colors != _colors)
-        {
-            _text = text;
-            _tooltip = tooltip;
-            _colors = colors;
-            _entry.Value.Text = BuildColoredSeString(text, colors);
-            _entry.Value.Tooltip = tooltip;
-        }
+        _entry.Value.Text = textBuilder.Build();
+        _entry.Value.Tooltip = tooltip;
     }
+}
 
-    #region Colored SeString
+/// <summary>
+/// The colors that can be applied to the text inside a <see cref="SeString"/>.
+/// </summary>
+/// <param name="Foreground"></param>
+/// <param name="Glow"></param>
+[StructLayout(LayoutKind.Sequential)]
+public readonly record struct SeStringTextColors(uint Foreground = default, uint Glow = default);
+
+public static class SeStringBuilderExtensions
+{
+    // The built-in color & glow functions in SeStringBuilder operate based on UIColors, which have a different value per UI theme.
+    // These functions allow literal RGBA colors and glows to be used.
+
     private const byte _colorTypeForeground = 0x13;
     private const byte _colorTypeGlow = 0x14;
-
-    private static SeString BuildColoredSeString(string text, Colors colors)
-    {
-        var ssb = new SeStringBuilder();
-        if (colors.Foreground != default)
-            ssb.Add(BuildColorStartPayload(_colorTypeForeground, colors.Foreground));
-        if (colors.Glow != default)
-            ssb.Add(BuildColorStartPayload(_colorTypeGlow, colors.Glow));
-        ssb.AddText(text);
-        if (colors.Glow != default)
-            ssb.Add(BuildColorEndPayload(_colorTypeGlow));
-        if (colors.Foreground != default)
-            ssb.Add(BuildColorEndPayload(_colorTypeForeground));
-        return ssb.Build();
-    }
 
     private static RawPayload BuildColorStartPayload(byte colorType, uint color)
         => new(unchecked([0x02, colorType, 0x05, 0xF6, byte.Max((byte)color, 0x01), byte.Max((byte)(color >> 8), 0x01), byte.Max((byte)(color >> 16), 0x01), 0x03]));
@@ -200,7 +201,36 @@ public sealed class DtrEntry : IDisposable, IHostedService
     private static RawPayload BuildColorEndPayload(byte colorType)
         => new([0x02, colorType, 0x02, 0xEC, 0x03]);
 
-    [StructLayout(LayoutKind.Sequential)]
-    public readonly record struct Colors(uint Foreground = default, uint Glow = default);
-    #endregion
+    public static void BeginForegroundColor(this SeStringBuilder sb, uint color)
+    {
+        sb.Add(BuildColorStartPayload(_colorTypeForeground, color));
+    }
+
+    public static void EndForegroundColor(this SeStringBuilder sb)
+    {
+        sb.Add(BuildColorEndPayload(_colorTypeForeground));
+    }
+
+    public static void BeginGlowColor(this SeStringBuilder sb, uint color)
+    {
+        sb.Add(BuildColorStartPayload(_colorTypeGlow, color));
+    }
+
+    public static void EndGlowColor(this SeStringBuilder sb)
+    {
+        sb.Add(BuildColorEndPayload(_colorTypeGlow));
+    }
+
+    public static void AddColoredText(this SeStringBuilder builder, string text, SeStringTextColors colors)
+    {
+        if (colors.Foreground != default)
+            builder.BeginForegroundColor(colors.Foreground);
+        if (colors.Glow != default)
+            builder.BeginGlowColor(colors.Glow);
+        builder.AddText(text);
+        if (colors.Glow != default)
+            builder.EndGlowColor();
+        if (colors.Foreground != default)
+            builder.EndForegroundColor();
+    }
 }
