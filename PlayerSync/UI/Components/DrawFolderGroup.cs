@@ -7,6 +7,7 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
 using System.Collections.Immutable;
@@ -56,7 +57,7 @@ public class DrawFolderGroup : DrawFolderBase
             {
                 icon = _groupFullInfoDto.GroupPermissions.IsDisableInvites() ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users;
             }
-            _uiSharedService.IconText(icon);
+            _uiSharedService.IconText(icon, ThemeManager.Instance?.Current.Accent);
         }
         if (_groupFullInfoDto.GroupPermissions.IsDisableInvites())
         {
@@ -76,25 +77,25 @@ public class DrawFolderGroup : DrawFolderBase
         if (IsOwner)
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.Crown);
+            _uiSharedService.IconText(FontAwesomeIcon.Crown, ThemeManager.Instance?.Current.Accent);
             UiSharedService.AttachToolTip("You are the owner of " + _groupFullInfoDto.GroupAliasOrGID);
         }
         else if (IsModerator)
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.UserShield);
+            _uiSharedService.IconText(FontAwesomeIcon.UserShield, ThemeManager.Instance?.Current.Accent);
             UiSharedService.AttachToolTip("You are a moderator in " + _groupFullInfoDto.GroupAliasOrGID);
         }
         else if (IsPinned)
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.Thumbtack);
+            _uiSharedService.IconText(FontAwesomeIcon.Thumbtack, ThemeManager.Instance?.Current.Accent);
             UiSharedService.AttachToolTip("You are pinned in " + _groupFullInfoDto.GroupAliasOrGID);
         }
         else if (IsGuest)
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage);
+            _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage, ThemeManager.Instance?.Current.Accent);
             UiSharedService.AttachToolTip("You are a guest in " + _groupFullInfoDto.GroupAliasOrGID);
         }
         ImGui.SameLine();
@@ -265,7 +266,7 @@ public class DrawFolderGroup : DrawFolderBase
 
         _uiSharedService.IconText(FontAwesomeIcon.UsersCog, (_groupFullInfoDto.GroupPermissions.IsPreferDisableAnimations() != individualAnimDisabled
             || _groupFullInfoDto.GroupPermissions.IsPreferDisableSounds() != individualSoundsDisabled
-            || _groupFullInfoDto.GroupPermissions.IsPreferDisableVFX() != individualVFXDisabled) ? ImGuiColors.DalamudYellow : null);
+            || _groupFullInfoDto.GroupPermissions.IsPreferDisableVFX() != individualVFXDisabled) ? ImGuiColors.DalamudYellow : ThemeManager.Instance?.Current.Accent);
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();

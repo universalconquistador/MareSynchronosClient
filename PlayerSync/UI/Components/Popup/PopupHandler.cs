@@ -48,6 +48,14 @@ public class PopupHandler : WindowMediatorSubscriberBase
             _currentHandler = _handlers.OfType<CensusPopupHandler>().Single();
             IsOpen = true;
         });
+
+        Mediator.Subscribe<OpenChangelogPopupMessage>(this, (msg) =>
+        {
+            _openPopup = true;
+            _currentHandler = _handlers.OfType<ChangelogPopupHandler>().Single();
+            ((ChangelogPopupHandler)_currentHandler).Open(msg.Version, msg.ChangelogText);
+            IsOpen = true;
+        });
         _uiSharedService = uiSharedService;
         DisableWindowSounds = true;
     }

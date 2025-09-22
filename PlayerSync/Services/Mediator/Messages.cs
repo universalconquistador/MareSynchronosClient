@@ -76,6 +76,8 @@ public record RemoveWindowMessage(WindowMediatorSubscriberBase Window) : Message
 public record RefreshUiMessage : MessageBase;
 public record OpenBanUserPopupMessage(Pair PairToBan, GroupFullInfoDto GroupFullInfoDto) : MessageBase;
 public record OpenCensusPopupMessage() : MessageBase;
+public record OpenChangelogPopupMessage(string Version, string ChangelogText) : MessageBase;
+public record ForceShowChangelogMessage() : MessageBase;
 public record OpenSyncshellAdminPanel(GroupFullInfoDto GroupInfo) : MessageBase;
 public record OpenPermissionWindow(Pair Pair) : MessageBase;
 public record DownloadLimitChangedMessage() : SameThreadMessage;

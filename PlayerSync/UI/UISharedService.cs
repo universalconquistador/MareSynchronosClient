@@ -18,6 +18,7 @@ using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
@@ -1024,8 +1025,10 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         bool result = ImGui.Button(string.Empty, new Vector2(x, frameHeight));
         Vector2 pos = new Vector2(cursorScreenPos.X + ImGui.GetStyle().FramePadding.X,
             cursorScreenPos.Y + (height ?? ImGui.GetFrameHeight()) / 2f - (vector.Y / 2f));
+        // Use button text color from theme
+        var buttonTextColor = ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1);
         using (IconFont.Push())
-            windowDrawList.AddText(pos, ImGui.GetColorU32(ImGuiCol.Text), text);
+            windowDrawList.AddText(pos, ImGui.GetColorU32(buttonTextColor), text);
         ImGui.PopID();
 
         return result;
@@ -1129,10 +1132,14 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         float frameHeight = ImGui.GetFrameHeight();
         bool result = ImGui.Button(string.Empty, new Vector2(x, frameHeight));
         Vector2 pos = new Vector2(cursorScreenPos.X + ImGui.GetStyle().FramePadding.X, cursorScreenPos.Y + ImGui.GetStyle().FramePadding.Y);
+        // Get button text color from theme
+        var textColor = ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1);
+        var textColorU32 = ImGui.GetColorU32(textColor);
+
         using (IconFont.Push())
-            windowDrawList.AddText(pos, ImGui.GetColorU32(ImGuiCol.Text), icon.ToIconString());
+            windowDrawList.AddText(pos, textColorU32, icon.ToIconString());
         Vector2 pos2 = new Vector2(pos.X + vector.X + num2, cursorScreenPos.Y + ImGui.GetStyle().FramePadding.Y);
-        windowDrawList.AddText(pos2, ImGui.GetColorU32(ImGuiCol.Text), text);
+        windowDrawList.AddText(pos2, textColorU32, text);
         ImGui.PopID();
         if (num > 0)
         {

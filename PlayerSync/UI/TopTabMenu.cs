@@ -10,6 +10,7 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.WebAPI;
 using System.Numerics;
 
@@ -97,9 +98,12 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            if (ImGui.Button(FontAwesomeIcon.User.ToIconString(), buttonSize))
+            using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1)))
             {
-                TabSelection = TabSelection == SelectedTab.Individual ? SelectedTab.None : SelectedTab.Individual;
+                if (ImGui.Button(FontAwesomeIcon.User.ToIconString(), buttonSize))
+                {
+                    TabSelection = TabSelection == SelectedTab.Individual ? SelectedTab.None : SelectedTab.Individual;
+                }
             }
             ImGui.SameLine();
             var xAfter = ImGui.GetCursorScreenPos();
@@ -114,9 +118,12 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            if (ImGui.Button(FontAwesomeIcon.Users.ToIconString(), buttonSize))
+            using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1)))
             {
-                TabSelection = TabSelection == SelectedTab.Syncshell ? SelectedTab.None : SelectedTab.Syncshell;
+                if (ImGui.Button(FontAwesomeIcon.Users.ToIconString(), buttonSize))
+                {
+                    TabSelection = TabSelection == SelectedTab.Syncshell ? SelectedTab.None : SelectedTab.Syncshell;
+                }
             }
             ImGui.SameLine();
             var xAfter = ImGui.GetCursorScreenPos();
@@ -132,9 +139,12 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            if (ImGui.Button(FontAwesomeIcon.Filter.ToIconString(), buttonSize))
+            using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1)))
             {
-                TabSelection = TabSelection == SelectedTab.Filter ? SelectedTab.None : SelectedTab.Filter;
+                if (ImGui.Button(FontAwesomeIcon.Filter.ToIconString(), buttonSize))
+                {
+                    TabSelection = TabSelection == SelectedTab.Filter ? SelectedTab.None : SelectedTab.Filter;
+                }
             }
 
             ImGui.SameLine();
@@ -173,9 +183,12 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            if (ImGui.Button(FontAwesomeIcon.UserCog.ToIconString(), buttonSize))
+            using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1)))
             {
-                TabSelection = TabSelection == SelectedTab.UserConfig ? SelectedTab.None : SelectedTab.UserConfig;
+                if (ImGui.Button(FontAwesomeIcon.UserCog.ToIconString(), buttonSize))
+                {
+                    TabSelection = TabSelection == SelectedTab.UserConfig ? SelectedTab.None : SelectedTab.UserConfig;
+                }
             }
 
             ImGui.SameLine();

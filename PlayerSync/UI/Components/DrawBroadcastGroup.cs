@@ -3,6 +3,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
@@ -82,7 +83,7 @@ public class DrawBroadcastGroup
         using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID))
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.BroadcastTower);
+            _uiSharedService.IconText(FontAwesomeIcon.BroadcastTower, _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID ? null : ThemeManager.Instance?.Current.Accent);
         }
     }
 
