@@ -161,7 +161,7 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            using (ImRaii.PushColor(ImGuiCol.Text, _broadcastManager.IsBroadcasting() ? ImGuiColors.HealerGreen : (ThemeManager.Instance?.Current.BtnText ?? ImGuiColors.DalamudWhite)))
+            using (ImRaii.PushColor(ImGuiCol.Text, _broadcastManager.IsBroadcasting() ? ImGuiColors.HealerGreen : ImGuiColors.DalamudWhite))
             {
                 if (ImGui.Button(FontAwesomeIcon.Wifi.ToIconString(), buttonSize))
                 {
