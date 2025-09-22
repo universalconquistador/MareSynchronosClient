@@ -72,18 +72,20 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
     private readonly MareConfigService _mareConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly ChangelogService _changelogService;
     private IServiceScope? _runtimeServiceScope;
     private Task? _launchTask = null;
 
     public MarePlugin(ILogger<MarePlugin> logger, MareConfigService mareConfigService,
         ServerConfigurationManager serverConfigurationManager,
         DalamudUtilService dalamudUtil,
-        IServiceScopeFactory serviceScopeFactory, MareMediator mediator) : base(logger, mediator)
+        IServiceScopeFactory serviceScopeFactory, ChangelogService changelogService, MareMediator mediator) : base(logger, mediator)
     {
         _mareConfigService = mareConfigService;
         _serverConfigurationManager = serverConfigurationManager;
         _dalamudUtil = dalamudUtil;
         _serviceScopeFactory = serviceScopeFactory;
+        _changelogService = changelogService;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -93,7 +95,33 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
         Mediator.Publish(new EventMessage(new Services.Events.Event(nameof(MarePlugin), Services.Events.EventSeverity.Informational,
             $"Starting Player Sync {version.Major}.{version.Minor}.{version.Build}")));
 
-        Mediator.Subscribe<SwitchToMainUiMessage>(this, (msg) => { if (_launchTask == null || _launchTask.IsCompleted) _launchTask = Task.Run(WaitForPlayerAndLaunchCharacterManager); });
+        Mediator.Subscribe<SwitchToMainUiMessage>(this, (msg) => {
+            if (_launchTask == null || _launchTask.IsCompleted) _launchTask = Task.Run(WaitForPlayerAndLaunchCharacterManager);
+
+            // Check for version changes and show changelog after UI is ready
+            Logger.LogInformation("SwitchToMainUiMessage received, scheduling changelog check in 2 seconds");
+            Task.Delay(2000).ContinueWith(_ => {
+                Logger.LogInformation("Executing scheduled changelog check");
+                _changelogService.CheckForNewVersion();
+            });
+        });
+
+        // Also trigger changelog check after a longer delay as fallback
+        Task.Delay(5000).ContinueWith(_ => {
+            Logger.LogInformation("Fallback changelog check - checking if setup is valid");
+            if (_mareConfigService.Current.HasValidSetup())
+            {
+                Logger.LogInformation("Setup is valid, triggering fallback changelog check");
+                _changelogService.CheckForNewVersion();
+            }
+            else
+            {
+                Logger.LogInformation("Setup not valid: AcceptedAgreement={Agreement}, InitialScanComplete={Scan}, CacheFolder='{Cache}'",
+                    _mareConfigService.Current.AcceptedAgreement,
+                    _mareConfigService.Current.InitialScanComplete,
+                    _mareConfigService.Current.CacheFolder);
+            }
+        });
         Mediator.Subscribe<DalamudLoginMessage>(this, (_) => DalamudUtilOnLogIn());
         Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => DalamudUtilOnLogOut());
 

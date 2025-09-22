@@ -12,6 +12,7 @@ using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
 
@@ -212,7 +213,7 @@ public class DrawUserPair
         }
         else if (_pair.IsVisible)
         {
-            _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
+            _uiSharedService.IconText(FontAwesomeIcon.Eye, ThemeManager.Instance?.Current.Accent ?? ImGuiColors.ParsedGreen);
             userPairText = _pair.UserData.AliasOrUID + " is visible: " + _pair.PlayerName + Environment.NewLine + "Click to target this player";
             if (ImGui.IsItemClicked())
             {
@@ -221,7 +222,7 @@ public class DrawUserPair
         }
         else
         {
-            using var _ = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen);
+            using var _ = ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen);
             _uiSharedService.IconText(_pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional
                 ? FontAwesomeIcon.User : FontAwesomeIcon.Users);
             userPairText = _pair.UserData.AliasOrUID + " is online";
@@ -388,7 +389,7 @@ public class DrawUserPair
 
                     if (individualIsSticky)
                     {
-                        _uiSharedService.IconText(individualIcon);
+                        _uiSharedService.IconText(individualIcon, ThemeManager.Instance?.Current.Accent);
                         ImGui.SameLine(40 * ImGuiHelpers.GlobalScale);
                         ImGui.AlignTextToFramePadding();
                         ImGui.TextUnformatted("Preferred permissions enabled");
@@ -459,7 +460,7 @@ public class DrawUserPair
         {
             currentRightSide -= (_uiSharedService.GetIconSize(FontAwesomeIcon.Running).X + (spacingX / 2f));
             ImGui.SameLine(currentRightSide);
-            _uiSharedService.IconText(FontAwesomeIcon.Running);
+            _uiSharedService.IconText(FontAwesomeIcon.Running, ThemeManager.Instance?.Current.Accent);
             UiSharedService.AttachToolTip($"This user has shared {sharedData.Count} Character Data Sets with you." + UiSharedService.TooltipSeparator
                 + "Click to open the Character Data Hub and show the entries.");
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
@@ -500,7 +501,7 @@ public class DrawUserPair
             {
                 currentRightSide -= (_uiSharedService.GetIconSize(icon).X + spacingX);
                 ImGui.SameLine(currentRightSide);
-                _uiSharedService.IconText(icon);
+                _uiSharedService.IconText(icon, ThemeManager.Instance?.Current.Accent);
                 UiSharedService.AttachToolTip(text);
             }
         }

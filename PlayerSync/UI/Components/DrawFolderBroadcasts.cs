@@ -1,6 +1,7 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.UI.Handlers;
 using System;
 using System.Collections.Generic;
@@ -42,14 +43,14 @@ public class DrawFolderBroadcasts
 
                 ImGui.AlignTextToFramePadding();
 
-                _uiSharedService.IconText(expanderIcon);
+                _uiSharedService.IconText(expanderIcon, ThemeManager.Instance?.Current.Accent);
                 if (ImGui.IsItemClicked())
                 {
                     _tagHandler.SetTagOpen(_tagId, !_tagHandler.IsTagOpen(_tagId));
                 }
 
                 ImGui.SameLine();
-                _uiSharedService.IconText(FontAwesomeIcon.Wifi);
+                _uiSharedService.IconText(FontAwesomeIcon.Wifi, ThemeManager.Instance?.Current.Accent);
 
                 ImGui.SameLine();
                 ImGui.TextUnformatted($"[{_broadcasts.Count}] Nearby Broadcasts");

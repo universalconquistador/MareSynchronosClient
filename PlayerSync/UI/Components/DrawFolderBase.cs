@@ -2,6 +2,7 @@
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.PlayerData.Pairs;
+using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.UI.Handlers;
 using System.Collections.Immutable;
 
@@ -45,7 +46,7 @@ public abstract class DrawFolderBase : IDrawFolder
 
             ImGui.AlignTextToFramePadding();
 
-            _uiSharedService.IconText(icon);
+            _uiSharedService.IconText(icon, ThemeManager.Instance?.Current.Accent);
             if (ImGui.IsItemClicked())
             {
                 _tagHandler.SetTagOpen(_id, !_tagHandler.IsTagOpen(_id));

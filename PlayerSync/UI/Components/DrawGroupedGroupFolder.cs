@@ -1,6 +1,7 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.UI.Handlers;
 using System.Collections.Immutable;
 using System.Numerics;
@@ -41,7 +42,7 @@ public class DrawGroupedGroupFolder : IDrawFolder
             var icon = _tagHandler.IsTagOpen(_id) ? FontAwesomeIcon.CaretDown : FontAwesomeIcon.CaretRight;
             ImGui.AlignTextToFramePadding();
 
-            _uiSharedService.IconText(icon);
+            _uiSharedService.IconText(icon, ThemeManager.Instance?.Current.Accent);
             if (ImGui.IsItemClicked())
             {
                 _tagHandler.SetTagOpen(_id, !_tagHandler.IsTagOpen(_id));
@@ -49,7 +50,7 @@ public class DrawGroupedGroupFolder : IDrawFolder
 
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.UsersRectangle);
+            _uiSharedService.IconText(FontAwesomeIcon.UsersRectangle, ThemeManager.Instance?.Current.Accent);
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().ItemSpacing with { X = ImGui.GetStyle().ItemSpacing.X / 2f }))
             {
                 ImGui.SameLine();
