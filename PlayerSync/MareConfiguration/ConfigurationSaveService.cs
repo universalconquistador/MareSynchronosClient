@@ -1,6 +1,7 @@
 ﻿using MareSynchronos.MareConfiguration.Configurations;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Numerics;
 using System.Reflection;
 using System.Text.Json;
 
@@ -110,7 +111,8 @@ public class ConfigurationSaveService : IHostedService
         {
             await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(config.Current, typeof(T), new JsonSerializerOptions()
             {
-                WriteIndented = true
+                WriteIndented = true,
+                Converters = { new Vector4JsonConverter() }
             })).ConfigureAwait(false);
             File.Move(temp, config.ConfigurationPath, true);
             config.UpdateLastWriteTime();

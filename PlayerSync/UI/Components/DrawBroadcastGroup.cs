@@ -80,7 +80,7 @@ public class DrawBroadcastGroup
 
     private void DrawLeftSide()
     {
-        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID))
+        using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.StatusBroadcasting ?? new Vector4(0.094f, 0.835f, 0.369f, 1f), _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID))
         {
             ImGui.AlignTextToFramePadding();
             _uiSharedService.IconText(FontAwesomeIcon.BroadcastTower, _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID ? null : ThemeManager.Instance?.Current.Accent);
