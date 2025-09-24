@@ -63,6 +63,8 @@ public record HubClosedMessage(Exception? Exception) : SameThreadMessage;
 public record DownloadStartedMessage(GameObjectHandler DownloadId, ConcurrentDictionary<string, FileDownloadStatus> DownloadStatus) : MessageBase;
 public record DownloadFinishedMessage(GameObjectHandler DownloadId) : MessageBase;
 public record UiToggleMessage(Type UiType) : MessageBase;
+public record CloseWindowMessage : MessageBase;
+public record ToggleCollapseMessage : MessageBase;
 public record PrefillJoinSyncshellParameters(string GroupId, bool ExpectPasswordless, bool IsGuestModeEnabled) : MessageBase;
 public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading) : MessageBase;
 public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;

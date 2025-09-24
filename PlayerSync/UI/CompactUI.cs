@@ -47,6 +47,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly UiSharedService _uiSharedService;
     private readonly ThemeManager _themeManager;
     private readonly ThemeEditor _themeEditor;
+    private readonly HoveringToolbar _hoveringToolbar;
     private List<IDrawFolder> _drawFolders;
     private DrawFolderBroadcasts? _broadcastsFolder;
     private Pair? _lastAddedUser;
@@ -58,13 +59,15 @@ public class CompactUi : WindowMediatorSubscriberBase
     private bool _showThemeEditor;
     private float _transferPartHeight;
     private bool _wasOpen;
+    private bool _collapsed = false;
+    private Vector2? _expandedSize = null;
     private float _windowContentWidth;
 
     public CompactUi(ILogger<CompactUi> logger, UiSharedService uiShared, MareConfigService configService, ApiController apiController, PairManager pairManager,
         IBroadcastManager broadcastManager,
         ServerConfigurationManager serverManager, MareMediator mediator, FileUploadManager fileTransferManager,
         TagHandler tagHandler, DrawEntityFactory drawEntityFactory, SelectTagForPairUi selectTagForPairUi, SelectPairForTagUi selectPairForTagUi,
-        PerformanceCollectorService performanceCollectorService, IpcManager ipcManager)
+        PerformanceCollectorService performanceCollectorService, IpcManager ipcManager, UI.Components.Theming.ThemeManager themeManager)
         : base(logger, mediator, "###MareSynchronosMainUI", performanceCollectorService)
     {
         _uiSharedService = uiShared;
@@ -80,58 +83,12 @@ public class CompactUi : WindowMediatorSubscriberBase
         _selectPairsForGroupUi = selectPairForTagUi;
         _ipcManager = ipcManager;
         _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService);
-        _themeManager = new ThemeManager(_configService);
+        _themeManager = themeManager;
         _themeEditor = new ThemeEditor(_themeManager, _uiSharedService);
+        _hoveringToolbar = new HoveringToolbar(_uiSharedService, _themeManager, Mediator);
 
         AllowClickthrough = false;
-        TitleBarButtons = new()
-        {
-            new TitleBarButton()
-            {
-                Icon = FontAwesomeIcon.Cog,
-                Click = (msg) =>
-                {
-                    Mediator.Publish(new UiToggleMessage(typeof(SettingsUi)));
-                },
-                IconOffset = new(2,1),
-                ShowTooltip = () =>
-                {
-                    ImGui.BeginTooltip();
-                    ImGui.Text("Open Player Sync Settings");
-                    ImGui.EndTooltip();
-                }
-            },
-            new TitleBarButton()
-            {
-                Icon = FontAwesomeIcon.Book,
-                Click = (msg) =>
-                {
-                    Mediator.Publish(new UiToggleMessage(typeof(EventViewerUI)));
-                },
-                IconOffset = new(2,1),
-                ShowTooltip = () =>
-                {
-                    ImGui.BeginTooltip();
-                    ImGui.Text("Open Player Sync Event Viewer");
-                    ImGui.EndTooltip();
-                }
-            },
-            new TitleBarButton()
-            {
-                Icon = FontAwesomeIcon.Palette,
-                Click = (msg) =>
-                {
-                    _showThemeEditor = !_showThemeEditor;
-                },
-                IconOffset = new(2,1),
-                ShowTooltip = () =>
-                {
-                    ImGui.BeginTooltip();
-                    ImGui.Text("Open Theme Editor");
-                    ImGui.EndTooltip();
-                }
-            }
-        };
+        AllowPinning = false;
 
         _drawFolders = GetDrawFolders().ToList();
 
@@ -155,8 +112,21 @@ public class CompactUi : WindowMediatorSubscriberBase
             _drawFolders = GetDrawFolders().ToList();
             _broadcastsFolder = GetBroadcastsFolder();
         });
+        Mediator.Subscribe<ToggleThemeEditorMessage>(this, (msg) =>
+        {
+            _showThemeEditor = !_showThemeEditor;
+        });
 
-        Flags |= ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoBackground;
+
+        Mediator.Subscribe<CloseWindowMessage>(this, (msg) =>
+        {
+            IsOpen = false;
+        });
+
+        Mediator.Subscribe<ToggleCollapseMessage>(this, (msg) =>
+        {
+            _collapsed = !_collapsed;
+        });
 
         SizeConstraints = new WindowSizeConstraints()
         {
@@ -165,23 +135,225 @@ public class CompactUi : WindowMediatorSubscriberBase
         };
     }
 
+    public override void Draw()
+    {
+        // Store window position and size before drawing for the floating toolbar
+        var windowPos = Vector2.Zero;
+        var windowSize = Vector2.Zero;
+
+        // Call base draw method which handles the main window
+        base.Draw();
+
+        // Draw hovering toolbar outside the main window context
+        if (!_collapsed && IsOpen)
+        {
+            // Sync toolbar properties with UI settings
+            _hoveringToolbar.AllowClickthrough = AllowClickthrough;
+            _hoveringToolbar.AllowPinning = AllowPinning;
+            _hoveringToolbar.Draw(_lastPosition, _lastSize);
+
+            // Sync back any changes from the toolbar
+            AllowClickthrough = _hoveringToolbar.AllowClickthrough;
+            AllowPinning = _hoveringToolbar.AllowPinning;
+        }
+    }
+
     protected override void DrawInternal()
     {
+        float headerHeight = 30f * ImGuiHelpers.GlobalScale;
+
+        if (_collapsed)
+        {
+            if (_expandedSize == null && Size.HasValue)
+            {
+                _expandedSize = Size.Value;
+            }
+            UpdateWindowFlags();
+
+            SizeConstraints = new WindowSizeConstraints()
+            {
+                MinimumSize = new Vector2(375, 40f),
+                MaximumSize = new Vector2(375, 40f),
+            };
+
+            DrawCollapsedTitleBar(headerHeight);
+            return;
+        }
+
+        UpdateWindowFlags();
+
+        if (_expandedSize.HasValue)
+        {
+            Size = _expandedSize.Value;
+            _expandedSize = null;
+        }
+
+        SizeConstraints = new WindowSizeConstraints()
+        {
+            MinimumSize = new Vector2(375, 400),
+            MaximumSize = new Vector2(375, 2000),
+        };
+
         // Main themed container using child window with background
         using (var theme = _themeManager?.PushTheme())
         {
+            var childFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+
+            // Apply click-through to child window when enabled
+            if (AllowClickthrough)
+                childFlags |= ImGuiWindowFlags.NoInputs;
+
             var availableSize = ImGui.GetContentRegionAvail();
-            ImGui.BeginChild("themed-background", availableSize, true,
-                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+            ImGui.BeginChild("themed-background", availableSize, true, childFlags);
 
             DrawContent();
 
             ImGui.EndChild();
         }
+
+    }
+
+    private void DrawCollapsedTitleBar(float headerHeight)
+    {
+        var currentTheme = _themeManager?.Current;
+        if (currentTheme == null) return;
+
+        float spacing = 6f * ImGuiHelpers.GlobalScale;
+        float btnSide = 22f * ImGuiHelpers.GlobalScale;
+        float btnH = btnSide;
+        float leftPad = 8f * ImGuiHelpers.GlobalScale;
+        float rightPad = ImGui.GetStyle().WindowPadding.X + 25f * ImGuiHelpers.GlobalScale;
+
+        var winPos = ImGui.GetWindowPos();
+        var crMin = ImGui.GetWindowContentRegionMin();
+        var crMax = ImGui.GetWindowContentRegionMax();
+        float contentW = crMax.X - crMin.X;
+
+        var headerMin = new Vector2(winPos.X + crMin.X, ImGui.GetCursorScreenPos().Y);
+        var headerMax = new Vector2(headerMin.X + contentW, headerMin.Y + headerHeight);
+
+        var dl = ImGui.GetWindowDrawList();
+        dl.AddRectFilled(headerMin, headerMax, ImGui.ColorConvertFloat4ToU32(currentTheme.HeaderBg), 10f);
+
+        int buttonCount = 2;
+        float buttonsW = (btnSide * buttonCount) + (spacing * (buttonCount - 1));
+        float btnStartX = headerMax.X - rightPad - buttonsW + 10f * ImGuiHelpers.GlobalScale;
+        float btnStartY = headerMin.Y + (headerHeight - btnH) * 0.5f;
+
+        var title = WindowName.Split("###")[0];
+        var tSz = ImGui.CalcTextSize(title);
+        float tX = headerMin.X + leftPad;
+        float tY = headerMin.Y + (headerHeight - tSz.Y) * 0.5f;
+        ImGui.SetCursorScreenPos(new Vector2(tX, tY));
+        ImGui.TextColored(currentTheme.TextPrimary, title);
+
+        // Drag area
+        if (!AllowPinning && !AllowClickthrough)
+        {
+            float dragLeft = tX + tSz.X + spacing;
+            float dragRight = btnStartX - spacing;
+            float dragW = MathF.Max(0f, dragRight - dragLeft);
+            ImGui.SetCursorScreenPos(new Vector2(dragLeft, headerMin.Y));
+            ImGui.InvisibleButton("##dragzone_titlebar", new Vector2(dragW, headerHeight));
+            if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+                ImGui.SetWindowPos(ImGui.GetWindowPos() + ImGui.GetIO().MouseDelta);
+        }
+
+        ImGui.PushStyleColor(ImGuiCol.Button, currentTheme.Btn);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, currentTheme.BtnHovered);
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, currentTheme.BtnActive);
+        ImGui.PushStyleColor(ImGuiCol.Text, currentTheme.BtnText);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6f, 3f));
+
+        // Collapse/Expand button
+        var collapseIcon = _collapsed ? FontAwesomeIcon.ChevronDown : FontAwesomeIcon.ChevronUp;
+        ImGui.SetCursorScreenPos(new Vector2(btnStartX, btnStartY));
+        if (_uiSharedService.IconButton(collapseIcon))
+            _collapsed = !_collapsed;
+        AttachCollapsedTooltip(_collapsed ? "Expand" : "Collapse", currentTheme);
+
+        // Close button
+        ImGui.SetCursorScreenPos(new Vector2(btnStartX + (btnSide + spacing) * 1, btnStartY));
+        if (_uiSharedService.IconButton(FontAwesomeIcon.Times))
+            Mediator.Publish(new CloseWindowMessage());
+        AttachCollapsedTooltip("Close Window", currentTheme);
+
+        // Cleanup styling
+        ImGui.PopStyleVar(2);
+        ImGui.PopStyleColor(4);
+    }
+
+    private void AttachCollapsedTooltip(string text, ThemePalette theme)
+    {
+        if (ImGui.IsItemHovered())
+        {
+            using (ImRaii.PushColor(ImGuiCol.PopupBg, theme.TooltipBg))
+            using (ImRaii.PushColor(ImGuiCol.Text, theme.TooltipText))
+            {
+                ImGui.BeginTooltip();
+                ImGui.Text(text);
+                ImGui.EndTooltip();
+            }
+        }
+    }
+
+    private void DrawDragArea()
+    {
+        // Don't draw drag area if window is pinned or click-through is enabled
+        if (AllowPinning || AllowClickthrough) return;
+
+        // Create an invisible drag area at the top of the window
+        var dragHeight = 25f * ImGuiHelpers.GlobalScale;
+        var availableWidth = ImGui.GetContentRegionAvail().X;
+
+        // Reserve space for the hovering toolbar (approximately 6 buttons + spacing)
+        var toolbarWidth = (22f * 6 + 6f * 5 + 32f) * ImGuiHelpers.GlobalScale;
+        var dragWidth = Math.Max(0, availableWidth - toolbarWidth - 10f); // 10f padding
+
+        var cursorPos = ImGui.GetCursorPos();
+        ImGui.SetCursorPos(new Vector2(cursorPos.X, cursorPos.Y));
+
+        // Create an invisible button for dragging
+        if (ImGui.InvisibleButton("##drag_area", new Vector2(dragWidth, dragHeight)))
+        {
+            // Button clicked - could add additional functionality here if needed
+        }
+
+        if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+        {
+            var delta = ImGui.GetIO().MouseDelta;
+            var currentPos = ImGui.GetWindowPos();
+            ImGui.SetWindowPos(new Vector2(currentPos.X + delta.X, currentPos.Y + delta.Y));
+        }
+
+        // Reset cursor position for the rest of the content
+        ImGui.SetCursorPos(new Vector2(cursorPos.X, cursorPos.Y + 5f)); // Small gap after drag area
+    }
+
+    private void UpdateWindowFlags()
+    {
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoBringToFrontOnFocus;
+
+        if (_collapsed)
+        {
+            Flags |= ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        }
+
+        // Apply pinning state
+        if (AllowPinning)
+            Flags |= ImGuiWindowFlags.NoMove;
+
+        // Apply click-through state
+        if (AllowClickthrough)
+            Flags |= ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.NoFocusOnAppearing;
     }
 
     private void DrawContent()
     {
+        // Add a draggable area at the top since we removed the title bar
+        DrawDragArea();
+
         _windowContentWidth = UiSharedService.GetWindowContentRegionWidth();
         if (!_apiController.IsCurrentVersion)
         {
@@ -192,10 +364,10 @@ public class CompactUi : WindowMediatorSubscriberBase
                 var uidTextSize = ImGui.CalcTextSize(unsupported);
                 ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X + ImGui.GetWindowContentRegionMin().X) / 2 - uidTextSize.X / 2);
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextColored(ImGuiColors.DalamudRed, unsupported);
+                ImGui.TextColored(ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f), unsupported);
             }
             UiSharedService.ColorTextWrapped($"Your Player Sync installation is out of date, the current version is {ver.Major}.{ver.Minor}.{ver.Build}. " +
-                $"It is highly recommended to keep Player Sync up to date. Open /xlplugins and update the plugin.", ImGuiColors.DalamudRed);
+                $"It is highly recommended to keep Player Sync up to date. Open /xlplugins and update the plugin.", ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f));
         }
 
 
@@ -208,12 +380,12 @@ public class CompactUi : WindowMediatorSubscriberBase
                 var uidTextSize = ImGui.CalcTextSize(unsupported);
                 ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X + ImGui.GetWindowContentRegionMin().X) / 2 - uidTextSize.X / 2);
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextColored(ImGuiColors.DalamudRed, unsupported);
+                ImGui.TextColored(ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f), unsupported);
             }
             var penumAvailable = _ipcManager.Penumbra.APIAvailable;
             var glamAvailable = _ipcManager.Glamourer.APIAvailable;
 
-            UiSharedService.ColorTextWrapped($"One or more Plugins essential for Player Sync operation are unavailable. Enable or update following plugins:", ImGuiColors.DalamudRed);
+            UiSharedService.ColorTextWrapped($"One or more Plugins essential for Player Sync operation are unavailable. Enable or update following plugins:", ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f));
             using var indent = ImRaii.PushIndent(10f);
             if (!penumAvailable)
             {
@@ -234,7 +406,10 @@ public class CompactUi : WindowMediatorSubscriberBase
             {
                 using (ImRaii.PushId("themeeditor"))
                 {
-                    ImGui.Text("Theme Editor");
+                    using (_uiSharedService.UidFont.Push())
+                    {
+                        ImGui.Text("Theme Editor");
+                    }
                     ImGui.Separator();
                     _themeEditor.Draw();
 
@@ -347,43 +522,78 @@ public class CompactUi : WindowMediatorSubscriberBase
         var shardTextSize = ImGui.CalcTextSize(shardConnection);
         var printShard = !string.IsNullOrEmpty(_apiController.ServerInfo.ShardName) && shardConnection != string.Empty;
 
+        // Align status text to the left side with some padding (like UID)
+        ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
+        ImGui.AlignTextToFramePadding();
+
         if (_apiController.ServerState is ServerState.Connected)
         {
-            ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth()) / 2 - (userSize.X + textSize.X) / 2 - ImGui.GetStyle().ItemSpacing.X / 2);
-            if (!printShard) ImGui.AlignTextToFramePadding();
-            ImGui.TextColored(ImGuiColors.ParsedGreen, userCount);
+            // Format as "X Users Online | Shard: main" on one line
+            var statusText = userCount + " Users Online";
+            if (printShard)
+            {
+                statusText += " | " + shardConnection;
+            }
+
+            ImGui.TextColored(ThemeManager.Instance?.Current.UsersOnlineNumber ?? new Vector4(0.212f, 0.773f, 0.416f, 1f), userCount);
             ImGui.SameLine();
-            if (!printShard) ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Users Online");
+            ImGui.TextColored(ThemeManager.Instance?.Current.UsersOnlineText ?? new Vector4(0.86f, 0.86f, 0.86f, 1.00f), " Users Online");
+
+            if (printShard)
+            {
+                ImGui.SameLine();
+                ImGui.TextColored(ThemeManager.Instance?.Current.UsersOnlineText ?? new Vector4(0.86f, 0.86f, 0.86f, 1.00f), "| " + shardConnection);
+            }
         }
         else
         {
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextColored(ImGuiColors.DalamudRed, "Not connected to any server");
+            ImGui.TextColored(ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f), "Not connected to any server");
         }
 
-        if (printShard)
-        {
-            ImGui.SetCursorPosY(ImGui.GetCursorPosY() - ImGui.GetStyle().ItemSpacing.Y);
-            ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth()) / 2 - shardTextSize.X / 2);
-            ImGui.TextUnformatted(shardConnection);
-        }
-
-        ImGui.SameLine();
-        if (printShard)
-        {
-            ImGui.SetCursorPosY(ImGui.GetCursorPosY() - ((userSize.Y + textSize.Y) / 2 + shardTextSize.Y) / 2 - ImGui.GetStyle().ItemSpacing.Y + buttonSize.Y / 2);
-        }
         bool isConnectingOrConnected = _apiController.ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting;
         var color = UiSharedService.GetBoolColor(!isConnectingOrConnected);
         var connectedIcon = isConnectingOrConnected ? FontAwesomeIcon.Unlink : FontAwesomeIcon.Link;
 
-        ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth() - buttonSize.X);
-        if (printShard)
-        {
-            ImGui.SetCursorPosY(ImGui.GetCursorPosY() - ((userSize.Y + textSize.Y) / 2 + shardTextSize.Y) / 2 - ImGui.GetStyle().ItemSpacing.Y + buttonSize.Y / 2);
-        }
+        var spacing = ImGui.GetStyle().ItemSpacing.X;
+        var totalButtonsWidth = buttonSize.X * 3 + spacing * 2;
 
+        ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth() - totalButtonsWidth);
+
+        var currentTheme = ThemeManager.Instance?.Current;
+
+        // Settings button
+        if (currentTheme != null)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, currentTheme.BtnText);
+        }
+        if (_uiSharedService.IconButton(FontAwesomeIcon.Cog))
+        {
+            Mediator.Publish(new UiToggleMessage(typeof(SettingsUi)));
+        }
+        if (currentTheme != null)
+        {
+            ImGui.PopStyleColor();
+        }
+        UiSharedService.AttachToolTip("Open Player Sync Settings");
+
+        // Palette/Theme Editor button
+        ImGui.SameLine();
+        if (currentTheme != null)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, currentTheme.BtnText);
+        }
+        if (_uiSharedService.IconButton(FontAwesomeIcon.Palette))
+        {
+            Mediator.Publish(new ToggleThemeEditorMessage());
+        }
+        if (currentTheme != null)
+        {
+            ImGui.PopStyleColor();
+        }
+        UiSharedService.AttachToolTip("Open Theme Editor");
+
+        // Disconnect/Connect button
+        ImGui.SameLine();
         if (_apiController.ServerState is not (ServerState.Reconnecting or ServerState.Disconnecting))
         {
             using (ImRaii.PushColor(ImGuiCol.Text, color))
@@ -478,8 +688,8 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         using (_uiSharedService.UidFont.Push())
         {
-            var uidTextSize = ImGui.CalcTextSize(uidText);
-            ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (uidTextSize.X / 2));
+            // Align text to the left side with some padding
+            ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
             ImGui.TextColored(GetUidColor(), uidText);
         }
 
@@ -675,21 +885,21 @@ public class CompactUi : WindowMediatorSubscriberBase
     {
         return _apiController.ServerState switch
         {
-            ServerState.Connecting => ImGuiColors.DalamudYellow,
-            ServerState.Reconnecting => ImGuiColors.DalamudRed,
-            ServerState.Connected => ImGuiColors.ParsedGreen,
-            ServerState.Disconnected => ImGuiColors.DalamudYellow,
-            ServerState.Disconnecting => ImGuiColors.DalamudYellow,
-            ServerState.Unauthorized => ImGuiColors.DalamudRed,
-            ServerState.VersionMisMatch => ImGuiColors.DalamudRed,
-            ServerState.Offline => ImGuiColors.DalamudRed,
-            ServerState.RateLimited => ImGuiColors.DalamudYellow,
-            ServerState.NoSecretKey => ImGuiColors.DalamudYellow,
-            ServerState.MultiChara => ImGuiColors.DalamudYellow,
-            ServerState.OAuthMisconfigured => ImGuiColors.DalamudRed,
-            ServerState.OAuthLoginTokenStale => ImGuiColors.DalamudRed,
-            ServerState.NoAutoLogon => ImGuiColors.DalamudYellow,
-            _ => ImGuiColors.DalamudRed
+            ServerState.Connecting => ThemeManager.Instance?.Current.StatusConnecting ?? new Vector4(1f, 0.800f, 0.282f, 1f),
+            ServerState.Reconnecting => ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f),
+            ServerState.Connected => ThemeManager.Instance?.Current.UidAliasText ?? new Vector4(0.212f, 0.773f, 0.416f, 1f),
+            ServerState.Disconnected => ThemeManager.Instance?.Current.StatusConnecting ?? new Vector4(1f, 0.800f, 0.282f, 1f),
+            ServerState.Disconnecting => ThemeManager.Instance?.Current.StatusConnecting ?? new Vector4(1f, 0.800f, 0.282f, 1f),
+            ServerState.Unauthorized => ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f),
+            ServerState.VersionMisMatch => ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f),
+            ServerState.Offline => ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f),
+            ServerState.RateLimited => ThemeManager.Instance?.Current.StatusConnecting ?? new Vector4(1f, 0.800f, 0.282f, 1f),
+            ServerState.NoSecretKey => ThemeManager.Instance?.Current.StatusConnecting ?? new Vector4(1f, 0.800f, 0.282f, 1f),
+            ServerState.MultiChara => ThemeManager.Instance?.Current.StatusConnecting ?? new Vector4(1f, 0.800f, 0.282f, 1f),
+            ServerState.OAuthMisconfigured => ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f),
+            ServerState.OAuthLoginTokenStale => ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f),
+            ServerState.NoAutoLogon => ThemeManager.Instance?.Current.StatusConnecting ?? new Vector4(1f, 0.800f, 0.282f, 1f),
+            _ => ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f)
         };
     }
 

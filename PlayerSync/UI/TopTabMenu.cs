@@ -90,7 +90,14 @@ public class TopTabMenu : IMediatorSubscriber
         var buttonSize = new Vector2(buttonX, buttonY);
         var drawList = ImGui.GetWindowDrawList();
         var underlineColor = ImGui.GetColorU32(ImGuiCol.Separator);
-        var btncolor = ImRaii.PushColor(ImGuiCol.Button, ImGui.ColorConvertFloat4ToU32(new(0, 0, 0, 0)));
+        var theme = ThemeManager.Instance?.Current;
+        var buttonColor = theme?.Btn ?? new Vector4(0.16f, 0.16f, 0.21f, 1.00f);
+        var buttonHoveredColor = theme?.BtnHovered ?? new Vector4(0.26f, 0.59f, 0.98f, 1.00f);
+        var buttonActiveColor = theme?.BtnActive ?? new Vector4(0.06f, 0.53f, 0.98f, 1.00f);
+
+        var btncolor = ImRaii.PushColor(ImGuiCol.Button, ImGui.ColorConvertFloat4ToU32(buttonColor));
+        var btnHoveredColor = ImRaii.PushColor(ImGuiCol.ButtonHovered, ImGui.ColorConvertFloat4ToU32(buttonHoveredColor));
+        var btnActiveColor = ImRaii.PushColor(ImGuiCol.ButtonActive, ImGui.ColorConvertFloat4ToU32(buttonActiveColor));
 
         ImGuiHelpers.ScaledDummy(spacing.Y / 2f);
 
@@ -98,13 +105,32 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1)))
+            bool clicked = ImGui.Button(FontAwesomeIcon.User.ToIconString(), buttonSize);
+
+            Vector4 textColor;
+            if (theme != null)
             {
-                if (ImGui.Button(FontAwesomeIcon.User.ToIconString(), buttonSize))
-                {
-                    TabSelection = TabSelection == SelectedTab.Individual ? SelectedTab.None : SelectedTab.Individual;
-                }
+                if (ImGui.IsItemActive())
+                    textColor = theme.BtnTextActive;
+                else if (ImGui.IsItemHovered())
+                    textColor = theme.BtnTextHovered;
+                else
+                    textColor = theme.BtnText;
             }
+            else
+            {
+                textColor = new Vector4(1, 1, 1, 1);
+            }
+
+            var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.User.ToIconString()).X) / 2f,
+                                     x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.User.ToIconString()).Y) / 2f);
+            drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.User.ToIconString());
+
+            if (clicked)
+            {
+                TabSelection = TabSelection == SelectedTab.Individual ? SelectedTab.None : SelectedTab.Individual;
+            }
+
             ImGui.SameLine();
             var xAfter = ImGui.GetCursorScreenPos();
             if (TabSelection == SelectedTab.Individual)
@@ -118,13 +144,32 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1)))
+            bool clicked = ImGui.Button(FontAwesomeIcon.Users.ToIconString(), buttonSize);
+
+            Vector4 textColor;
+            if (theme != null)
             {
-                if (ImGui.Button(FontAwesomeIcon.Users.ToIconString(), buttonSize))
-                {
-                    TabSelection = TabSelection == SelectedTab.Syncshell ? SelectedTab.None : SelectedTab.Syncshell;
-                }
+                if (ImGui.IsItemActive())
+                    textColor = theme.BtnTextActive;
+                else if (ImGui.IsItemHovered())
+                    textColor = theme.BtnTextHovered;
+                else
+                    textColor = theme.BtnText;
             }
+            else
+            {
+                textColor = new Vector4(1, 1, 1, 1);
+            }
+
+            var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.Users.ToIconString()).X) / 2f,
+                                     x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.Users.ToIconString()).Y) / 2f);
+            drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.Users.ToIconString());
+
+            if (clicked)
+            {
+                TabSelection = TabSelection == SelectedTab.Syncshell ? SelectedTab.None : SelectedTab.Syncshell;
+            }
+
             ImGui.SameLine();
             var xAfter = ImGui.GetCursorScreenPos();
             if (TabSelection == SelectedTab.Syncshell)
@@ -139,12 +184,30 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1)))
+            bool clicked = ImGui.Button(FontAwesomeIcon.Filter.ToIconString(), buttonSize);
+
+            Vector4 textColor;
+            if (theme != null)
             {
-                if (ImGui.Button(FontAwesomeIcon.Filter.ToIconString(), buttonSize))
-                {
-                    TabSelection = TabSelection == SelectedTab.Filter ? SelectedTab.None : SelectedTab.Filter;
-                }
+                if (ImGui.IsItemActive())
+                    textColor = theme.BtnTextActive;
+                else if (ImGui.IsItemHovered())
+                    textColor = theme.BtnTextHovered;
+                else
+                    textColor = theme.BtnText;
+            }
+            else
+            {
+                textColor = new Vector4(1, 1, 1, 1);
+            }
+
+            var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.Filter.ToIconString()).X) / 2f,
+                                     x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.Filter.ToIconString()).Y) / 2f);
+            drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.Filter.ToIconString());
+
+            if (clicked)
+            {
+                TabSelection = TabSelection == SelectedTab.Filter ? SelectedTab.None : SelectedTab.Filter;
             }
 
             ImGui.SameLine();
@@ -161,12 +224,37 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            using (ImRaii.PushColor(ImGuiCol.Text, _broadcastManager.IsBroadcasting() ? ImGuiColors.HealerGreen : ImGuiColors.DalamudWhite))
+            bool clicked = ImGui.Button(FontAwesomeIcon.Wifi.ToIconString(), buttonSize);
+
+            Vector4 textColor;
+            if (_broadcastManager.IsBroadcasting())
             {
-                if (ImGui.Button(FontAwesomeIcon.Wifi.ToIconString(), buttonSize))
+                textColor = ThemeManager.Instance?.Current.StatusBroadcasting ?? new Vector4(0.094f, 0.835f, 0.369f, 1f);
+            }
+            else
+            {
+                if (theme != null)
                 {
-                    TabSelection = TabSelection == SelectedTab.Broadcast ? SelectedTab.None : SelectedTab.Broadcast;
+                    if (ImGui.IsItemActive())
+                        textColor = theme.BtnTextActive;
+                    else if (ImGui.IsItemHovered())
+                        textColor = theme.BtnTextHovered;
+                    else
+                        textColor = theme.BtnText;
                 }
+                else
+                {
+                    textColor = new Vector4(1, 1, 1, 1);
+                }
+            }
+
+            var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.Wifi.ToIconString()).X) / 2f,
+                                     x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.Wifi.ToIconString()).Y) / 2f);
+            drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.Wifi.ToIconString());
+
+            if (clicked)
+            {
+                TabSelection = TabSelection == SelectedTab.Broadcast ? SelectedTab.None : SelectedTab.Broadcast;
             }
 
             ImGui.SameLine();
@@ -183,12 +271,30 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1)))
+            bool clicked = ImGui.Button(FontAwesomeIcon.UserCog.ToIconString(), buttonSize);
+
+            Vector4 textColor;
+            if (theme != null)
             {
-                if (ImGui.Button(FontAwesomeIcon.UserCog.ToIconString(), buttonSize))
-                {
-                    TabSelection = TabSelection == SelectedTab.UserConfig ? SelectedTab.None : SelectedTab.UserConfig;
-                }
+                if (ImGui.IsItemActive())
+                    textColor = theme.BtnTextActive;
+                else if (ImGui.IsItemHovered())
+                    textColor = theme.BtnTextHovered;
+                else
+                    textColor = theme.BtnText;
+            }
+            else
+            {
+                textColor = new Vector4(1, 1, 1, 1);
+            }
+
+            var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.UserCog.ToIconString()).X) / 2f,
+                                     x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.UserCog.ToIconString()).Y) / 2f);
+            drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.UserCog.ToIconString());
+
+            if (clicked)
+            {
+                TabSelection = TabSelection == SelectedTab.UserConfig ? SelectedTab.None : SelectedTab.UserConfig;
             }
 
             ImGui.SameLine();
@@ -201,6 +307,8 @@ public class TopTabMenu : IMediatorSubscriber
         UiSharedService.AttachToolTip("Your User Menu");
 
         ImGui.NewLine();
+        btnActiveColor.Dispose();
+        btnHoveredColor.Dispose();
         btncolor.Dispose();
 
         ImGuiHelpers.ScaledDummy(spacing);
@@ -293,7 +401,7 @@ public class TopTabMenu : IMediatorSubscriber
             {
                 ImGuiHelpers.ScaledDummy(4.0f);
 
-                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen))
+                using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.StatusBroadcasting ?? new Vector4(0.094f, 0.835f, 0.369f, 1f)))
                 {
                     var header = "Broadcasting";
                     var headerSize = ImGui.CalcTextSize(header);
