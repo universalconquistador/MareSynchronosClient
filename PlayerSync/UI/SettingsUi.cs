@@ -1031,6 +1031,24 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.DrawHelpText("Enabling this will only show online notifications (type: Info) for pairs where you have set an individual note.");
     }
 
+    // Draw the tab for the pairing features
+    private void DrawPairSettings()
+    {
+        _uiShared.BigText("Pairing Settings");
+        UiSharedService.TextWrapped("Please update this with big red scary text and a delay to accept.");
+        ImGui.Dummy(new Vector2(10));
+        ImGui.Separator();
+        ImGui.Dummy(new Vector2(10));
+
+        bool enableGroupZoneSyncJoining = _configService.Current.EnableGroupZoneSyncJoining;
+        if (ImGui.Checkbox("Enable automatic joining of zone-based syncshells.", ref enableGroupZoneSyncJoining))
+        {
+            Mediator.Publish(new GroupZoneSetEnableState(enableGroupZoneSyncJoining));
+            _configService.Current.EnableGroupZoneSyncJoining = enableGroupZoneSyncJoining;
+            _configService.Save();
+        }
+    }
+
     private void DrawPerformance()
     {
         _uiShared.BigText("Performance Settings");
@@ -1845,6 +1863,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             if (ImGui.BeginTabItem("General"))
             {
                 DrawGeneral();
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Pairing Settings"))
+            {
+                DrawPairSettings();
                 ImGui.EndTabItem();
             }
 
