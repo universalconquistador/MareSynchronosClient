@@ -30,6 +30,7 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using MareSynchronos.Services.CharaData;
 using Dalamud.Game;
+using PlayerSync.PlayerData.Pairs;
 
 namespace MareSynchronos;
 
@@ -142,6 +143,8 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<RedrawManager>();
             collection.AddSingleton<IBroadcastManager, BroadcastManager>(s => new BroadcastManager(s.GetRequiredService<ILogger<BroadcastManager>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<MareConfigService>()));
+            collection.AddSingleton((s) => new GroupZoneSyncManager(s.GetRequiredService<ILogger<GroupZoneSyncManager>>(),
+                s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<MareConfigService>(), s.GetRequiredService<PairManager>()));
             collection.AddSingleton((s) => new DtrEntry(s.GetRequiredService<ILogger<DtrEntry>>(), dtrBar, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<IBroadcastManager>(), s.GetRequiredService<ApiController>()));
             collection.AddSingleton((s) => new IpcCallerPenumbra(s.GetRequiredService<ILogger<IpcCallerPenumbra>>(), pluginInterface,
