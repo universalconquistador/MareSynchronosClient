@@ -58,7 +58,7 @@ public class HoveringToolbar
         var crMax = ImGui.GetWindowContentRegionMax();
 
         float stripWidth = (btnSide * 3) + (spacing * 2);
-        float overlayX = _lastWindowPos.X + crMax.X - stripWidth - spacing - 32f;
+        float overlayX = _lastWindowPos.X + crMax.X - stripWidth - spacing - 32f - 5f - 15f;
         float overlayY = _lastWindowPos.Y + crMin.Y + topOffset - 10f;
 
         ImGui.SetNextWindowPos(new Vector2(overlayX, overlayY), ImGuiCond.Always);
@@ -85,7 +85,6 @@ public class HoveringToolbar
                 ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6f, 3f));
             }
 
-            // Hamburger menu button
             using (ImRaii.PushColor(ImGuiCol.Text, currentTheme?.BtnText ?? new Vector4(1f, 1f, 1f, 1f)))
             {
                 if (_uiSharedService.IconButton(FontAwesomeIcon.Bars))
@@ -98,7 +97,6 @@ public class HoveringToolbar
             AttachTooltip("Player Sync Menu");
             ImGui.SameLine(0, spacing);
 
-            // Collapse button - need to get the collapse state from parent
             using (ImRaii.PushColor(ImGuiCol.Text, currentTheme?.BtnText ?? new Vector4(1f, 1f, 1f, 1f)))
             {
                 if (_uiSharedService.IconButton(FontAwesomeIcon.ChevronUp))
@@ -109,7 +107,6 @@ public class HoveringToolbar
             AttachTooltip("Collapse Window");
             ImGui.SameLine(0, spacing);
 
-            // Close button
             using (ImRaii.PushColor(ImGuiCol.Text, currentTheme?.BtnText ?? new Vector4(1f, 1f, 1f, 1f)))
             {
                 if (_uiSharedService.IconButton(FontAwesomeIcon.Times))
@@ -119,7 +116,6 @@ public class HoveringToolbar
             }
             AttachTooltip("Close Window");
 
-            // Hamburger menu popup
             DrawHamburgerMenuPopup(currentTheme);
 
             if (currentTheme != null)
@@ -162,10 +158,6 @@ public class HoveringToolbar
 
                 ImGui.Separator();
 
-                //if (ImGui.MenuItem($"{FontAwesomeIcon.Cog.ToIconString()}  Settings"))
-                //{
-                //    _mediator.Publish(new UiToggleMessage(typeof(ModernSettingsUI)));
-                //}
 
                 // Event Viewer
                 if (ImGui.MenuItem($"{FontAwesomeIcon.Book.ToIconString()}  Event Viewer"))
@@ -200,7 +192,7 @@ public class HoveringToolbar
         var crMax = ImGui.GetWindowContentRegionMax();
 
         float stripWidth = (btnSide * 3) + (spacing * 2);
-        float resetX = _lastWindowPos.X + crMax.X - stripWidth - spacing - 32f - buttonSize.X - spacing;
+        float resetX = _lastWindowPos.X + crMax.X - stripWidth - spacing - 32f - buttonSize.X - spacing - 5f - 15f;
         float resetY = _lastWindowPos.Y + crMin.Y + ImGui.GetStyle().FramePadding.Y + ImGui.GetStyle().ItemSpacing.Y + ImGuiHelpers.GlobalScale - 10f;
 
         ImGui.SetNextWindowPos(new Vector2(resetX, resetY));
@@ -210,7 +202,6 @@ public class HoveringToolbar
             ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoSavedSettings |
             ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse |
             ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking;
-        // Don't add NoInputs here - we want this button to remain clickable
 
         if (ImGui.Begin("##PlayerSyncResetButton", floatingFlags))
         {
@@ -282,5 +273,4 @@ public class HoveringToolbar
     }
 }
 
-// Message for theme editor toggle
 public record ToggleThemeEditorMessage : MessageBase;
