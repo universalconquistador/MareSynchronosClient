@@ -8,6 +8,7 @@ using MareSynchronos.API.Dto.Group;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.Components.Theming;
+using System.Numerics;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
 using System.Collections.Immutable;
@@ -46,7 +47,8 @@ public class DrawFolderGroup : DrawFolderBase
         ImGui.AlignTextToFramePadding();
 
         bool isBroadcasting = _broadcastManager.BroadcastingGroupId == _groupFullInfoDto.GID;
-        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, isBroadcasting))
+        var broadcastColor = isBroadcasting ? GetDarkerColor(ImGuiColors.HealerGreen) : GetDarkerColor(ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
+        using (ImRaii.PushColor(ImGuiCol.Text, broadcastColor, isBroadcasting))
         {
             FontAwesomeIcon icon;
             if (isBroadcasting)
@@ -57,7 +59,8 @@ public class DrawFolderGroup : DrawFolderBase
             {
                 icon = _groupFullInfoDto.GroupPermissions.IsDisableInvites() ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users;
             }
-            _uiSharedService.IconText(icon, ThemeManager.Instance?.Current.Accent);
+            var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
+            _uiSharedService.IconText(icon, GetDarkerColor(accentColor));
         }
         if (_groupFullInfoDto.GroupPermissions.IsDisableInvites())
         {
@@ -314,7 +317,36 @@ public class DrawFolderGroup : DrawFolderBase
         }
 
         ImGui.SameLine();
-        if (_uiSharedService.IconButton(pauseIcon))
+
+        var isRowHovered = ImGui.IsItemHovered() || _wasHovered;
+        Vector4? darkerButtonColor = null;
+        Vector4? darkerButtonHovered = null;
+        Vector4? darkerButtonActive = null;
+
+        if (isRowHovered)
+        {
+            var style = ImGui.GetStyle();
+            var currentButton = style.Colors[(int)ImGuiCol.Button];
+            var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
+            var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
+
+            darkerButtonColor = new Vector4(currentButton.X * 0.7f, currentButton.Y * 0.7f, currentButton.Z * 0.7f, currentButton.W);
+            darkerButtonHovered = new Vector4(currentButtonHovered.X * 0.8f, currentButtonHovered.Y * 0.8f, currentButtonHovered.Z * 0.8f, currentButtonHovered.W);
+            darkerButtonActive = new Vector4(currentButtonActive.X * 0.6f, currentButtonActive.Y * 0.6f, currentButtonActive.Z * 0.6f, currentButtonActive.W);
+
+            ImGui.PushStyleColor(ImGuiCol.Button, darkerButtonColor.Value);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, darkerButtonHovered.Value);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, darkerButtonActive.Value);
+        }
+
+        bool buttonPressed = _uiSharedService.IconButton(pauseIcon);
+
+        if (isRowHovered)
+        {
+            ImGui.PopStyleColor(3);
+        }
+
+        if (buttonPressed)
         {
             var perm = _groupFullInfoDto.GroupUserPermissions;
             perm.SetPaused(!perm.IsPaused());
