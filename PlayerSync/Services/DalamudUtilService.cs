@@ -40,6 +40,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     private readonly IObjectTable _objectTable;
     private readonly PerformanceCollectorService _performanceCollector;
     private readonly MareConfigService _configService;
+    private readonly PlayerPerformanceConfigService _playerPerformanceConfigService;
     private uint? _classJobId = 0;
     private DateTime _delayedFrameworkUpdateCheck = DateTime.UtcNow;
     private string _lastGlobalBlockPlayer = string.Empty;
@@ -53,7 +54,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public DalamudUtilService(ILogger<DalamudUtilService> logger, IClientState clientState, IObjectTable objectTable, IFramework framework,
         IGameGui gameGui, ICondition condition, IDataManager gameData, ITargetManager targetManager, IGameConfig gameConfig,
         BlockedCharacterHandler blockedCharacterHandler, MareMediator mediator, PerformanceCollectorService performanceCollector,
-        MareConfigService configService)
+        MareConfigService configService, PlayerPerformanceConfigService playerPerformanceConfigService)
     {
         _logger = logger;
         _clientState = clientState;
@@ -67,6 +68,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         Mediator = mediator;
         _performanceCollector = performanceCollector;
         _configService = configService;
+        _playerPerformanceConfigService = playerPerformanceConfigService;
         WorldData = new(() =>
         {
             return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
@@ -162,6 +164,9 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public bool IsOnFrameworkThread => _framework.IsInFrameworkUpdateThread;
     public bool IsZoning => _condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.BetweenAreas51];
     public bool IsInCombatOrPerforming { get; private set; } = false;
+    public bool IsInCombat { get; private set; } = false;
+    public bool IsPerforming { get; private set; } = false;
+    public bool IsInInstance { get; private set; } = false;
     public bool HasModifiedGameFiles => _gameData.HasModifiedGameDataFiles;
     public uint ClassJobId => _classJobId!.Value;
     public Lazy<Dictionary<uint, string>> JobData { get; private set; }
@@ -686,6 +691,51 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 IsInCombatOrPerforming = false;
                 Mediator.Publish(new CombatOrPerformanceEndMessage());
                 Mediator.Publish(new ResumeScanMessage(nameof(IsInCombatOrPerforming)));
+            }
+
+            if ((_condition[ConditionFlag.InCombat]) && !IsInCombat && !IsInInstance && _playerPerformanceConfigService.Current.PauseInCombat)
+            {
+                _logger.LogDebug("Combat start");
+                IsInCombat = true;
+                Mediator.Publish(new CombatStartMessage());
+                Mediator.Publish(new HaltScanMessage(nameof(IsInCombat)));
+            }
+            else if ((!_condition[ConditionFlag.InCombat]) && IsInCombat && !IsInInstance && _playerPerformanceConfigService.Current.PauseInCombat)
+            {
+                _logger.LogDebug("Combat end");
+                IsInCombat = false;
+                Mediator.Publish(new CombatEndMessage());
+                Mediator.Publish(new ResumeScanMessage(nameof(IsInCombat)));
+            }
+
+            if (_condition[ConditionFlag.Performing] && !IsPerforming && _playerPerformanceConfigService.Current.PauseWhilePerforming)
+            {
+                _logger.LogDebug("Performance start");
+                IsPerforming = true;
+                Mediator.Publish(new PerformanceStartMessage());
+                Mediator.Publish(new HaltScanMessage(nameof(IsPerforming)));
+            }
+            else if (!_condition[ConditionFlag.Performing] && IsPerforming && _playerPerformanceConfigService.Current.PauseWhilePerforming)
+            {
+                _logger.LogDebug("Performance end");
+                IsPerforming = false;
+                Mediator.Publish(new PerformanceEndMessage());
+                Mediator.Publish(new ResumeScanMessage(nameof(IsPerforming)));
+            }
+
+            if ((_condition[ConditionFlag.BoundByDuty]) && !IsInInstance && _playerPerformanceConfigService.Current.PauseInInstanceDuty)
+            {
+                _logger.LogDebug("Instance start");
+                IsInInstance = true;
+                Mediator.Publish(new InstanceOrDutyStartMessage());
+                Mediator.Publish(new HaltScanMessage(nameof(IsInInstance)));
+            }
+            else if (((!_condition[ConditionFlag.BoundByDuty]) && IsInInstance && _playerPerformanceConfigService.Current.PauseInInstanceDuty) || ((_condition[ConditionFlag.BoundByDuty]) && IsInInstance && !_playerPerformanceConfigService.Current.PauseInInstanceDuty))
+            {
+                _logger.LogDebug("Instance end");
+                IsInInstance = false;
+                Mediator.Publish(new InstanceOrDutyEndMessage());
+                Mediator.Publish(new ResumeScanMessage(nameof(IsInInstance)));
             }
 
             if (_condition[ConditionFlag.WatchingCutscene] && !IsInCutscene)

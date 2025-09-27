@@ -13,4 +13,7 @@ public class PlayerPerformanceConfig : IMareConfiguration
     public int VRAMSizeAutoPauseThresholdMiB { get; set; } = 550;
     public int TrisAutoPauseThresholdThousands { get; set; } = 250;
     public List<string> UIDsToIgnore { get; set; } = new();
+    public bool PauseInInstanceDuty { get; set; } = false;
+    public bool PauseWhilePerforming { get; set; } = true;
+    public bool PauseInCombat { get; set; } = true;
 }

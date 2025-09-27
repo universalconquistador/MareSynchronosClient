@@ -87,6 +87,12 @@ public record CensusUpdateMessage(byte Gender, byte RaceId, byte TribeId) : Mess
 public record TargetPairMessage(Pair Pair) : MessageBase;
 public record CombatOrPerformanceStartMessage : MessageBase;
 public record CombatOrPerformanceEndMessage : MessageBase;
+public record CombatStartMessage : MessageBase;
+public record CombatEndMessage : MessageBase;
+public record PerformanceStartMessage : MessageBase;
+public record PerformanceEndMessage : MessageBase;
+public record InstanceOrDutyStartMessage : MessageBase;
+public record InstanceOrDutyEndMessage : MessageBase;
 public record EventMessage(Event Event) : MessageBase;
 public record PenumbraDirectoryChangedMessage(string? ModDirectory) : MessageBase;
 public record PenumbraRedrawCharacterMessage(ICharacter Character) : SameThreadMessage;
