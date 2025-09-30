@@ -2,6 +2,7 @@
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto;
+using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.API.SignalR;
 using MareSynchronos.MareConfiguration;
@@ -289,6 +290,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
                 await LoadIninitialPairsAsync().ConfigureAwait(false);
                 await LoadOnlinePairsAsync().ConfigureAwait(false);
+                await LoadGroupZoneSyncASync().ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -495,6 +497,21 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         }
     }
 
+    private async Task LoadGroupZoneSyncASync()
+    {
+        if (!_mareConfigService.Current.EnableGroupZoneSyncJoining) return;
+
+        var ownLocation = await _dalamudUtil.GetMapDataAsync().ConfigureAwait(false);
+        // We don't support instance zones, so we should try and avoid joining them
+        // This will be replaced with proper Lumina code later to build dynamically
+        bool? inst = TerritoryTools.TerritoryStaticMap.IsInstance(ownLocation.TerritoryId);
+        if (inst != false) return;
+
+        var currentWorld = await _dalamudUtil.GetWorldIdAsync().ConfigureAwait(false);
+        var dto = new GroupZoneJoinDto(currentWorld, ownLocation);
+        await GroupZoneJoin(dto).ConfigureAwait(false);
+    }
+
     private void MareHubOnClosed(Exception? arg)
     {
         _healthCheckTokenSource?.Cancel();
@@ -525,6 +542,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             ServerState = ServerState.Connected;
             await LoadIninitialPairsAsync().ConfigureAwait(false);
             await LoadOnlinePairsAsync().ConfigureAwait(false);
+            await LoadGroupZoneSyncASync().ConfigureAwait(false);
             Mediator.Publish(new ConnectedMessage(_connectionDto));
         }
         catch (Exception ex)
