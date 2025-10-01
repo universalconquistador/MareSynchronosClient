@@ -12,6 +12,7 @@ using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.WebAPI;
+using System;
 using System.Numerics;
 
 namespace MareSynchronos.UI;
@@ -240,6 +241,7 @@ public class TopTabMenu : IMediatorSubscriber
         ImGui.InputTextWithHint("##otheruid", "Other players UID/Alias", ref _pairToAdd, 20);
         ImGui.SameLine();
         var alreadyExisting = _pairManager.DirectPairs.Exists(p => string.Equals(p.UserData.UID, _pairToAdd, StringComparison.Ordinal) || string.Equals(p.UserData.Alias, _pairToAdd, StringComparison.Ordinal));
+        var isSelf = string.Equals(_apiController.UID, _pairToAdd, StringComparison.OrdinalIgnoreCase);
         using (ImRaii.Disabled(alreadyExisting || string.IsNullOrEmpty(_pairToAdd)))
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.UserPlus, "Add"))
@@ -250,7 +252,7 @@ public class TopTabMenu : IMediatorSubscriber
         }
         UiSharedService.AttachToolTip("Pair with " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd));
         ImGui.SameLine();
-        using (ImRaii.Disabled(string.IsNullOrEmpty(_pairToAdd)))
+        using (ImRaii.Disabled(isSelf || string.IsNullOrEmpty(_pairToAdd)))
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.UserMinus, "Block"))
             {

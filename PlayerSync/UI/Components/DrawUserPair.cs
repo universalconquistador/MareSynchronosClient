@@ -179,11 +179,11 @@ public class DrawUserPair
                 _ = _apiController.UserRemovePair(new(_pair.UserData));
             }
             UiSharedService.AttachToolTip("Hold CTRL and click to unpair from " + entryUID);
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Pause Forever", _menuWidth, true) && UiSharedService.CtrlPressed())
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Keep Paused", _menuWidth, true) && UiSharedService.CtrlPressed())
             {
                 _ = _apiController.UserPairStickyPauseAndRemove(_pair.UserData);
             }
-            UiSharedService.AttachToolTip("Hold CTRL and click to permanently pause " + entryUID);
+            UiSharedService.AttachToolTip("Hold CTRL and click to keep paused " + entryUID);
         }
         else
         {
@@ -209,11 +209,11 @@ public class DrawUserPair
             _uiSharedService.IconText(FontAwesomeIcon.PauseCircle);
             userPairText = _pair.UserData.AliasOrUID + " is paused";
         }
-        else if (_pair.IsPaired && permSticky)
+        else if (_pair.IsPaused && permSticky)
         {
             using var _ = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed);
             _uiSharedService.IconText(FontAwesomeIcon.FilterCircleXmark);
-            userPairText = _pair.UserData.AliasOrUID + " is blocked";
+            userPairText = _pair.UserData.AliasOrUID + " is paused (sticky)";
         }
         else if (!_pair.IsOnline)
         {
