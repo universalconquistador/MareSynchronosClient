@@ -4,8 +4,6 @@ using Microsoft.Extensions.Logging;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.WebAPI;
 using MareSynchronos.PlayerData.Pairs;
-using Lumina.Extensions;
-
 
 namespace PlayerSync.PlayerData.Pairs;
 
@@ -31,7 +29,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         _pairManager = pairManager;
 
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (_) => SendGroupZoneSyncInfo());
-        Mediator.Subscribe<GroupZoneSetEnableState>(this, (msg) => GroupZoneJoinLeave(msg.isEnabled));     
+        Mediator.Subscribe<GroupZoneSetEnableState>(this, (msg) => _ = GroupZoneJoinLeave(msg.isEnabled));     
     }
 
     /// <summary>
@@ -43,13 +41,24 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         var enableGroupZoneSyncJoining = _mareConfigService.Current.EnableGroupZoneSyncJoining;
         if (!enableGroupZoneSyncJoining) return;
 
+        // I don't know if this works the way I think it does, but we'll try it.
+        if (_dalamudUtilService.IsBoundByDuty)
+        {
+            Logger.LogDebug("Cancelled Zone Sync due to IsBoundByDuty.");
+            return;
+        }
+        
         // Get the required world + location info first, this is how we build our sync id
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
         
         // We don't support instance zones, so we should try and avoid joining them
         // This will be replaced with proper Lumina code later to build dynamically
         bool? inst = TerritoryTools.TerritoryStaticMap.IsInstance(ownLocation.TerritoryId);
-        if (inst != false) return;
+        if (inst != false)
+        {
+            Logger.LogDebug("Cancelled Zone Sync due to Territory ID lookup: {tid}", ownLocation.TerritoryId);
+            return;
+        }
 
         var currentWorld = await _dalamudUtilService.GetWorldIdAsync().ConfigureAwait(false);
         
@@ -81,6 +90,4 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
             }
         }
     }
-
-
 }

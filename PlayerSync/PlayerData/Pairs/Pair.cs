@@ -63,11 +63,13 @@ public class Pair
         SeStringBuilder seStringBuilder3 = new();
         SeStringBuilder seStringBuilder4 = new();
         SeStringBuilder seStringBuilder5 = new();
+        SeStringBuilder seStringBuilder6 = new();
         var openProfileSeString = seStringBuilder.AddText("Open Profile").Build();
-        var reapplyDataSeString = seStringBuilder2.AddText("Reapply last data").Build();
-        var cyclePauseState = seStringBuilder3.AddText("Cycle pause state").Build();
+        var reapplyDataSeString = seStringBuilder2.AddText("Reapply Last Data").Build();
+        var cyclePauseState = seStringBuilder3.AddText("Cycle Pause State").Build();
         var changePermissions = seStringBuilder4.AddText("Change Permissions").Build();
-        var pairIndividually = seStringBuilder5.AddText("Pair individually").Build();
+        var pairIndividually = seStringBuilder5.AddText("Pair Individually").Build();
+        var pauseForever = seStringBuilder6.AddText("Pause Forever").Build();
         args.AddMenuItem(new MenuItem()
         {
             Name = openProfileSeString,
@@ -116,6 +118,16 @@ public class Pair
                 PrefixColor = 530
             });
         }
+
+        // This kind of acts like a blacklist feature
+        args.AddMenuItem(new MenuItem()
+        {
+            Name = pauseForever,
+            OnClicked = (a) => _mediator.Publish(new UserPairStickyPauseAndRemoveMessage(UserData)),
+            UseDefaultPrefix = false,
+            PrefixChar = 'P',
+            PrefixColor = 17
+        });
     }
 
     public void ApplyData(OnlineUserCharaDataDto data)

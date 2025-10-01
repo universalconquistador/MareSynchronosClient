@@ -588,7 +588,14 @@ public class CompactUi : WindowMediatorSubscriberBase
                 .ThenBy(AlphabeticalSort, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(k => k.Key, k => k.Value);
 
-            groupFolders.Add(_drawEntityFactory.CreateDrawGroupFolder(group, filteredGroupPairs, allGroupPairs));
+            if (group.GID.StartsWith("ZONE-", StringComparison.Ordinal))
+            {
+                groupFolders.Insert(0, _drawEntityFactory.CreateDrawGroupFolder(group, filteredGroupPairs, allGroupPairs));
+            }
+            else
+            {
+                groupFolders.Add(_drawEntityFactory.CreateDrawGroupFolder(group, filteredGroupPairs, allGroupPairs));
+            }
         }
 
         if (_configService.Current.GroupUpSyncshells)

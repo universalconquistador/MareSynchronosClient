@@ -174,15 +174,20 @@ public class DrawUserPair
                 _selectTagForPairUi.Open(_pair);
             }
             UiSharedService.AttachToolTip("Choose pair groups for " + entryUID);
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Unpair Permanently", _menuWidth, true) && UiSharedService.CtrlPressed())
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Unpair User", _menuWidth, true) && UiSharedService.CtrlPressed())
             {
                 _ = _apiController.UserRemovePair(new(_pair.UserData));
             }
-            UiSharedService.AttachToolTip("Hold CTRL and click to unpair permanently from " + entryUID);
+            UiSharedService.AttachToolTip("Hold CTRL and click to unpair from " + entryUID);
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Pause Forever", _menuWidth, true) && UiSharedService.CtrlPressed())
+            {
+                _ = _apiController.UserPairStickyPauseAndRemove(_pair.UserData);
+            }
+            UiSharedService.AttachToolTip("Hold CTRL and click to permanently pause " + entryUID);
         }
         else
         {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Pair individually", _menuWidth, true))
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Pair Individually", _menuWidth, true))
             {
                 _ = _apiController.UserAddPair(new(_pair.UserData), true);
             }
@@ -196,11 +201,19 @@ public class DrawUserPair
 
         ImGui.AlignTextToFramePadding();
 
-        if (_pair.IsPaused)
+        var permSticky = _pair.UserPair!.OwnPermissions.IsSticky();
+
+        if (_pair.IsPaused && !permSticky)
         {
             using var _ = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudYellow);
             _uiSharedService.IconText(FontAwesomeIcon.PauseCircle);
             userPairText = _pair.UserData.AliasOrUID + " is paused";
+        }
+        else if (_pair.IsPaired && permSticky)
+        {
+            using var _ = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed);
+            _uiSharedService.IconText(FontAwesomeIcon.FilterCircleXmark);
+            userPairText = _pair.UserData.AliasOrUID + " is blocked";
         }
         else if (!_pair.IsOnline)
         {

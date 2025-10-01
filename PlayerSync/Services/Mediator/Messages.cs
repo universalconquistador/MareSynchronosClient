@@ -67,6 +67,7 @@ public record PrefillJoinSyncshellParameters(string GroupId, bool ExpectPassword
 public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading) : MessageBase;
 public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;
 public record UserAddPairMessage(UserData UserData) : MessageBase;
+public record UserPairStickyPauseAndRemoveMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
 public record PauseMessage(UserData UserData) : MessageBase;
 public record ProfilePopoutToggle(Pair? Pair) : MessageBase;

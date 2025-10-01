@@ -207,7 +207,7 @@ public class TopTabMenu : IMediatorSubscriber
 
         if (TabSelection == SelectedTab.Individual)
         {
-            DrawAddPair(availableWidth, spacing.X);
+            DrawAddBlockPair(availableWidth, spacing.X);
             DrawGlobalIndividualButtons(availableWidth, spacing.X);
         }
         else if (TabSelection == SelectedTab.Syncshell)
@@ -232,10 +232,11 @@ public class TopTabMenu : IMediatorSubscriber
         ImGui.Separator();
     }
 
-    private void DrawAddPair(float availableXWidth, float spacingX)
+    private void DrawAddBlockPair(float availableXWidth, float spacingX)
     {
-        var buttonSize = _uiSharedService.GetIconTextButtonSize(FontAwesomeIcon.UserPlus, "Add");
-        ImGui.SetNextItemWidth(availableXWidth - buttonSize - spacingX);
+        var buttonAddSize = _uiSharedService.GetIconTextButtonSize(FontAwesomeIcon.UserPlus, "Add");
+        var buttonBlockSize = _uiSharedService.GetIconTextButtonSize(FontAwesomeIcon.UserMinus, "Block");
+        ImGui.SetNextItemWidth(availableXWidth - buttonAddSize - buttonBlockSize - spacingX);
         ImGui.InputTextWithHint("##otheruid", "Other players UID/Alias", ref _pairToAdd, 20);
         ImGui.SameLine();
         var alreadyExisting = _pairManager.DirectPairs.Exists(p => string.Equals(p.UserData.UID, _pairToAdd, StringComparison.Ordinal) || string.Equals(p.UserData.Alias, _pairToAdd, StringComparison.Ordinal));
@@ -248,6 +249,16 @@ public class TopTabMenu : IMediatorSubscriber
             }
         }
         UiSharedService.AttachToolTip("Pair with " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd));
+        ImGui.SameLine();
+        using (ImRaii.Disabled(string.IsNullOrEmpty(_pairToAdd)))
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.UserMinus, "Block"))
+            {
+                _ = _apiController.UserPairStickyPauseAndRemove(new(_pairToAdd));
+                _pairToAdd = string.Empty;
+            }
+        }
+        UiSharedService.AttachToolTip("Keep paused " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd));
     }
 
     private void DrawFilter(float availableWidth, float spacingX)
