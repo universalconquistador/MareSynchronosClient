@@ -45,6 +45,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     private string _lastGlobalBlockPlayer = string.Empty;
     private string _lastGlobalBlockReason = string.Empty;
     private ushort _lastZone = 0;
+    private uint _lastWorld = 0;
     private readonly Dictionary<string, (string Name, nint Address)> _playerCharas = new(StringComparer.Ordinal);
     private readonly List<string> _notUpdatedCharas = [];
     private bool _sentBetweenAreas = false;
@@ -722,6 +723,15 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                         _sentBetweenAreas = true;
                         Mediator.Publish(new ZoneSwitchStartMessage());
                         Mediator.Publish(new HaltScanMessage(nameof(ConditionFlag.BetweenAreas)));
+                    }
+                }
+                var world = _clientState.LocalPlayer?.CurrentWorld.RowId ?? null;
+                if (world != null)
+                {
+                    if (_lastWorld != world)
+                    {
+                        _lastWorld = (uint)world;
+                        Mediator.Publish(new WorldChangeMessage());
                     }
                 }
 

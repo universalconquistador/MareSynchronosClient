@@ -260,7 +260,7 @@ public class TopTabMenu : IMediatorSubscriber
                 _pairToAdd = string.Empty;
             }
         }
-        UiSharedService.AttachToolTip("Keep paused " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd));
+        UiSharedService.AttachToolTip("Keep " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd) + " paused");
     }
 
     private void DrawFilter(float availableWidth, float spacingX)

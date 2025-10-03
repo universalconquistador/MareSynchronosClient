@@ -70,5 +70,4 @@ public class MareConfig : IMareConfiguration
     public bool UseCustomTheme { get; set; } = false;
     public ThemePalette? CustomThemeData { get; set; } = null;
     public string LastSeenVersion { get; set; } = string.Empty;
-    public bool EnableGroupZoneSyncJoining {  get; set; } = false;
 }

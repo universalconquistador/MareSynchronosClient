@@ -17,7 +17,6 @@ using MareSynchronos.WebAPI.SignalR.Utils;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
-using static FFXIVClientStructs.FFXIV.Client.Game.UI.MapMarkerData.Delegates;
 
 namespace MareSynchronos.WebAPI;
 
@@ -293,7 +292,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
                 await LoadIninitialPairsAsync().ConfigureAwait(false);
                 await LoadOnlinePairsAsync().ConfigureAwait(false);
-                await LoadGroupZoneSyncASync().ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -373,11 +371,11 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         if (pair is null) // we don't actually have a pair for this user
         {
             UserPermissions newPerms = new();
-            newPerms.SetSticky(sticky: true);
-            newPerms.SetPaused(paused: true);
-            newPerms.SetDisableAnimations(set: true);
-            newPerms.SetDisableSounds(set: true);
-            newPerms.SetDisableVFX(set: true);
+            newPerms.SetSticky(true);
+            newPerms.SetPaused(true);
+            newPerms.SetDisableAnimations(true);
+            newPerms.SetDisableSounds(true);
+            newPerms.SetDisableVFX(true);
             await UserSetPairPermissions(new UserPermissionsDto(userData, newPerms)).ConfigureAwait(false);
             return;
         }
@@ -522,21 +520,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         }
     }
 
-    private async Task LoadGroupZoneSyncASync()
-    {
-        if (!_mareConfigService.Current.EnableGroupZoneSyncJoining) return;
-
-        var ownLocation = await _dalamudUtil.GetMapDataAsync().ConfigureAwait(false);
-        // We don't support instance zones, so we should try and avoid joining them
-        // This will be replaced with proper Lumina code later to build dynamically
-        bool? inst = TerritoryTools.TerritoryStaticMap.IsInstance(ownLocation.TerritoryId);
-        if (inst != false) return;
-
-        var currentWorld = await _dalamudUtil.GetWorldIdAsync().ConfigureAwait(false);
-        var dto = new GroupZoneJoinDto(currentWorld, ownLocation);
-        await GroupZoneJoin(dto).ConfigureAwait(false);
-    }
-
     private void MareHubOnClosed(Exception? arg)
     {
         _healthCheckTokenSource?.Cancel();
@@ -567,7 +550,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             ServerState = ServerState.Connected;
             await LoadIninitialPairsAsync().ConfigureAwait(false);
             await LoadOnlinePairsAsync().ConfigureAwait(false);
-            await LoadGroupZoneSyncASync().ConfigureAwait(false);
             Mediator.Publish(new ConnectedMessage(_connectionDto));
         }
         catch (Exception ex)

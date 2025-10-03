@@ -46,12 +46,17 @@ public class DrawFolderGroup : DrawFolderBase
         ImGui.AlignTextToFramePadding();
 
         bool isBroadcasting = _broadcastManager.BroadcastingGroupId == _groupFullInfoDto.GID;
+        bool isZoneSync = _groupFullInfoDto.PublicData.IsZoneSync;
         using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, isBroadcasting))
         {
             FontAwesomeIcon icon;
             if (isBroadcasting)
             {
                 icon = FontAwesomeIcon.BroadcastTower;
+            }
+            else if (isZoneSync)
+            {
+                icon = FontAwesomeIcon.Globe;
             }
             else
             {

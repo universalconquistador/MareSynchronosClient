@@ -50,6 +50,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly PerformanceCollectorService _performanceCollector;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfigService;
+    private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly UiSharedService _uiShared;
     private readonly IProgress<(int, int, FileCacheEntity)> _validationProgress;
@@ -72,6 +73,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ServerConfigurationManager serverConfigurationManager,
         PlayerPerformanceConfigService playerPerformanceConfigService,
         MareMediator mediator, PerformanceCollectorService performanceCollector,
+        ZoneSyncConfigService zoneSyncConfigService,
         FileUploadManager fileTransferManager,
         FileTransferOrchestrator fileTransferOrchestrator,
         FileCacheManager fileCacheManager,
@@ -83,6 +85,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _pairManager = pairManager;
         _serverConfigurationManager = serverConfigurationManager;
         _playerPerformanceConfigService = playerPerformanceConfigService;
+        _zoneSyncConfigService = zoneSyncConfigService;
         _performanceCollector = performanceCollector;
         _fileTransferManager = fileTransferManager;
         _fileTransferOrchestrator = fileTransferOrchestrator;
@@ -1032,21 +1035,106 @@ public class SettingsUi : WindowMediatorSubscriberBase
     }
 
     // Draw the tab for the pairing features
-    private void DrawPairSettings()
+    private void DrawPairingSettings()
     {
         _uiShared.BigText("Pairing Settings");
-        UiSharedService.TextWrapped("Please update this with big red scary text and a delay to accept.");
+        UiSharedService.TextWrapped("These config options control systems used for pairing with other players.");
         ImGui.Dummy(new Vector2(10));
         ImGui.Separator();
+
+        _uiShared.BigText("ZoneSync");
         ImGui.Dummy(new Vector2(10));
 
-        bool enableGroupZoneSyncJoining = _configService.Current.EnableGroupZoneSyncJoining;
+        if (!_zoneSyncConfigService.Current.UserHasConfirmedWarning)
+        {
+            ImGui.Separator();
+            _uiShared.BigText("READ THIS! YOU ARE RESPONSIBLE FOR YOUR ACTIONS!", ImGuiColors.DalamudRed);
+            UiSharedService.ColorTextWrapped("This feature enables joining sever controlled syncshells AUTOMATICALLY.", ImGuiColors.DalamudRed);
+            UiSharedService.ColorTextWrapped("You should NOT enable this feature if you are unwilling to self-moderate and pause others.", ImGuiColors.DalamudRed);
+            UiSharedService.ColorTextWrapped("Using this feature to break PlayerSync ToS will result in a ban from PlayerSync.", ImGuiColors.DalamudRed);
+            ImGui.Dummy(new Vector2(10));
+
+            // Use the windowing system to store the values
+            var storage = ImGui.GetStateStorage();
+            var timerId = ImGui.GetID("WarningTimer##PairingSettings");
+            var tickTime = storage.GetInt(timerId);
+            var countId = ImGui.GetID("WarningCounter##PairingSettings");
+            var endCount = storage.GetInt(countId);
+
+            var now = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (now - tickTime > 1 && endCount < 11)
+            {
+                storage.SetInt(timerId, now);
+                endCount++;
+                storage.SetInt(countId, endCount);
+            }
+
+            if (endCount < 11)
+            {
+                ImGui.BeginDisabled();
+                ImGui.Button($"I Understand and Confirm ({11-endCount})");
+                ImGui.EndDisabled();
+            }
+            else
+            {
+                using (ImRaii.Disabled(!UiSharedService.ShiftPressed()))
+                {
+                    if (ImGui.Button("I Understand and Confirm")) 
+                    {
+                        _zoneSyncConfigService.Current.UserHasConfirmedWarning = true;
+                        _zoneSyncConfigService.Save();
+                    }
+                    UiSharedService.AttachToolTip("Hold SHIFT and click to confirm.");
+                }
+            }
+            ImGui.Dummy(new Vector2(10));
+            ImGui.Separator();
+            ImGui.Dummy(new Vector2(10));
+        }
+        
+        UiSharedService.TextWrapped("Read these rules before proceeding. Violations may result in a ban.");
+        UiSharedService.ColorTextWrapped("1) NO NSFW IN TOWN with ZoneSync enabled!", ImGuiColors.DalamudRed);
+        UiSharedService.TextWrapped("2) No nuisance behavior (crashing people, taking up entire screen, etc.)");
+        UiSharedService.TextWrapped("3) All player actions are subject to the PlayerSync Terms of Service.");
+        ImGui.Dummy(new Vector2(10));
+
+        bool warningConfirmed = !_zoneSyncConfigService.Current.UserHasConfirmedWarning;
+        ImGui.BeginDisabled(warningConfirmed);
+
+        bool enableGroupZoneSyncJoining = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
         if (ImGui.Checkbox("Enable automatic joining of zone-based syncshells.", ref enableGroupZoneSyncJoining))
         {
             Mediator.Publish(new GroupZoneSetEnableState(enableGroupZoneSyncJoining));
-            _configService.Current.EnableGroupZoneSyncJoining = enableGroupZoneSyncJoining;
-            _configService.Save();
+            _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = enableGroupZoneSyncJoining;
+            _zoneSyncConfigService.Save();
         }
+
+        ImGui.Dummy(new Vector2(10));
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted("ZoneSync Allowed Areas");
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(150 * ImGuiHelpers.GlobalScale);
+        _uiShared.DrawCombo("###zonefilter", [ZoneSyncFilter.All, ZoneSyncFilter.ResidentialOnly, ZoneSyncFilter.TownOnly, ZoneSyncFilter.ResidentialTown],
+            (s) => s switch
+            {
+                ZoneSyncFilter.All => "All",
+                ZoneSyncFilter.ResidentialOnly => "Residential Only",
+                ZoneSyncFilter.TownOnly => "Town Only",
+                ZoneSyncFilter.ResidentialTown => "Residential + Town",
+                _ => throw new NotSupportedException()
+            }, (s) =>
+            {
+                _zoneSyncConfigService.Current.ZoneSyncFilter = s;
+                _zoneSyncConfigService.Save();
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
+            }, _zoneSyncConfigService.Current.ZoneSyncFilter);
+        ImGui.SameLine();
+        ImGui.TextUnformatted("(This does not work for instanced areas.)");
+        ImGui.EndDisabled();
+
+        ImGui.Dummy(new Vector2(10));
+        ImGui.Separator();
+        ImGui.Dummy(new Vector2(10));
     }
 
     private void DrawPerformance()
@@ -1868,7 +1956,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
             if (ImGui.BeginTabItem("Pairing Settings"))
             {
-                DrawPairSettings();
+                DrawPairingSettings();
                 ImGui.EndTabItem();
             }
 
