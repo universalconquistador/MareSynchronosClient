@@ -237,7 +237,7 @@ public class TopTabMenu : IMediatorSubscriber
     {
         var buttonAddSize = _uiSharedService.GetIconTextButtonSize(FontAwesomeIcon.UserPlus, "Add");
         var buttonBlockSize = _uiSharedService.GetIconTextButtonSize(FontAwesomeIcon.UserMinus, "Block");
-        ImGui.SetNextItemWidth(availableXWidth - buttonAddSize - buttonBlockSize - spacingX);
+        ImGui.SetNextItemWidth(availableXWidth - buttonAddSize - buttonBlockSize - spacingX *2);
         ImGui.InputTextWithHint("##otheruid", "Other players UID/Alias", ref _pairToAdd, 20);
         ImGui.SameLine();
         var alreadyExisting = _pairManager.DirectPairs.Exists(p => string.Equals(p.UserData.UID, _pairToAdd, StringComparison.Ordinal) || string.Equals(p.UserData.Alias, _pairToAdd, StringComparison.Ordinal));
@@ -256,11 +256,12 @@ public class TopTabMenu : IMediatorSubscriber
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.UserMinus, "Block"))
             {
-                _ = _apiController.UserPairStickyPauseAndRemove(new(_pairToAdd));
+                _ = _apiController.UserPairStickyPauseAndRemove(new(_pairToAdd, _pairToAdd));
                 _pairToAdd = string.Empty;
             }
         }
-        UiSharedService.AttachToolTip("Keep " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd) + " paused");
+        UiSharedService.AttachToolTip("Keep " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd) + " paused" + Environment.NewLine + Environment.NewLine
+            + "Only works for UID, not Alias.");
     }
 
     private void DrawFilter(float availableWidth, float spacingX)

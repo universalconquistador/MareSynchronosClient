@@ -69,7 +69,7 @@ public class Pair
         var cyclePauseState = seStringBuilder3.AddText("Cycle Pause State").Build();
         var changePermissions = seStringBuilder4.AddText("Change Permissions").Build();
         var pairIndividually = seStringBuilder5.AddText("Pair Individually").Build();
-        var pauseForever = seStringBuilder6.AddText("Pause Forever").Build();
+        var pauseForever = seStringBuilder6.AddText("Keep Paused").Build();
         args.AddMenuItem(new MenuItem()
         {
             Name = openProfileSeString,
