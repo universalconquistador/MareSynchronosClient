@@ -8,6 +8,7 @@ using MareSynchronos.Services.ServerConfiguration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using PlayerSync.PlayerData.Pairs;
 using System.Reflection;
 
 namespace MareSynchronos;
@@ -73,19 +74,22 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ChangelogService _changelogService;
+    private readonly GroupZoneSyncManager _groupZoneSyncManager;
     private IServiceScope? _runtimeServiceScope;
     private Task? _launchTask = null;
 
     public MarePlugin(ILogger<MarePlugin> logger, MareConfigService mareConfigService,
         ServerConfigurationManager serverConfigurationManager,
         DalamudUtilService dalamudUtil,
-        IServiceScopeFactory serviceScopeFactory, ChangelogService changelogService, MareMediator mediator) : base(logger, mediator)
+        IServiceScopeFactory serviceScopeFactory, ChangelogService changelogService, MareMediator mediator,
+        GroupZoneSyncManager groupZoneSyncManager) : base(logger, mediator)
     {
         _mareConfigService = mareConfigService;
         _serverConfigurationManager = serverConfigurationManager;
         _dalamudUtil = dalamudUtil;
         _serviceScopeFactory = serviceScopeFactory;
         _changelogService = changelogService;
+        _groupZoneSyncManager = groupZoneSyncManager;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)

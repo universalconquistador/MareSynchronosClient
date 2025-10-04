@@ -1,7 +1,9 @@
 ﻿using Dalamud.Utility;
 using MareSynchronos.API.Data;
+using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto;
+using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.API.SignalR;
 using MareSynchronos.MareConfiguration;
@@ -61,6 +63,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
         Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
         Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData));
+        Mediator.Subscribe<UserPairStickyPauseAndRemoveMessage>(this, (msg) => _ = UserPairStickyPauseAndRemove(msg.UserData));
 
         ServerState = ServerState.Offline;
 
@@ -359,6 +362,28 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         var perm = pair.UserPair!.OwnPermissions;
         perm.SetPaused(paused: true);
         await UserSetPairPermissions(new UserPermissionsDto(userData, perm)).ConfigureAwait(false);
+    }
+
+    // Perma pause is basically like blacklisting a user on sync
+    public async Task UserPairStickyPauseAndRemove(UserData userData)
+    {
+        var pair = _pairManager.GetPairByUID(userData.UID);
+        if (pair is null) // we don't actually have a pair for this user
+        {
+            UserPermissions newPerms = new();
+            newPerms.SetSticky(true);
+            newPerms.SetPaused(true);
+            newPerms.SetDisableAnimations(true);
+            newPerms.SetDisableSounds(true);
+            newPerms.SetDisableVFX(true);
+            await UserSetPairPermissions(new UserPermissionsDto(userData, newPerms)).ConfigureAwait(false);
+            return;
+        }
+        var perm = pair.UserPair!.OwnPermissions;
+        perm.SetPaused(paused: true);
+        perm.SetSticky(sticky: true);
+        await UserSetPairPermissions(new UserPermissionsDto(userData, perm)).ConfigureAwait(false);
+        await UserRemovePair(new(userData)).ConfigureAwait(false);
     }
 
     public Task<ConnectionDto> GetConnectionDto() => GetConnectionDtoAsync(true);

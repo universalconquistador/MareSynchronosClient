@@ -183,6 +183,10 @@ public class IdDisplayHandler
 
     public (bool isGid, string text) GetGroupText(GroupFullInfoDto group)
     {
+        if (group.PublicData.IsZoneSync)
+        {
+            return (true, "Zone Syncshell"!);
+        }
         var textIsGid = true;
         bool showUidInsteadOfName = ShowGidInsteadOfName(group);
         string? groupText = _serverManager.GetNoteForGid(group.GID);
