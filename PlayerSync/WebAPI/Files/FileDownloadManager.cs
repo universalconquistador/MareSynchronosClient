@@ -4,6 +4,7 @@ using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto.Files;
 using MareSynchronos.API.Routes;
 using MareSynchronos.FileCache;
+using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI.Files.Models;
@@ -337,6 +338,19 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 File.Delete(tempFilename);
                 Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
                 ClearDownload();
+                return;
+            }
+            catch (IOException ex)
+            {
+                Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
+                _orchestrator.ReleaseDownloadSlot();
+                File.Delete(tempFilename);
+                ClearDownload();
+                var err = ex.HResult == unchecked((int)0x80070027) || ex.HResult == unchecked((int)0x80070070);
+                if (err)
+                {
+                    Mediator.Publish(new NotificationMessage("File Download Error", ex.Message, NotificationType.Error, TimeSpan.FromSeconds(15)));
+                }
                 return;
             }
             catch (Exception ex)
