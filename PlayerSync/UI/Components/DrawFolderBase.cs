@@ -22,10 +22,6 @@ public abstract class DrawFolderBase : IDrawFolder
     public int TotalPairs => _allPairs.Count;
     protected bool _wasHovered = false;
 
-    protected Vector4 GetDarkerColor(Vector4 color) => _wasHovered
-        ? new Vector4(color.X * 0.7f, color.Y * 0.7f, color.Z * 0.7f, color.W)
-        : color;
-
     protected DrawFolderBase(string id, IImmutableList<DrawUserPair> drawPairs,
         IImmutableList<Pair> allPairs, TagHandler tagHandler, UiSharedService uiSharedService)
     {
@@ -49,6 +45,7 @@ public abstract class DrawFolderBase : IDrawFolder
         var paddingY = 3f;
         using (ImRaii.Child("folder__" + _id, new System.Numerics.Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
         {
+            // draw opener
             ImGui.SetCursorPos(new Vector2(paddingX, paddingY));
 
             var icon = _tagHandler.IsTagOpen(_id) ? FontAwesomeIcon.CaretDown : FontAwesomeIcon.CaretRight;
@@ -56,7 +53,7 @@ public abstract class DrawFolderBase : IDrawFolder
             ImGui.AlignTextToFramePadding();
 
             var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-            _uiSharedService.IconText(icon, GetDarkerColor(accentColor));
+            _uiSharedService.IconText(icon, _wasHovered ? UiSharedService.GetDarkerColor(accentColor) : accentColor);
             if (ImGui.IsItemClicked())
             {
                 _tagHandler.SetTagOpen(_id, !_tagHandler.IsTagOpen(_id));
@@ -68,6 +65,7 @@ public abstract class DrawFolderBase : IDrawFolder
             ImGui.SameLine();
             var rightSideStart = DrawRightSideInternal();
 
+            // draw name
             ImGui.SameLine(leftSideEnd);
             DrawName(rightSideStart - leftSideEnd);
         }
@@ -78,6 +76,7 @@ public abstract class DrawFolderBase : IDrawFolder
 
         ImGui.Separator();
 
+        // if opened draw content
         if (_tagHandler.IsTagOpen(_id))
         {
             using var indent = ImRaii.PushIndent(_uiSharedService.GetIconSize(FontAwesomeIcon.EllipsisV).X + ImGui.GetStyle().ItemSpacing.X, false);
@@ -111,6 +110,7 @@ public abstract class DrawFolderBase : IDrawFolder
         var spacingX = ImGui.GetStyle().ItemSpacing.X;
         var windowEndX = ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth();
 
+        // Flyout Menu
         var rightSideStart = windowEndX - (RenderMenu ? (barButtonSize.X + spacingX) : spacingX);
 
         if (RenderMenu)
@@ -121,17 +121,10 @@ public abstract class DrawFolderBase : IDrawFolder
             if (isRowHovered)
             {
                 var style = ImGui.GetStyle();
-                var currentButton = style.Colors[(int)ImGuiCol.Button];
-                var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
-                var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-                var darkerButtonColor = new Vector4(currentButton.X * 0.7f, currentButton.Y * 0.7f, currentButton.Z * 0.7f, currentButton.W);
-                var darkerButtonHovered = new Vector4(currentButtonHovered.X * 0.8f, currentButtonHovered.Y * 0.8f, currentButtonHovered.Z * 0.8f, currentButtonHovered.W);
-                var darkerButtonActive = new Vector4(currentButtonActive.X * 0.6f, currentButtonActive.Y * 0.6f, currentButtonActive.Z * 0.6f, currentButtonActive.W);
-
-                ImGui.PushStyleColor(ImGuiCol.Button, darkerButtonColor);
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, darkerButtonHovered);
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, darkerButtonActive);
+                ImGui.PushStyleColor(ImGuiCol.Button, UiSharedService.GetDarkerColor(style.Colors[(int)ImGuiCol.Button]));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, UiSharedService.GetDarkerColor(style.Colors[(int)ImGuiCol.ButtonHovered]));
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, UiSharedService.GetDarkerColor(style.Colors[(int)ImGuiCol.ButtonActive]));
             }
 
             bool menuButtonPressed = _uiSharedService.IconButton(FontAwesomeIcon.EllipsisV);

@@ -312,6 +312,8 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
     public static Vector4 GetBoolColor(bool input) => input ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
 
+    public static Vector4 GetDarkerColor(Vector4 originalColor) => originalColor * new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
+
     public static string GetNotes(List<Pair> pairs)
     {
         StringBuilder sb = new();

@@ -83,7 +83,7 @@ public class DrawFolderTag : DrawFolderBase
 
         ImGui.AlignTextToFramePadding();
         var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-        _uiSharedService.IconText(icon, GetDarkerColor(accentColor));
+        _uiSharedService.IconText(icon, _wasHovered ? UiSharedService.GetDarkerColor(accentColor) : accentColor);
 
         if (RenderCount)
         {

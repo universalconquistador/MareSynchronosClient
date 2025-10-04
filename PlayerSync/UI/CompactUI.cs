@@ -204,7 +204,7 @@ public class CompactUi : WindowMediatorSubscriberBase
                 MinimumSize = new Vector2(375, 400),
                 MaximumSize = new Vector2(375, 2000),
             };
-        }
+        }   
 
         // Main themed container using child window with background
         using (var theme = _themeManager?.PushTheme())
@@ -563,7 +563,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         string shardConnection = string.Equals(_apiController.ServerInfo.ShardName, "Main", StringComparison.OrdinalIgnoreCase) ? string.Empty : $"Shard: {_apiController.ServerInfo.ShardName}";
 #endif
         var shardTextSize = ImGui.CalcTextSize(shardConnection);
-        var printShard = false;
+        var printShard = !string.IsNullOrEmpty(_apiController.ServerInfo.ShardName) && shardConnection != string.Empty;
 
         // Align status text to the left side with some padding (like UID)
         ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
@@ -731,6 +731,7 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         using (_uiSharedService.UidFont.Push())
         {
+            // Align text to the left side with some padding
             ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
             var textSize = ImGui.CalcTextSize(uidText);
             ImGui.InvisibleButton("##uid-area", textSize);

@@ -194,10 +194,6 @@ public class DrawUserPair
         }
     }
 
-    private Vector4 GetDarkerColor(Vector4 color) => _wasHovered
-        ? new Vector4(color.X * 0.7f, color.Y * 0.7f, color.Z * 0.7f, color.W)
-        : color;
-
     private void DrawLeftSide()
     {
         string userPairText = string.Empty;
@@ -206,13 +202,13 @@ public class DrawUserPair
 
         if (_pair.IsPaused)
         {
-            using var _ = ImRaii.PushColor(ImGuiCol.Text, GetDarkerColor(ImGuiColors.DalamudYellow));
+            using var _ = ImRaii.PushColor(ImGuiCol.Text, _wasHovered ? UiSharedService.GetDarkerColor(ImGuiColors.DalamudYellow) : ImGuiColors.DalamudYellow);
             _uiSharedService.IconText(FontAwesomeIcon.PauseCircle);
             userPairText = _pair.UserData.AliasOrUID + " is paused";
         }
         else if (!_pair.IsOnline)
         {
-            using var _ = ImRaii.PushColor(ImGuiCol.Text, GetDarkerColor(ImGuiColors.DalamudRed));
+            using var _ = ImRaii.PushColor(ImGuiCol.Text, _wasHovered ? UiSharedService.GetDarkerColor(ImGuiColors.DalamudRed) : ImGuiColors.DalamudRed);
             _uiSharedService.IconText(_pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.OneSided
                 ? FontAwesomeIcon.ArrowsLeftRight
                 : (_pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional
@@ -222,7 +218,7 @@ public class DrawUserPair
         else if (_pair.IsVisible)
         {
             var visibleColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.ParsedGreen;
-            _uiSharedService.IconText(FontAwesomeIcon.Eye, GetDarkerColor(visibleColor));
+            _uiSharedService.IconText(FontAwesomeIcon.Eye, _wasHovered ? UiSharedService.GetDarkerColor(visibleColor) : visibleColor);
             userPairText = _pair.UserData.AliasOrUID + " is visible: " + _pair.PlayerName + Environment.NewLine + "Click to target this player";
             if (ImGui.IsItemClicked())
             {
@@ -232,7 +228,7 @@ public class DrawUserPair
         else
         {
             var onlineColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-            using var _ = ImRaii.PushColor(ImGuiCol.Text, GetDarkerColor(onlineColor));
+            using var _ = ImRaii.PushColor(ImGuiCol.Text, _wasHovered ? UiSharedService.GetDarkerColor(onlineColor) : onlineColor);
             _uiSharedService.IconText(_pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional
                 ? FontAwesomeIcon.User : FontAwesomeIcon.Users);
             userPairText = _pair.UserData.AliasOrUID + " is online";
@@ -286,7 +282,7 @@ public class DrawUserPair
         {
             ImGui.SameLine();
 
-            _uiSharedService.IconText(FontAwesomeIcon.ExclamationTriangle, GetDarkerColor(ImGuiColors.DalamudYellow));
+            _uiSharedService.IconText(FontAwesomeIcon.ExclamationTriangle, _wasHovered ? UiSharedService.GetDarkerColor(ImGuiColors.DalamudYellow) : ImGuiColors.DalamudYellow);
 
             string userWarningText = "WARNING: This user exceeds one or more of your defined thresholds:" + UiSharedService.TooltipSeparator;
             bool shownVram = false;
@@ -352,17 +348,10 @@ public class DrawUserPair
         if (isRowHovered)
         {
             var style = ImGui.GetStyle();
-            var currentButton = style.Colors[(int)ImGuiCol.Button];
-            var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
-            var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-            var darkerButtonColor = new Vector4(currentButton.X * 0.7f, currentButton.Y * 0.7f, currentButton.Z * 0.7f, currentButton.W);
-            var darkerButtonHovered = new Vector4(currentButtonHovered.X * 0.8f, currentButtonHovered.Y * 0.8f, currentButtonHovered.Z * 0.8f, currentButtonHovered.W);
-            var darkerButtonActive = new Vector4(currentButtonActive.X * 0.6f, currentButtonActive.Y * 0.6f, currentButtonActive.Z * 0.6f, currentButtonActive.W);
-
-            ImGui.PushStyleColor(ImGuiCol.Button, darkerButtonColor);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, darkerButtonHovered);
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, darkerButtonActive);
+            ImGui.PushStyleColor(ImGuiCol.Button, UiSharedService.GetDarkerColor(style.Colors[(int)ImGuiCol.Button]));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, UiSharedService.GetDarkerColor(style.Colors[(int)ImGuiCol.ButtonHovered]));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, UiSharedService.GetDarkerColor(style.Colors[(int)ImGuiCol.ButtonActive]));
         }
 
         ImGui.SameLine(currentRightSide);
@@ -414,9 +403,9 @@ public class DrawUserPair
 
                 ImGui.SameLine(currentRightSide);
                 var iconColor = individualAnimDisabled || individualSoundsDisabled || individualVFXDisabled
-                    ? GetDarkerColor(ImGuiColors.DalamudYellow)
-                    : GetDarkerColor(ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
-                using (ImRaii.PushColor(ImGuiCol.Text, iconColor))
+                    ? ImGuiColors.DalamudYellow
+                    : ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
+                using (ImRaii.PushColor(ImGuiCol.Text, _wasHovered ? UiSharedService.GetDarkerColor(iconColor) : iconColor))
                     _uiSharedService.IconText(individualIcon);
                 if (ImGui.IsItemHovered())
                 {
@@ -429,7 +418,7 @@ public class DrawUserPair
                     if (individualIsSticky)
                     {
                         var individualAccentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-                        _uiSharedService.IconText(individualIcon, GetDarkerColor(individualAccentColor));
+                        _uiSharedService.IconText(individualIcon, _wasHovered ? UiSharedService.GetDarkerColor(individualAccentColor) : individualAccentColor);
                         ImGui.SameLine(40 * ImGuiHelpers.GlobalScale);
                         ImGui.AlignTextToFramePadding();
                         ImGui.TextUnformatted("Preferred permissions enabled");
@@ -440,7 +429,7 @@ public class DrawUserPair
                     if (individualSoundsDisabled)
                     {
                         var userSoundsText = "Sound sync";
-                        _uiSharedService.IconText(FontAwesomeIcon.VolumeOff, GetDarkerColor(currentTextColor));
+                        _uiSharedService.IconText(FontAwesomeIcon.VolumeOff, _wasHovered ? UiSharedService.GetDarkerColor(currentTextColor) : currentTextColor);
                         ImGui.SameLine(40 * ImGuiHelpers.GlobalScale);
                         ImGui.AlignTextToFramePadding();
                         ImGui.TextUnformatted(userSoundsText);
@@ -458,7 +447,7 @@ public class DrawUserPair
                     if (individualAnimDisabled)
                     {
                         var userAnimText = "Animation sync";
-                        _uiSharedService.IconText(FontAwesomeIcon.Stop, GetDarkerColor(currentTextColor));
+                        _uiSharedService.IconText(FontAwesomeIcon.Stop, _wasHovered ? UiSharedService.GetDarkerColor(currentTextColor) : currentTextColor);
                         ImGui.SameLine(40 * ImGuiHelpers.GlobalScale);
                         ImGui.AlignTextToFramePadding();
                         ImGui.TextUnformatted(userAnimText);
@@ -476,7 +465,7 @@ public class DrawUserPair
                     if (individualVFXDisabled)
                     {
                         var userVFXText = "VFX sync";
-                        _uiSharedService.IconText(FontAwesomeIcon.Circle, GetDarkerColor(currentTextColor));
+                        _uiSharedService.IconText(FontAwesomeIcon.Circle, _wasHovered ? UiSharedService.GetDarkerColor(currentTextColor) : currentTextColor);
                         ImGui.SameLine(40 * ImGuiHelpers.GlobalScale);
                         ImGui.AlignTextToFramePadding();
                         ImGui.TextUnformatted(userVFXText);
@@ -501,7 +490,7 @@ public class DrawUserPair
             currentRightSide -= (_uiSharedService.GetIconSize(FontAwesomeIcon.Running).X + (spacingX / 2f));
             ImGui.SameLine(currentRightSide);
             var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-            _uiSharedService.IconText(FontAwesomeIcon.Running, GetDarkerColor(accentColor));
+            _uiSharedService.IconText(FontAwesomeIcon.Running, _wasHovered ? UiSharedService.GetDarkerColor(accentColor) : accentColor);
             UiSharedService.AttachToolTip($"This user has shared {sharedData.Count} Character Data Sets with you." + UiSharedService.TooltipSeparator
                 + "Click to open the Character Data Hub and show the entries.");
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
@@ -543,7 +532,7 @@ public class DrawUserPair
                 currentRightSide -= (_uiSharedService.GetIconSize(icon).X + spacingX);
                 ImGui.SameLine(currentRightSide);
                 var iconAccentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-                _uiSharedService.IconText(icon, GetDarkerColor(iconAccentColor));
+                _uiSharedService.IconText(icon, _wasHovered ? UiSharedService.GetDarkerColor(iconAccentColor) : iconAccentColor);
                 UiSharedService.AttachToolTip(text);
             }
         }

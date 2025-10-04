@@ -85,6 +85,7 @@ public class HoveringToolbar
                 ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6f, 3f));
             }
 
+            // Hamburger menu button
             using (ImRaii.PushColor(ImGuiCol.Text, currentTheme?.BtnText ?? new Vector4(1f, 1f, 1f, 1f)))
             {
                 if (_uiSharedService.IconButton(FontAwesomeIcon.Bars))
@@ -97,6 +98,7 @@ public class HoveringToolbar
             AttachTooltip("Player Sync Menu");
             ImGui.SameLine(0, spacing);
 
+            // Collapse button - need to get the collapse state from parent
             using (ImRaii.PushColor(ImGuiCol.Text, currentTheme?.BtnText ?? new Vector4(1f, 1f, 1f, 1f)))
             {
                 if (_uiSharedService.IconButton(FontAwesomeIcon.ChevronUp))
@@ -107,6 +109,7 @@ public class HoveringToolbar
             AttachTooltip("Collapse Window");
             ImGui.SameLine(0, spacing);
 
+            // Close button
             using (ImRaii.PushColor(ImGuiCol.Text, currentTheme?.BtnText ?? new Vector4(1f, 1f, 1f, 1f)))
             {
                 if (_uiSharedService.IconButton(FontAwesomeIcon.Times))
@@ -116,6 +119,7 @@ public class HoveringToolbar
             }
             AttachTooltip("Close Window");
 
+            // Hamburger menu popup
             DrawHamburgerMenuPopup(currentTheme);
 
             if (currentTheme != null)
@@ -157,7 +161,6 @@ public class HoveringToolbar
                 }
 
                 ImGui.Separator();
-
 
                 // Event Viewer
                 if (ImGui.MenuItem($"{FontAwesomeIcon.Book.ToIconString()}  Event Viewer"))
@@ -202,6 +205,7 @@ public class HoveringToolbar
             ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoSavedSettings |
             ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse |
             ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking;
+        // Don't add NoInputs here - we want this button to remain clickable
 
         if (ImGui.Begin("##PlayerSyncResetButton", floatingFlags))
         {
@@ -273,4 +277,5 @@ public class HoveringToolbar
     }
 }
 
+// Message for theme editor toggle
 public record ToggleThemeEditorMessage : MessageBase;
