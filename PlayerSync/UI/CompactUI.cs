@@ -4,6 +4,7 @@ using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
+using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.Interop.Ipc;
@@ -847,7 +848,14 @@ public class CompactUi : WindowMediatorSubscriberBase
                 .ThenBy(AlphabeticalSort, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(k => k.Key, k => k.Value);
 
-            groupFolders.Add(_drawEntityFactory.CreateDrawGroupFolder(group, filteredGroupPairs, allGroupPairs));
+            if (group.GID.StartsWith(Constants.GroupZoneSyncPrefix, StringComparison.Ordinal))
+            {
+                groupFolders.Insert(0, _drawEntityFactory.CreateDrawGroupFolder(group, filteredGroupPairs, allGroupPairs));
+            }
+            else
+            {
+                groupFolders.Add(_drawEntityFactory.CreateDrawGroupFolder(group, filteredGroupPairs, allGroupPairs));
+            }
         }
 
         if (_configService.Current.GroupUpSyncshells)

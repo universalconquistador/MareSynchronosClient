@@ -88,6 +88,12 @@ public partial class ApiController
         return await _mareHub!.InvokeAsync<bool>(nameof(GroupJoinFinalize), passwordedGroup).ConfigureAwait(false);
     }
 
+    public async Task<bool> GroupZoneJoin(GroupZoneJoinDto groupZoneJoin)
+    {
+        CheckConnection();
+        return await _mareHub!.InvokeAsync<bool>(nameof(GroupZoneJoin), groupZoneJoin).ConfigureAwait(false);
+    }
+
     public async Task GroupLeave(GroupDto group)
     {
         CheckConnection();

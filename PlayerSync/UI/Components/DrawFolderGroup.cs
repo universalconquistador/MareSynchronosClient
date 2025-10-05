@@ -47,6 +47,7 @@ public class DrawFolderGroup : DrawFolderBase
         ImGui.AlignTextToFramePadding();
 
         bool isBroadcasting = _broadcastManager.BroadcastingGroupId == _groupFullInfoDto.GID;
+        bool isZoneSync = _groupFullInfoDto.PublicData.IsZoneSync;
         var broadcastColor = isBroadcasting ? ThemePalette.GetDarkerColor(ImGuiColors.HealerGreen, _wasHovered) : ThemePalette.GetDarkerColor(ImGui.GetStyle().Colors[(int)ImGuiCol.Text], _wasHovered);
         using (ImRaii.PushColor(ImGuiCol.Text, broadcastColor, isBroadcasting))
         {
@@ -54,6 +55,10 @@ public class DrawFolderGroup : DrawFolderBase
             if (isBroadcasting)
             {
                 icon = FontAwesomeIcon.BroadcastTower;
+            }
+            else if (isZoneSync)
+            {
+                icon = FontAwesomeIcon.Globe;
             }
             else
             {

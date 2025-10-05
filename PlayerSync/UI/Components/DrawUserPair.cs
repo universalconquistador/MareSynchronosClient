@@ -178,20 +178,40 @@ public class DrawUserPair
                 _selectTagForPairUi.Open(_pair);
             }
             UiSharedService.AttachToolTip("Choose pair groups for " + entryUID);
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Unpair Permanently", _menuWidth, true) && UiSharedService.CtrlPressed())
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Unpair User", _menuWidth, true) && UiSharedService.CtrlPressed())
             {
                 _ = _apiController.UserRemovePair(new(_pair.UserData));
             }
-            UiSharedService.AttachToolTip("Hold CTRL and click to unpair permanently from " + entryUID);
+            UiSharedService.AttachToolTip("Hold CTRL and click to unpair from " + entryUID);
         }
         else
         {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Pair individually", _menuWidth, true))
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Pair Individually", _menuWidth, true))
             {
                 _ = _apiController.UserAddPair(new(_pair.UserData), true);
             }
             UiSharedService.AttachToolTip("Pair individually with " + entryUID);
         }
+        if (!_pair.UserPair!.OwnPermissions.IsPaused())
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Keep Paused", _menuWidth, true) && UiSharedService.CtrlPressed())
+            {
+                _ = _apiController.UserPairStickyPauseAndRemove(_pair.UserData);
+            }
+            UiSharedService.AttachToolTip("Hold CTRL and click to keep paused " + entryUID);
+        }
+        else
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Play, "Resume Pairing", _menuWidth, true) && UiSharedService.CtrlPressed())
+            {
+                var perm = _pair.UserPair!.OwnPermissions;
+                perm.SetSticky(true);
+                perm.SetPaused(paused: false);
+                _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
+            }
+            UiSharedService.AttachToolTip("Hold CTRL and click to resume pairing with " + entryUID);
+        }
+        
     }
 
     private void DrawLeftSide()
@@ -200,11 +220,19 @@ public class DrawUserPair
 
         ImGui.AlignTextToFramePadding();
 
-        if (_pair.IsPaused)
+        var permSticky = _pair.UserPair!.OwnPermissions.IsSticky();
+
+        if (_pair.IsPaused && !permSticky)
         {
             using var _ = ImRaii.PushColor(ImGuiCol.Text, ThemePalette.GetDarkerColor(ImGuiColors.DalamudYellow, _wasHovered));
             _uiSharedService.IconText(FontAwesomeIcon.PauseCircle);
             userPairText = _pair.UserData.AliasOrUID + " is paused";
+        }
+        else if (_pair.IsPaused && permSticky)
+        {
+            using var _ = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed);
+            _uiSharedService.IconText(FontAwesomeIcon.FilterCircleXmark);
+            userPairText = _pair.UserData.AliasOrUID + " is paused (sticky)";
         }
         else if (!_pair.IsOnline)
         {
