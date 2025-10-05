@@ -1,5 +1,6 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.PlayerData.Pairs;
@@ -81,7 +82,8 @@ public class DrawFolderTag : DrawFolderBase
         };
 
         ImGui.AlignTextToFramePadding();
-        _uiSharedService.IconText(icon, ThemeManager.Instance?.Current.Accent);
+        var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
+        _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
 
         if (RenderCount)
         {

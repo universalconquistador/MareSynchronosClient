@@ -41,6 +41,17 @@ public class ThemePalette
     public Vector4 StatusPaused { get; set; }
     public Vector4 StatusInfo { get; set; }
 
+    // Connection & service status colors
+    public Vector4 StatusConnected { get; set; }
+    public Vector4 StatusConnecting { get; set; }
+    public Vector4 StatusDisconnected { get; set; }
+    public Vector4 StatusBroadcasting { get; set; }
+
+    // UI Text Colors
+    public Vector4 UidAliasText { get; set; }
+    public Vector4 UsersOnlineText { get; set; }
+    public Vector4 UsersOnlineNumber { get; set; }
+
     // Surface layers for glassmorphism
     public float BackgroundOpacity { get; set; }
     public Vector4 Surface0 { get; set; }
@@ -109,6 +120,17 @@ public class ThemePalette
         StatusPaused = new(1f, 0.420f, 0.208f, 1f);
         StatusInfo = new(0.239f, 0.694f, 1f, 1f);
 
+        // Connection & service status colors (matching ImGuiColors)
+        StatusConnected = new(0.212f, 0.773f, 0.416f, 1f);     // ParsedGreen/HealerGreen
+        StatusConnecting = new(1f, 0.800f, 0.282f, 1f);        // DalamudYellow
+        StatusDisconnected = new(1f, 0.322f, 0.322f, 1f);      // DalamudRed
+        StatusBroadcasting = new(0.094f, 0.835f, 0.369f, 1f);  // HealerGreen (slightly different for broadcasting)
+
+        // UI Text Colors
+        UidAliasText = new(0.212f, 0.773f, 0.416f, 1f);        // ParsedGreen/HealerGreen
+        UsersOnlineText = new(0.86f, 0.86f, 0.86f, 1.00f);     // TextSecondary
+        UsersOnlineNumber = new(0.212f, 0.773f, 0.416f, 1f);   // ParsedGreen/HealerGreen (same as StatusConnected)
+
         // Glassmorphism
         BackgroundOpacity = 0.40f;
         UpdateSurfaceOpacity();
@@ -175,6 +197,15 @@ public class ThemePalette
         StatusPaused = source.StatusPaused;
         StatusInfo = source.StatusInfo;
 
+        StatusConnected = source.StatusConnected;
+        StatusConnecting = source.StatusConnecting;
+        StatusDisconnected = source.StatusDisconnected;
+        StatusBroadcasting = source.StatusBroadcasting;
+
+        UidAliasText = source.UidAliasText;
+        UsersOnlineText = source.UsersOnlineText;
+        UsersOnlineNumber = source.UsersOnlineNumber;
+
         BackgroundOpacity = source.BackgroundOpacity;
         Surface0 = source.Surface0;
         Surface1 = source.Surface1;
@@ -197,4 +228,8 @@ public class ThemePalette
         GrabRounding = source.GrabRounding;
         TabRounding = source.TabRounding;
     }
+
+    public static Vector4 GetDarkerColor(Vector4 color, bool isHovered) => isHovered
+        ? new Vector4(color.X * 0.7f, color.Y * 0.7f, color.Z * 0.7f, color.W)
+        : color;
 }

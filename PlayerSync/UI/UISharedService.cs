@@ -141,6 +141,10 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     {
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
         {
+            var theme = UI.Components.Theming.ThemeManager.Instance?.Current;
+            using var bgColor = ImRaii.PushColor(ImGuiCol.PopupBg, theme?.TooltipBg ?? new Vector4(0.05f, 0.06f, 0.10f, 0.95f));
+            using var textColor = ImRaii.PushColor(ImGuiCol.Text, theme?.TooltipText ?? new Vector4(0.90f, 0.95f, 1.00f, 1.00f));
+
             ImGui.BeginTooltip();
             ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35f);
             if (text.Contains(TooltipSeparator, StringComparison.Ordinal))
@@ -1132,8 +1136,23 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         float frameHeight = ImGui.GetFrameHeight();
         bool result = ImGui.Button(string.Empty, new Vector2(x, frameHeight));
         Vector2 pos = new Vector2(cursorScreenPos.X + ImGui.GetStyle().FramePadding.X, cursorScreenPos.Y + ImGui.GetStyle().FramePadding.Y);
-        // Get button text color from theme
-        var textColor = ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1);
+
+        // Get button text color based on button state from theme
+        Vector4 textColor;
+        var theme = ThemeManager.Instance?.Current;
+        if (theme != null)
+        {
+            if (ImGui.IsItemActive())
+                textColor = theme.BtnTextActive;
+            else if (ImGui.IsItemHovered())
+                textColor = theme.BtnTextHovered;
+            else
+                textColor = theme.BtnText;
+        }
+        else
+        {
+            textColor = new Vector4(1, 1, 1, 1);
+        }
         var textColorU32 = ImGui.GetColorU32(textColor);
 
         using (IconFont.Push())
