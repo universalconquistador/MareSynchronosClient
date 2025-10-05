@@ -4,6 +4,7 @@ using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
+using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.Interop.Ipc;
@@ -125,7 +126,17 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         Mediator.Subscribe<ToggleCollapseMessage>(this, (msg) =>
         {
+            if (!_collapsed && Size.HasValue)
+            {
+                _expandedSize = Size.Value;
+            }
             _collapsed = !_collapsed;
+
+            if (!_collapsed && _expandedSize.HasValue)
+            {
+                Size = _expandedSize.Value;
+                SizeCondition = ImGuiCond.Always;
+            }
         });
 
         SizeConstraints = new WindowSizeConstraints()
@@ -164,10 +175,6 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         if (_collapsed)
         {
-            if (_expandedSize == null && Size.HasValue)
-            {
-                _expandedSize = Size.Value;
-            }
             UpdateWindowFlags();
 
             SizeConstraints = new WindowSizeConstraints()
@@ -184,15 +191,21 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         if (_expandedSize.HasValue)
         {
-            Size = _expandedSize.Value;
-            _expandedSize = null;
+            var minHeight = Math.Max(400, _expandedSize.Value.Y);
+            SizeConstraints = new WindowSizeConstraints()
+            {
+                MinimumSize = new Vector2(375, minHeight),
+                MaximumSize = new Vector2(375, 2000),
+            };
         }
-
-        SizeConstraints = new WindowSizeConstraints()
+        else
         {
-            MinimumSize = new Vector2(375, 400),
-            MaximumSize = new Vector2(375, 2000),
-        };
+            SizeConstraints = new WindowSizeConstraints()
+            {
+                MinimumSize = new Vector2(375, 400),
+                MaximumSize = new Vector2(375, 2000),
+            };
+        }
 
         // Main themed container using child window with background
         using (var theme = _themeManager?.PushTheme())
@@ -206,8 +219,33 @@ public class CompactUi : WindowMediatorSubscriberBase
             var availableSize = ImGui.GetContentRegionAvail();
             ImGui.BeginChild("themed-background", availableSize, true, childFlags);
 
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 5f);
+
+            var contentWidth = ImGui.GetContentRegionAvail().X - 10f;
+            ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoBackground);
+
+            var topBarHeight = 15f;
+            var startPos = ImGui.GetCursorPos();
+            ImGui.InvisibleButton("##top-collapse-area", new Vector2(contentWidth, topBarHeight));
+            if (ImGui.IsItemHovered() && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
+            {
+                if (!_collapsed && Size.HasValue)
+                {
+                    _expandedSize = Size.Value;
+                }
+                _collapsed = !_collapsed;
+
+                if (!_collapsed && _expandedSize.HasValue)
+                {
+                    Size = _expandedSize.Value;
+                    SizeCondition = ImGuiCond.Always;
+                }
+            }
+            ImGui.SetCursorPos(startPos);
+
             DrawContent();
 
+            ImGui.EndChild();
             ImGui.EndChild();
         }
 
@@ -270,7 +308,13 @@ public class CompactUi : WindowMediatorSubscriberBase
         var collapseIcon = _collapsed ? FontAwesomeIcon.ChevronDown : FontAwesomeIcon.ChevronUp;
         ImGui.SetCursorScreenPos(new Vector2(btnStartX, btnStartY));
         if (_uiSharedService.IconButton(collapseIcon))
+        {
+            if (!_collapsed && Size.HasValue)
+            {
+                _expandedSize = Size.Value;
+            }
             _collapsed = !_collapsed;
+        }
         AttachCollapsedTooltip(_collapsed ? "Expand" : "Collapse", currentTheme);
 
         // Close button
@@ -688,7 +732,10 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         using (_uiSharedService.UidFont.Push())
         {
-            // Align text to the left side with some padding
+            ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
+            var textSize = ImGui.CalcTextSize(uidText);
+            ImGui.InvisibleButton("##uid-area", textSize);
+            ImGui.SetCursorPos(ImGui.GetCursorPos() - new Vector2(0, textSize.Y));
             ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
             ImGui.TextColored(GetUidColor(), uidText);
         }
@@ -703,8 +750,11 @@ public class CompactUi : WindowMediatorSubscriberBase
 
             if (!string.Equals(_apiController.DisplayName, _apiController.UID, StringComparison.Ordinal))
             {
-                var origTextSize = ImGui.CalcTextSize(_apiController.UID);
-                ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (origTextSize.X / 2));
+                ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
+                var uidTextSize = ImGui.CalcTextSize(_apiController.UID);
+                ImGui.InvisibleButton("##uid-text-area", uidTextSize);
+                ImGui.SetCursorPos(ImGui.GetCursorPos() - new Vector2(0, uidTextSize.Y));
+                ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
                 ImGui.TextColored(GetUidColor(), _apiController.UID);
                 if (ImGui.IsItemClicked())
                 {
@@ -798,7 +848,14 @@ public class CompactUi : WindowMediatorSubscriberBase
                 .ThenBy(AlphabeticalSort, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(k => k.Key, k => k.Value);
 
-            groupFolders.Add(_drawEntityFactory.CreateDrawGroupFolder(group, filteredGroupPairs, allGroupPairs));
+            if (group.GID.StartsWith(Constants.GroupZoneSyncPrefix, StringComparison.Ordinal))
+            {
+                groupFolders.Insert(0, _drawEntityFactory.CreateDrawGroupFolder(group, filteredGroupPairs, allGroupPairs));
+            }
+            else
+            {
+                groupFolders.Add(_drawEntityFactory.CreateDrawGroupFolder(group, filteredGroupPairs, allGroupPairs));
+            }
         }
 
         if (_configService.Current.GroupUpSyncshells)

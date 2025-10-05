@@ -69,6 +69,7 @@ public record PrefillJoinSyncshellParameters(string GroupId, bool ExpectPassword
 public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading) : MessageBase;
 public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;
 public record UserAddPairMessage(UserData UserData) : MessageBase;
+public record UserPairStickyPauseAndRemoveMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
 public record PauseMessage(UserData UserData) : MessageBase;
 public record ProfilePopoutToggle(Pair? Pair) : MessageBase;
@@ -102,5 +103,8 @@ public record OpenCharaDataHubWithFilterMessage(UserData UserData) : MessageBase
 public record BroadcastListeningChanged(bool isListening) : MessageBase;
 public record GroupMembershipChanged(GroupPairUserInfoDto Dto) : MessageBase;
 public record GroupInfoChanged(GroupInfoDto GroupInfo) : MessageBase;
+public record GroupZoneSetEnableState(bool isEnabled = false) : MessageBase;
+public record GroupZoneSyncUpdateMessage : MessageBase;
+public record WorldChangeMessage : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name
