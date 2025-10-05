@@ -5,6 +5,7 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.WebAPI;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.MareConfiguration.Models;
+using Microsoft.AspNetCore.SignalR;
 
 namespace PlayerSync.PlayerData.Pairs;
 
@@ -92,7 +93,17 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
             ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
 
-        await _apiController.GroupZoneJoin(new(ownLocation)).ConfigureAwait(false);
+        try
+        {
+            await _apiController.GroupZoneJoin(new(ownLocation)).ConfigureAwait(false);
+        }
+        catch (HubException)
+        {
+            Logger.LogError("This sync service does not support ZoneSync and the feature will be disabled.");
+            _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = false;
+            _zoneSyncConfigService.Save();
+        }
+        
     }
 
     /// <summary>
