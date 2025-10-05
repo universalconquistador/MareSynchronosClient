@@ -16,7 +16,6 @@ public class HoveringToolbar
     private readonly MareMediator _mediator;
 
     private bool _showToolbar = true;
-    private bool _showPopup = false;
     private Vector2 _lastWindowPos;
     private Vector2 _lastWindowSize;
 
@@ -52,7 +51,7 @@ public class HoveringToolbar
         float rightPad = ImGui.GetStyle().WindowPadding.X + 10f * ImGuiHelpers.GlobalScale;
 
         var style = ImGui.GetStyle();
-        float topOffset = style.FramePadding.Y + style.ItemSpacing.Y + ImGuiHelpers.GlobalScale;
+        float topOffset = style.FramePadding.Y + style.ItemSpacing.Y + ImGuiHelpers.GlobalScale -5f;
 
         var crMin = ImGui.GetWindowContentRegionMin();
         var crMax = ImGui.GetWindowContentRegionMax();
@@ -89,12 +88,10 @@ public class HoveringToolbar
             {
                 if (_uiSharedService.IconButton(FontAwesomeIcon.Bars))
                 {
-                    _showPopup = !_showPopup;
-                    if (_showPopup)
-                        ImGui.OpenPopup("##PlayerSyncHamburgerMenu");
+                    ImGui.OpenPopup("##PlayerSyncHamburgerMenu");
                 }
             }
-            AttachTooltip("Player Sync Menu");
+            AttachTooltip("PlayerSync Menu");
             ImGui.SameLine(0, spacing);
 
             using (ImRaii.PushColor(ImGuiCol.Text, currentTheme?.BtnText ?? new Vector4(1f, 1f, 1f, 1f)))
