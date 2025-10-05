@@ -228,4 +228,8 @@ public class ThemePalette
         GrabRounding = source.GrabRounding;
         TabRounding = source.TabRounding;
     }
+
+    public static Vector4 GetDarkerColor(Vector4 color, bool isHovered) => isHovered
+        ? new Vector4(color.X * 0.7f, color.Y * 0.7f, color.Z * 0.7f, color.W)
+        : color;
 }
