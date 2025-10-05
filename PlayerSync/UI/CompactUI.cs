@@ -61,15 +61,15 @@ public class CompactUi : WindowMediatorSubscriberBase
     private float _transferPartHeight;
     private bool _wasOpen;
     private bool _collapsed = false;
-    private Vector2? _expandedSize = null;
+    private bool _expanded = false;
     private float _windowContentWidth;
 
     public CompactUi(ILogger<CompactUi> logger, UiSharedService uiShared, MareConfigService configService, ApiController apiController, PairManager pairManager,
         IBroadcastManager broadcastManager,
         ServerConfigurationManager serverManager, MareMediator mediator, FileUploadManager fileTransferManager,
         TagHandler tagHandler, DrawEntityFactory drawEntityFactory, SelectTagForPairUi selectTagForPairUi, SelectPairForTagUi selectPairForTagUi,
-        PerformanceCollectorService performanceCollectorService, IpcManager ipcManager, UI.Components.Theming.ThemeManager themeManager)
-        : base(logger, mediator, "###MareSynchronosMainUI", performanceCollectorService)
+        PerformanceCollectorService performanceCollectorService, IpcManager ipcManager, ThemeManager themeManager)
+        : base(logger, mediator, "###PlayerSyncMainUI", performanceCollectorService)
     {
         _uiSharedService = uiShared;
         _configService = configService;
@@ -96,11 +96,11 @@ public class CompactUi : WindowMediatorSubscriberBase
 #if DEBUG
         string dev = "Dev Build";
         var ver = Assembly.GetExecutingAssembly().GetName().Version!;
-        WindowName = $"Player Sync {dev} ({ver.Major}.{ver.Minor}.{ver.Build})###MareSynchronosMainUI";
+        WindowName = $"PlayerSync {dev} ({ver.Major}.{ver.Minor}.{ver.Build})###PlayerSyncMainUI";
         Toggle();
 #else
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        WindowName = "Player Sync " + ver.Major + "." + ver.Minor + "." + ver.Build + "###MareSynchronosMainUI";
+        WindowName = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build + "###PlayerSyncMainUI";
 #endif
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (_) => IsOpen = true);
         Mediator.Subscribe<SwitchToIntroUiMessage>(this, (_) => IsOpen = false);
@@ -118,7 +118,6 @@ public class CompactUi : WindowMediatorSubscriberBase
             _showThemeEditor = !_showThemeEditor;
         });
 
-
         Mediator.Subscribe<CloseWindowMessage>(this, (msg) =>
         {
             IsOpen = false;
@@ -126,17 +125,13 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         Mediator.Subscribe<ToggleCollapseMessage>(this, (msg) =>
         {
-            if (!_collapsed && Size.HasValue)
+            if (_collapsed)
             {
-                _expandedSize = Size.Value;
+                // We can't change UmGui from here, so we set a flag to handle it after
+                _expanded = true;
             }
-            _collapsed = !_collapsed;
 
-            if (!_collapsed && _expandedSize.HasValue)
-            {
-                Size = _expandedSize.Value;
-                SizeCondition = ImGuiCond.Always;
-            }
+            _collapsed = !_collapsed;
         });
 
         SizeConstraints = new WindowSizeConstraints()
@@ -149,9 +144,13 @@ public class CompactUi : WindowMediatorSubscriberBase
     public override void Draw()
     {
         // Store window position and size before drawing for the floating toolbar
-        var windowPos = Vector2.Zero;
-        var windowSize = Vector2.Zero;
-
+        //var windowPos = Vector2.Zero;
+        //var windowSize = Vector2.Zero;
+        if (_expanded)
+        {
+            ImGui.SetWindowSize(_lastSize);
+            _expanded = false;
+        }
         // Call base draw method which handles the main window
         base.Draw();
 
@@ -171,7 +170,7 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
-        float headerHeight = 30f * ImGuiHelpers.GlobalScale;
+        float headerHeight = 30f * ImGuiHelpers.GlobalScale + 10f;
 
         if (_collapsed)
         {
@@ -189,23 +188,31 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         UpdateWindowFlags();
 
-        if (_expandedSize.HasValue)
+        //if (_expandedSize.HasValue)
+        //{
+        //    var minHeight = Math.Max(400, _expandedSize.Value.Y);
+        //    SizeConstraints = new WindowSizeConstraints()
+        //    {
+        //        MinimumSize = new Vector2(375, minHeight),
+        //        MaximumSize = new Vector2(375, 2000),
+        //    };
+        //}
+        //else
+        //{
+        SizeConstraints = new WindowSizeConstraints()
         {
-            var minHeight = Math.Max(400, _expandedSize.Value.Y);
-            SizeConstraints = new WindowSizeConstraints()
-            {
-                MinimumSize = new Vector2(375, minHeight),
-                MaximumSize = new Vector2(375, 2000),
-            };
-        }
-        else
-        {
-            SizeConstraints = new WindowSizeConstraints()
-            {
-                MinimumSize = new Vector2(375, 400),
-                MaximumSize = new Vector2(375, 2000),
-            };
-        }
+            MinimumSize = new Vector2(375, 400),
+            MaximumSize = new Vector2(375, 2000),
+        };
+        //}
+
+        //if (_expandedSize.HasValue)
+        //{
+        //    _logger.LogDebug("Expanded size {x} {y}", _expandedSize.Value.X, _expandedSize.Value.Y);
+        //    Size = _expandedSize.Value;
+        //    _expandedSize = null;
+        //}
+        //_logger.LogDebug(Size.ToString());
 
         // Main themed container using child window with background
         using (var theme = _themeManager?.PushTheme())
@@ -224,31 +231,32 @@ public class CompactUi : WindowMediatorSubscriberBase
             var contentWidth = ImGui.GetContentRegionAvail().X - 10f;
             ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoBackground);
 
-            var topBarHeight = 15f;
+            //var topBarHeight = 15f;
             var startPos = ImGui.GetCursorPos();
-            ImGui.InvisibleButton("##top-collapse-area", new Vector2(contentWidth, topBarHeight));
-            if (ImGui.IsItemHovered() && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
-            {
-                if (!_collapsed && Size.HasValue)
-                {
-                    _expandedSize = Size.Value;
-                }
-                _collapsed = !_collapsed;
+            //ImGui.InvisibleButton("##top-collapse-area", new Vector2(contentWidth, topBarHeight));
+            //if (ImGui.IsItemHovered() && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
+            //{
+            //    if (!_collapsed && Size.HasValue)
+            //    {
+            //        _expandedSize = Size.Value;
+            //    }
+            //    _collapsed = !_collapsed;
 
-                if (!_collapsed && _expandedSize.HasValue)
-                {
-                    Size = _expandedSize.Value;
-                    SizeCondition = ImGuiCond.Always;
-                }
-            }
+            //    if (!_collapsed && _expandedSize.HasValue)
+            //    {
+            //        Size = _expandedSize.Value;
+            //        SizeCondition = ImGuiCond.Always;
+            //    }
+            //}
+            startPos.Y += headerHeight;
             ImGui.SetCursorPos(startPos);
-
+            
             DrawContent();
-
+            
             ImGui.EndChild();
             ImGui.EndChild();
+            _lastSize = ImGui.GetWindowSize();
         }
-
     }
 
     private void DrawCollapsedTitleBar(float headerHeight)
@@ -286,16 +294,16 @@ public class CompactUi : WindowMediatorSubscriberBase
         ImGui.TextColored(currentTheme.TextPrimary, title);
 
         // Drag area
-        if (!AllowPinning && !AllowClickthrough)
-        {
-            float dragLeft = tX + tSz.X + spacing;
-            float dragRight = btnStartX - spacing;
-            float dragW = MathF.Max(0f, dragRight - dragLeft);
-            ImGui.SetCursorScreenPos(new Vector2(dragLeft, headerMin.Y));
-            ImGui.InvisibleButton("##dragzone_titlebar", new Vector2(dragW, headerHeight));
-            if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
-                ImGui.SetWindowPos(ImGui.GetWindowPos() + ImGui.GetIO().MouseDelta);
-        }
+        //if (!AllowPinning && !AllowClickthrough)
+        //{
+        //    float dragLeft = tX + tSz.X + spacing;
+        //    float dragRight = btnStartX - spacing;
+        //    float dragW = MathF.Max(0f, dragRight - dragLeft);
+        //    ImGui.SetCursorScreenPos(new Vector2(dragLeft, headerMin.Y));
+        //    ImGui.InvisibleButton("##dragzone_titlebar", new Vector2(dragW, headerHeight));
+        //    if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+        //        ImGui.SetWindowPos(ImGui.GetWindowPos() + ImGui.GetIO().MouseDelta);
+        //}
 
         ImGui.PushStyleColor(ImGuiCol.Button, currentTheme.Btn);
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, currentTheme.BtnHovered);
@@ -309,11 +317,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         ImGui.SetCursorScreenPos(new Vector2(btnStartX, btnStartY));
         if (_uiSharedService.IconButton(collapseIcon))
         {
-            if (!_collapsed && Size.HasValue)
-            {
-                _expandedSize = Size.Value;
-            }
-            _collapsed = !_collapsed;
+            Mediator.Publish(new ToggleCollapseMessage());
         }
         AttachCollapsedTooltip(_collapsed ? "Expand" : "Collapse", currentTheme);
 
@@ -342,38 +346,38 @@ public class CompactUi : WindowMediatorSubscriberBase
         }
     }
 
-    private void DrawDragArea()
-    {
-        // Don't draw drag area if window is pinned or click-through is enabled
-        if (AllowPinning || AllowClickthrough) return;
+    //private void DrawDragArea()
+    //{
+    //    // Don't draw drag area if window is pinned or click-through is enabled
+    //    if (AllowPinning || AllowClickthrough) return;
 
-        // Create an invisible drag area at the top of the window
-        var dragHeight = 25f * ImGuiHelpers.GlobalScale;
-        var availableWidth = ImGui.GetContentRegionAvail().X;
+    //    // Create an invisible drag area at the top of the window
+    //    var dragHeight = 25f * ImGuiHelpers.GlobalScale;
+    //    var availableWidth = ImGui.GetContentRegionAvail().X;
 
-        // Reserve space for the hovering toolbar (approximately 6 buttons + spacing)
-        var toolbarWidth = (22f * 6 + 6f * 5 + 32f) * ImGuiHelpers.GlobalScale;
-        var dragWidth = Math.Max(0, availableWidth - toolbarWidth - 10f); // 10f padding
+    //    // Reserve space for the hovering toolbar (approximately 6 buttons + spacing)
+    //    var toolbarWidth = (22f * 6 + 6f * 5 + 32f) * ImGuiHelpers.GlobalScale;
+    //    var dragWidth = Math.Max(0, availableWidth - toolbarWidth - 10f); // 10f padding
 
-        var cursorPos = ImGui.GetCursorPos();
-        ImGui.SetCursorPos(new Vector2(cursorPos.X, cursorPos.Y));
+    //    var cursorPos = ImGui.GetCursorPos();
+    //    ImGui.SetCursorPos(new Vector2(cursorPos.X, cursorPos.Y));
 
-        // Create an invisible button for dragging
-        if (ImGui.InvisibleButton("##drag_area", new Vector2(dragWidth, dragHeight)))
-        {
-            // Button clicked - could add additional functionality here if needed
-        }
+    //    // Create an invisible button for dragging
+    //    if (ImGui.InvisibleButton("##drag_area", new Vector2(dragWidth, dragHeight)))
+    //    {
+    //        // Button clicked - could add additional functionality here if needed
+    //    }
 
-        if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
-        {
-            var delta = ImGui.GetIO().MouseDelta;
-            var currentPos = ImGui.GetWindowPos();
-            ImGui.SetWindowPos(new Vector2(currentPos.X + delta.X, currentPos.Y + delta.Y));
-        }
+    //    if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+    //    {
+    //        var delta = ImGui.GetIO().MouseDelta;
+    //        var currentPos = ImGui.GetWindowPos();
+    //        ImGui.SetWindowPos(new Vector2(currentPos.X + delta.X, currentPos.Y + delta.Y));
+    //    }
 
-        // Reset cursor position for the rest of the content
-        ImGui.SetCursorPos(new Vector2(cursorPos.X, cursorPos.Y + 5f)); // Small gap after drag area
-    }
+    //    // Reset cursor position for the rest of the content
+    //    ImGui.SetCursorPos(new Vector2(cursorPos.X, cursorPos.Y + 5f)); // Small gap after drag area
+    //}
 
     private void UpdateWindowFlags()
     {
@@ -396,7 +400,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private void DrawContent()
     {
         // Add a draggable area at the top since we removed the title bar
-        DrawDragArea();
+        //DrawDragArea();
 
         _windowContentWidth = UiSharedService.GetWindowContentRegionWidth();
         if (!_apiController.IsCurrentVersion)
@@ -526,7 +530,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         {
             _lastSize = size;
             _lastPosition = pos;
-            Mediator.Publish(new CompactUiChange(_lastSize, _lastPosition));
+            Mediator.Publish(new CompactUiChange(size, pos));
         }
     }
 
@@ -732,11 +736,14 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         using (_uiSharedService.UidFont.Push())
         {
-            ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
-            var textSize = ImGui.CalcTextSize(uidText);
-            ImGui.InvisibleButton("##uid-area", textSize);
-            ImGui.SetCursorPos(ImGui.GetCursorPos() - new Vector2(0, textSize.Y));
-            ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
+            //ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
+            //var textSize = ImGui.CalcTextSize(uidText);
+            //ImGui.InvisibleButton("##uid-area", textSize);
+            //ImGui.SetCursorPos(ImGui.GetCursorPos() - new Vector2(0, textSize.Y));
+            //ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
+            //ImGui.TextColored(GetUidColor(), uidText);
+            var uidTextSize = ImGui.CalcTextSize(uidText);
+            ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (uidTextSize.X / 2));
             ImGui.TextColored(GetUidColor(), uidText);
         }
 
@@ -750,11 +757,14 @@ public class CompactUi : WindowMediatorSubscriberBase
 
             if (!string.Equals(_apiController.DisplayName, _apiController.UID, StringComparison.Ordinal))
             {
-                ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
-                var uidTextSize = ImGui.CalcTextSize(_apiController.UID);
-                ImGui.InvisibleButton("##uid-text-area", uidTextSize);
-                ImGui.SetCursorPos(ImGui.GetCursorPos() - new Vector2(0, uidTextSize.Y));
-                ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
+                //ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
+                //var uidTextSize = ImGui.CalcTextSize(_apiController.UID);
+                //ImGui.InvisibleButton("##uid-text-area", uidTextSize);
+                //ImGui.SetCursorPos(ImGui.GetCursorPos() - new Vector2(0, uidTextSize.Y));
+                //ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
+                //ImGui.TextColored(GetUidColor(), _apiController.UID);
+                var origTextSize = ImGui.CalcTextSize(_apiController.UID);
+                ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (origTextSize.X / 2));
                 ImGui.TextColored(GetUidColor(), _apiController.UID);
                 if (ImGui.IsItemClicked())
                 {
