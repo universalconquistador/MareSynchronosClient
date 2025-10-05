@@ -563,7 +563,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         string shardConnection = string.Equals(_apiController.ServerInfo.ShardName, "Main", StringComparison.OrdinalIgnoreCase) ? string.Empty : $"Shard: {_apiController.ServerInfo.ShardName}";
 #endif
         var shardTextSize = ImGui.CalcTextSize(shardConnection);
-        var printShard = false;
+        var printShard = !string.IsNullOrEmpty(_apiController.ServerInfo.ShardName) && shardConnection != string.Empty;
 
         // Align status text to the left side with some padding (like UID)
         ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);

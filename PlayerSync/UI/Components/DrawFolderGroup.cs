@@ -47,7 +47,7 @@ public class DrawFolderGroup : DrawFolderBase
         ImGui.AlignTextToFramePadding();
 
         bool isBroadcasting = _broadcastManager.BroadcastingGroupId == _groupFullInfoDto.GID;
-        var broadcastColor = isBroadcasting ? GetDarkerColor(ImGuiColors.HealerGreen) : GetDarkerColor(ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
+        var broadcastColor = isBroadcasting ? ThemePalette.GetDarkerColor(ImGuiColors.HealerGreen, _wasHovered) : ThemePalette.GetDarkerColor(ImGui.GetStyle().Colors[(int)ImGuiCol.Text], _wasHovered);
         using (ImRaii.PushColor(ImGuiCol.Text, broadcastColor, isBroadcasting))
         {
             FontAwesomeIcon icon;
@@ -60,7 +60,7 @@ public class DrawFolderGroup : DrawFolderBase
                 icon = _groupFullInfoDto.GroupPermissions.IsDisableInvites() ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users;
             }
             var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-            _uiSharedService.IconText(icon, GetDarkerColor(accentColor));
+            _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
         }
         if (_groupFullInfoDto.GroupPermissions.IsDisableInvites())
         {
@@ -319,10 +319,6 @@ public class DrawFolderGroup : DrawFolderBase
         ImGui.SameLine();
 
         var isRowHovered = ImGui.IsItemHovered() || _wasHovered;
-        Vector4? darkerButtonColor = null;
-        Vector4? darkerButtonHovered = null;
-        Vector4? darkerButtonActive = null;
-
         if (isRowHovered)
         {
             var style = ImGui.GetStyle();
@@ -330,13 +326,9 @@ public class DrawFolderGroup : DrawFolderBase
             var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
             var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-            darkerButtonColor = new Vector4(currentButton.X * 0.7f, currentButton.Y * 0.7f, currentButton.Z * 0.7f, currentButton.W);
-            darkerButtonHovered = new Vector4(currentButtonHovered.X * 0.8f, currentButtonHovered.Y * 0.8f, currentButtonHovered.Z * 0.8f, currentButtonHovered.W);
-            darkerButtonActive = new Vector4(currentButtonActive.X * 0.6f, currentButtonActive.Y * 0.6f, currentButtonActive.Z * 0.6f, currentButtonActive.W);
-
-            ImGui.PushStyleColor(ImGuiCol.Button, darkerButtonColor.Value);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, darkerButtonHovered.Value);
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, darkerButtonActive.Value);
+            ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(currentButton, true));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(currentButtonHovered, true));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(currentButtonActive, true));
         }
 
         bool buttonPressed = _uiSharedService.IconButton(pauseIcon);

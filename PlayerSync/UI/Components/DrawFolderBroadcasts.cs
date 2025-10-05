@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 
 namespace MareSynchronos.UI.Components;
 
+// Does not extend/implement DrawFolderBase/IDrawFolder as this doesn't contain pairs
 public class DrawFolderBroadcasts
 {
     private const string _tagId = "broadcasts";
@@ -24,10 +25,6 @@ public class DrawFolderBroadcasts
     readonly IImmutableList<DrawBroadcastGroup> _broadcasts;
 
     private bool _wasHovered;
-
-    protected Vector4 GetDarkerColor(Vector4 color) => _wasHovered
-        ? new Vector4(color.X * 0.7f, color.Y * 0.7f, color.Z * 0.7f, color.W)
-        : color;
 
     public DrawFolderBroadcasts(IImmutableList<DrawBroadcastGroup> broadcasts, TagHandler tagHandler, UiSharedService uiSharedService)
     {
@@ -53,14 +50,14 @@ public class DrawFolderBroadcasts
                     ImGui.AlignTextToFramePadding();
 
                     var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-                    _uiSharedService.IconText(expanderIcon, GetDarkerColor(accentColor));
+                    _uiSharedService.IconText(expanderIcon, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
                     if (ImGui.IsItemClicked())
                     {
                         _tagHandler.SetTagOpen(_tagId, !_tagHandler.IsTagOpen(_tagId));
                     }
 
                     ImGui.SameLine();
-                    _uiSharedService.IconText(FontAwesomeIcon.Wifi, GetDarkerColor(accentColor));
+                    _uiSharedService.IconText(FontAwesomeIcon.Wifi, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
 
                     ImGui.SameLine();
                     ImGui.TextUnformatted($"[{_broadcasts.Count}] Nearby Broadcasts");

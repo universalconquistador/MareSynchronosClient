@@ -16,10 +16,6 @@ public class DrawGroupedGroupFolder : IDrawFolder
     private readonly UiSharedService _uiSharedService;
     private bool _wasHovered = false;
 
-    private Vector4 GetDarkerColor(Vector4 color) => _wasHovered
-        ? new Vector4(color.X * 0.7f, color.Y * 0.7f, color.Z * 0.7f, color.W)
-        : color;
-
     public IImmutableList<DrawUserPair> DrawPairs => throw new NotSupportedException();
     public int OnlinePairs => _groups.SelectMany(g => g.DrawPairs).Where(g => g.Pair.IsOnline).DistinctBy(g => g.Pair.UserData.UID).Count();
     public int TotalPairs => _groups.Sum(g => g.TotalPairs);
@@ -51,7 +47,7 @@ public class DrawGroupedGroupFolder : IDrawFolder
             ImGui.AlignTextToFramePadding();
 
             var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-            _uiSharedService.IconText(icon, GetDarkerColor(accentColor));
+            _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
             if (ImGui.IsItemClicked())
             {
                 _tagHandler.SetTagOpen(_id, !_tagHandler.IsTagOpen(_id));
@@ -59,7 +55,7 @@ public class DrawGroupedGroupFolder : IDrawFolder
 
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.UsersRectangle, GetDarkerColor(accentColor));
+            _uiSharedService.IconText(FontAwesomeIcon.UsersRectangle, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().ItemSpacing with { X = ImGui.GetStyle().ItemSpacing.X / 2f }))
             {
                 ImGui.SameLine();
