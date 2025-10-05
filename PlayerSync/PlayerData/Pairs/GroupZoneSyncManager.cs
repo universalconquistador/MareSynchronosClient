@@ -99,7 +99,9 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         }
         catch (HubException)
         {
-            Logger.LogError("This sync service does not support ZoneSync and the feature will be disabled.");
+            var message = "This sync service does not support ZoneSync and the feature will be disabled.";
+            Logger.LogError(message);
+            Mediator.Publish(new NotificationMessage("ZoneSync Error", message, NotificationType.Error, TimeSpan.FromSeconds(7.5)));
             _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = false;
             _zoneSyncConfigService.Save();
         }
