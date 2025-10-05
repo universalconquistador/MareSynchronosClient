@@ -197,6 +197,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<CharaDataConfigService>());
             collection.AddSingleton<ConfigurationMigrator>();
             collection.AddSingleton<ConfigurationSaveService>();
+            collection.AddSingleton<UI.Components.Theming.ThemeManager>();
 
             collection.AddSingleton<HubFactory>();
 
@@ -214,6 +215,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped<WindowMediatorSubscriberBase, JoinSyncshellUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, CreateSyncshellUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, EventViewerUI>();
+            // collection.AddScoped<WindowMediatorSubscriberBase, ModernSettingsUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, CharaDataHubUi>();
 
             collection.AddScoped<WindowMediatorSubscriberBase, EditProfileUi>((s) => new EditProfileUi(s.GetRequiredService<ILogger<EditProfileUi>>(),

@@ -1,5 +1,6 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.UI.Handlers;
@@ -33,8 +34,11 @@ public class DrawGroupedGroupFolder : IDrawFolder
         string _id = "__folder_syncshells";
         using var id = ImRaii.PushId(_id);
         var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
-        using (ImRaii.Child("folder__" + _id, new System.Numerics.Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight())))
+        var paddingX = 4f;
+        var paddingY = 3f;
+        using (ImRaii.Child("folder__" + _id, new System.Numerics.Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
         {
+            ImGui.SetCursorPos(new Vector2(paddingX, paddingY));
             ImGui.Dummy(new Vector2(0f, ImGui.GetFrameHeight()));
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(0f, 0f)))
                 ImGui.SameLine();
@@ -42,7 +46,8 @@ public class DrawGroupedGroupFolder : IDrawFolder
             var icon = _tagHandler.IsTagOpen(_id) ? FontAwesomeIcon.CaretDown : FontAwesomeIcon.CaretRight;
             ImGui.AlignTextToFramePadding();
 
-            _uiSharedService.IconText(icon, ThemeManager.Instance?.Current.Accent);
+            var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
+            _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
             if (ImGui.IsItemClicked())
             {
                 _tagHandler.SetTagOpen(_id, !_tagHandler.IsTagOpen(_id));
@@ -50,7 +55,7 @@ public class DrawGroupedGroupFolder : IDrawFolder
 
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.UsersRectangle, ThemeManager.Instance?.Current.Accent);
+            _uiSharedService.IconText(FontAwesomeIcon.UsersRectangle, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().ItemSpacing with { X = ImGui.GetStyle().ItemSpacing.X / 2f }))
             {
                 ImGui.SameLine();

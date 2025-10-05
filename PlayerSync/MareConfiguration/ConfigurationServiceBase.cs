@@ -1,4 +1,5 @@
 ﻿using MareSynchronos.MareConfiguration.Configurations;
+using System.Numerics;
 using System.Text.Json;
 
 namespace MareSynchronos.MareConfiguration;
@@ -66,7 +67,10 @@ public abstract class ConfigurationServiceBase<T> : IConfigService<T> where T : 
         {
             try
             {
-                config = JsonSerializer.Deserialize<T>(File.ReadAllText(ConfigurationPath));
+                config = JsonSerializer.Deserialize<T>(File.ReadAllText(ConfigurationPath), new JsonSerializerOptions
+                {
+                    Converters = { new Vector4JsonConverter() }
+                });
             }
             catch
             {
@@ -97,7 +101,10 @@ public abstract class ConfigurationServiceBase<T> : IConfigService<T> where T : 
         {
             try
             {
-                var config = JsonSerializer.Deserialize<T>(File.ReadAllText(file));
+                var config = JsonSerializer.Deserialize<T>(File.ReadAllText(file), new JsonSerializerOptions
+                {
+                    Converters = { new Vector4JsonConverter() }
+                });
                 if (Equals(config, default(T)))
                 {
                     File.Delete(file);

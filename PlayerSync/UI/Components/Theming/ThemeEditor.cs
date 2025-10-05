@@ -119,12 +119,10 @@ public class ThemeEditor
 
         ImGui.Text("Theme Colors");
         ImGui.Separator();
-        DrawInlineColorEditor();
+        DrawTabbedColorEditor();
 
         ImGui.Spacing();
         DrawApplyButton();
-
-        HandleColorPickerPopups();
     }
 
     private void DrawThemeSelector()
@@ -163,58 +161,164 @@ public class ThemeEditor
         }
     }
 
-    private void DrawInlineColorEditor()
+    private void DrawTabbedColorEditor()
     {
-        ImGui.Columns(2, "ThemeColors", true);
+        if (ImGui.BeginTabBar("ThemeColorTabs"))
+        {
+            if (ImGui.BeginTabItem("Panel & UI"))
+            {
+                ImGui.Text("Panel Colors");
+                DrawColorSquare("Panel Background", "PanelBg", _editingTheme.PanelBg);
+                DrawColorSquare("Panel Border", "PanelBorder", _editingTheme.PanelBorder);
+                DrawColorSquare("Header Background", "HeaderBg", _editingTheme.HeaderBg);
+                DrawColorSquare("Accent", "Accent", _editingTheme.Accent);
 
-        ImGui.Text("Panel Colors");
-        DrawColorSquare("Panel Background", "PanelBg", _editingTheme.PanelBg);
-        DrawColorSquare("Panel Border", "PanelBorder", _editingTheme.PanelBorder);
-        DrawColorSquare("Header Background", "HeaderBg", _editingTheme.HeaderBg);
-        DrawColorSquare("Accent", "Accent", _editingTheme.Accent);
+                ImGui.Spacing();
+                ImGui.Text("Button Colors");
+                DrawColorSquare("Button", "Btn", _editingTheme.Btn);
+                DrawColorSquare("Button Hovered", "BtnHovered", _editingTheme.BtnHovered);
+                DrawColorSquare("Button Active", "BtnActive", _editingTheme.BtnActive);
 
-        ImGui.Spacing();
-        ImGui.Text("Button Colors");
-        DrawColorSquare("Button", "Btn", _editingTheme.Btn);
-        DrawColorSquare("Button Hovered", "BtnHovered", _editingTheme.BtnHovered);
-        DrawColorSquare("Button Active", "BtnActive", _editingTheme.BtnActive);
+                ImGui.EndTabItem();
+            }
 
-        ImGui.NextColumn();
+            if (ImGui.BeginTabItem("Text Colors"))
+            {
+                ImGui.Text("General Text Colors");
+                DrawColorSquare("Primary Text", "TextPrimary", _editingTheme.TextPrimary);
+                DrawColorSquare("Secondary Text", "TextSecondary", _editingTheme.TextSecondary);
+                DrawColorSquare("Disabled Text", "TextDisabled", _editingTheme.TextDisabled);
 
-        ImGui.Text("Text Colors");
-        DrawColorSquare("Primary Text", "TextPrimary", _editingTheme.TextPrimary);
-        DrawColorSquare("Secondary Text", "TextSecondary", _editingTheme.TextSecondary);
-        DrawColorSquare("Disabled Text", "TextDisabled", _editingTheme.TextDisabled);
+                ImGui.Spacing();
+                ImGui.Text("Button Text Colors");
+                DrawColorSquare("Button Text", "BtnText", _editingTheme.BtnText);
+                DrawColorSquare("Button Text Hovered", "BtnTextHovered", _editingTheme.BtnTextHovered);
+                DrawColorSquare("Button Text Active", "BtnTextActive", _editingTheme.BtnTextActive);
 
-        ImGui.Spacing();
-        ImGui.Text("Button Text Colors");
-        DrawColorSquare("Button Text", "BtnText", _editingTheme.BtnText);
-        DrawColorSquare("Button Text Hovered", "BtnTextHovered", _editingTheme.BtnTextHovered);
-        DrawColorSquare("Button Text Active", "BtnTextActive", _editingTheme.BtnTextActive);
+                ImGui.Spacing();
+                ImGui.Text("Link Colors");
+                DrawColorSquare("Link", "Link", _editingTheme.Link);
+                DrawColorSquare("Link Hover", "LinkHover", _editingTheme.LinkHover);
 
-        ImGui.Spacing();
-        ImGui.Text("Link Colors");
-        DrawColorSquare("Link", "Link", _editingTheme.Link);
-        DrawColorSquare("Link Hover", "LinkHover", _editingTheme.LinkHover);
+                ImGui.EndTabItem();
+            }
 
-        ImGui.Spacing();
-        ImGui.Text("Tooltip Colors");
-        DrawColorSquare("Tooltip Background", "TooltipBg", _editingTheme.TooltipBg);
-        DrawColorSquare("Tooltip Text", "TooltipText", _editingTheme.TooltipText);
+            if (ImGui.BeginTabItem("UI Text"))
+            {
+                ImGui.Text("Specific UI Text Colors");
+                DrawColorSquare("UID/Alias Text", "UidAliasText", _editingTheme.UidAliasText);
+                DrawColorSquare("Users Online Text", "UsersOnlineText", _editingTheme.UsersOnlineText);
+                DrawColorSquare("Users Online Number", "UsersOnlineNumber", _editingTheme.UsersOnlineNumber);
 
-        ImGui.Columns(1);
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Status"))
+            {
+                ImGui.Text("Connection Status");
+                DrawColorSquare("Connected", "StatusConnected", _editingTheme.StatusConnected);
+                DrawColorSquare("Connecting", "StatusConnecting", _editingTheme.StatusConnecting);
+                DrawColorSquare("Disconnected", "StatusDisconnected", _editingTheme.StatusDisconnected);
+                DrawColorSquare("Broadcasting", "StatusBroadcasting", _editingTheme.StatusBroadcasting);
+
+                ImGui.Spacing();
+                ImGui.Text("General Status");
+                DrawColorSquare("OK", "StatusOk", _editingTheme.StatusOk);
+                DrawColorSquare("Warning", "StatusWarn", _editingTheme.StatusWarn);
+                DrawColorSquare("Error", "StatusError", _editingTheme.StatusError);
+                DrawColorSquare("Paused", "StatusPaused", _editingTheme.StatusPaused);
+                DrawColorSquare("Info", "StatusInfo", _editingTheme.StatusInfo);
+
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Other"))
+            {
+                ImGui.Text("Tooltip Colors");
+                DrawColorSquare("Tooltip Background", "TooltipBg", _editingTheme.TooltipBg);
+                DrawColorSquare("Tooltip Text", "TooltipText", _editingTheme.TooltipText);
+
+                ImGui.EndTabItem();
+            }
+
+            ImGui.EndTabBar();
+        }
+
+        // Handle popups outside of the tab bar entirely
+        HandleColorPickerPopups();
     }
 
     private void DrawColorSquare(string label, string propertyName, Vector4 color)
     {
         var buttonId = $"##ColorSquare{propertyName}";
-        if (ImGui.ColorButton(buttonId, color, ImGuiColorEditFlags.NoTooltip, new Vector2(30, 20)))
+        if (ImGui.ColorButton(buttonId, color, ImGuiColorEditFlags.NoTooltip | ImGuiColorEditFlags.AlphaPreview, new Vector2(30, 20)))
         {
             _colorPickerPopupId = propertyName;
             ImGui.OpenPopup($"ColorPicker{propertyName}");
         }
         ImGui.SameLine();
         ImGui.Text(label);
+
+        // Handle popup immediately after the button
+        var popupId = $"ColorPicker{propertyName}";
+        if (ImGui.BeginPopup(popupId))
+        {
+            ImGui.Text($"Edit {label}");
+            ImGui.Separator();
+
+            var tempColor = color;
+            if (ImGui.ColorPicker4($"##{propertyName}Picker", ref tempColor))
+            {
+                // Find and call the appropriate setter
+                SetColorByPropertyName(propertyName, tempColor);
+            }
+
+            ImGui.Spacing();
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Save, "Save and Close"))
+            {
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.EndPopup();
+        }
+    }
+
+    private void SetColorByPropertyName(string propertyName, Vector4 color)
+    {
+        switch (propertyName)
+        {
+            case "PanelBg": _editingTheme.PanelBg = color; break;
+            case "PanelBorder": _editingTheme.PanelBorder = color; break;
+            case "HeaderBg": _editingTheme.HeaderBg = color; break;
+            case "Accent": _editingTheme.Accent = color; break;
+            case "Btn": _editingTheme.Btn = color; break;
+            case "BtnHovered": _editingTheme.BtnHovered = color; break;
+            case "BtnActive": _editingTheme.BtnActive = color; break;
+            case "TextPrimary": _editingTheme.TextPrimary = color; break;
+            case "TextSecondary": _editingTheme.TextSecondary = color; break;
+            case "TextDisabled": _editingTheme.TextDisabled = color; break;
+            case "BtnText": _editingTheme.BtnText = color; break;
+            case "BtnTextHovered": _editingTheme.BtnTextHovered = color; break;
+            case "BtnTextActive": _editingTheme.BtnTextActive = color; break;
+            case "Link": _editingTheme.Link = color; break;
+            case "LinkHover": _editingTheme.LinkHover = color; break;
+            case "TooltipBg": _editingTheme.TooltipBg = color; break;
+            case "TooltipText": _editingTheme.TooltipText = color; break;
+            case "UidAliasText": _editingTheme.UidAliasText = color; break;
+            case "UsersOnlineText": _editingTheme.UsersOnlineText = color; break;
+            case "UsersOnlineNumber": _editingTheme.UsersOnlineNumber = color; break;
+            case "StatusConnected": _editingTheme.StatusConnected = color; break;
+            case "StatusConnecting": _editingTheme.StatusConnecting = color; break;
+            case "StatusDisconnected": _editingTheme.StatusDisconnected = color; break;
+            case "StatusBroadcasting": _editingTheme.StatusBroadcasting = color; break;
+            case "StatusOk": _editingTheme.StatusOk = color; break;
+            case "StatusWarn": _editingTheme.StatusWarn = color; break;
+            case "StatusError": _editingTheme.StatusError = color; break;
+            case "StatusPaused": _editingTheme.StatusPaused = color; break;
+            case "StatusInfo": _editingTheme.StatusInfo = color; break;
+        }
+        _hasChanges = true;
+        _themeManager.SetCustomTheme(_editingTheme);
     }
 
     private void HandleColorPickerPopups()
@@ -236,6 +340,18 @@ public class ThemeEditor
         HandleColorPickerPopup("LinkHover", "Link Hover", _editingTheme.LinkHover, (color) => _editingTheme.LinkHover = color);
         HandleColorPickerPopup("TooltipBg", "Tooltip Background", _editingTheme.TooltipBg, (color) => _editingTheme.TooltipBg = color);
         HandleColorPickerPopup("TooltipText", "Tooltip Text", _editingTheme.TooltipText, (color) => _editingTheme.TooltipText = color);
+        HandleColorPickerPopup("UidAliasText", "UID/Alias Text", _editingTheme.UidAliasText, (color) => _editingTheme.UidAliasText = color);
+        HandleColorPickerPopup("UsersOnlineText", "Users Online Text", _editingTheme.UsersOnlineText, (color) => _editingTheme.UsersOnlineText = color);
+        HandleColorPickerPopup("UsersOnlineNumber", "Users Online Number", _editingTheme.UsersOnlineNumber, (color) => _editingTheme.UsersOnlineNumber = color);
+        HandleColorPickerPopup("StatusConnected", "Connected", _editingTheme.StatusConnected, (color) => _editingTheme.StatusConnected = color);
+        HandleColorPickerPopup("StatusConnecting", "Connecting", _editingTheme.StatusConnecting, (color) => _editingTheme.StatusConnecting = color);
+        HandleColorPickerPopup("StatusDisconnected", "Disconnected", _editingTheme.StatusDisconnected, (color) => _editingTheme.StatusDisconnected = color);
+        HandleColorPickerPopup("StatusBroadcasting", "Broadcasting", _editingTheme.StatusBroadcasting, (color) => _editingTheme.StatusBroadcasting = color);
+        HandleColorPickerPopup("StatusOk", "OK", _editingTheme.StatusOk, (color) => _editingTheme.StatusOk = color);
+        HandleColorPickerPopup("StatusWarn", "Warning", _editingTheme.StatusWarn, (color) => _editingTheme.StatusWarn = color);
+        HandleColorPickerPopup("StatusError", "Error", _editingTheme.StatusError, (color) => _editingTheme.StatusError = color);
+        HandleColorPickerPopup("StatusPaused", "Paused", _editingTheme.StatusPaused, (color) => _editingTheme.StatusPaused = color);
+        HandleColorPickerPopup("StatusInfo", "Info", _editingTheme.StatusInfo, (color) => _editingTheme.StatusInfo = color);
     }
 
     private void HandleColorPickerPopup(string propertyName, string displayName, Vector4 currentColor, Action<Vector4> setColor)
@@ -247,7 +363,24 @@ public class ThemeEditor
             ImGui.Separator();
 
             var tempColor = currentColor;
-            if (ImGui.ColorPicker4($"##{propertyName}Picker", ref tempColor))
+            bool colorChanged = false;
+
+            if (ImGui.ColorPicker4($"##{propertyName}Picker", ref tempColor, ImGuiColorEditFlags.AlphaPreview | ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.AlphaPreviewHalf))
+            {
+                colorChanged = true;
+            }
+
+            ImGui.Spacing();
+            ImGui.Text("Opacity:");
+            ImGui.SameLine();
+            var alpha = tempColor.W;
+            if (ImGui.SliderFloat($"##Alpha{propertyName}", ref alpha, 0.0f, 1.0f, "%.2f"))
+            {
+                tempColor.W = alpha;
+                colorChanged = true;
+            }
+
+            if (colorChanged)
             {
                 setColor(tempColor);
                 _hasChanges = true;
@@ -255,7 +388,7 @@ public class ThemeEditor
             }
 
             ImGui.Spacing();
-            if (ImGui.Button("Close"))
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Save, "Save and Close"))
             {
                 ImGui.CloseCurrentPopup();
             }
@@ -269,7 +402,7 @@ public class ThemeEditor
         ImGui.Separator();
 
         // Show that changes are automatically applied
-        ImGui.TextColored(new Vector4(0.5f, 1.0f, 0.5f, 1.0f), "Changes applied automatically");
+        ImGui.TextColored(ThemeManager.Instance?.Current.Accent ?? new Vector4(0.26f, 0.59f, 0.98f, 1.00f), "Changes applied automatically");
 
         if (_hasChanges)
         {
@@ -290,7 +423,7 @@ public class ThemeEditor
         }
 
         ImGui.SameLine();
-        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Close"))
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Save, "Save and Close"))
         {
             CloseThemeEditor();
         }
