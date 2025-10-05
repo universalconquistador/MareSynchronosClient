@@ -562,13 +562,13 @@ public class CompactUi : WindowMediatorSubscriberBase
         var userCount = _apiController.OnlineUsers.ToString(CultureInfo.InvariantCulture);
         var userSize = ImGui.CalcTextSize(userCount);
         var textSize = ImGui.CalcTextSize("Users Online");
-#if DEBUG
-        string shardConnection = $"Shard: {_apiController.ServerInfo.ShardName}";
-#else
-        string shardConnection = string.Equals(_apiController.ServerInfo.ShardName, "Main", StringComparison.OrdinalIgnoreCase) ? string.Empty : $"Shard: {_apiController.ServerInfo.ShardName}";
-#endif
-        var shardTextSize = ImGui.CalcTextSize(shardConnection);
-        var printShard = !string.IsNullOrEmpty(_apiController.ServerInfo.ShardName) && shardConnection != string.Empty;
+//#if DEBUG
+//        string shardConnection = $"Shard: {_apiController.ServerInfo.ShardName}";
+//#else
+//        string shardConnection = string.Equals(_apiController.ServerInfo.ShardName, "Main", StringComparison.OrdinalIgnoreCase) ? string.Empty : $"Shard: {_apiController.ServerInfo.ShardName}";
+//#endif
+        //var shardTextSize = ImGui.CalcTextSize(shardConnection);
+        //var printShard = !string.IsNullOrEmpty(_apiController.ServerInfo.ShardName) && shardConnection != string.Empty;
 
         // Align status text to the left side with some padding (like UID)
         ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
@@ -577,21 +577,18 @@ public class CompactUi : WindowMediatorSubscriberBase
         if (_apiController.ServerState is ServerState.Connected)
         {
             // Format as "X Users Online | Shard: main" on one line
-            var statusText = userCount + " Users Online";
-            if (printShard)
-            {
-                statusText += " | " + shardConnection;
-            }
+            //var statusText = userCount + " Users Online";
+            //if (printShard)
+            //{
+            //    statusText += " | " + shardConnection;
+            //}
 
+            ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth()) / 2 - (userSize.X + textSize.X) / 2 - ImGui.GetStyle().ItemSpacing.X / 2);
+            ImGui.AlignTextToFramePadding();
             ImGui.TextColored(ThemeManager.Instance?.Current.UsersOnlineNumber ?? new Vector4(0.212f, 0.773f, 0.416f, 1f), userCount);
             ImGui.SameLine();
+            ImGui.AlignTextToFramePadding();
             ImGui.TextColored(ThemeManager.Instance?.Current.UsersOnlineText ?? new Vector4(0.86f, 0.86f, 0.86f, 1.00f), " Users Online");
-
-            if (printShard)
-            {
-                ImGui.SameLine();
-                ImGui.TextColored(ThemeManager.Instance?.Current.UsersOnlineText ?? new Vector4(0.86f, 0.86f, 0.86f, 1.00f), "| " + shardConnection);
-            }
         }
         else
         {
