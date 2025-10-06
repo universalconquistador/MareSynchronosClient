@@ -6,7 +6,7 @@ namespace MareSynchronos.UI.Components.Theming;
 
 public class ThemeManager
 {
-    private readonly MareConfigService _configService;
+    private readonly UIThemeConfigService _uIThemeConfigService;
     private readonly Dictionary<string, ThemePalette> _predefinedThemes;
     private ThemePalette _currentTheme;
     private string _currentThemeName = "Default";
@@ -14,9 +14,9 @@ public class ThemeManager
 
     public static ThemeManager? Instance { get; private set; }
 
-    public ThemeManager(MareConfigService configService)
+    public ThemeManager(UIThemeConfigService uIThemeConfigService)
     {
-        _configService = configService;
+        _uIThemeConfigService = uIThemeConfigService;
         _predefinedThemes = CreatePredefinedThemes();
         LoadSavedTheme();
         Instance = this;
@@ -105,7 +105,6 @@ public class ThemeManager
         return new ThemeScope(44, 7);
     }
 
-
     private class ThemeScope : IDisposable
     {
         private readonly int _colorCount;
@@ -127,7 +126,7 @@ public class ThemeManager
 
     private void LoadSavedTheme()
     {
-        var config = _configService.Current;
+        var config = _uIThemeConfigService.Current;
         if (config.UseCustomTheme && config.CustomThemeData != null)
         {
             _currentThemeName = "Custom";
@@ -150,7 +149,7 @@ public class ThemeManager
 
     private void SaveThemeSettings()
     {
-        var config = _configService.Current;
+        var config = _uIThemeConfigService.Current;
         config.SelectedTheme = _currentThemeName;
         config.UseCustomTheme = _isCustomTheme;
 
@@ -160,7 +159,7 @@ public class ThemeManager
             config.CustomThemeData = _currentTheme;
         }
 
-        _configService.Save();
+        _uIThemeConfigService.Save();
     }
 
     private static Dictionary<string, ThemePalette> CreatePredefinedThemes()
