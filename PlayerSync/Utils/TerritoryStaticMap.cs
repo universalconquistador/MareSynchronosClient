@@ -1927,7 +1927,7 @@ namespace TerritoryTools
             // Aglaia
             [1054] = true,
             // Unnamed Island
-            [1055] = false,
+            [1055] = true,
             // Alzadaal's Legacy
             [1056] = false,
             // Restricted Archives
