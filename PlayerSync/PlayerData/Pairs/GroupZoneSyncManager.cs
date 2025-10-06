@@ -54,6 +54,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         if (inst != false || dutyBound)
         {
             Logger.LogDebug("Cancelled ZoneSync, not in a permitted area.");
+            await GroupZoneLeaveAll().ConfigureAwait(false);
             return;
         }
 
@@ -105,7 +106,6 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
             _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = false;
             _zoneSyncConfigService.Save();
         }
-        
     }
 
     /// <summary>
