@@ -132,10 +132,16 @@ public class DrawFolderGroup : DrawFolderBase
 
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.ArrowCircleLeft, "Leave Syncshell", menuWidth, true) && UiSharedService.CtrlPressed())
         {
-            _ = _apiController.GroupLeave(_groupFullInfoDto);
-            if (_broadcastManager.BroadcastingGroupId == _groupFullInfoDto.Group.GID)
+            if (_groupFullInfoDto.PublicData.IsZoneSync) { 
+                _mareMediator.Publish(new GroupZoneSetEnableState(false));
+            }
+            else
             {
-                _broadcastManager.StopBroadcasting();
+                _ = _apiController.GroupLeave(_groupFullInfoDto);
+                if (_broadcastManager.BroadcastingGroupId == _groupFullInfoDto.Group.GID)
+                {
+                    _broadcastManager.StopBroadcasting();
+                }
             }
             ImGui.CloseCurrentPopup();
         }
@@ -323,6 +329,7 @@ public class DrawFolderGroup : DrawFolderBase
 
         ImGui.SameLine();
 
+        // Applies theming to the pause button
         var isRowHovered = ImGui.IsItemHovered() || _wasHovered;
         if (isRowHovered)
         {

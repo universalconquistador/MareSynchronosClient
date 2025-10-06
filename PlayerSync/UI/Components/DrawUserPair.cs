@@ -64,7 +64,7 @@ public class DrawUserPair
     public void DrawPairedClient()
     {
         using var id = ImRaii.PushId(GetType() + _id);
-        var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
+        //var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
         var paddingX = 4f;
         var paddingY = 3f;
         using (ImRaii.Child(GetType() + _id, new System.Numerics.Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
@@ -77,7 +77,7 @@ public class DrawUserPair
             DrawName(posX, rightSide);
         }
         _wasHovered = ImGui.IsItemHovered();
-        color.Dispose();
+        //color.Dispose();
     }
 
     private void DrawCommonClientMenu()

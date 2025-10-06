@@ -124,6 +124,10 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         {
             // If they turned it off, look up if we have joined a zone sync so we can attempt to leave it
             await GroupZoneLeaveAll().ConfigureAwait(false);
+
+            // Ensure we've disabled ZoneSync
+            _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = false;
+            _zoneSyncConfigService.Save();
         }
     }
 

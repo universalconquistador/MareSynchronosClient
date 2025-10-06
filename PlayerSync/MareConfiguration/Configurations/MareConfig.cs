@@ -66,8 +66,5 @@ public class MareConfig : IMareConfiguration
     public NotificationLocation WarningNotification { get; set; } = NotificationLocation.Both;
     public bool UseFocusTarget { get; set; } = false;
     public bool ListenForBroadcasts { get; set; } = true;
-    public string SelectedTheme { get; set; } = "Default";
-    public bool UseCustomTheme { get; set; } = false;
-    public ThemePalette? CustomThemeData { get; set; } = null;
     public string LastSeenVersion { get; set; } = string.Empty;
 }

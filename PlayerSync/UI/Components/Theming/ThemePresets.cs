@@ -5,6 +5,7 @@ namespace MareSynchronos.UI.Components.Theming;
 
 public static class ThemePresets
 {
+#pragma warning disable MA0002 // IEqualityComparer<string> or IComparer<string> is missing
     public static readonly Dictionary<string, ThemePalette> Presets = new()
     {
         // =========================
@@ -371,4 +372,5 @@ public static class ThemePresets
             UsersOnlineNumber = new(0.98f, 0.24f, 0.70f, 1.00f),
         },
     };
+#pragma warning restore MA0002 // IEqualityComparer<string> or IComparer<string> is missing
 }

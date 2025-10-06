@@ -31,6 +31,7 @@ using System.Reflection;
 using MareSynchronos.Services.CharaData;
 using Dalamud.Game;
 using PlayerSync.PlayerData.Pairs;
+using MareSynchronos.UI.Components.Theming;
 
 namespace MareSynchronos;
 
@@ -185,6 +186,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton((s) => new XivDataStorageService(pluginInterface.ConfigDirectory.FullName));
             collection.AddSingleton((s) => new PlayerPerformanceConfigService(pluginInterface.ConfigDirectory.FullName));
             collection.AddSingleton((s) => new ZoneSyncConfigService(pluginInterface.ConfigDirectory.FullName));
+            collection.AddSingleton((s) => new UIThemeConfigService(pluginInterface.ConfigDirectory.FullName));
             collection.AddSingleton((s) => new CharaDataConfigService(pluginInterface.ConfigDirectory.FullName));
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<MareConfigService>());
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<ServerConfigService>());
@@ -194,10 +196,11 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<XivDataStorageService>());
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<PlayerPerformanceConfigService>());
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<ZoneSyncConfigService>());
+            collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<UIThemeConfigService>());
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<CharaDataConfigService>());
             collection.AddSingleton<ConfigurationMigrator>();
             collection.AddSingleton<ConfigurationSaveService>();
-            collection.AddSingleton<UI.Components.Theming.ThemeManager>();
+            collection.AddSingleton<ThemeManager>();
 
             collection.AddSingleton<HubFactory>();
 

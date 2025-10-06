@@ -27,6 +27,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Numerics;
 using System.Reflection;
+using System.Runtime.ConstrainedExecution;
 
 namespace MareSynchronos.UI;
 
@@ -170,7 +171,7 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
-        float headerHeight = 30f * ImGuiHelpers.GlobalScale + 10f;
+        float headerHeight = 30f * ImGuiHelpers.GlobalScale;
 
         if (_collapsed)
         {
@@ -224,11 +225,11 @@ public class CompactUi : WindowMediatorSubscriberBase
                 childFlags |= ImGuiWindowFlags.NoInputs;
 
             var availableSize = ImGui.GetContentRegionAvail();
-            ImGui.BeginChild("themed-background", availableSize, true, childFlags);
+            ImGui.BeginChild("themed-background", new Vector2(0, 0), true, childFlags);
 
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 5f);
 
-            var contentWidth = ImGui.GetContentRegionAvail().X - 10f;
+            var contentWidth = ImGui.GetContentRegionAvail().X - 5f;
             ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoBackground);
 
             //var topBarHeight = 15f;
@@ -248,7 +249,12 @@ public class CompactUi : WindowMediatorSubscriberBase
             //        SizeCondition = ImGuiCond.Always;
             //    }
             //}
-            startPos.Y += headerHeight;
+            var ver = Assembly.GetExecutingAssembly().GetName().Version;
+            var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
+            //var tSz = ImGui.CalcTextSize(title);
+            ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y/2));
+            ImGui.TextUnformatted(title);
+            startPos.Y += headerHeight/2f + ImGui.GetStyle().WindowPadding.Y;
             ImGui.SetCursorPos(startPos);
             
             DrawContent();
@@ -286,7 +292,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         float btnStartX = headerMax.X - rightPad - buttonsW + 10f * ImGuiHelpers.GlobalScale;
         float btnStartY = headerMin.Y + (headerHeight - btnH) * 0.5f;
 
-        var title = WindowName.Split("###")[0];
+        var ver = Assembly.GetExecutingAssembly().GetName().Version;
+        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
         var tSz = ImGui.CalcTextSize(title);
         float tX = headerMin.X + leftPad;
         float tY = headerMin.Y + (headerHeight - tSz.Y) * 0.5f;
@@ -418,7 +425,6 @@ public class CompactUi : WindowMediatorSubscriberBase
                 $"It is highly recommended to keep Player Sync up to date. Open /xlplugins and update the plugin.", ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f));
         }
 
-
         if (!_ipcManager.Initialized)
         {
             var unsupported = "MISSING ESSENTIAL PLUGINS";
@@ -528,7 +534,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         var size = ImGui.GetWindowSize();
         if (_lastSize != size || _lastPosition != pos)
         {
-            _lastSize = size;
+            //_lastSize = size;
             _lastPosition = pos;
             Mediator.Publish(new CompactUiChange(size, pos));
         }
