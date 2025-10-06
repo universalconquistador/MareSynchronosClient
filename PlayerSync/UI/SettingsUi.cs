@@ -66,6 +66,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
     private CancellationTokenSource? _validationCts;
     private Task<List<FileCacheEntity>>? _validationTask;
     private bool _wasOpen = false;
+    private int _globalControlCountdown = 0;
 
     public SettingsUi(ILogger<SettingsUi> logger,
         UiSharedService uiShared, MareConfigService configService,
@@ -118,6 +119,20 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
     public CharacterData? LastCreatedCharacterData { private get; set; }
     private ApiController ApiController => _uiShared.ApiController;
+
+    private async Task GlobalControlCountdown(int countdown)
+    {
+        _globalControlCountdown = countdown;
+        while (_globalControlCountdown > 0)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            _globalControlCountdown--;
+        }
+        if (_globalControlCountdown < 0)
+        {
+            _globalControlCountdown = 0;
+        }
+    }
 
     public override void OnOpen()
     {
@@ -1102,19 +1117,32 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.BeginDisabled(warningConfirmed);
 
         bool enableGroupZoneSyncJoining = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
-        if (ImGui.Checkbox("Enable automatic joining of zone-based syncshells.", ref enableGroupZoneSyncJoining))
+        using (ImRaii.Disabled(_globalControlCountdown > 0 && !enableGroupZoneSyncJoining))
         {
-            Mediator.Publish(new GroupZoneSetEnableState(enableGroupZoneSyncJoining));
-            _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = enableGroupZoneSyncJoining;
-            _zoneSyncConfigService.Save();
+            if (ImGui.Checkbox("Enable automatic joining of zone-based syncshells.", ref enableGroupZoneSyncJoining))
+            {
+                if (!enableGroupZoneSyncJoining)
+                {
+                    _ = GlobalControlCountdown(5);
+                }
+                Mediator.Publish(new GroupZoneSetEnableState(enableGroupZoneSyncJoining));
+                _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = enableGroupZoneSyncJoining;
+                _zoneSyncConfigService.Save();
+            }
+            if (_globalControlCountdown != 0 && !enableGroupZoneSyncJoining)
+            {
+                UiSharedService.AttachToolTip("You can enable ZoneSync again in " + _globalControlCountdown + " seconds.");
+            }
         }
-
+        
         ImGui.Dummy(new Vector2(10));
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted("ZoneSync Allowed Areas");
         ImGui.SameLine();
         ImGui.SetNextItemWidth(150 * ImGuiHelpers.GlobalScale);
-        _uiShared.DrawCombo("###zonefilter", [ZoneSyncFilter.All, ZoneSyncFilter.ResidentialOnly, ZoneSyncFilter.TownOnly, ZoneSyncFilter.ResidentialTown],
+        using (ImRaii.Disabled(_globalControlCountdown > 0 && enableGroupZoneSyncJoining))
+        {
+            _uiShared.DrawCombo("###zonefilter", [ZoneSyncFilter.All, ZoneSyncFilter.ResidentialOnly, ZoneSyncFilter.TownOnly, ZoneSyncFilter.ResidentialTown],
             (s) => s switch
             {
                 ZoneSyncFilter.All => "All",
@@ -1126,10 +1154,20 @@ public class SettingsUi : WindowMediatorSubscriberBase
             {
                 _zoneSyncConfigService.Current.ZoneSyncFilter = s;
                 _zoneSyncConfigService.Save();
+                if (enableGroupZoneSyncJoining)
+                {
+                    _ = GlobalControlCountdown(5);
+                }
                 Mediator.Publish(new GroupZoneSyncUpdateMessage());
             }, _zoneSyncConfigService.Current.ZoneSyncFilter);
-        ImGui.SameLine();
+            if (_globalControlCountdown != 0 && enableGroupZoneSyncJoining)
+            {
+                UiSharedService.AttachToolTip("Wait a moment before changing ");
+            }
+            ImGui.SameLine();   
+        }
         ImGui.TextUnformatted("(This does not work for instanced areas.)");
+
         ImGui.EndDisabled();
 
         ImGui.Dummy(new Vector2(10));

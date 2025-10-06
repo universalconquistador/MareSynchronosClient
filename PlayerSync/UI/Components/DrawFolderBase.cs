@@ -40,7 +40,7 @@ public abstract class DrawFolderBase : IDrawFolder
         if (!RenderIfEmpty && !DrawPairs.Any()) return;
 
         using var id = ImRaii.PushId("folder_" + _id);
-        var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
+        //var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
         var paddingX = 4f;
         var paddingY = 3f;
         using (ImRaii.Child("folder__" + _id, new System.Numerics.Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
@@ -72,7 +72,7 @@ public abstract class DrawFolderBase : IDrawFolder
 
         _wasHovered = ImGui.IsItemHovered();
 
-        color.Dispose();
+        //color.Dispose();
 
         ImGui.Separator();
 
