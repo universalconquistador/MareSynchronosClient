@@ -1169,8 +1169,8 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.TextUnformatted("(This does not work for instanced areas.)");
 
         ImGuiHelpers.ScaledDummy(5f);
-        UiSharedService.TextWrapped("These permissions are applied only to ZoneSync syncshells.");
-        UiSharedService.TextWrapped("Changes to permissions take effect on next zone change.");
+        UiSharedService.TextWrapped("Note: These permissions are applied only to ZoneSync syncshells.");
+        UiSharedService.TextWrapped("Note: The default permissions settings here are not applied retroactively to existing pairs.");
         ImGuiHelpers.ScaledDummy(5f);
 
         bool permSfx = _zoneSyncConfigService.Current.DisableSounds;
