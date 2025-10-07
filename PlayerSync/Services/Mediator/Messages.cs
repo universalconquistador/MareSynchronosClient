@@ -106,5 +106,6 @@ public record GroupInfoChanged(GroupInfoDto GroupInfo) : MessageBase;
 public record GroupZoneSetEnableState(bool isEnabled = false) : MessageBase;
 public record GroupZoneSyncUpdateMessage : MessageBase;
 public record WorldChangeMessage : MessageBase;
+public record ToggleThemeEditorMessage : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name

@@ -141,7 +141,7 @@ public sealed class CharaDataFileHandler : IDisposable
             using var reader = new BinaryReader(lz4Stream);
             var loadedCharaFile = MareCharaFileHeader.FromBinaryReader(filePath, reader);
 
-            _logger.LogInformation("Read Player Sync Chara File");
+            _logger.LogInformation("Read PlayerSync Chara File");
             _logger.LogInformation("Version: {ver}", (loadedCharaFile?.Version ?? -1));
             long expectedLength = 0;
             if (loadedCharaFile != null)
@@ -291,7 +291,7 @@ public sealed class CharaDataFileHandler : IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failure Saving Player Sync Chara File, deleting output");
+            _logger.LogError(ex, "Failure Saving PlayerSync Chara File, deleting output");
             File.Delete(tempFilePath);
         }
     }

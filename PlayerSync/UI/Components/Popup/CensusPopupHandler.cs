@@ -26,22 +26,22 @@ public class CensusPopupHandler : IPopupHandler
         var start = 0f;
         using (_uiSharedService.UidFont.Push())
         {
-            start = ImGui.GetCursorPosY() - ImGui.CalcTextSize("Player Sync Census Data").Y;
-            UiSharedService.TextWrapped("Player Sync Census Participation");
+            start = ImGui.GetCursorPosY() - ImGui.CalcTextSize("PlayerSync Census Data").Y;
+            UiSharedService.TextWrapped("PlayerSync Census Participation");
         }
         ImGuiHelpers.ScaledDummy(5f);
-        UiSharedService.TextWrapped("If you are seeing this popup you are updating from a Player Sync version that did not collect census data. Please read the following carefully.");
+        UiSharedService.TextWrapped("If you are seeing this popup you are updating from a PlayerSync version that did not collect census data. Please read the following carefully.");
         ImGui.Separator();
-        UiSharedService.TextWrapped("Player Sync Census is a data collecting service that can be used for statistical purposes. " +
-            "All data collected through Player Sync Census is temporary and will be stored associated with your UID on the connected service as long as you are connected. " +
+        UiSharedService.TextWrapped("PlayerSync Census is a data collecting service that can be used for statistical purposes. " +
+            "All data collected through PlayerSync Census is temporary and will be stored associated with your UID on the connected service as long as you are connected. " +
             "The data cannot be used for long term tracking of individuals.");
-        UiSharedService.TextWrapped("If enabled, Player Sync Census will collect following data:" + Environment.NewLine
+        UiSharedService.TextWrapped("If enabled, PlayerSync Census will collect following data:" + Environment.NewLine
             + "- Currently connected World" + Environment.NewLine
             + "- Current Gender (reflecting Glamourer changes)" + Environment.NewLine
             + "- Current Race (reflecting Glamourer changes)" + Environment.NewLine
             + "- Current Clan (i.e. Seeker of the Sun, Keeper of the Moon, etc., reflecting Glamourer changes)");
         UiSharedService.TextWrapped("To consent to collecting census data press the appropriate button below.");
-        UiSharedService.TextWrapped("This setting can be changed anytime in the Player Sync Settings.");
+        UiSharedService.TextWrapped("This setting can be changed anytime in the PlayerSync Settings.");
         var width = ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X;
         var buttonSize = ImGuiHelpers.GetButtonSize("I consent to send my census data");
         ImGuiHelpers.ScaledDummy(5f);

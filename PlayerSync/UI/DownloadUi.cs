@@ -23,7 +23,7 @@ public class DownloadUi : WindowMediatorSubscriberBase
 
     public DownloadUi(ILogger<DownloadUi> logger, DalamudUtilService dalamudUtilService, MareConfigService configService,
         FileUploadManager fileTransferManager, MareMediator mediator, UiSharedService uiShared, PerformanceCollectorService performanceCollectorService)
-        : base(logger, mediator, "Player Sync Downloads", performanceCollectorService)
+        : base(logger, mediator, "PlayerSync Downloads", performanceCollectorService)
     {
         _dalamudUtilService = dalamudUtilService;
         _configService = configService;

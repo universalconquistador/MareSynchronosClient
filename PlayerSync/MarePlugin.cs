@@ -95,9 +95,9 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         var version = Assembly.GetExecutingAssembly().GetName().Version!;
-        Logger.LogInformation("Launching {name} {major}.{minor}.{build}", "Player Sync", version.Major, version.Minor, version.Build);
+        Logger.LogInformation("Launching {name} {major}.{minor}.{build}", "PlayerSync", version.Major, version.Minor, version.Build);
         Mediator.Publish(new EventMessage(new Services.Events.Event(nameof(MarePlugin), Services.Events.EventSeverity.Informational,
-            $"Starting Player Sync {version.Major}.{version.Minor}.{version.Build}")));
+            $"Starting PlayerSync {version.Major}.{version.Minor}.{version.Build}")));
 
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (msg) => {
             if (_launchTask == null || _launchTask.IsCompleted) _launchTask = Task.Run(WaitForPlayerAndLaunchCharacterManager);
@@ -140,7 +140,7 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
 
         DalamudUtilOnLogOut();
 
-        Logger.LogDebug("Halting Player Sync Plugin");
+        Logger.LogDebug("Halting PlayerSync Plugin");
 
         return Task.CompletedTask;
     }
@@ -187,7 +187,7 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
             if (_mareConfigService.Current.LogLevel != LogLevel.Information)
             {
                 Mediator.Publish(new NotificationMessage("Abnormal Log Level",
-                    $"Your log level is set to '{_mareConfigService.Current.LogLevel}' which is not recommended for normal usage. Set it to '{LogLevel.Information}' in \"Player Sync Settings -> Debug\" unless instructed otherwise.",
+                    $"Your log level is set to '{_mareConfigService.Current.LogLevel}' which is not recommended for normal usage. Set it to '{LogLevel.Information}' in \"PlayerSync Settings -> Debug\" unless instructed otherwise.",
                     MareConfiguration.Models.NotificationType.Error, TimeSpan.FromSeconds(15000)));
             }
 #endif

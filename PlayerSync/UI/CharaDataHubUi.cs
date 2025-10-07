@@ -79,7 +79,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
                          UiSharedService uiSharedService, ServerConfigurationManager serverConfigurationManager,
                          DalamudUtilService dalamudUtilService, FileDialogManager fileDialogManager, PairManager pairManager,
                          CharaDataGposeTogetherManager charaDataGposeTogetherManager)
-        : base(logger, mediator, "Player Sync Character Data Hub###PlayerSyncCharaDataUI", performanceCollectorService)
+        : base(logger, mediator, "PlayerSync Character Data Hub###PlayerSyncCharaDataUI", performanceCollectorService)
     {
         SetWindowSizeConstraints();
 
@@ -863,9 +863,9 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
 
     private void DrawMcdfExport()
     {
-        _uiSharedService.BigText("Player Sync Character Data File Export");
+        _uiSharedService.BigText("PlayerSync Character Data File Export");
 
-        DrawHelpFoldout("This feature allows you to pack your character into a MCDF file and manually send it to other people. MCDF files can officially only be imported during GPose through Player Sync. " +
+        DrawHelpFoldout("This feature allows you to pack your character into a MCDF file and manually send it to other people. MCDF files can officially only be imported during GPose through PlayerSync. " +
             "Be aware that the possibility exists that people write unofficial custom exporters to extract the containing data.");
 
         ImGuiHelpers.ScaledDummy(5);
