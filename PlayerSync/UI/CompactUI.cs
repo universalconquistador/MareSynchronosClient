@@ -133,15 +133,13 @@ public class CompactUi : WindowMediatorSubscriberBase
             _collapsed = !_collapsed;
         });
 
-        SizeConstraints = new WindowSizeConstraints()
-        {
-            MinimumSize = new Vector2(375, 400),
-            MaximumSize = new Vector2(375, 2000),
-        };
+        SizeConstraints = _themeManager.CompactUISizeConstraints;
+
     }
 
     public override void Draw()
     {
+        ImGui.SetWindowSize(new Vector2(_themeManager.WindowWidth, 800f), ImGuiCond.FirstUseEver);
         if (_expanded)
         {
             ImGui.SetWindowSize(_lastSize);
@@ -152,31 +150,22 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
+        UpdateWindowFlags();
+
         if (_collapsed)
         {
-            UpdateWindowFlags();
-
-            SizeConstraints = new WindowSizeConstraints()
-            {
-                MinimumSize = new Vector2(375, 40f),
-                MaximumSize = new Vector2(375, 40f),
-            };
-
+            SizeConstraints = _themeManager.CompactUICollapsedSizeConstraints;
             DrawCollapsedTitleBar();
+
             return;
         }
 
-        UpdateWindowFlags();
-
-        SizeConstraints = new WindowSizeConstraints()
-        {
-            MinimumSize = new Vector2(375, 400),
-            MaximumSize = new Vector2(375, 2000),
-        };
+        SizeConstraints = _themeManager.CompactUISizeConstraints;
 
         // Main themed container using child window with background
-        using (var theme = _themeManager?.PushTheme())
+        using (var theme = _themeManager.PushTheme())
         {
+            ImGui.PushStyleColor(ImGuiCol.ResizeGrip, 0);
             var childFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
             // Apply click-through to child window when enabled
@@ -184,8 +173,8 @@ public class CompactUi : WindowMediatorSubscriberBase
                 childFlags |= ImGuiWindowFlags.NoInputs;
 
             ImGui.BeginChild("themed-background", new Vector2(0, 0), true, childFlags);
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 5f);
-            var contentWidth = ImGui.GetContentRegionAvail().X - 5f;
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + _themeManager.Padding);
+            var contentWidth = ImGui.GetContentRegionAvail().X - _themeManager.Padding;
             ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoBackground);
 
             var ver = Assembly.GetExecutingAssembly().GetName().Version;
@@ -195,8 +184,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ImGui.TextUnformatted(title);
 
             float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
-            float spacing = 6f * ImGuiHelpers.GlobalScale;
-            var totalButtonsWidth = btnSize * 3 + spacing * 2;
+            var totalButtonsWidth = btnSize * 3 + _themeManager.ScaledSpacing * 2;
 
             ImGui.SameLine(UiSharedService.GetWindowContentRegionWidth() - totalButtonsWidth);
             DrawTitleBarButtons();
@@ -204,56 +192,45 @@ public class CompactUi : WindowMediatorSubscriberBase
             float headerHeight = 30f * ImGuiHelpers.GlobalScale;
             startPos.Y += headerHeight/2f + ImGui.GetStyle().WindowPadding.Y;
             ImGui.SetCursorPos(startPos);
-            
             DrawContent();
             
             ImGui.EndChild();
             ImGui.EndChild();
+
             _lastSize = ImGui.GetWindowSize();
         }
     }
 
     private void DrawCollapsedTitleBar()
     {
-        using (var theme = _themeManager?.PushTheme())
+        using (var theme = _themeManager.PushTheme())
         {
             var childFlags = ImGuiWindowFlags.NoResize;
 
-            var x = 375f * ImGuiHelpers.GlobalScale;
-            var y = 40f * ImGuiHelpers.GlobalScale;
-            ImGui.BeginChild("collapsed-titlebar", new Vector2(x, y), true, childFlags);
-
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 5f);
-            var startPos = ImGui.GetCursorPos();
-
             var ver = Assembly.GetExecutingAssembly().GetName().Version;
             var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
+            float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
+            var totalButtonsWidth = btnSize * 3 + _themeManager.ScaledSpacing * 2;
+
+            var y = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).Y + ImGui.GetStyle().WindowPadding.Y * 3;
+
+            ImGui.BeginChild("collapsed-titlebar", new Vector2(0, y), true, childFlags);
+            Flags |= childFlags;
+
+            var contentWidth = ImGui.GetContentRegionAvail().X - _themeManager.Padding;
+            ImGui.BeginChild("collapsed-titlebar-content", new Vector2(contentWidth, 0), false, childFlags);
+            Flags |= childFlags | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + _themeManager.Padding);
+            var startPos = ImGui.GetCursorPos();
+            
 
             ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y / 2));
             ImGui.TextUnformatted(title);
 
-            float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
-            float spacing = 6f * ImGuiHelpers.GlobalScale;
-            var totalButtonsWidth = btnSize * 2 + spacing * 2;
-
             ImGui.SameLine(UiSharedService.GetWindowContentRegionWidth() - totalButtonsWidth);
 
-            // Collapse/Expand button
-            var collapseIcon = _collapsed ? FontAwesomeIcon.ChevronDown : FontAwesomeIcon.ChevronUp;
-            if (_uiSharedService.IconButton(collapseIcon))
-            {
-                Mediator.Publish(new ToggleCollapseMessage());
-            }
-            UiSharedService.AttachToolTip(_collapsed ? "Expand" : "Collapse");
-
-            ImGui.SameLine(0, spacing);
-            if (_uiSharedService.IconButton(FontAwesomeIcon.Times))
-                Mediator.Publish(new CloseWindowMessage());
-            UiSharedService.AttachToolTip("Close Window");
-
-            // Cleanup styling
-            //ImGui.PopStyleVar(2);
-            //ImGui.PopStyleColor(4);
+            DrawTitleBarButtons();
 
             ImGui.EndChild();
         }
@@ -597,22 +574,23 @@ public class CompactUi : WindowMediatorSubscriberBase
     }
 
     private void DrawTitleBarButtons()
-    {
-        float spacing = 6f * ImGuiHelpers.GlobalScale;
-        
+    {   
         if (_uiSharedService.IconButton(FontAwesomeIcon.Bars))
         {
             ImGui.OpenPopup("##PlayerSyncHamburgerMenu");
         }
         UiSharedService.AttachToolTip("PlayerSync Menu");
-        ImGui.SameLine(0, spacing);
 
-        if (_uiSharedService.IconButton(FontAwesomeIcon.ChevronUp))
+        ImGui.SameLine(0, _themeManager.ScaledSpacing);
+
+        var collapseIcon = _collapsed ? FontAwesomeIcon.ChevronDown : FontAwesomeIcon.ChevronUp;
+        if (_uiSharedService.IconButton(collapseIcon))
         {
             Mediator.Publish(new ToggleCollapseMessage());
         }
-        UiSharedService.AttachToolTip("Collapse Window");
-        ImGui.SameLine(0, spacing);
+        UiSharedService.AttachToolTip(_collapsed ? "Expand" : "Collapse");
+
+        ImGui.SameLine(0, _themeManager.ScaledSpacing);
 
         if (_uiSharedService.IconButton(FontAwesomeIcon.Times))
         {
@@ -653,16 +631,17 @@ public class CompactUi : WindowMediatorSubscriberBase
                 Mediator.Publish(new UiToggleMessage(typeof(EventViewerUI)));
             }
 
-            // Additional menu items
-            if (ImGui.MenuItem($"{FontAwesomeIcon.Users.ToIconString()}  Pair Management"))
-            {
-                // Add pair management functionality
-            }
+            //// Additional menu items
+            //if (ImGui.MenuItem($"{FontAwesomeIcon.Users.ToIconString()}  Pair Management"))
+            //{
+            //    Mediator.Publish(new UiToggleMessage(typeof(SettingsUi)));
+            //}
+            //ImGui.EndPopup();
 
-            if (ImGui.MenuItem($"{FontAwesomeIcon.BroadcastTower.ToIconString()}  Broadcast Options"))
-            {
-                // Add broadcast functionality
-            }
+            //if (ImGui.MenuItem($"{FontAwesomeIcon.BroadcastTower.ToIconString()}  Broadcast Options"))
+            //{
+            //    // Add broadcast functionality
+            //}
 
             ImGui.EndPopup();
         }
