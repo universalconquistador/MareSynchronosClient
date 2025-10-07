@@ -138,7 +138,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             {
                 Logger.LogWarning("Multiple secret keys for current character");
                 _connectionDto = null;
-                Mediator.Publish(new NotificationMessage("Multiple Identical Characters detected", "Your Service configuration has multiple characters with the same name and world set up. Delete the duplicates in the character management to be able to connect to Player Sync.",
+                Mediator.Publish(new NotificationMessage("Multiple Identical Characters detected", "Your Service configuration has multiple characters with the same name and world set up. Delete the duplicates in the character management to be able to connect to PlayerSync.",
                     NotificationType.Error));
                 await StopConnectionAsync(ServerState.MultiChara).ConfigureAwait(false);
                 _connectionCancellationTokenSource?.Cancel();
@@ -161,7 +161,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             {
                 Logger.LogWarning("Multiple secret keys for current character");
                 _connectionDto = null;
-                Mediator.Publish(new NotificationMessage("Multiple Identical Characters detected", "Your Service configuration has multiple characters with the same name and world set up. Delete the duplicates in the character management to be able to connect to Player Sync.",
+                Mediator.Publish(new NotificationMessage("Multiple Identical Characters detected", "Your Service configuration has multiple characters with the same name and world set up. Delete the duplicates in the character management to be able to connect to PlayerSync.",
                     NotificationType.Error));
                 await StopConnectionAsync(ServerState.MultiChara).ConfigureAwait(false);
                 _connectionCancellationTokenSource?.Cancel();
@@ -244,7 +244,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                         Mediator.Publish(new NotificationMessage("Client incompatible",
                             $"Your client is outdated ({currentClientVer.Major}.{currentClientVer.Minor}.{currentClientVer.Build}), current is: " +
                             $"{_connectionDto.CurrentClientVersion.Major}.{_connectionDto.CurrentClientVersion.Minor}.{_connectionDto.CurrentClientVersion.Build}. " +
-                            $"This client version is incompatible and will not be able to connect. Please update your Player Sync client.",
+                            $"This client version is incompatible and will not be able to connect. Please update your PlayerSync client.",
                             NotificationType.Error));
                     }
                     await StopConnectionAsync(ServerState.VersionMisMatch).ConfigureAwait(false);
@@ -256,7 +256,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                     Mediator.Publish(new NotificationMessage("Client outdated",
                         $"Your client is outdated ({currentClientVer.Major}.{currentClientVer.Minor}.{currentClientVer.Build}), current is: " +
                         $"{_connectionDto.CurrentClientVersion.Major}.{_connectionDto.CurrentClientVersion.Minor}.{_connectionDto.CurrentClientVersion.Build}. " +
-                        $"Please keep your Player Sync client up-to-date.",
+                        $"Please keep your PlayerSync client up-to-date.",
                         NotificationType.Warning));
                 }
 
@@ -266,7 +266,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                     if (!_mareConfigService.Current.DebugStopWhining)
                         Mediator.Publish(new NotificationMessage("Modified Game Files detected",
                             "Dalamud is reporting your FFXIV installation has modified game files. Any mods installed through TexTools will produce this message. " +
-                            "Player Sync, Penumbra, and some other plugins assume your FFXIV installation is unmodified in order to work. " +
+                            "PlayerSync, Penumbra, and some other plugins assume your FFXIV installation is unmodified in order to work. " +
                             "Synchronization with pairs/shells can break because of this. Exit the game, open XIVLauncher, click the arrow next to Log In " +
                             "and select 'repair game files' to resolve this issue. Afterwards, do not install any mods with TexTools. Your plugin configurations will remain, as will mods enabled in Penumbra.",
                             NotificationType.Error, TimeSpan.FromSeconds(15)));
@@ -280,7 +280,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                     {
                         Mediator.Publish(new NotificationMessage("Model LOD is enabled",
                             "You have \"Use low-detail models on distant objects (LOD)\" enabled. Having model LOD enabled is known to be a reason to cause " +
-                            "random crashes when loading in or rendering modded pairs. Disabling LOD has a very low performance impact. Disable LOD while using Player Sync: " +
+                            "random crashes when loading in or rendering modded pairs. Disabling LOD has a very low performance impact. Disable LOD while using PlayerSync: " +
                             "Go to XIV Menu -> System Configuration -> Graphics Settings and disable the model LOD option.", NotificationType.Warning, TimeSpan.FromSeconds(15)));
                     }
                 }

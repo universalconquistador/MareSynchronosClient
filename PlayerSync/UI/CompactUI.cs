@@ -49,7 +49,6 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly UiSharedService _uiSharedService;
     private readonly ThemeManager _themeManager;
     private readonly ThemeEditor _themeEditor;
-    private readonly HoveringToolbar _hoveringToolbar;
     private List<IDrawFolder> _drawFolders;
     private DrawFolderBroadcasts? _broadcastsFolder;
     private Pair? _lastAddedUser;
@@ -87,7 +86,6 @@ public class CompactUi : WindowMediatorSubscriberBase
         _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService);
         _themeManager = themeManager;
         _themeEditor = new ThemeEditor(_themeManager, _uiSharedService);
-        _hoveringToolbar = new HoveringToolbar(_uiSharedService, _themeManager, Mediator);
 
         AllowClickthrough = false;
         AllowPinning = false;
@@ -144,35 +142,16 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     public override void Draw()
     {
-        // Store window position and size before drawing for the floating toolbar
-        //var windowPos = Vector2.Zero;
-        //var windowSize = Vector2.Zero;
         if (_expanded)
         {
             ImGui.SetWindowSize(_lastSize);
             _expanded = false;
         }
-        // Call base draw method which handles the main window
         base.Draw();
-
-        // Draw hovering toolbar outside the main window context
-        if (!_collapsed && IsOpen)
-        {
-            // Sync toolbar properties with UI settings
-            _hoveringToolbar.AllowClickthrough = AllowClickthrough;
-            _hoveringToolbar.AllowPinning = AllowPinning;
-            _hoveringToolbar.Draw(_lastPosition, _lastSize);
-
-            // Sync back any changes from the toolbar
-            AllowClickthrough = _hoveringToolbar.AllowClickthrough;
-            AllowPinning = _hoveringToolbar.AllowPinning;
-        }
     }
 
     protected override void DrawInternal()
     {
-        float headerHeight = 30f * ImGuiHelpers.GlobalScale;
-
         if (_collapsed)
         {
             UpdateWindowFlags();
@@ -183,37 +162,17 @@ public class CompactUi : WindowMediatorSubscriberBase
                 MaximumSize = new Vector2(375, 40f),
             };
 
-            DrawCollapsedTitleBar(headerHeight);
+            DrawCollapsedTitleBar();
             return;
         }
 
         UpdateWindowFlags();
 
-        //if (_expandedSize.HasValue)
-        //{
-        //    var minHeight = Math.Max(400, _expandedSize.Value.Y);
-        //    SizeConstraints = new WindowSizeConstraints()
-        //    {
-        //        MinimumSize = new Vector2(375, minHeight),
-        //        MaximumSize = new Vector2(375, 2000),
-        //    };
-        //}
-        //else
-        //{
         SizeConstraints = new WindowSizeConstraints()
         {
             MinimumSize = new Vector2(375, 400),
             MaximumSize = new Vector2(375, 2000),
         };
-        //}
-
-        //if (_expandedSize.HasValue)
-        //{
-        //    _logger.LogDebug("Expanded size {x} {y}", _expandedSize.Value.X, _expandedSize.Value.Y);
-        //    Size = _expandedSize.Value;
-        //    _expandedSize = null;
-        //}
-        //_logger.LogDebug(Size.ToString());
 
         // Main themed container using child window with background
         using (var theme = _themeManager?.PushTheme())
@@ -224,36 +183,25 @@ public class CompactUi : WindowMediatorSubscriberBase
             if (AllowClickthrough)
                 childFlags |= ImGuiWindowFlags.NoInputs;
 
-            var availableSize = ImGui.GetContentRegionAvail();
             ImGui.BeginChild("themed-background", new Vector2(0, 0), true, childFlags);
-
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 5f);
-
             var contentWidth = ImGui.GetContentRegionAvail().X - 5f;
-            ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoBackground);
+            ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoBackground);
 
-            //var topBarHeight = 15f;
-            var startPos = ImGui.GetCursorPos();
-            //ImGui.InvisibleButton("##top-collapse-area", new Vector2(contentWidth, topBarHeight));
-            //if (ImGui.IsItemHovered() && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
-            //{
-            //    if (!_collapsed && Size.HasValue)
-            //    {
-            //        _expandedSize = Size.Value;
-            //    }
-            //    _collapsed = !_collapsed;
-
-            //    if (!_collapsed && _expandedSize.HasValue)
-            //    {
-            //        Size = _expandedSize.Value;
-            //        SizeCondition = ImGuiCond.Always;
-            //    }
-            //}
             var ver = Assembly.GetExecutingAssembly().GetName().Version;
             var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
-            //var tSz = ImGui.CalcTextSize(title);
+            var startPos = ImGui.GetCursorPos();
             ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y/2));
             ImGui.TextUnformatted(title);
+
+            float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
+            float spacing = 6f * ImGuiHelpers.GlobalScale;
+            var totalButtonsWidth = btnSize * 3 + spacing * 2;
+
+            ImGui.SameLine(UiSharedService.GetWindowContentRegionWidth() - totalButtonsWidth);
+            DrawTitleBarButtons();
+
+            float headerHeight = 30f * ImGuiHelpers.GlobalScale;
             startPos.Y += headerHeight/2f + ImGui.GetStyle().WindowPadding.Y;
             ImGui.SetCursorPos(startPos);
             
@@ -265,126 +213,51 @@ public class CompactUi : WindowMediatorSubscriberBase
         }
     }
 
-    private void DrawCollapsedTitleBar(float headerHeight)
+    private void DrawCollapsedTitleBar()
     {
-        var currentTheme = _themeManager?.Current;
-        if (currentTheme == null) return;
-
-        float spacing = 6f * ImGuiHelpers.GlobalScale;
-        float btnSide = 22f * ImGuiHelpers.GlobalScale;
-        float btnH = btnSide;
-        float leftPad = 8f * ImGuiHelpers.GlobalScale;
-        float rightPad = ImGui.GetStyle().WindowPadding.X + 25f * ImGuiHelpers.GlobalScale;
-
-        var winPos = ImGui.GetWindowPos();
-        var crMin = ImGui.GetWindowContentRegionMin();
-        var crMax = ImGui.GetWindowContentRegionMax();
-        float contentW = crMax.X - crMin.X;
-
-        var headerMin = new Vector2(winPos.X + crMin.X, ImGui.GetCursorScreenPos().Y);
-        var headerMax = new Vector2(headerMin.X + contentW, headerMin.Y + headerHeight);
-
-        var dl = ImGui.GetWindowDrawList();
-        dl.AddRectFilled(headerMin, headerMax, ImGui.ColorConvertFloat4ToU32(currentTheme.HeaderBg), 10f);
-
-        int buttonCount = 2;
-        float buttonsW = (btnSide * buttonCount) + (spacing * (buttonCount - 1));
-        float btnStartX = headerMax.X - rightPad - buttonsW + 10f * ImGuiHelpers.GlobalScale;
-        float btnStartY = headerMin.Y + (headerHeight - btnH) * 0.5f;
-
-        var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
-        var tSz = ImGui.CalcTextSize(title);
-        float tX = headerMin.X + leftPad;
-        float tY = headerMin.Y + (headerHeight - tSz.Y) * 0.5f;
-        ImGui.SetCursorScreenPos(new Vector2(tX, tY));
-        ImGui.TextColored(currentTheme.TextPrimary, title);
-
-        // Drag area
-        //if (!AllowPinning && !AllowClickthrough)
-        //{
-        //    float dragLeft = tX + tSz.X + spacing;
-        //    float dragRight = btnStartX - spacing;
-        //    float dragW = MathF.Max(0f, dragRight - dragLeft);
-        //    ImGui.SetCursorScreenPos(new Vector2(dragLeft, headerMin.Y));
-        //    ImGui.InvisibleButton("##dragzone_titlebar", new Vector2(dragW, headerHeight));
-        //    if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
-        //        ImGui.SetWindowPos(ImGui.GetWindowPos() + ImGui.GetIO().MouseDelta);
-        //}
-
-        ImGui.PushStyleColor(ImGuiCol.Button, currentTheme.Btn);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, currentTheme.BtnHovered);
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, currentTheme.BtnActive);
-        ImGui.PushStyleColor(ImGuiCol.Text, currentTheme.BtnText);
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6f);
-        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6f, 3f));
-
-        // Collapse/Expand button
-        var collapseIcon = _collapsed ? FontAwesomeIcon.ChevronDown : FontAwesomeIcon.ChevronUp;
-        ImGui.SetCursorScreenPos(new Vector2(btnStartX, btnStartY));
-        if (_uiSharedService.IconButton(collapseIcon))
+        using (var theme = _themeManager?.PushTheme())
         {
-            Mediator.Publish(new ToggleCollapseMessage());
-        }
-        AttachCollapsedTooltip(_collapsed ? "Expand" : "Collapse", currentTheme);
+            var childFlags = ImGuiWindowFlags.NoResize;
 
-        // Close button
-        ImGui.SetCursorScreenPos(new Vector2(btnStartX + (btnSide + spacing) * 1, btnStartY));
-        if (_uiSharedService.IconButton(FontAwesomeIcon.Times))
-            Mediator.Publish(new CloseWindowMessage());
-        AttachCollapsedTooltip("Close Window", currentTheme);
+            var x = 375f * ImGuiHelpers.GlobalScale;
+            var y = 40f * ImGuiHelpers.GlobalScale;
+            ImGui.BeginChild("collapsed-titlebar", new Vector2(x, y), true, childFlags);
 
-        // Cleanup styling
-        ImGui.PopStyleVar(2);
-        ImGui.PopStyleColor(4);
-    }
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 5f);
+            var startPos = ImGui.GetCursorPos();
 
-    private void AttachCollapsedTooltip(string text, ThemePalette theme)
-    {
-        if (ImGui.IsItemHovered())
-        {
-            using (ImRaii.PushColor(ImGuiCol.PopupBg, theme.TooltipBg))
-            using (ImRaii.PushColor(ImGuiCol.Text, theme.TooltipText))
+            var ver = Assembly.GetExecutingAssembly().GetName().Version;
+            var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
+
+            ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y / 2));
+            ImGui.TextUnformatted(title);
+
+            float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
+            float spacing = 6f * ImGuiHelpers.GlobalScale;
+            var totalButtonsWidth = btnSize * 2 + spacing * 2;
+
+            ImGui.SameLine(UiSharedService.GetWindowContentRegionWidth() - totalButtonsWidth);
+
+            // Collapse/Expand button
+            var collapseIcon = _collapsed ? FontAwesomeIcon.ChevronDown : FontAwesomeIcon.ChevronUp;
+            if (_uiSharedService.IconButton(collapseIcon))
             {
-                ImGui.BeginTooltip();
-                ImGui.Text(text);
-                ImGui.EndTooltip();
+                Mediator.Publish(new ToggleCollapseMessage());
             }
+            UiSharedService.AttachToolTip(_collapsed ? "Expand" : "Collapse");
+
+            ImGui.SameLine(0, spacing);
+            if (_uiSharedService.IconButton(FontAwesomeIcon.Times))
+                Mediator.Publish(new CloseWindowMessage());
+            UiSharedService.AttachToolTip("Close Window");
+
+            // Cleanup styling
+            //ImGui.PopStyleVar(2);
+            //ImGui.PopStyleColor(4);
+
+            ImGui.EndChild();
         }
     }
-
-    //private void DrawDragArea()
-    //{
-    //    // Don't draw drag area if window is pinned or click-through is enabled
-    //    if (AllowPinning || AllowClickthrough) return;
-
-    //    // Create an invisible drag area at the top of the window
-    //    var dragHeight = 25f * ImGuiHelpers.GlobalScale;
-    //    var availableWidth = ImGui.GetContentRegionAvail().X;
-
-    //    // Reserve space for the hovering toolbar (approximately 6 buttons + spacing)
-    //    var toolbarWidth = (22f * 6 + 6f * 5 + 32f) * ImGuiHelpers.GlobalScale;
-    //    var dragWidth = Math.Max(0, availableWidth - toolbarWidth - 10f); // 10f padding
-
-    //    var cursorPos = ImGui.GetCursorPos();
-    //    ImGui.SetCursorPos(new Vector2(cursorPos.X, cursorPos.Y));
-
-    //    // Create an invisible button for dragging
-    //    if (ImGui.InvisibleButton("##drag_area", new Vector2(dragWidth, dragHeight)))
-    //    {
-    //        // Button clicked - could add additional functionality here if needed
-    //    }
-
-    //    if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
-    //    {
-    //        var delta = ImGui.GetIO().MouseDelta;
-    //        var currentPos = ImGui.GetWindowPos();
-    //        ImGui.SetWindowPos(new Vector2(currentPos.X + delta.X, currentPos.Y + delta.Y));
-    //    }
-
-    //    // Reset cursor position for the rest of the content
-    //    ImGui.SetCursorPos(new Vector2(cursorPos.X, cursorPos.Y + 5f)); // Small gap after drag area
-    //}
 
     private void UpdateWindowFlags()
     {
@@ -406,9 +279,6 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     private void DrawContent()
     {
-        // Add a draggable area at the top since we removed the title bar
-        //DrawDragArea();
-
         _windowContentWidth = UiSharedService.GetWindowContentRegionWidth();
         if (!_apiController.IsCurrentVersion)
         {
@@ -421,8 +291,8 @@ public class CompactUi : WindowMediatorSubscriberBase
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextColored(ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f), unsupported);
             }
-            UiSharedService.ColorTextWrapped($"Your Player Sync installation is out of date, the current version is {ver.Major}.{ver.Minor}.{ver.Build}. " +
-                $"It is highly recommended to keep Player Sync up to date. Open /xlplugins and update the plugin.", ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f));
+            UiSharedService.ColorTextWrapped($"Your PlayerSync installation is out of date, the current version is {ver.Major}.{ver.Minor}.{ver.Build}. " +
+                $"It is highly recommended to keep PlayerSync up to date. Open /xlplugins and update the plugin.", ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f));
         }
 
         if (!_ipcManager.Initialized)
@@ -439,7 +309,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             var penumAvailable = _ipcManager.Penumbra.APIAvailable;
             var glamAvailable = _ipcManager.Glamourer.APIAvailable;
 
-            UiSharedService.ColorTextWrapped($"One or more Plugins essential for Player Sync operation are unavailable. Enable or update following plugins:", ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f));
+            UiSharedService.ColorTextWrapped($"One or more Plugins essential for PlayerSync operation are unavailable. Enable or update following plugins:", ThemeManager.Instance?.Current.StatusDisconnected ?? new Vector4(1f, 0.322f, 0.322f, 1f));
             using var indent = ImRaii.PushIndent(10f);
             if (!penumAvailable)
             {
@@ -545,7 +415,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         var ySize = _transferPartHeight == 0
             ? 1
             : (ImGui.GetWindowContentRegionMax().Y - ImGui.GetWindowContentRegionMin().Y
-                + ImGui.GetTextLineHeight() - ImGui.GetStyle().WindowPadding.Y - ImGui.GetStyle().WindowBorderSize) - _transferPartHeight - ImGui.GetCursorPosY() - 40;
+                + ImGui.GetTextLineHeight() - ImGui.GetStyle().WindowPadding.Y - ImGui.GetStyle().WindowBorderSize) - _transferPartHeight - ImGui.GetCursorPosY() - 40 * ImGuiHelpers.GlobalScale;
 
         using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0, 0, 0, 0)))
         using (ImRaii.PushColor(ImGuiCol.ScrollbarBg, new Vector4(0, 0, 0, 0)))
@@ -577,18 +447,11 @@ public class CompactUi : WindowMediatorSubscriberBase
         //var printShard = !string.IsNullOrEmpty(_apiController.ServerInfo.ShardName) && shardConnection != string.Empty;
 
         // Align status text to the left side with some padding (like UID)
-        ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
-        ImGui.AlignTextToFramePadding();
+        //ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
+        //ImGui.AlignTextToFramePadding();
 
         if (_apiController.ServerState is ServerState.Connected)
         {
-            // Format as "X Users Online | Shard: main" on one line
-            //var statusText = userCount + " Users Online";
-            //if (printShard)
-            //{
-            //    statusText += " | " + shardConnection;
-            //}
-
             ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth()) / 2 - (userSize.X + textSize.X) / 2 - ImGui.GetStyle().ItemSpacing.X / 2);
             ImGui.AlignTextToFramePadding();
             ImGui.TextColored(ThemeManager.Instance?.Current.UsersOnlineNumber ?? new Vector4(0.212f, 0.773f, 0.416f, 1f), userCount);
@@ -625,7 +488,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         {
             ImGui.PopStyleColor();
         }
-        UiSharedService.AttachToolTip("Open Player Sync Settings");
+        UiSharedService.AttachToolTip("Open PlayerSync Settings");
 
         // Palette/Theme Editor button
         ImGui.SameLine();
@@ -733,18 +596,84 @@ public class CompactUi : WindowMediatorSubscriberBase
         }
     }
 
+    private void DrawTitleBarButtons()
+    {
+        float spacing = 6f * ImGuiHelpers.GlobalScale;
+        
+        if (_uiSharedService.IconButton(FontAwesomeIcon.Bars))
+        {
+            ImGui.OpenPopup("##PlayerSyncHamburgerMenu");
+        }
+        UiSharedService.AttachToolTip("PlayerSync Menu");
+        ImGui.SameLine(0, spacing);
+
+        if (_uiSharedService.IconButton(FontAwesomeIcon.ChevronUp))
+        {
+            Mediator.Publish(new ToggleCollapseMessage());
+        }
+        UiSharedService.AttachToolTip("Collapse Window");
+        ImGui.SameLine(0, spacing);
+
+        if (_uiSharedService.IconButton(FontAwesomeIcon.Times))
+        {
+            Mediator.Publish(new CloseWindowMessage());
+        }
+        UiSharedService.AttachToolTip("Close Window");
+
+        DrawHamburgerMenuPopup();
+    }
+
+    private void DrawHamburgerMenuPopup()
+    {
+        if (ImGui.BeginPopup("##PlayerSyncHamburgerMenu"))
+        {
+            // Window Controls
+            bool isPinned = AllowPinning;
+            if (ImGui.MenuItem($"{FontAwesomeIcon.Thumbtack.ToIconString()}  Pin Window", "", isPinned))
+            {
+                AllowPinning = !AllowPinning;
+            }
+
+            bool isClickThrough = AllowClickthrough;
+            if (ImGui.MenuItem($"{FontAwesomeIcon.MousePointer.ToIconString()}  Click Through", "", isClickThrough))
+            {
+                AllowClickthrough = !AllowClickthrough;
+                if (AllowClickthrough)
+                {
+                    // Auto-enable pin window when click-through is enabled
+                    AllowPinning = true;
+                }
+            }
+
+            ImGui.Separator();
+
+            // Event Viewer
+            if (ImGui.MenuItem($"{FontAwesomeIcon.Book.ToIconString()}  Event Viewer"))
+            {
+                Mediator.Publish(new UiToggleMessage(typeof(EventViewerUI)));
+            }
+
+            // Additional menu items
+            if (ImGui.MenuItem($"{FontAwesomeIcon.Users.ToIconString()}  Pair Management"))
+            {
+                // Add pair management functionality
+            }
+
+            if (ImGui.MenuItem($"{FontAwesomeIcon.BroadcastTower.ToIconString()}  Broadcast Options"))
+            {
+                // Add broadcast functionality
+            }
+
+            ImGui.EndPopup();
+        }
+    }
+
     private void DrawUIDHeader()
     {
         var uidText = GetUidText();
 
         using (_uiSharedService.UidFont.Push())
         {
-            //ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
-            //var textSize = ImGui.CalcTextSize(uidText);
-            //ImGui.InvisibleButton("##uid-area", textSize);
-            //ImGui.SetCursorPos(ImGui.GetCursorPos() - new Vector2(0, textSize.Y));
-            //ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
-            //ImGui.TextColored(GetUidColor(), uidText);
             var uidTextSize = ImGui.CalcTextSize(uidText);
             ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (uidTextSize.X / 2));
             ImGui.TextColored(GetUidColor(), uidText);
@@ -760,12 +689,6 @@ public class CompactUi : WindowMediatorSubscriberBase
 
             if (!string.Equals(_apiController.DisplayName, _apiController.UID, StringComparison.Ordinal))
             {
-                //ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
-                //var uidTextSize = ImGui.CalcTextSize(_apiController.UID);
-                //ImGui.InvisibleButton("##uid-text-area", uidTextSize);
-                //ImGui.SetCursorPos(ImGui.GetCursorPos() - new Vector2(0, uidTextSize.Y));
-                //ImGui.SetCursorPosX(ImGui.GetStyle().FramePadding.X);
-                //ImGui.TextColored(GetUidColor(), _apiController.UID);
                 var origTextSize = ImGui.CalcTextSize(_apiController.UID);
                 ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (origTextSize.X / 2));
                 ImGui.TextColored(GetUidColor(), _apiController.UID);
@@ -934,10 +857,10 @@ public class CompactUi : WindowMediatorSubscriberBase
         {
             ServerState.Connecting => "Attempting to connect to the server.",
             ServerState.Reconnecting => "Connection to server interrupted, attempting to reconnect to the server.",
-            ServerState.Disconnected => "You are currently disconnected from the Player Sync server.",
+            ServerState.Disconnected => "You are currently disconnected from the PlayerSync server.",
             ServerState.Disconnecting => "Disconnecting from the server",
             ServerState.Unauthorized => "Server Response: " + _apiController.AuthFailureMessage,
-            ServerState.Offline => "Your selected Player Sync server is currently offline.",
+            ServerState.Offline => "Your selected PlayerSync server is currently offline.",
             ServerState.VersionMisMatch =>
                 "Your plugin or the server you are connecting to is out of date. Please update your plugin now. If you already did so, contact the server provider to update their server to the latest version.",
             ServerState.RateLimited => "You are rate limited for (re)connecting too often. Disconnect, wait 10 minutes and try again.",
@@ -946,7 +869,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.MultiChara => "Your Character Configuration has multiple characters configured with same name and world. You will not be able to connect until you fix this issue. Remove the duplicates from the configuration in Settings -> Service Settings -> Character Management and reconnect manually after.",
             ServerState.OAuthMisconfigured => "OAuth2 is enabled but not fully configured, verify in the Settings -> Service Settings that you have OAuth2 connected and, importantly, a UID assigned to your current character.",
             ServerState.OAuthLoginTokenStale => "Your OAuth2 login token is stale and cannot be used to renew. Go to the Settings -> Service Settings and unlink then relink your OAuth2 configuration.",
-            ServerState.NoAutoLogon => "This character has automatic login into Player Sync disabled. Press the connect button to connect to Player Sync.",
+            ServerState.NoAutoLogon => "This character has automatic login into PlayerSync disabled. Press the connect button to connect to PlayerSync.",
             _ => string.Empty
         };
     }
