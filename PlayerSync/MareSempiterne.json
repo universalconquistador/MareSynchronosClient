@@ -1,0 +1,13 @@
+{
+  "Author": "The PlayerSync Team",
+  "Name": "PlayerSync",
+  "Punchline": "Let others see you as you see yourself.",
+  "Description": "This plugin will synchronize your Penumbra mods and current Glamourer state with other paired clients automatically.",
+  "InternalName": "MareSempiterne",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "customization"
+  ],
+  "IconUrl": "https://maresempiterne.io/download/plugin/icon.png",
+  "RepoUrl": ""
+}
