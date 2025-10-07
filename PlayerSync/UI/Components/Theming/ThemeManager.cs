@@ -13,7 +13,7 @@ public class ThemeManager
     private ThemePalette _currentTheme;
     private string _currentThemeName = "Default";
     private bool _isCustomTheme;
-    private readonly float _baseWindowWidth = 375f;
+    private readonly float _baseWindowWidth = 400f;
     private readonly  float _baseWindowHeightMin = 400f;
     private readonly float _baseWindowHeightMax = 2000f;
     private readonly float _baseCollapsedWindowHeight = 60f;
