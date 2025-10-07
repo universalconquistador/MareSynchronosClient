@@ -33,10 +33,10 @@ public class DrawGroupedGroupFolder : IDrawFolder
 
         string _id = "__folder_syncshells";
         using var id = ImRaii.PushId(_id);
-        var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
+        //var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
         var paddingX = 4f;
         var paddingY = 3f;
-        using (ImRaii.Child("folder__" + _id, new System.Numerics.Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
+        using (ImRaii.Child("folder__" + _id, new Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
         {
             ImGui.SetCursorPos(new Vector2(paddingX, paddingY));
             ImGui.Dummy(new Vector2(0f, ImGui.GetFrameHeight()));
@@ -68,7 +68,7 @@ public class DrawGroupedGroupFolder : IDrawFolder
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("All Syncshells");
         }
-        color.Dispose();
+        //color.Dispose();
         _wasHovered = ImGui.IsItemHovered();
 
         ImGui.Separator();

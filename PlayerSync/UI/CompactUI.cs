@@ -165,6 +165,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         ImGui.PushStyleColor(ImGuiCol.ChildBg, _themeManager.Current.PanelBg);
         ImGui.PushStyleColor(ImGuiCol.Border, _themeManager.Current.PanelBorder);
         ImGui.PushStyleColor(ImGuiCol.ResizeGrip, 0);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, _themeManager.Current.ChildRounding);
+
         var childFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
         if (AllowClickthrough)
@@ -193,6 +195,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         DrawContent();
 
         ImGui.EndChild();
+        ImGui.PopStyleVar(1);
         ImGui.PopStyleColor(3);
         ImGui.EndChild();
 
@@ -203,6 +206,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     {
         ImGui.PushStyleColor(ImGuiCol.ChildBg, _themeManager.Current.PanelBg);
         ImGui.PushStyleColor(ImGuiCol.Border, _themeManager.Current.PanelBorder);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, _themeManager.Current.ChildRounding);
         var childFlags = ImGuiWindowFlags.NoResize;
 
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
@@ -231,8 +235,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         DrawTitleBarButtons();
 
         ImGui.EndChild();
+        ImGui.PopStyleVar(1);
         ImGui.PopStyleColor(2);
-        ImGui.EndChild();
     }
 
     private void UpdateWindowFlags()
