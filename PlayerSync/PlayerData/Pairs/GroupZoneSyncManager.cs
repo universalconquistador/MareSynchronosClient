@@ -6,6 +6,9 @@ using MareSynchronos.WebAPI;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.MareConfiguration.Models;
 using Microsoft.AspNetCore.SignalR;
+using System.Security;
+using MareSynchronos.API.Data.Enum;
+using MareSynchronos.API.Data.Extensions;
 
 namespace PlayerSync.PlayerData.Pairs;
 
@@ -92,11 +95,15 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         }
         
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
-            ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
+        ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
+        GroupZonePermissions perms = new();
+        perms.SetDisableSounds(_zoneSyncConfigService.Current.DisableSounds);
+        perms.SetDisableVFX(_zoneSyncConfigService.Current.DisableVFX);
+        perms.SetDisableAnimations(_zoneSyncConfigService.Current.DisableAnimations);
 
         try
         {
-            await _apiController.GroupZoneJoin(new(ownLocation)).ConfigureAwait(false);
+            await _apiController.GroupZoneJoin(new(ownLocation, perms)).ConfigureAwait(false);
         }
         catch (HubException)
         {

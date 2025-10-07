@@ -1,6 +1,8 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
 using MareSynchronos.MareConfiguration;
+using static Dalamud.Interface.Windowing.Window;
 
 namespace MareSynchronos.UI.Components.Theming;
 
@@ -11,6 +13,12 @@ public class ThemeManager
     private ThemePalette _currentTheme;
     private string _currentThemeName = "Default";
     private bool _isCustomTheme;
+    private readonly float _baseWindowWidth = 375f;
+    private readonly  float _baseWindowHeightMin = 400f;
+    private readonly float _baseWindowHeightMax = 2000f;
+    private readonly float _baseCollapsedWindowHeight = 60f;
+    private readonly float _spacing = 6f;
+    private readonly float _padding = 5f;
 
     public static ThemeManager? Instance { get; private set; }
 
@@ -26,6 +34,25 @@ public class ThemeManager
     public string CurrentThemeName => _currentThemeName;
     public bool IsCustomTheme => _isCustomTheme;
     public IReadOnlyDictionary<string, ThemePalette> PredefinedThemes => _predefinedThemes;
+    public float WindowWidth => _baseWindowWidth;
+    public float WindowHeightMin => _baseWindowHeightMin;
+    public float WindowheightMax => _baseWindowHeightMax;
+    public float CollapsedWindowHeight => _baseCollapsedWindowHeight;
+    public float ScaledWindowWidth => _baseWindowWidth * ImGuiHelpers.GlobalScale;
+    public float ScaledCollapsedWindowHeight => _baseCollapsedWindowHeight * ImGuiHelpers.GlobalScale;
+    public WindowSizeConstraints CompactUISizeConstraints => new WindowSizeConstraints()
+    {
+        MinimumSize = new Vector2(_baseWindowWidth, _baseWindowHeightMin),
+        MaximumSize = new Vector2(_baseWindowWidth, _baseWindowHeightMax),
+    };
+    public WindowSizeConstraints CompactUICollapsedSizeConstraints => new WindowSizeConstraints()
+    {
+        MinimumSize = new Vector2(_baseWindowWidth, _baseCollapsedWindowHeight),
+        MaximumSize = new Vector2(_baseWindowWidth, _baseCollapsedWindowHeight),
+    };
+    public float Spacing => _spacing;
+    public float Padding => _padding;
+    public float ScaledSpacing => _spacing * ImGuiHelpers.GlobalScale;
 
     public void SetTheme(string themeName)
     {

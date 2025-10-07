@@ -84,6 +84,15 @@ public class DrawUserPair
     {
         if (!_pair.IsPaused)
         {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Copy, "Copy UID", _menuWidth, true))
+            {
+                ImGui.SetClipboardText(_pair.UserPair.User.UID);
+                ImGui.CloseCurrentPopup();
+            }
+            UiSharedService.AttachToolTip("Copy to clipboard the UID for this user");
+        }
+        if (!_pair.IsPaused)
+        {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.User, "Open Profile", _menuWidth, true))
             {
                 _displayHandler.OpenProfile(_pair);
