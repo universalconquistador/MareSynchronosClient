@@ -162,78 +162,77 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         SizeConstraints = _themeManager.CompactUISizeConstraints;
 
-        // Main themed container using child window with background
-        using (var theme = _themeManager.PushTheme())
-        {
-            ImGui.PushStyleColor(ImGuiCol.ResizeGrip, 0);
-            var childFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, _themeManager.Current.PanelBg);
+        ImGui.PushStyleColor(ImGuiCol.Border, _themeManager.Current.PanelBorder);
+        ImGui.PushStyleColor(ImGuiCol.ResizeGrip, 0);
+        var childFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
-            // Apply click-through to child window when enabled
-            if (AllowClickthrough)
-                childFlags |= ImGuiWindowFlags.NoInputs;
+        if (AllowClickthrough)
+            childFlags |= ImGuiWindowFlags.NoInputs;
 
-            ImGui.BeginChild("themed-background", new Vector2(0, 0), true, childFlags);
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + _themeManager.Padding);
-            var contentWidth = ImGui.GetContentRegionAvail().X - _themeManager.Padding;
-            ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoBackground);
+        ImGui.BeginChild("themed-background", new Vector2(0, 0), true, childFlags);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + _themeManager.Padding);
+        var contentWidth = ImGui.GetContentRegionAvail().X - _themeManager.Padding;
+        ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoBackground);
 
-            var ver = Assembly.GetExecutingAssembly().GetName().Version;
-            var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
-            var startPos = ImGui.GetCursorPos();
-            ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y/2));
-            ImGui.TextUnformatted(title);
+        var ver = Assembly.GetExecutingAssembly().GetName().Version;
+        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
+        var startPos = ImGui.GetCursorPos();
+        ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y / 2));
+        ImGui.TextUnformatted(title);
 
-            float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
-            var totalButtonsWidth = btnSize * 3 + _themeManager.ScaledSpacing * 2;
+        float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
+        var totalButtonsWidth = btnSize * 3 + _themeManager.ScaledSpacing * 2;
 
-            ImGui.SameLine(UiSharedService.GetWindowContentRegionWidth() - totalButtonsWidth);
-            DrawTitleBarButtons();
+        ImGui.SameLine(UiSharedService.GetWindowContentRegionWidth() - totalButtonsWidth);
+        DrawTitleBarButtons();
 
-            float headerHeight = 30f * ImGuiHelpers.GlobalScale;
-            startPos.Y += headerHeight/2f + ImGui.GetStyle().WindowPadding.Y;
-            ImGui.SetCursorPos(startPos);
-            DrawContent();
-            
-            ImGui.EndChild();
-            ImGui.EndChild();
+        float headerHeight = 30f * ImGuiHelpers.GlobalScale;
+        startPos.Y += headerHeight / 2f + ImGui.GetStyle().WindowPadding.Y;
+        ImGui.SetCursorPos(startPos);
+        DrawContent();
 
-            _lastSize = ImGui.GetWindowSize();
-        }
+        ImGui.EndChild();
+        ImGui.PopStyleColor(3);
+        ImGui.EndChild();
+
+        _lastSize = ImGui.GetWindowSize();
     }
 
     private void DrawCollapsedTitleBar()
     {
-        using (var theme = _themeManager.PushTheme())
-        {
-            var childFlags = ImGuiWindowFlags.NoResize;
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, _themeManager.Current.PanelBg);
+        ImGui.PushStyleColor(ImGuiCol.Border, _themeManager.Current.PanelBorder);
+        var childFlags = ImGuiWindowFlags.NoResize;
 
-            var ver = Assembly.GetExecutingAssembly().GetName().Version;
-            var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
-            float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
-            var totalButtonsWidth = btnSize * 3 + _themeManager.ScaledSpacing * 2;
+        var ver = Assembly.GetExecutingAssembly().GetName().Version;
+        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
+        float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
+        var totalButtonsWidth = btnSize * 3 + _themeManager.ScaledSpacing * 2;
 
-            var y = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).Y + ImGui.GetStyle().WindowPadding.Y * 3;
+        var y = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).Y + ImGui.GetStyle().WindowPadding.Y * 3;
 
-            ImGui.BeginChild("collapsed-titlebar", new Vector2(0, y), true, childFlags);
-            Flags |= childFlags;
+        ImGui.BeginChild("collapsed-titlebar", new Vector2(0, y), true, childFlags);
+        Flags |= childFlags;
 
-            var contentWidth = ImGui.GetContentRegionAvail().X - _themeManager.Padding;
-            ImGui.BeginChild("collapsed-titlebar-content", new Vector2(contentWidth, 0), false, childFlags);
-            Flags |= childFlags | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        var contentWidth = ImGui.GetContentRegionAvail().X - _themeManager.Padding;
+        ImGui.BeginChild("collapsed-titlebar-content", new Vector2(contentWidth, 0), false, childFlags);
+        Flags |= childFlags | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + _themeManager.Padding);
-            var startPos = ImGui.GetCursorPos();
-            
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + _themeManager.Padding);
+        var startPos = ImGui.GetCursorPos();
 
-            ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y / 2));
-            ImGui.TextUnformatted(title);
 
-            ImGui.SameLine(UiSharedService.GetWindowContentRegionWidth() - totalButtonsWidth);
+        ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y / 2));
+        ImGui.TextUnformatted(title);
 
-            DrawTitleBarButtons();
+        ImGui.SameLine(UiSharedService.GetWindowContentRegionWidth() - totalButtonsWidth);
 
-            ImGui.EndChild();
-        }
+        DrawTitleBarButtons();
+
+        ImGui.EndChild();
+        ImGui.PopStyleColor(2);
+        ImGui.EndChild();
     }
 
     private void UpdateWindowFlags()
@@ -415,11 +414,11 @@ public class CompactUi : WindowMediatorSubscriberBase
         var userCount = _apiController.OnlineUsers.ToString(CultureInfo.InvariantCulture);
         var userSize = ImGui.CalcTextSize(userCount);
         var textSize = ImGui.CalcTextSize("Users Online");
-//#if DEBUG
-//        string shardConnection = $"Shard: {_apiController.ServerInfo.ShardName}";
-//#else
-//        string shardConnection = string.Equals(_apiController.ServerInfo.ShardName, "Main", StringComparison.OrdinalIgnoreCase) ? string.Empty : $"Shard: {_apiController.ServerInfo.ShardName}";
-//#endif
+        //#if DEBUG
+        //        string shardConnection = $"Shard: {_apiController.ServerInfo.ShardName}";
+        //#else
+        //        string shardConnection = string.Equals(_apiController.ServerInfo.ShardName, "Main", StringComparison.OrdinalIgnoreCase) ? string.Empty : $"Shard: {_apiController.ServerInfo.ShardName}";
+        //#endif
         //var shardTextSize = ImGui.CalcTextSize(shardConnection);
         //var printShard = !string.IsNullOrEmpty(_apiController.ServerInfo.ShardName) && shardConnection != string.Empty;
 
@@ -574,7 +573,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     }
 
     private void DrawTitleBarButtons()
-    {   
+    {
         if (_uiSharedService.IconButton(FontAwesomeIcon.Bars))
         {
             ImGui.OpenPopup("##PlayerSyncHamburgerMenu");
