@@ -94,7 +94,7 @@ public class DrawBroadcastGroup
         ImGui.TextUnformatted($"[{_broadcast.CurrentMemberCount}]");
         UiSharedService.AttachToolTip($"{_broadcast.CurrentMemberCount} members");
         ImGui.SameLine();
-        using (ImRaii.PushFont(UiBuilder.MonoFont))
+        using (ImRaii.PushFont(default))
         {
             ImGui.TextUnformatted($"{_broadcast.GroupAliasOrGID}");
         }

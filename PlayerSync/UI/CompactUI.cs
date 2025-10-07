@@ -137,6 +137,7 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     }
 
+
     public override void Draw()
     {
         ImGui.SetWindowSize(new Vector2(_themeManager.WindowWidth, 800f), ImGuiCond.FirstUseEver);
@@ -649,6 +650,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ImGui.EndPopup();
         }
     }
+
 
     private void DrawUIDHeader()
     {

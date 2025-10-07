@@ -37,7 +37,8 @@ public class IdDisplayHandler
         {
             ImGui.AlignTextToFramePadding();
 
-            using (ImRaii.PushFont(UiBuilder.MonoFont, textIsUid))
+            //using (ImRaii.PushFont(UiBuilder.MonoFont, textIsUid))
+            using (ImRaii.PushFont(default, textIsUid))
                 ImGui.TextUnformatted(playerText);
 
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
@@ -95,8 +96,8 @@ public class IdDisplayHandler
         {
             ImGui.AlignTextToFramePadding();
 
-            using (ImRaii.PushFont(UiBuilder.MonoFont, textIsUid)) ImGui.TextUnformatted(playerText);
-
+            //using (ImRaii.PushFont(UiBuilder.MonoFont, textIsUid)) ImGui.TextUnformatted(playerText);
+            using (ImRaii.PushFont(default, textIsUid)) ImGui.TextUnformatted(playerText);
             if (ImGui.IsItemHovered())
             {
                 if (!string.Equals(_lastMouseOverUid, id))
