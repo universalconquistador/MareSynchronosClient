@@ -84,7 +84,7 @@ public class ThemePalette
     public ThemePalette()
     {
         // Core panel colors
-        PanelBg = new(0.11f, 0.11f, 0.11f, 0.80f);
+        PanelBg = new(0.11f, 0.11f, 0.11f, 0.90f);
         PanelBorder = new(0.43f, 0.43f, 0.50f, 1.00f);
         HeaderBg = new(0.16f, 0.16f, 0.21f, 1.00f);
         Accent = new(0.26f, 0.59f, 0.98f, 1.00f);

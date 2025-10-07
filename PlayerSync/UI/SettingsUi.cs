@@ -1168,6 +1168,33 @@ public class SettingsUi : WindowMediatorSubscriberBase
         }
         ImGui.TextUnformatted("(This does not work for instanced areas.)");
 
+        ImGuiHelpers.ScaledDummy(5f);
+        UiSharedService.TextWrapped("These permissions are applied only to ZoneSync syncshells.");
+        ImGuiHelpers.ScaledDummy(5f);
+
+        bool permSfx = _zoneSyncConfigService.Current.DisableSounds;
+        bool permVfx = _zoneSyncConfigService.Current.DisableVFX;
+        bool permAni = _zoneSyncConfigService.Current.DisableAnimations;
+
+        if (ImGui.Checkbox("Disable ZoneSync sounds", ref permSfx))
+        {
+            _zoneSyncConfigService.Current.DisableSounds = permSfx;
+            _zoneSyncConfigService.Save();
+        }
+        _uiShared.DrawHelpText("This setting will disable sound sync for all new ZoneSync pairs.");
+        if (ImGui.Checkbox("Disable ZoneSync vfx", ref permVfx))
+        {
+            _zoneSyncConfigService.Current.DisableVFX = permVfx;
+            _zoneSyncConfigService.Save();
+        }
+        _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
+        if (ImGui.Checkbox("Disable ZoneSync animations", ref permAni))
+        {
+            _zoneSyncConfigService.Current.DisableAnimations = permAni;
+            _zoneSyncConfigService.Save();
+        }
+        _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
+
         ImGui.EndDisabled();
 
         ImGui.Dummy(new Vector2(10));
