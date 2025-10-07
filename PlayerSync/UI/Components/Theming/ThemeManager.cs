@@ -13,8 +13,9 @@ public class ThemeManager
     private ThemePalette _currentTheme;
     private string _currentThemeName = "Default";
     private bool _isCustomTheme;
+    private ThemePalette? _savedCustomTheme;
     private readonly float _baseWindowWidth = 400f;
-    private readonly  float _baseWindowHeightMin = 400f;
+    private readonly float _baseWindowHeightMin = 400f;
     private readonly float _baseWindowHeightMax = 2000f;
     private readonly float _baseCollapsedWindowHeight = 60f;
     private readonly float _spacing = 6f;
@@ -58,6 +59,11 @@ public class ThemeManager
     {
         if (_predefinedThemes.TryGetValue(themeName, out var theme))
         {
+            if (_isCustomTheme)
+            {
+                _savedCustomTheme = _currentTheme;
+            }
+
             _currentTheme = theme;
             _currentThemeName = themeName;
             _isCustomTheme = false;
@@ -70,7 +76,21 @@ public class ThemeManager
         _currentTheme = customTheme;
         _currentThemeName = "Custom";
         _isCustomTheme = true;
+        _savedCustomTheme = customTheme;
         SaveThemeSettings();
+    }
+
+    public bool RestoreSavedCustomTheme()
+    {
+        if (_savedCustomTheme != null)
+        {
+            _currentTheme = _savedCustomTheme;
+            _currentThemeName = "Custom";
+            _isCustomTheme = true;
+            SaveThemeSettings();
+            return true;
+        }
+        return false;
     }
 
     public IDisposable PushTheme()
@@ -159,18 +179,23 @@ public class ThemeManager
             _currentThemeName = "Custom";
             _isCustomTheme = true;
             _currentTheme = config.CustomThemeData;
+            _savedCustomTheme = config.CustomThemeData; // Also save for future reference
         }
         else if (_predefinedThemes.TryGetValue(config.SelectedTheme, out var theme))
         {
             _currentTheme = theme;
             _currentThemeName = config.SelectedTheme;
             _isCustomTheme = false;
+            // Keep any existing saved custom theme from config
+            _savedCustomTheme = config.CustomThemeData;
         }
         else
         {
             _currentTheme = _predefinedThemes["Default"];
             _currentThemeName = "Default";
             _isCustomTheme = false;
+            // Keep any existing saved custom theme from config
+            _savedCustomTheme = config.CustomThemeData;
         }
     }
 
@@ -180,10 +205,10 @@ public class ThemeManager
         config.SelectedTheme = _currentThemeName;
         config.UseCustomTheme = _isCustomTheme;
 
-        // Save custom theme data if using a custom theme
-        if (_isCustomTheme)
+        // Always preserve custom theme data if we have any
+        if (_savedCustomTheme != null)
         {
-            config.CustomThemeData = _currentTheme;
+            config.CustomThemeData = _savedCustomTheme;
         }
 
         _uIThemeConfigService.Save();

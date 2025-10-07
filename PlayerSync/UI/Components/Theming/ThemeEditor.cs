@@ -149,9 +149,17 @@ public class ThemeEditor
             {
                 if (!_themeManager.IsCustomTheme)
                 {
-                    CopyCurrentTheme();
-                    _editingThemeName = "Custom";
-                    _hasChanges = true;
+                    if (!_themeManager.RestoreSavedCustomTheme())
+                    {
+                        CopyCurrentTheme();
+                        _editingThemeName = "Custom";
+                        _hasChanges = true;
+                    }
+                    else
+                    {
+                        CopyCurrentTheme();
+                        _hasChanges = false;
+                    }
                 }
             }
             if (isCustomSelected)
