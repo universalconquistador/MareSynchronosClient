@@ -1170,6 +1170,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         ImGuiHelpers.ScaledDummy(5f);
         UiSharedService.TextWrapped("These permissions are applied only to ZoneSync syncshells.");
+        UiSharedService.TextWrapped("Changes to permissions take effect on next zone change.");
         ImGuiHelpers.ScaledDummy(5f);
 
         bool permSfx = _zoneSyncConfigService.Current.DisableSounds;
@@ -1196,10 +1197,6 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
 
         ImGui.EndDisabled();
-
-        ImGui.Dummy(new Vector2(10));
-        ImGui.Separator();
-        ImGui.Dummy(new Vector2(10));
     }
 
     private void DrawPerformance()
