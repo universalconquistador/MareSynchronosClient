@@ -66,7 +66,7 @@ public sealed class CommandManagerService : IDisposable
         if (!syncOk)
         {
             _log.Information("{Alias} is taken; will fall back to {Fallback}", _commandName, _secondaryCommandName);
-            _chat.PrintError("[Player Sync] Another plugin conflicts with /sync, using /psync as a fallback.");
+            _chat.PrintError("[PlayerSync] Another plugin conflicts with /sync, using /psync as a fallback.");
         }
 
         var psyncHandler = new CommandInfo(OnCommand)
@@ -86,7 +86,7 @@ public sealed class CommandManagerService : IDisposable
         if (!psyncOk && !syncOk)
         {
             _log.Error("Failed to register both {Primary} and {Fallback}.", _commandName, _secondaryCommandName);
-            _chat.PrintError("[Player Sync] Failed to register commands (/sync, /psync). Another plugin may conflict.");
+            _chat.PrintError("[PlayerSync] Failed to register commands (/sync, /psync). Another plugin may conflict.");
         }
     }
 
@@ -98,17 +98,17 @@ public sealed class CommandManagerService : IDisposable
 
     // Build the full help string
     private string BuildFullHelpForAlias(string alias) =>
-        "Opens the Player Sync UI" + Environment.NewLine + Environment.NewLine +
+        "Opens the PlayerSync UI" + Environment.NewLine + Environment.NewLine +
         "Additionally possible commands:" + Environment.NewLine +
-        $"\t {alias} toggle - Disconnects from Player Sync, if connected. Connects to Player Sync, if disconnected" + Environment.NewLine +
-        $"\t {alias} toggle on|off - Connects or disconnects to Player Sync respectively" + Environment.NewLine +
-        $"\t {alias} gpose - Opens the Player Sync Character Data Hub window" + Environment.NewLine +
-        $"\t {alias} analyze - Opens the Player Sync Character Data Analysis window" + Environment.NewLine +
-        $"\t {alias} settings - Opens the Player Sync Settings window";
+        $"\t {alias} toggle - Disconnects from PlayerSync, if connected. Connects to PlayerSync, if disconnected" + Environment.NewLine +
+        $"\t {alias} toggle on|off - Connects or disconnects to PlayerSync respectively" + Environment.NewLine +
+        $"\t {alias} gpose - Opens the PlayerSync Character Data Hub window" + Environment.NewLine +
+        $"\t {alias} analyze - Opens the PlayerSync Character Data Analysis window" + Environment.NewLine +
+        $"\t {alias} settings - Opens the PlayerSync Settings window";
 
     // Build the help string for the secondary if both commands are available
     private string BuildMinimalHelpForAlias(string alias) =>
-        "Opens the Player Sync UI";
+        "Opens the PlayerSync UI";
 
     // Dalamud won't raise an error, we need to check if the command is registered
     private bool IsAliasTaken(string alias)
@@ -168,8 +168,8 @@ public sealed class CommandManagerService : IDisposable
             if (_apiController.ServerState == WebAPI.SignalR.Utils.ServerState.Disconnecting)
             {
                 _mediator.Publish(new NotificationMessage(
-                    "Player Sync disconnecting",
-                    "Cannot use /toggle while Player Sync is still disconnecting",
+                    "PlayerSync disconnecting",
+                    "Cannot use /toggle while PlayerSync is still disconnecting",
                     NotificationType.Error));
             }
 

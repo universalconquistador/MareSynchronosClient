@@ -35,7 +35,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 
     public IntroUi(ILogger<IntroUi> logger, UiSharedService uiShared, MareConfigService configService,
         CacheMonitor fileCacheManager, ServerConfigurationManager serverConfigurationManager, MareMediator mareMediator,
-        PerformanceCollectorService performanceCollectorService, DalamudUtilService dalamudUtilService) : base(logger, mareMediator, "Player Sync Setup", performanceCollectorService)
+        PerformanceCollectorService performanceCollectorService, DalamudUtilService dalamudUtilService) : base(logger, mareMediator, "PlayerSync Setup", performanceCollectorService)
     {
         _uiShared = uiShared;
         _configService = configService;
@@ -70,9 +70,9 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 
         if (!_configService.Current.AcceptedAgreement && !_readFirstPage)
         {
-            _uiShared.BigText("Welcome to Player Sync");
+            _uiShared.BigText("Welcome to PlayerSync");
             ImGui.Separator();
-            UiSharedService.TextWrapped("Player Sync is a plugin that will replicate your full current character state including all Penumbra mods to other paired Player Sync users. " +
+            UiSharedService.TextWrapped("PlayerSync is a plugin that will replicate your full current character state including all Penumbra mods to other paired PlayerSync users. " +
                               "Note that you will have to have Penumbra as well as Glamourer installed to use this plugin.");
             UiSharedService.TextWrapped("We will have to setup a few things first before you can start using this plugin. Click on next to continue.");
 
@@ -167,11 +167,11 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             }
             else
             {
-                UiSharedService.TextWrapped("To not unnecessary download files already present on your computer, Player Sync will have to scan your Penumbra mod directory. " +
-                                     "Additionally, a local storage folder must be set where Player Sync will download other character files to. " +
+                UiSharedService.TextWrapped("To not unnecessary download files already present on your computer, PlayerSync will have to scan your Penumbra mod directory. " +
+                                     "Additionally, a local storage folder must be set where PlayerSync will download other character files to. " +
                                      "Once the storage folder is set and the scan complete, this page will automatically forward to registration at a service.");
                 UiSharedService.TextWrapped("Note: The initial scan, depending on the amount of mods you have, might take a while. Please wait until it is completed.");
-                UiSharedService.ColorTextWrapped("Warning: once past this step you should not delete the FileCache.csv of Player Sync in the Plugin Configurations folder of Dalamud. " +
+                UiSharedService.ColorTextWrapped("Warning: once past this step you should not delete the FileCache.csv of PlayerSync in the Plugin Configurations folder of Dalamud. " +
                                           "Otherwise on the next launch a full re-scan of the file cache database will be initiated.", ImGuiColors.DalamudYellow);
                 UiSharedService.ColorTextWrapped("Warning: if the scan is hanging and does nothing for a long time, chances are high your Penumbra folder is not set up properly.", ImGuiColors.DalamudYellow);
                 _uiShared.DrawCacheDirectorySetting();
@@ -196,8 +196,8 @@ public partial class IntroUi : WindowMediatorSubscriberBase
                     _configService.Current.UseCompactor = useFileCompactor;
                     _configService.Save();
                 }
-                UiSharedService.ColorTextWrapped("The File Compactor can save a tremendeous amount of space on the hard disk for downloads through Player Sync. It will incur a minor CPU penalty on download but can speed up " +
-                    "loading of other characters. It is recommended to keep it enabled. You can change this setting later anytime in the Player Sync settings.", ImGuiColors.DalamudYellow);
+                UiSharedService.ColorTextWrapped("The File Compactor can save a tremendeous amount of space on the hard disk for downloads through PlayerSync. It will incur a minor CPU penalty on download but can speed up " +
+                    "loading of other characters. It is recommended to keep it enabled. You can change this setting later anytime in the PlayerSync settings.", ImGuiColors.DalamudYellow);
             }
         }
         else if (!_uiShared.ApiController.ServerAlive)
@@ -205,11 +205,11 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             using (_uiShared.UidFont.Push())
                 ImGui.TextUnformatted("Service Registration");
             ImGui.Separator();
-            UiSharedService.TextWrapped("To be able to use Player Sync you will have to register an account.");
-            UiSharedService.TextWrapped("For the official Player Sync Servers the account creation will be handled on the official Player Sync Discord. Due to security risks for the server, there is no way to handle this sensibly otherwise.");
+            UiSharedService.TextWrapped("To be able to use PlayerSync you will have to register an account.");
+            UiSharedService.TextWrapped("For the official PlayerSync Servers the account creation will be handled on the official PlayerSync Discord. Due to security risks for the server, there is no way to handle this sensibly otherwise.");
             UiSharedService.TextWrapped("If you want to register at the main server \"" + WebAPI.ApiController.MainServer + "\" join the Discord and follow the instructions as described in #sync-service.");
 
-            if (ImGui.Button("Join the Player Sync Discord"))
+            if (ImGui.Button("Join the PlayerSync Discord"))
             {
                 Util.OpenLink("https://discord.gg/BzaqbfFFmn");
             }

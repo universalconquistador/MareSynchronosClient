@@ -84,7 +84,7 @@ public sealed class DtrEntry : IDisposable, IHostedService
     private IDtrBarEntry CreateEntry()
     {
         _logger.LogTrace("Creating new DtrBar entry");
-        var entry = _dtrBar.Get("Player Sync");
+        var entry = _dtrBar.Get("PlayerSync");
         entry.OnClick = _ => _mareMediator.Publish(new UiToggleMessage(typeof(CompactUi)));
 
         return entry;
@@ -123,7 +123,7 @@ public sealed class DtrEntry : IDisposable, IHostedService
         SeStringBuilder textBuilder = new SeStringBuilder();
         if (_apiController.IsConnected)
         {
-            tooltip = "Player Sync: Connected";
+            tooltip = "PlayerSync: Connected";
 
             // Add the broadcast info
             if (_broadcastManager.IsListening)
@@ -171,7 +171,7 @@ public sealed class DtrEntry : IDisposable, IHostedService
         else
         {
             textBuilder.AddColoredText("\uE044 \uE04C", _configService.Current.UseColorsInDtr ? _configService.Current.DtrColorsNotConnected : default);
-            tooltip = "Player Sync: Not Connected";
+            tooltip = "PlayerSync: Not Connected";
         }
 
         _entry.Value.Text = textBuilder.Build();

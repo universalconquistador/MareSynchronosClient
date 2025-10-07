@@ -241,7 +241,7 @@ namespace MareSynchronos.PlayerData.Pairs
         {
             BroadcastingGroupId = groupId;
 
-            Mediator.Publish(new NotificationMessage($"Broadcasting {groupId}", $"You are now broadcasting {groupId} to Player Sync players around you. You can use the Syncshell Broadcast tab to stop broadcasting at any time.", MareConfiguration.Models.NotificationType.Info));
+            Mediator.Publish(new NotificationMessage($"Broadcasting {groupId}", $"You are now broadcasting {groupId} to PlayerSync players around you. You can use the Syncshell Broadcast tab to stop broadcasting at any time.", MareConfiguration.Models.NotificationType.Info));
 
             PollBroadcasts();
         }
@@ -324,7 +324,7 @@ namespace MareSynchronos.PlayerData.Pairs
                         && !_sentBroadcastAvailableNotification
                         && !IsBroadcastingGroup)
                     {
-                        Mediator.Publish(new NotificationMessage("Broadcasts Available", $"{AvailableBroadcastGroups.Count} broadcasts at your location. Open the Player Sync window to browse and join them.", MareConfiguration.Models.NotificationType.Info));
+                        Mediator.Publish(new NotificationMessage("Broadcasts Available", $"{AvailableBroadcastGroups.Count} broadcasts at your location. Open the PlayerSync window to browse and join them.", MareConfiguration.Models.NotificationType.Info));
                         _sentBroadcastAvailableNotification = true;
                     }
                 }

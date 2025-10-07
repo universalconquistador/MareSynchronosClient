@@ -467,7 +467,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         {
             if (IconButton(FontAwesomeIcon.Folder))
             {
-                FileDialogManager.OpenFolderDialog("Pick Player Sync Storage Folder", (success, path) =>
+                FileDialogManager.OpenFolderDialog("Pick PlayerSync Storage Folder", (success, path) =>
                 {
                     if (!success) return;
 
@@ -489,7 +489,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
                     if (dirs.Any())
                     {
                         _cacheDirectoryHasOtherFilesThanCache = true;
-                        Logger.LogWarning("Found folders in {path} not belonging to Player Sync: {dirs}", path, string.Join(", ", dirs));
+                        Logger.LogWarning("Found folders in {path} not belonging to PlayerSync: {dirs}", path, string.Join(", ", dirs));
                     }
 
                     _isDirectoryWritable = IsDirectoryWritable(path);
@@ -530,7 +530,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         }
         else if (_cacheDirectoryHasOtherFilesThanCache)
         {
-            ColorTextWrapped("Your selected directory has files or directories inside that are not Player Sync related. Use an empty directory or a previous Player Sync storage directory only.", ImGuiColors.DalamudRed);
+            ColorTextWrapped("Your selected directory has files or directories inside that are not PlayerSync related. Use an empty directory or a previous PlayerSync storage directory only.", ImGuiColors.DalamudRed);
         }
         else if (!_cacheDirectoryIsValidPath)
         {
@@ -544,7 +544,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             _configService.Current.MaxLocalCacheInGiB = maxCacheSize;
             _configService.Save();
         }
-        DrawHelpText("The storage is automatically governed by Player Sync. It will clear itself automatically once it reaches the set capacity by removing the oldest unused files. You typically do not need to clear it yourself.");
+        DrawHelpText("The storage is automatically governed by PlayerSync. It will clear itself automatically once it reaches the set capacity by removing the oldest unused files. You typically do not need to clear it yourself.");
     }
 
     public T? DrawCombo<T>(string comboName, IEnumerable<T> comboItems, Func<T?, string> toName,
@@ -777,46 +777,96 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         }
     }
 
+    //public bool DrawOtherPluginState()
+    //{
+    //    ImGui.TextUnformatted("Mandatory Plugins:");
+
+    //    ImGui.SameLine(150);
+    //    ColorText("Penumbra", GetBoolColor(_penumbraExists));
+    //    AttachToolTip($"Penumbra is " + (_penumbraExists ? "available and up to date." : "unavailable or not up to date."));
+
+    //    ImGui.SameLine();
+    //    ColorText("Glamourer", GetBoolColor(_glamourerExists));
+    //    AttachToolTip($"Glamourer is " + (_glamourerExists ? "available and up to date." : "unavailable or not up to date."));
+
+    //    ImGui.TextUnformatted("Optional Plugins:");
+    //    ImGui.SameLine(150);
+    //    ColorText("SimpleHeels", GetBoolColor(_heelsExists));
+    //    AttachToolTip($"SimpleHeels is " + (_heelsExists ? "available and up to date." : "unavailable or not up to date."));
+
+    //    ImGui.SameLine();
+    //    ColorText("Customize+", GetBoolColor(_customizePlusExists));
+    //    AttachToolTip($"Customize+ is " + (_customizePlusExists ? "available and up to date." : "unavailable or not up to date."));
+
+    //    ImGui.SameLine();
+    //    ColorText("Honorific", GetBoolColor(_honorificExists));
+    //    AttachToolTip($"Honorific is " + (_honorificExists ? "available and up to date." : "unavailable or not up to date."));
+
+    //    ImGui.SameLine();
+    //    ColorText("Moodles", GetBoolColor(_moodlesExists));
+    //    AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
+
+    //    ImGui.SameLine();
+    //    ColorText("PetNicknames", GetBoolColor(_petNamesExists));
+    //    AttachToolTip($"PetNicknames is " + (_petNamesExists ? "available and up to date." : "unavailable or not up to date."));
+
+    //    ImGui.SameLine();
+    //    ColorText("Brio", GetBoolColor(_brioExists));
+    //    AttachToolTip($"Brio is " + (_brioExists ? "available and up to date." : "unavailable or not up to date."));
+
+    //    if (!_penumbraExists || !_glamourerExists)
+    //    {
+    //        ImGui.TextColored(ImGuiColors.DalamudRed, "You need to install both Penumbra and Glamourer and keep them up to date to use PlayerSync.");
+    //        return false;
+    //    }
+
+    //    return true;
+    //}
+
     public bool DrawOtherPluginState()
     {
-        ImGui.TextUnformatted("Mandatory Plugins:");
+        ImFontPtr AxisFont = default;
+        ImGui.PushFont(AxisFont);
 
-        ImGui.SameLine(150);
+        ImGui.TextUnformatted("Mandatory Plugins:");
+        ImGui.SameLine();
         ColorText("Penumbra", GetBoolColor(_penumbraExists));
         AttachToolTip($"Penumbra is " + (_penumbraExists ? "available and up to date." : "unavailable or not up to date."));
-
         ImGui.SameLine();
+
         ColorText("Glamourer", GetBoolColor(_glamourerExists));
         AttachToolTip($"Glamourer is " + (_glamourerExists ? "available and up to date." : "unavailable or not up to date."));
 
         ImGui.TextUnformatted("Optional Plugins:");
-        ImGui.SameLine(150);
+        ImGui.SameLine();
         ColorText("SimpleHeels", GetBoolColor(_heelsExists));
         AttachToolTip($"SimpleHeels is " + (_heelsExists ? "available and up to date." : "unavailable or not up to date."));
-
         ImGui.SameLine();
+
         ColorText("Customize+", GetBoolColor(_customizePlusExists));
         AttachToolTip($"Customize+ is " + (_customizePlusExists ? "available and up to date." : "unavailable or not up to date."));
-
         ImGui.SameLine();
+
         ColorText("Honorific", GetBoolColor(_honorificExists));
         AttachToolTip($"Honorific is " + (_honorificExists ? "available and up to date." : "unavailable or not up to date."));
-
         ImGui.SameLine();
+
         ColorText("Moodles", GetBoolColor(_moodlesExists));
         AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
-
         ImGui.SameLine();
+
         ColorText("PetNicknames", GetBoolColor(_petNamesExists));
         AttachToolTip($"PetNicknames is " + (_petNamesExists ? "available and up to date." : "unavailable or not up to date."));
-
         ImGui.SameLine();
+
         ColorText("Brio", GetBoolColor(_brioExists));
         AttachToolTip($"Brio is " + (_brioExists ? "available and up to date." : "unavailable or not up to date."));
 
+        ImGui.PopFont();
+
         if (!_penumbraExists || !_glamourerExists)
         {
-            ImGui.TextColored(ImGuiColors.DalamudRed, "You need to install both Penumbra and Glamourer and keep them up to date to use Player Sync.");
+            ImGui.TextColored(ImGuiColors.DalamudRed, "You need to install both Penumbra and Glamourer and keep them up to date to use PlayerSync.");
             return false;
         }
 

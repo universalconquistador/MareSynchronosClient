@@ -97,7 +97,7 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
             if (!apiAvailable && !_shownGlamourerUnavailable)
             {
                 _shownGlamourerUnavailable = true;
-                _mareMediator.Publish(new NotificationMessage("Glamourer inactive", "Your Glamourer installation is not active or out of date. Update Glamourer to continue to use Player Sync. If you just updated Glamourer, ignore this message.",
+                _mareMediator.Publish(new NotificationMessage("Glamourer inactive", "Your Glamourer installation is not active or out of date. Update Glamourer to continue to use PlayerSync. If you just updated Glamourer, ignore this message.",
                     NotificationType.Error));
             }
         }

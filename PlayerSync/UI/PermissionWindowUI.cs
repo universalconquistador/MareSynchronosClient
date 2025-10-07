@@ -175,7 +175,7 @@ public class PermissionWindowUI : WindowMediatorSubscriberBase
                 new(StringComparer.Ordinal)
             ));
         }
-        UiSharedService.AttachToolTip("This will set all permissions to your defined default permissions in the Player Sync Settings");
+        UiSharedService.AttachToolTip("This will set all permissions to your defined default permissions in the PlayerSync Settings");
 
         var ySize = ImGui.GetCursorPosY() + style.FramePadding.Y * ImGuiHelpers.GlobalScale + style.FrameBorderSize;
         ImGui.SetWindowSize(new(400, ySize));
