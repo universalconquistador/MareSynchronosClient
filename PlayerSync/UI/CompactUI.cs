@@ -93,13 +93,14 @@ public class CompactUi : WindowMediatorSubscriberBase
         _drawFolders = GetDrawFolders().ToList();
 
 #if DEBUG
-        string dev = "Dev Build";
+        string dev = "Dev";
         var ver = Assembly.GetExecutingAssembly().GetName().Version!;
-        WindowName = $"PlayerSync {dev} ({ver.Major}.{ver.Minor}.{ver.Build})###PlayerSyncMainUI";
+        WindowName = $"PlayerSync {dev} ({ver.Major}.{ver.Minor}.{ver.Build}.{ver.Revision})###PlayerSyncMainUI";
         Toggle();
 #else
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        WindowName = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build + "###PlayerSyncMainUI";
+        WindowName = "PlayerSync Dev" + ver.Major + "." + ver.Minor + "." + ver.Build + "." +ver.Revision + "###PlayerSyncMainUI";
+        Toggle();
 #endif
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (_) => IsOpen = true);
         Mediator.Subscribe<SwitchToIntroUiMessage>(this, (_) => IsOpen = false);
@@ -179,7 +180,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoBackground);
 
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
+        var title = "PlayerSync Dev" + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision;
         var startPos = ImGui.GetCursorPos();
         ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y / 2));
         ImGui.TextUnformatted(title);
@@ -211,7 +212,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         var childFlags = ImGuiWindowFlags.NoResize;
 
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
+        var title = "PlayerSync Dev" + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision;
         float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
         var totalButtonsWidth = btnSize * 3 + _themeManager.ScaledSpacing * 2;
 
