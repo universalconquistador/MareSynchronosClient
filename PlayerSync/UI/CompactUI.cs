@@ -99,7 +99,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         Toggle();
 #else
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        WindowName = "PlayerSync Dev" + ver.Major + "." + ver.Minor + "." + ver.Build + "." +ver.Revision + "###PlayerSyncMainUI";
+        WindowName = "PlayerSync Dev " + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision + "###PlayerSyncMainUI";
         Toggle();
 #endif
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (_) => IsOpen = true);
@@ -137,7 +137,6 @@ public class CompactUi : WindowMediatorSubscriberBase
         SizeConstraints = _themeManager.CompactUISizeConstraints;
 
     }
-
 
     public override void Draw()
     {
@@ -180,7 +179,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoBackground);
 
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        var title = "PlayerSync Dev" + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision;
+        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision;
         var startPos = ImGui.GetCursorPos();
         ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y / 2));
         ImGui.TextUnformatted(title);
@@ -212,7 +211,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         var childFlags = ImGuiWindowFlags.NoResize;
 
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        var title = "PlayerSync Dev" + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision;
+        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision;
         float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
         var totalButtonsWidth = btnSize * 3 + _themeManager.ScaledSpacing * 2;
 
@@ -651,7 +650,6 @@ public class CompactUi : WindowMediatorSubscriberBase
             ImGui.EndPopup();
         }
     }
-
 
     private void DrawUIDHeader()
     {
