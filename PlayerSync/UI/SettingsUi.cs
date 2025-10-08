@@ -1107,7 +1107,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
             ImGui.Dummy(new Vector2(10));
         }
         
-        UiSharedService.TextWrapped("Read these rules before proceeding:");
+        UiSharedService.ColorTextWrapped("Read these rules before proceeding:", ImGuiColors.DalamudRed);
         UiSharedService.TextWrapped("1) You are responsible for your conduct and should self-moderate your appearance and actions.");
         UiSharedService.TextWrapped("2) Pause unwanted user pairs as needed.");
         UiSharedService.TextWrapped("3) No nuisance behavior (crashing people, taking up entire screen, etc.)");
