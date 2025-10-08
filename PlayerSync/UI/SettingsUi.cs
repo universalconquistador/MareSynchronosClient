@@ -1064,7 +1064,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         {
             ImGui.Separator();
             _uiShared.BigText("READ THIS! YOU ARE RESPONSIBLE FOR YOUR ACTIONS!", ImGuiColors.DalamudRed);
-            UiSharedService.ColorTextWrapped("This feature enables joining sever controlled syncshells AUTOMATICALLY.", ImGuiColors.DalamudRed);
+            UiSharedService.ColorTextWrapped("This feature enables joining server controlled syncshells AUTOMATICALLY.", ImGuiColors.DalamudRed);
             UiSharedService.ColorTextWrapped("You should NOT enable this feature if you are unwilling to self-moderate and pause others.", ImGuiColors.DalamudRed);
             UiSharedService.ColorTextWrapped("Using this feature to break PlayerSync ToS will result in a ban from PlayerSync.", ImGuiColors.DalamudRed);
             ImGui.Dummy(new Vector2(10));
