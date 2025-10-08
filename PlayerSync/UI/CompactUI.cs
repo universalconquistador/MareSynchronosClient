@@ -150,6 +150,8 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
+        using var theme = _themeManager.PushTheme();
+
         UpdateWindowFlags();
 
         if (_collapsed)
