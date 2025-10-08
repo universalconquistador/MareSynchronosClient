@@ -1108,7 +1108,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         }
         
         UiSharedService.TextWrapped("Read these rules before proceeding. Violations may result in a ban.");
-        UiSharedService.ColorTextWrapped("1) NO NSFW IN TOWN with ZoneSync enabled!", ImGuiColors.DalamudRed);
+        UiSharedService.TextWrapped("1) You are responsible for your conduct and should self-moderate your appearance and actions, and pause unwanted user pairs as needed.");
         UiSharedService.TextWrapped("2) No nuisance behavior (crashing people, taking up entire screen, etc.)");
         UiSharedService.TextWrapped("3) All player actions are subject to the PlayerSync Terms of Service.");
         ImGui.Dummy(new Vector2(10));
