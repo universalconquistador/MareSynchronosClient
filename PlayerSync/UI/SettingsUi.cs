@@ -1107,10 +1107,11 @@ public class SettingsUi : WindowMediatorSubscriberBase
             ImGui.Dummy(new Vector2(10));
         }
         
-        UiSharedService.TextWrapped("Read these rules before proceeding. Violations may result in a ban.");
-        UiSharedService.TextWrapped("1) You are responsible for your conduct and should self-moderate your appearance and actions, and pause unwanted user pairs as needed.");
-        UiSharedService.TextWrapped("2) No nuisance behavior (crashing people, taking up entire screen, etc.)");
-        UiSharedService.TextWrapped("3) All player actions are subject to the PlayerSync Terms of Service.");
+        UiSharedService.TextWrapped("Read these rules before proceeding:");
+        UiSharedService.TextWrapped("1) You are responsible for your conduct and should self-moderate your appearance and actions.");
+        UiSharedService.TextWrapped("2) Pause unwanted user pairs as needed.");
+        UiSharedService.TextWrapped("3) No nuisance behavior (crashing people, taking up entire screen, etc.)");
+        UiSharedService.TextWrapped("4) All player actions are subject to the PlayerSync Terms of Service.");
         ImGui.Dummy(new Vector2(10));
 
         bool warningConfirmed = !_zoneSyncConfigService.Current.UserHasConfirmedWarning;
