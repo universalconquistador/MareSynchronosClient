@@ -21,9 +21,11 @@ public class IdDisplayHandler
     private string _lastMouseOverUid = string.Empty;
     private bool _popupShown = false;
     private DateTime? _popupTime;
+    private readonly UiSharedService _uiSharedService;
 
-    public IdDisplayHandler(MareMediator mediator, ServerConfigurationManager serverManager, MareConfigService mareConfigService)
+    public IdDisplayHandler(MareMediator mediator, UiSharedService uiShared, ServerConfigurationManager serverManager, MareConfigService mareConfigService)
     {
+        _uiSharedService = uiShared;
         _mediator = mediator;
         _serverManager = serverManager;
         _mareConfigService = mareConfigService;
@@ -83,7 +85,7 @@ public class IdDisplayHandler
             {
                 _editEntry = string.Empty;
             }
-            UiSharedService.AttachToolTip("Hit ENTER to save\nRight click to cancel");
+            _uiSharedService.AttachToolTip("Hit ENTER to save\nRight click to cancel");
         }
     }
 
@@ -177,7 +179,7 @@ public class IdDisplayHandler
             {
                 _editEntry = string.Empty;
             }
-            UiSharedService.AttachToolTip("Hit ENTER to save\nRight click to cancel");
+            _uiSharedService.AttachToolTip("Hit ENTER to save\nRight click to cancel");
         }
     }
 
