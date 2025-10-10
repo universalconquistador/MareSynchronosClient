@@ -856,6 +856,8 @@ public class SettingsUi : WindowMediatorSubscriberBase
                     _configService.Current.DtrColorsBroadcasting = dtrColorsBroadcasting;
                     _configService.Save();
                 }
+                
+                
             }
         }
 
@@ -1197,7 +1199,9 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
 
         ImGui.EndDisabled();
-    }
+    } 
+
+ 
 
     private void DrawPerformance()
     {

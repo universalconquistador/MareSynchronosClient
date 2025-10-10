@@ -635,7 +635,7 @@ public class DrawUserPair
             ImGui.Separator();
         }
 
-        if (selfIsOwner)
+        if (!selfIsOwner)
         {
             ImGui.TextUnformatted("Syncshell Owner Functions");
             string modText = userIsModerator ? "Demod user" : "Mod user";

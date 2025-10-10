@@ -3,6 +3,9 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Windowing;
+using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Dalamud.Utility;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Extensions;
@@ -28,6 +31,10 @@ using System.Globalization;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.ConstrainedExecution;
+
+
+
+
 
 namespace MareSynchronos.UI;
 
@@ -179,7 +186,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         ImGui.BeginChild("content-with-padding", new Vector2(contentWidth, 0), false, ImGuiWindowFlags.NoBackground);
 
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision;
+        var title = "PlayerSync Dev" + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision;
         var startPos = ImGui.GetCursorPos();
         ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y / 2));
         ImGui.TextUnformatted(title);
@@ -211,7 +218,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         var childFlags = ImGuiWindowFlags.NoResize;
 
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision;
+        var title = "PlayerSync Dev " + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision;
         float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
         var totalButtonsWidth = btnSize * 3 + _themeManager.ScaledSpacing * 2;
 
@@ -911,5 +918,4 @@ public class CompactUi : WindowMediatorSubscriberBase
         _wasOpen = IsOpen;
         IsOpen = false;
     }
-
 }
