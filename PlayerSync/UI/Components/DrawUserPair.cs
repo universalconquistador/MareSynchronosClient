@@ -63,13 +63,14 @@ public class DrawUserPair
 
     public void DrawPairedClient()
     {
+        bool newUI = _uiSharedService.NewUI;
         using var id = ImRaii.PushId(GetType() + _id);
-        //var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
-        var paddingX = 4f;
-        var paddingY = 3f;
-        using (ImRaii.Child(GetType() + _id, new System.Numerics.Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
+        var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
+        var paddingX = newUI ? 4f : 0;
+        var paddingY = newUI ? 3f : 0;
+        using (ImRaii.Child(GetType() + _id, new Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
         {
-            ImGui.SetCursorPos(new Vector2(paddingX, paddingY));
+            if (newUI) ImGui.SetCursorPos(new Vector2(paddingX, paddingY));
             DrawLeftSide();
             ImGui.SameLine();
             var posX = ImGui.GetCursorPosX();
@@ -77,7 +78,7 @@ public class DrawUserPair
             DrawName(posX, rightSide);
         }
         _wasHovered = ImGui.IsItemHovered();
-        //color.Dispose();
+        color.Dispose();
     }
 
     private void DrawCommonClientMenu()
@@ -89,7 +90,7 @@ public class DrawUserPair
                 ImGui.SetClipboardText(_pair.UserPair.User.UID);
                 ImGui.CloseCurrentPopup();
             }
-            UiSharedService.AttachToolTip("Copy to clipboard the UID for this user");
+            _uiSharedService.AttachToolTip("Copy to clipboard the UID for this user");
         }
         if (!_pair.IsPaused)
         {
@@ -98,7 +99,7 @@ public class DrawUserPair
                 _displayHandler.OpenProfile(_pair);
                 ImGui.CloseCurrentPopup();
             }
-            UiSharedService.AttachToolTip("Opens the profile for this user in a new window");
+            _uiSharedService.AttachToolTip("Opens the profile for this user in a new window");
         }
         if (_pair.IsVisible)
         {
@@ -107,7 +108,7 @@ public class DrawUserPair
                 _pair.ApplyLastReceivedData(forced: true);
                 ImGui.CloseCurrentPopup();
             }
-            UiSharedService.AttachToolTip("This reapplies the last received character data to this character");
+            _uiSharedService.AttachToolTip("This reapplies the last received character data to this character");
         }
 
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.PlayCircle, "Cycle pause state", _menuWidth, true))
@@ -123,7 +124,7 @@ public class DrawUserPair
             _mediator.Publish(new OpenPermissionWindow(_pair));
             ImGui.CloseCurrentPopup();
         }
-        UiSharedService.AttachToolTip("Opens the Permissions Window which allows you to manage multiple permissions at once.");
+        _uiSharedService.AttachToolTip("Opens the Permissions Window which allows you to manage multiple permissions at once.");
 
         var isSticky = _pair.UserPair!.OwnPermissions.IsSticky();
         string stickyText = isSticky ? "Disable Preferred Permissions" : "Enable Preferred Permissions";
@@ -134,7 +135,7 @@ public class DrawUserPair
             permissions.SetSticky(!isSticky);
             _ = _apiController.UserSetPairPermissions(new(_pair.UserData, permissions));
         }
-        UiSharedService.AttachToolTip("Preferred permissions means that this pair will not" + Environment.NewLine + " be affected by any syncshell permission changes through you.");
+        _uiSharedService.AttachToolTip("Preferred permissions means that this pair will not" + Environment.NewLine + " be affected by any syncshell permission changes through you.");
 
         string individualText = Environment.NewLine + Environment.NewLine + "Note: changing this permission will turn the permissions for this"
             + Environment.NewLine + "user to preferred permissions. You can change this behavior"
@@ -150,7 +151,7 @@ public class DrawUserPair
             permissions.SetDisableSounds(!isDisableSounds);
             _ = _apiController.UserSetPairPermissions(new UserPermissionsDto(_pair.UserData, permissions));
         }
-        UiSharedService.AttachToolTip("Changes sound sync permissions with this user." + (individual ? individualText : string.Empty));
+        _uiSharedService.AttachToolTip("Changes sound sync permissions with this user." + (individual ? individualText : string.Empty));
 
         var isDisableAnims = _pair.UserPair!.OwnPermissions.IsDisableAnimations();
         string disableAnimsText = isDisableAnims ? "Enable animation sync" : "Disable animation sync";
@@ -161,7 +162,7 @@ public class DrawUserPair
             permissions.SetDisableAnimations(!isDisableAnims);
             _ = _apiController.UserSetPairPermissions(new UserPermissionsDto(_pair.UserData, permissions));
         }
-        UiSharedService.AttachToolTip("Changes animation sync permissions with this user." + (individual ? individualText : string.Empty));
+        _uiSharedService.AttachToolTip("Changes animation sync permissions with this user." + (individual ? individualText : string.Empty));
 
         var isDisableVFX = _pair.UserPair!.OwnPermissions.IsDisableVFX();
         string disableVFXText = isDisableVFX ? "Enable VFX sync" : "Disable VFX sync";
@@ -172,7 +173,7 @@ public class DrawUserPair
             permissions.SetDisableVFX(!isDisableVFX);
             _ = _apiController.UserSetPairPermissions(new UserPermissionsDto(_pair.UserData, permissions));
         }
-        UiSharedService.AttachToolTip("Changes VFX sync permissions with this user." + (individual ? individualText : string.Empty));
+        _uiSharedService.AttachToolTip("Changes VFX sync permissions with this user." + (individual ? individualText : string.Empty));
     }
 
     private void DrawIndividualMenu()
@@ -186,12 +187,12 @@ public class DrawUserPair
             {
                 _selectTagForPairUi.Open(_pair);
             }
-            UiSharedService.AttachToolTip("Choose pair groups for " + entryUID);
+            _uiSharedService.AttachToolTip("Choose pair groups for " + entryUID);
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Unpair User", _menuWidth, true) && UiSharedService.CtrlPressed())
             {
                 _ = _apiController.UserRemovePair(new(_pair.UserData));
             }
-            UiSharedService.AttachToolTip("Hold CTRL and click to unpair from " + entryUID);
+            _uiSharedService.AttachToolTip("Hold CTRL and click to unpair from " + entryUID);
         }
         else
         {
@@ -199,7 +200,7 @@ public class DrawUserPair
             {
                 _ = _apiController.UserAddPair(new(_pair.UserData), true);
             }
-            UiSharedService.AttachToolTip("Pair individually with " + entryUID);
+            _uiSharedService.AttachToolTip("Pair individually with " + entryUID);
         }
         if (!_pair.UserPair!.OwnPermissions.IsPaused())
         {
@@ -207,7 +208,7 @@ public class DrawUserPair
             {
                 _ = _apiController.UserPairStickyPauseAndRemove(_pair.UserData);
             }
-            UiSharedService.AttachToolTip("Hold CTRL and click to keep paused " + entryUID);
+            _uiSharedService.AttachToolTip("Hold CTRL and click to keep paused " + entryUID);
         }
         else
         {
@@ -218,7 +219,7 @@ public class DrawUserPair
                 perm.SetPaused(paused: false);
                 _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
             }
-            UiSharedService.AttachToolTip("Hold CTRL and click to resume pairing with " + entryUID);
+            _uiSharedService.AttachToolTip("Hold CTRL and click to resume pairing with " + entryUID);
         }
         
     }
@@ -226,6 +227,8 @@ public class DrawUserPair
     private void DrawLeftSide()
     {
         string userPairText = string.Empty;
+        var theme = _uiSharedService.Theme;
+        var NewUI = _uiSharedService.NewUI;
 
         ImGui.AlignTextToFramePadding();
 
@@ -239,7 +242,7 @@ public class DrawUserPair
         }
         else if (_pair.IsPaused && permSticky)
         {
-            using var _ = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed);
+            using var _ = ImRaii.PushColor(ImGuiCol.Text, ThemePalette.GetDarkerColor(ImGuiColors.DalamudRed, _wasHovered));
             _uiSharedService.IconText(FontAwesomeIcon.FilterCircleXmark);
             userPairText = _pair.UserData.AliasOrUID + " is paused (sticky)";
         }
@@ -254,8 +257,7 @@ public class DrawUserPair
         }
         else if (_pair.IsVisible)
         {
-            var visibleColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.ParsedGreen;
-            _uiSharedService.IconText(FontAwesomeIcon.Eye, ThemePalette.GetDarkerColor(visibleColor, _wasHovered));
+            _uiSharedService.IconText(FontAwesomeIcon.Eye, ThemePalette.GetDarkerColor(theme.Accent, _wasHovered));
             userPairText = _pair.UserData.AliasOrUID + " is visible: " + _pair.PlayerName + Environment.NewLine + "Click to target this player";
             if (ImGui.IsItemClicked())
             {
@@ -264,8 +266,7 @@ public class DrawUserPair
         }
         else
         {
-            var onlineColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-            using var _ = ImRaii.PushColor(ImGuiCol.Text, ThemePalette.GetDarkerColor(onlineColor, _wasHovered));
+            using var _ = ImRaii.PushColor(ImGuiCol.Text, ThemePalette.GetDarkerColor(theme.Accent, _wasHovered));
             _uiSharedService.IconText(_pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional
                 ? FontAwesomeIcon.User : FontAwesomeIcon.Users);
             userPairText = _pair.UserData.AliasOrUID + " is online";
@@ -307,7 +308,7 @@ public class DrawUserPair
                 }));
         }
 
-        UiSharedService.AttachToolTip(userPairText);
+        _uiSharedService.AttachToolTip(userPairText);
 
         if (_performanceConfigService.Current.ShowPerformanceIndicator
             && !_performanceConfigService.Current.UIDsToIgnore
@@ -336,7 +337,7 @@ public class DrawUserPair
                 userWarningText += $"Approx. Triangle count: Used: {_pair.LastAppliedDataTris}, Threshold: {_performanceConfigService.Current.TrisWarningThresholdThousands * 1000}";
             }
 
-            UiSharedService.AttachToolTip(userWarningText);
+            _uiSharedService.AttachToolTip(userWarningText);
         }
 
         ImGui.SameLine();
@@ -374,6 +375,7 @@ public class DrawUserPair
 
     private float DrawRightSide()
     {
+        var theme = _uiSharedService.Theme;
         var pauseIcon = _pair.UserPair!.OwnPermissions.IsPaused() ? FontAwesomeIcon.Play : FontAwesomeIcon.Pause;
         var pauseButtonSize = _uiSharedService.GetIconButtonSize(pauseIcon);
         var barButtonSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.EllipsisV);
@@ -422,7 +424,7 @@ public class DrawUserPair
             perm.SetPaused(!perm.IsPaused());
             _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
         }
-        UiSharedService.AttachToolTip(!_pair.UserPair!.OwnPermissions.IsPaused()
+        _uiSharedService.AttachToolTip(!_pair.UserPair!.OwnPermissions.IsPaused()
             ? ("Pause pairing with " + _pair.UserData.AliasOrUID
                 + (_pair.UserPair!.OwnPermissions.IsSticky()
                     ? string.Empty
@@ -457,8 +459,7 @@ public class DrawUserPair
 
                     if (individualIsSticky)
                     {
-                        var individualAccentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-                        _uiSharedService.IconText(individualIcon, ThemePalette.GetDarkerColor(individualAccentColor, _wasHovered));
+                        _uiSharedService.IconText(individualIcon, ThemePalette.GetDarkerColor(theme.Accent, _wasHovered));
                         ImGui.SameLine(40 * ImGuiHelpers.GlobalScale);
                         ImGui.AlignTextToFramePadding();
                         ImGui.TextUnformatted("Preferred permissions enabled");
@@ -529,9 +530,8 @@ public class DrawUserPair
         {
             currentRightSide -= (_uiSharedService.GetIconSize(FontAwesomeIcon.Running).X + (spacingX / 2f));
             ImGui.SameLine(currentRightSide);
-            var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-            _uiSharedService.IconText(FontAwesomeIcon.Running, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
-            UiSharedService.AttachToolTip($"This user has shared {sharedData.Count} Character Data Sets with you." + UiSharedService.TooltipSeparator
+            _uiSharedService.IconText(FontAwesomeIcon.Running, ThemePalette.GetDarkerColor(theme.Accent, _wasHovered));
+            _uiSharedService.AttachToolTip($"This user has shared {sharedData.Count} Character Data Sets with you." + UiSharedService.TooltipSeparator
                 + "Click to open the Character Data Hub and show the entries.");
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
@@ -571,9 +571,8 @@ public class DrawUserPair
             {
                 currentRightSide -= (_uiSharedService.GetIconSize(icon).X + spacingX);
                 ImGui.SameLine(currentRightSide);
-                var iconAccentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-                _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(iconAccentColor, _wasHovered));
-                UiSharedService.AttachToolTip(text);
+                _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(theme.Accent, _wasHovered));
+                _uiSharedService.AttachToolTip(text);
             }
         }
 
@@ -616,21 +615,21 @@ public class DrawUserPair
                 }
                 _ = _apiController.GroupSetUserInfo(new GroupPairUserInfoDto(group.Group, _pair.UserData, userinfo));
             }
-            UiSharedService.AttachToolTip("Pin this user to the Syncshell. Pinned users will not be deleted in case of a manually initiated Syncshell clean");
+            _uiSharedService.AttachToolTip("Pin this user to the Syncshell. Pinned users will not be deleted in case of a manually initiated Syncshell clean");
 
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Remove user", _menuWidth, true) && UiSharedService.CtrlPressed())
             {
                 ImGui.CloseCurrentPopup();
                 _ = _apiController.GroupRemoveUser(new(group.Group, _pair.UserData));
             }
-            UiSharedService.AttachToolTip("Hold CTRL and click to remove user " + (_pair.UserData.AliasOrUID) + " from Syncshell");
+            _uiSharedService.AttachToolTip("Hold CTRL and click to remove user " + (_pair.UserData.AliasOrUID) + " from Syncshell");
 
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.UserSlash, "Ban User", _menuWidth, true))
             {
                 _mediator.Publish(new OpenBanUserPopupMessage(_pair, group));
                 ImGui.CloseCurrentPopup();
             }
-            UiSharedService.AttachToolTip("Ban user from this Syncshell");
+            _uiSharedService.AttachToolTip("Ban user from this Syncshell");
 
             ImGui.Separator();
         }
@@ -653,7 +652,7 @@ public class DrawUserPair
 
                 _ = _apiController.GroupSetUserInfo(new GroupPairUserInfoDto(group.Group, _pair.UserData, userinfo));
             }
-            UiSharedService.AttachToolTip("Hold CTRL to change the moderator status for " + (_pair.UserData.AliasOrUID) + Environment.NewLine +
+            _uiSharedService.AttachToolTip("Hold CTRL to change the moderator status for " + (_pair.UserData.AliasOrUID) + Environment.NewLine +
                 "Moderators can kick, ban/unban, pin/unpin users and clear the Syncshell.");
 
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Crown, "Transfer Ownership", _menuWidth, true) && UiSharedService.CtrlPressed() && UiSharedService.ShiftPressed())
@@ -661,7 +660,7 @@ public class DrawUserPair
                 ImGui.CloseCurrentPopup();
                 _ = _apiController.GroupChangeOwnership(new(group.Group, _pair.UserData));
             }
-            UiSharedService.AttachToolTip("Hold CTRL and SHIFT and click to transfer ownership of this Syncshell to "
+            _uiSharedService.AttachToolTip("Hold CTRL and SHIFT and click to transfer ownership of this Syncshell to "
                 + (_pair.UserData.AliasOrUID) + Environment.NewLine + "WARNING: This action is irreversible.");
         }
     }

@@ -161,13 +161,13 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                 });
             });
         }
-        UiSharedService.AttachToolTip("Select and upload a new profile picture");
+        _uiSharedService.AttachToolTip("Select and upload a new profile picture");
         ImGui.SameLine();
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Clear uploaded profile picture"))
         {
             _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID), Disabled: false, IsNSFW: null, "", Description: null));
         }
-        UiSharedService.AttachToolTip("Clear your currently uploaded profile picture");
+        _uiSharedService.AttachToolTip("Clear your currently uploaded profile picture");
         if (_showFileDialogError)
         {
             UiSharedService.ColorTextWrapped("The profile picture must be a PNG file with a maximum height and width of 256px and 250KiB size", ImGuiColors.DalamudRed);
@@ -216,13 +216,13 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         {
             _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID), Disabled: false, IsNSFW: null, ProfilePictureBase64: null, _descriptionText));
         }
-        UiSharedService.AttachToolTip("Sets your profile description text");
+        _uiSharedService.AttachToolTip("Sets your profile description text");
         ImGui.SameLine();
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Clear Description"))
         {
             _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID), Disabled: false, IsNSFW: null, ProfilePictureBase64: null, ""));
         }
-        UiSharedService.AttachToolTip("Clears your profile description text");
+        _uiSharedService.AttachToolTip("Clears your profile description text");
     }
 
     protected override void Dispose(bool disposing)

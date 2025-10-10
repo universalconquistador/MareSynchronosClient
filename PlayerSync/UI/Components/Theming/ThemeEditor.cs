@@ -33,13 +33,13 @@ public class ThemeEditor
 
     public IDisposable PushEditingTheme()
     {
-        ImGui.PushStyleColor(ImGuiCol.WindowBg, _editingTheme.PanelBg);
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, _editingTheme.PanelBg);
-        ImGui.PushStyleColor(ImGuiCol.Border, _editingTheme.PanelBorder);
-        ImGui.PushStyleColor(ImGuiCol.TitleBg, _editingTheme.HeaderBg);
-        ImGui.PushStyleColor(ImGuiCol.TitleBgActive, _editingTheme.HeaderBg);
-        ImGui.PushStyleColor(ImGuiCol.TitleBgCollapsed, _editingTheme.HeaderBg);
-        ImGui.PushStyleColor(ImGuiCol.MenuBarBg, _editingTheme.HeaderBg);
+        //ImGui.PushStyleColor(ImGuiCol.WindowBg, _editingTheme.PanelBg);
+        //ImGui.PushStyleColor(ImGuiCol.ChildBg, _editingTheme.PanelBg);
+        //ImGui.PushStyleColor(ImGuiCol.Border, _editingTheme.PanelBorder);
+        //ImGui.PushStyleColor(ImGuiCol.TitleBg, _editingTheme.HeaderBg);
+        //ImGui.PushStyleColor(ImGuiCol.TitleBgActive, _editingTheme.HeaderBg);
+        //ImGui.PushStyleColor(ImGuiCol.TitleBgCollapsed, _editingTheme.HeaderBg);
+        //ImGui.PushStyleColor(ImGuiCol.MenuBarBg, _editingTheme.HeaderBg);
         ImGui.PushStyleColor(ImGuiCol.Header, _editingTheme.HeaderBg);
         ImGui.PushStyleColor(ImGuiCol.HeaderHovered, _editingTheme.BtnHovered);
         ImGui.PushStyleColor(ImGuiCol.HeaderActive, _editingTheme.BtnActive);
@@ -79,7 +79,7 @@ public class ThemeEditor
         ImGui.PushStyleColor(ImGuiCol.TextSelectedBg, _editingTheme.BtnActive);
 
         // Apply rounding styles
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, _editingTheme.WindowRounding);
+        //ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, _editingTheme.WindowRounding);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, _editingTheme.ChildRounding);
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, _editingTheme.FrameRounding);
         ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, _editingTheme.PopupRounding);
@@ -87,7 +87,7 @@ public class ThemeEditor
         ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, _editingTheme.GrabRounding);
         ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, _editingTheme.TabRounding);
 
-        return new EditingThemeScope(44, 7);
+        return new EditingThemeScope(37, 6);
     }
 
     private class EditingThemeScope : IDisposable
@@ -102,6 +102,12 @@ public class ThemeEditor
         }
 
         public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
         {
             if (_styleVarCount > 0)
                 ImGui.PopStyleVar(_styleVarCount);
@@ -396,6 +402,7 @@ public class ThemeEditor
             }
 
             ImGui.Spacing();
+            // Color picker popup save button
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Save, "Save and Close"))
             {
                 ImGui.CloseCurrentPopup();
@@ -410,7 +417,7 @@ public class ThemeEditor
         ImGui.Separator();
 
         // Show that changes are automatically applied
-        ImGui.TextColored(ThemeManager.Instance?.Current.Accent ?? new Vector4(0.26f, 0.59f, 0.98f, 1.00f), "Changes applied automatically");
+        ImGui.TextColored(_editingTheme.Accent, "Changes applied automatically");
 
         if (_hasChanges)
         {
@@ -420,14 +427,14 @@ public class ThemeEditor
                 _hasChanges = false;
                 _themeManager.SetCustomTheme(_editingTheme);
             }
-            UiSharedService.AttachToolTip("Reset to current theme");
+            _uiSharedService.AttachToolTip("Reset to current theme");
         }
         else
         {
             ImGui.BeginDisabled();
             _uiSharedService.IconTextButton(FontAwesomeIcon.Undo, "Reset");
             ImGui.EndDisabled();
-            UiSharedService.AttachToolTip("No changes to reset");
+            _uiSharedService.AttachToolTip("No changes to reset");
         }
 
         ImGui.SameLine();
@@ -435,7 +442,7 @@ public class ThemeEditor
         {
             CloseThemeEditor();
         }
-        UiSharedService.AttachToolTip("Close theme editor");
+        _uiSharedService.AttachToolTip("Close theme editor");
     }
 
     private void CloseThemeEditor()
@@ -447,7 +454,6 @@ public class ThemeEditor
         }
         _closeRequested = true;
     }
-
 
     private void CopyCurrentTheme()
     {
