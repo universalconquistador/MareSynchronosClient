@@ -183,14 +183,15 @@ public class CompactUi : WindowMediatorSubscriberBase
     public override void PreDraw()
     {
         if (_collapsed) Flags |= ImGuiWindowFlags.NoResize;
+        _theme = _uiSharedService.ThemeManager.PushTheme();
 
         // Some things have to be pushed before the draw method is called.
         var themeManager = _uiSharedService.ThemeManager;
         var theme = themeManager.Current;
 
-        // Colors
-        ImGui.PushStyleColor(ImGuiCol.WindowBg, theme.PanelBg);
-        ImGui.PushStyleColor(ImGuiCol.Border, theme.PanelBorder);
+        //// Colors
+        //ImGui.PushStyleColor(ImGuiCol.WindowBg, theme.PanelBg);
+        //ImGui.PushStyleColor(ImGuiCol.Border, theme.PanelBorder);
 
         // Styles
         float windowRounding = NewUI ? 12.0f : 4.0f;
@@ -206,9 +207,9 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     public override void PostDraw()
     {
-        ImGui.PopStyleColor(2);
+        _theme.Dispose();
+        //ImGui.PopStyleColor(2);
         ImGui.PopStyleVar(3);
-
         base.PostDraw();
     }
 
@@ -238,25 +239,21 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
-        using (_uiSharedService.ThemeManager.PushTheme())
+        UpdateWindowFlags();
+        if (NewUI)
         {
-            UpdateWindowFlags();
-            if (NewUI)
+            if (_collapsed)
             {
-                if (_collapsed)
-                {
-                    DrawTitleBar();
-                    return;
-                }
-                DrawThemeWindow();
+                DrawTitleBar();
+                return;
             }
-            else
-            {
-                DrawClassicWindow();
-            }
+            DrawThemeWindow();
         }
-        
-    }
+        else
+        {
+            DrawClassicWindow();
+        }
+}
 
     private void DrawThemeEditor()
     {
