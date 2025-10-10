@@ -1,6 +1,5 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
@@ -10,9 +9,7 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
-using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.WebAPI;
-using System;
 using System.Numerics;
 
 namespace MareSynchronos.UI;
@@ -27,6 +24,7 @@ public class TopTabMenu : IMediatorSubscriber
     private readonly IBroadcastManager _broadcastManager;
     private readonly UiSharedService _uiSharedService;
     private readonly MareConfigService _mareConfigService;
+    private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private string _filter = string.Empty;
     private int _globalControlCountdown = 0;
 
@@ -34,7 +32,7 @@ public class TopTabMenu : IMediatorSubscriber
     MareMediator IMediatorSubscriber.Mediator => _mareMediator;
 
     private SelectedTab _selectedTab = SelectedTab.None;
-    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, MareConfigService mareConfigService)
+    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, MareConfigService mareConfigService, ZoneSyncConfigService zoneSyncConfigService)
     {
         _mareMediator = mareMediator;
         _apiController = apiController;
@@ -42,6 +40,7 @@ public class TopTabMenu : IMediatorSubscriber
         _broadcastManager = broadcastManager;
         _uiSharedService = uiSharedService;
         _mareConfigService = mareConfigService;
+        _zoneSyncConfigService = zoneSyncConfigService;
     }
 
     private enum SelectedTab
@@ -50,7 +49,7 @@ public class TopTabMenu : IMediatorSubscriber
         Individual,
         Syncshell,
         Filter,
-        Broadcast,
+        PlayerSync,
         UserConfig
     }
 
@@ -268,13 +267,21 @@ public class TopTabMenu : IMediatorSubscriber
             //}
             //else
             //{
-            var textColor = _broadcastManager.IsBroadcasting() ? theme.StatusBroadcasting : theme?.BtnText ?? ImGuiColors.DalamudWhite;
+            //var textColor = _broadcastManager.IsBroadcasting() ? theme.StatusBroadcasting : theme?.BtnText ?? ImGuiColors.DalamudWhite;
             //}
-            using (ImRaii.PushColor(ImGuiCol.Text, textColor))
+            var psBase = new Vector4(0.18f, 0.61f, 0.81f, 0.85f); // #2E9BCF
+            var psHover = new Vector4(0.58f, 0.84f, 0.95f, 0.85f); // #93D7F3
+            var psActive = new Vector4(0.12f, 0.44f, 0.63f, 1.00f); // #1F709F
+            var psIcon = new Vector4(0.72f, 0.90f, 1.00f, 1.00f); // #B7E6FF
+
+            using (ImRaii.PushColor(ImGuiCol.Button, psBase))
+            using (ImRaii.PushColor(ImGuiCol.ButtonHovered, psHover))
+            using (ImRaii.PushColor(ImGuiCol.ButtonActive, psActive))
+            using (ImRaii.PushColor(ImGuiCol.Text, psIcon))
             {
-                if (ImGui.Button(FontAwesomeIcon.Wifi.ToIconString(), buttonSize))
+                if (ImGui.Button(FontAwesomeIcon.Sync.ToIconString(), buttonSize))
                 {
-                    TabSelection = TabSelection == SelectedTab.Broadcast ? SelectedTab.None : SelectedTab.Broadcast;
+                    TabSelection = TabSelection == SelectedTab.PlayerSync ? SelectedTab.None : SelectedTab.PlayerSync;
                 }
             }
             //if (ImGui.Button(FontAwesomeIcon.Wifi.ToIconString(), buttonSize))
@@ -284,12 +291,12 @@ public class TopTabMenu : IMediatorSubscriber
 
             ImGui.SameLine();
             var xAfter = ImGui.GetCursorScreenPos();
-            if (TabSelection == SelectedTab.Broadcast)
+            if (TabSelection == SelectedTab.PlayerSync)
                 drawList.AddLine(x with { Y = x.Y + buttonSize.Y + spacing.Y },
                     xAfter with { Y = xAfter.Y + buttonSize.Y + spacing.Y, X = xAfter.X - spacing.X },
                     underlineColor, 2);
         }
-        _uiSharedService.AttachToolTip("Syncshell Broadcast");
+        _uiSharedService.AttachToolTip("PlayerSync");
 
         // UserConfig tab
         ImGui.SameLine();
@@ -351,9 +358,9 @@ public class TopTabMenu : IMediatorSubscriber
         {
             DrawFilter(availableWidth, spacing.X);
         }
-        else if (TabSelection == SelectedTab.Broadcast)
+        else if (TabSelection == SelectedTab.PlayerSync)
         {
-            DrawBroadcast(availableWidth, spacing.X);
+            DrawPlayerSync(availableWidth, spacing.X);
         }
         else if (TabSelection == SelectedTab.UserConfig)
         {
@@ -412,26 +419,56 @@ public class TopTabMenu : IMediatorSubscriber
         }
     }
 
-    private void DrawBroadcast(float availableXWidth, float spacingX)
+    private void DrawPlayerSync(float availableXWidth, float spacingX)
     {
         var theme = _uiSharedService.Theme;
         bool showBroadcastingSyncshells = _mareConfigService.Current.ListenForBroadcasts;
-        if (ImGui.Checkbox("Enable Broadcast Features", ref showBroadcastingSyncshells))
+        var buttonSize = (ImGui.GetContentRegionAvail().X - spacingX) / 2f;
+        if (_uiSharedService.IconTextButton(showBroadcastingSyncshells ? FontAwesomeIcon.TimesCircle : FontAwesomeIcon.Wifi, 
+            showBroadcastingSyncshells ? "Don't Show Broadcasts" : "Show Broadcasts", buttonSize))
         {
-            if (showBroadcastingSyncshells)
-            {
-                _broadcastManager.StartListening();
-            }
-            else
-            {
-                _broadcastManager.StopListening();
-            }
+            showBroadcastingSyncshells = !showBroadcastingSyncshells;
+
+            if (showBroadcastingSyncshells) _broadcastManager.StartListening();
+            else _broadcastManager.StopListening();
+
             _mareConfigService.Current.ListenForBroadcasts = showBroadcastingSyncshells;
             _mareConfigService.Save();
         }
-        _uiSharedService.AttachToolTip("Show Syncshells broadcasting in your location for easy joining." + Environment.NewLine + Environment.NewLine +
-            "Use the menu for a Syncshell that you own or moderate to broadcast it to players nearby.");
+        ImGui.SameLine();
 
+        _uiSharedService.AttachToolTip(
+            showBroadcastingSyncshells
+                ? "Click to turn OFF broadcast features." + UiSharedService.TooltipSeparator + "Stops showing nearby Syncshell broadcasts."
+                : "Click to turn ON broadcast features." + UiSharedService.TooltipSeparator + "Shows Syncshells broadcasting in your location for easy joining."
+        );
+        
+        // Button for ZoneSync
+        bool warningAccepted = _zoneSyncConfigService.Current.UserHasConfirmedWarning;
+        bool zoneSyncEnabled = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+        using (ImRaii.Disabled(!warningAccepted))
+        {
+            using (ImRaii.Disabled(_globalControlCountdown > 0))
+            {
+                if (_uiSharedService.IconTextButton(zoneSyncEnabled ? FontAwesomeIcon.TimesCircle : FontAwesomeIcon.Globe,
+                    zoneSyncEnabled ? "Disable ZoneSync" : "Enable ZoneSync", buttonSize))
+                {
+                    _ = GlobalControlCountdown(5);
+                    zoneSyncEnabled = !zoneSyncEnabled;
+                    _mareMediator.Publish(new GroupZoneSetEnableState(zoneSyncEnabled));
+                    _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = zoneSyncEnabled;
+                    _zoneSyncConfigService.Save();
+                }
+            }
+        }
+        string zoneSyncText = zoneSyncEnabled
+            ? "Click to turn OFF ZoneSync." + UiSharedService.TooltipSeparator + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator +
+            "You can change the filter in the settings." + UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty)
+            : "Click to turn ON ZoneSync." + UiSharedService.TooltipSeparator + "You can change the filter in the settings." +
+            UiSharedService.TooltipSeparator + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty);
+        string warningText = "You must go to Pairing Settings first in the Settings to enable this feature.";
+        _uiSharedService.AttachToolTip(warningAccepted ? zoneSyncText : warningText);
+        
         if (showBroadcastingSyncshells)
         {
             string? broadcastGroupId = _broadcastManager.BroadcastingGroupId;
@@ -762,9 +799,9 @@ public class TopTabMenu : IMediatorSubscriber
 
     private async Task GlobalControlCountdown(int countdown)
     {
-#if DEBUG
-        return;
-#endif
+//#if DEBUG
+//        return;
+//#endif
 
         _globalControlCountdown = countdown;
         while (_globalControlCountdown > 0)
