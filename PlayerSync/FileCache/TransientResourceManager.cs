@@ -385,18 +385,25 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
     {
         _ = Task.Run(async () =>
         {
-            _sendTransientCts?.Cancel();
-            _sendTransientCts?.Dispose();
-            _sendTransientCts = new();
-            var token = _sendTransientCts.Token;
-            await Task.Delay(TimeSpan.FromSeconds(5), token).ConfigureAwait(false);
-            foreach (var kvp in TransientResources)
+            try
             {
-                if (TransientResources.TryGetValue(objectKind, out var values) && values.Any())
+                _sendTransientCts?.Cancel();
+                _sendTransientCts?.Dispose();
+                _sendTransientCts = new();
+                var token = _sendTransientCts.Token;
+                await Task.Delay(TimeSpan.FromSeconds(5), token).ConfigureAwait(false);
+                foreach (var kvp in TransientResources)
                 {
-                    Logger.LogTrace("Sending Transients for {kind}", objectKind);
-                    Mediator.Publish(new TransientResourceChangedMessage(gameObject));
+                    if (TransientResources.TryGetValue(objectKind, out var values) && values.Any())
+                    {
+                        Logger.LogTrace("Sending Transients for {kind}", objectKind);
+                        Mediator.Publish(new TransientResourceChangedMessage(gameObject));
+                    }
                 }
+            }
+            catch (ObjectDisposedException ex)
+            {
+                Logger.LogWarning(ex, "Cancellation token was disposed! We're not entirely sure why this happens...");
             }
         });
     }
