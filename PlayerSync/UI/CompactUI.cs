@@ -337,11 +337,9 @@ public class CompactUi : WindowMediatorSubscriberBase
     {
         ImGui.BeginChild("title-bar", new Vector2(0, 0), false, ImGuiWindowFlags.NoBackground);
 
-        var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        var title = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build;
         var startPos = ImGui.GetCursorPos();
         ImGui.SetCursorPos(new Vector2(startPos.X, startPos.Y + ImGui.GetStyle().WindowPadding.Y / 2));
-        ImGui.TextUnformatted(title);
+        ImGui.TextUnformatted(WindowName.Split("###")[0]);
 
         float btnSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Times).X;
         var totalButtonsWidth = btnSize * 3 + _uiSharedService.ThemeManager.ScaledSpacing * 2;
