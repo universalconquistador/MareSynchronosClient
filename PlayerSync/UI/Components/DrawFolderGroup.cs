@@ -44,11 +44,18 @@ public class DrawFolderGroup : DrawFolderBase
 
     protected override float DrawIcon()
     {
+        bool newUI = _uiSharedService.NewUI;
+        var theme = _uiSharedService.Theme;
         ImGui.AlignTextToFramePadding();
 
         bool isBroadcasting = _broadcastManager.BroadcastingGroupId == _groupFullInfoDto.GID;
         bool isZoneSync = _groupFullInfoDto.PublicData.IsZoneSync;
-        var broadcastColor = isBroadcasting ? ThemePalette.GetDarkerColor(ImGuiColors.HealerGreen, _wasHovered) : ThemePalette.GetDarkerColor(ImGui.GetStyle().Colors[(int)ImGuiCol.Text], _wasHovered);
+        Vector4 broadcastColor;
+        //if (newUI)
+        //{
+        broadcastColor = isBroadcasting ? ThemePalette.GetDarkerColor(ImGuiColors.HealerGreen, _wasHovered) : ThemePalette.GetDarkerColor(ImGui.GetStyle().Colors[(int)ImGuiCol.Text], _wasHovered);
+        //}
+        //else broadcastColor = ImGuiColors.HealerGreen;
         using (ImRaii.PushColor(ImGuiCol.Text, broadcastColor, isBroadcasting))
         {
             FontAwesomeIcon icon;
@@ -64,12 +71,14 @@ public class DrawFolderGroup : DrawFolderBase
             {
                 icon = _groupFullInfoDto.GroupPermissions.IsDisableInvites() ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users;
             }
-            var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-            _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
+            //if (themed)
+            //{
+                _uiSharedService.IconText(icon, newUI ? ThemePalette.GetDarkerColor(theme.Accent, _wasHovered) : theme.Accent);
+            //}
         }
         if (_groupFullInfoDto.GroupPermissions.IsDisableInvites())
         {
-            UiSharedService.AttachToolTip("Syncshell " + _groupFullInfoDto.GroupAliasOrGID + " is closed for invites");
+            _uiSharedService.AttachToolTip("Syncshell " + _groupFullInfoDto.GroupAliasOrGID + " is closed for invites");
         }
 
         using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().ItemSpacing with { X = ImGui.GetStyle().ItemSpacing.X / 2f }))
@@ -79,32 +88,32 @@ public class DrawFolderGroup : DrawFolderBase
 
             ImGui.TextUnformatted("[" + OnlinePairs.ToString() + "]");
         }
-        UiSharedService.AttachToolTip(OnlinePairs + " online" + Environment.NewLine + TotalPairs + " total");
+        _uiSharedService.AttachToolTip(OnlinePairs + " online" + Environment.NewLine + TotalPairs + " total");
 
         ImGui.SameLine();
         if (IsOwner)
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.Crown, ThemeManager.Instance?.Current.Accent);
-            UiSharedService.AttachToolTip("You are the owner of " + _groupFullInfoDto.GroupAliasOrGID);
+            _uiSharedService.IconText(FontAwesomeIcon.Crown, theme.Accent);
+            _uiSharedService.AttachToolTip("You are the owner of " + _groupFullInfoDto.GroupAliasOrGID);
         }
         else if (IsModerator)
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.UserShield, ThemeManager.Instance?.Current.Accent);
-            UiSharedService.AttachToolTip("You are a moderator in " + _groupFullInfoDto.GroupAliasOrGID);
+            _uiSharedService.IconText(FontAwesomeIcon.UserShield, theme.Accent);
+            _uiSharedService.AttachToolTip("You are a moderator in " + _groupFullInfoDto.GroupAliasOrGID);
         }
         else if (IsPinned)
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.Thumbtack, ThemeManager.Instance?.Current.Accent);
-            UiSharedService.AttachToolTip("You are pinned in " + _groupFullInfoDto.GroupAliasOrGID);
+            _uiSharedService.IconText(FontAwesomeIcon.Thumbtack, theme.Accent);
+            _uiSharedService.AttachToolTip("You are pinned in " + _groupFullInfoDto.GroupAliasOrGID);
         }
         else if (IsGuest)
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage, ThemeManager.Instance?.Current.Accent);
-            UiSharedService.AttachToolTip("You are a guest in " + _groupFullInfoDto.GroupAliasOrGID);
+            _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage, theme.Accent);
+            _uiSharedService.AttachToolTip("You are a guest in " + _groupFullInfoDto.GroupAliasOrGID);
         }
         ImGui.SameLine();
         return ImGui.GetCursorPosX();
@@ -121,14 +130,14 @@ public class DrawFolderGroup : DrawFolderBase
             ImGui.CloseCurrentPopup();
             ImGui.SetClipboardText(_groupFullInfoDto.GroupAliasOrGID);
         }
-        UiSharedService.AttachToolTip("Copy Syncshell ID to Clipboard");
+        _uiSharedService.AttachToolTip("Copy Syncshell ID to Clipboard");
 
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.StickyNote, "Copy Notes", menuWidth, true))
         {
             ImGui.CloseCurrentPopup();
             ImGui.SetClipboardText(UiSharedService.GetNotes(DrawPairs.Select(k => k.Pair).ToList()));
         }
-        UiSharedService.AttachToolTip("Copies all your notes for all users in this Syncshell to the clipboard." + Environment.NewLine + "They can be imported via Settings -> General -> Notes -> Import notes from clipboard");
+        _uiSharedService.AttachToolTip("Copies all your notes for all users in this Syncshell to the clipboard." + Environment.NewLine + "They can be imported via Settings -> General -> Notes -> Import notes from clipboard");
 
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.ArrowCircleLeft, "Leave Syncshell", menuWidth, true) && UiSharedService.CtrlPressed())
         {
@@ -145,7 +154,7 @@ public class DrawFolderGroup : DrawFolderBase
             }
             ImGui.CloseCurrentPopup();
         }
-        UiSharedService.AttachToolTip("Hold CTRL and click to leave this Syncshell" + (!string.Equals(_groupFullInfoDto.OwnerUID, _apiController.UID, StringComparison.Ordinal)
+        _uiSharedService.AttachToolTip("Hold CTRL and click to leave this Syncshell" + (!string.Equals(_groupFullInfoDto.OwnerUID, _apiController.UID, StringComparison.Ordinal)
             ? string.Empty : Environment.NewLine + "WARNING: This action is irreversible" + Environment.NewLine + "Leaving an owned Syncshell will transfer the ownership to a random person in the Syncshell."));
 
         ImGui.Separator();
@@ -210,7 +219,7 @@ public class DrawFolderGroup : DrawFolderBase
                         _ = _apiController.GroupChangeGroupPermissionState(new(_groupFullInfoDto.Group, groupPerms));
                     }
                 }
-                UiSharedService.AttachToolTip("Players will be able to join the Syncshell without a password.\nHold CTRL and click if you are sure you want to enable this.");
+                _uiSharedService.AttachToolTip("Players will be able to join the Syncshell without a password.\nHold CTRL and click if you are sure you want to enable this.");
             }
             else
             {
@@ -239,15 +248,15 @@ public class DrawFolderGroup : DrawFolderBase
                         {
                             _broadcastManager.StartBroadcasting(_groupFullInfoDto.Group.GID);
                         }
-                        UiSharedService.AttachToolTip("Begin broadcasting your Syncshell to players around you.");
+                        _uiSharedService.AttachToolTip("Begin broadcasting your Syncshell to players around you.");
                     }
                     if (_groupFullInfoDto.PublicData.KnownPasswordless )
                     {
-                        UiSharedService.AttachToolTip("This Syncshell has no password!\nHold CTRL and click if you are sure you want to broadcast this passwordless Syncshell.");
+                        _uiSharedService.AttachToolTip("This Syncshell has no password!\nHold CTRL and click if you are sure you want to broadcast this passwordless Syncshell.");
                     }
                     else if (_groupFullInfoDto.GroupPermissions.IsEnableGuestMode())
                     {
-                        UiSharedService.AttachToolTip("This Syncshell has Guest Mode enabled!\nHold CTRL and click if you are sure you want to broadcast this Syncshell with no password.");
+                        _uiSharedService.AttachToolTip("This Syncshell has Guest Mode enabled!\nHold CTRL and click if you are sure you want to broadcast this Syncshell with no password.");
                     }
                 }
             }
@@ -261,6 +270,8 @@ public class DrawFolderGroup : DrawFolderBase
 
     protected override float DrawRightSide(float currentRightSideX)
     {
+        var theme = _uiSharedService.Theme;
+        bool newUI = _uiSharedService.NewUI;
         var spacingX = ImGui.GetStyle().ItemSpacing.X;
 
         FontAwesomeIcon pauseIcon = _groupFullInfoDto.GroupUserPermissions.IsPaused() ? FontAwesomeIcon.Play : FontAwesomeIcon.Pause;
@@ -280,7 +291,7 @@ public class DrawFolderGroup : DrawFolderBase
 
         _uiSharedService.IconText(FontAwesomeIcon.UsersCog, (_groupFullInfoDto.GroupPermissions.IsPreferDisableAnimations() != individualAnimDisabled
             || _groupFullInfoDto.GroupPermissions.IsPreferDisableSounds() != individualSoundsDisabled
-            || _groupFullInfoDto.GroupPermissions.IsPreferDisableVFX() != individualVFXDisabled) ? ImGuiColors.DalamudYellow : ThemeManager.Instance?.Current.Accent);
+            || _groupFullInfoDto.GroupPermissions.IsPreferDisableVFX() != individualVFXDisabled) ? ImGuiColors.DalamudYellow : theme.Accent);
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
@@ -333,29 +344,24 @@ public class DrawFolderGroup : DrawFolderBase
         var isRowHovered = ImGui.IsItemHovered() || _wasHovered;
         if (isRowHovered)
         {
-            var style = ImGui.GetStyle();
-            var currentButton = style.Colors[(int)ImGuiCol.Button];
-            var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
-            var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
+            //var style = ImGui.GetStyle();
+            //var currentButton = style.Colors[(int)ImGuiCol.Button];
+            //var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
+            //var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-            ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(currentButton, true));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(currentButtonHovered, true));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(currentButtonActive, true));
+            ImGui.PushStyleColor(ImGuiCol.Button, newUI ? ThemePalette.GetDarkerColor(theme.Btn, true) : theme.Btn);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, newUI ? ThemePalette.GetDarkerColor(theme.BtnHovered, true) : theme.BtnHovered);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, newUI ? ThemePalette.GetDarkerColor(theme.BtnActive, true) : theme.BtnActive);
+
         }
 
-        bool buttonPressed = _uiSharedService.IconButton(pauseIcon);
-
-        if (isRowHovered)
-        {
-            ImGui.PopStyleColor(3);
-        }
-
-        if (buttonPressed)
+        if (_uiSharedService.IconButton(pauseIcon))
         {
             var perm = _groupFullInfoDto.GroupUserPermissions;
             perm.SetPaused(!perm.IsPaused());
             _ = _apiController.GroupChangeIndividualPermissionState(new GroupPairUserPermissionDto(_groupFullInfoDto.Group, new(_apiController.UID), perm));
         }
+        if (isRowHovered) ImGui.PopStyleColor(3);
         return currentRightSideX;
     }
 }

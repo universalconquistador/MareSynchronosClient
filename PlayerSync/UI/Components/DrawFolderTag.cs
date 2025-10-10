@@ -70,6 +70,7 @@ public class DrawFolderTag : DrawFolderBase
 
     protected override float DrawIcon()
     {
+        var theme = _uiSharedService.Theme;
         var icon = _id switch
         {
             TagHandler.CustomUnpairedTag => FontAwesomeIcon.ArrowsLeftRight,
@@ -82,7 +83,7 @@ public class DrawFolderTag : DrawFolderBase
         };
 
         ImGui.AlignTextToFramePadding();
-        var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
+        var accentColor = theme.Accent;
         _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
 
         if (RenderCount)
@@ -94,7 +95,7 @@ public class DrawFolderTag : DrawFolderBase
 
                 ImGui.TextUnformatted("[" + OnlinePairs.ToString() + "]");
             }
-            UiSharedService.AttachToolTip(OnlinePairs + " online" + Environment.NewLine + TotalPairs + " total");
+            _uiSharedService.AttachToolTip(OnlinePairs + " online" + Environment.NewLine + TotalPairs + " total");
         }
         ImGui.SameLine();
         return ImGui.GetCursorPosX();
@@ -107,12 +108,12 @@ public class DrawFolderTag : DrawFolderBase
         {
             _selectPairForTagUi.Open(_id);
         }
-        UiSharedService.AttachToolTip("Select Individual Pairs for this Pair Group");
+        _uiSharedService.AttachToolTip("Select Individual Pairs for this Pair Group");
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Delete Pair Group", menuWidth, true) && UiSharedService.CtrlPressed())
         {
             _tagHandler.RemoveTag(_id);
         }
-        UiSharedService.AttachToolTip("Hold CTRL to remove this Group permanently." + Environment.NewLine +
+        _uiSharedService.AttachToolTip("Hold CTRL to remove this Group permanently." + Environment.NewLine +
             "Note: this will not unpair with users in this Group.");
     }
 
@@ -157,11 +158,11 @@ public class DrawFolderTag : DrawFolderBase
         }
         if (allArePaused)
         {
-            UiSharedService.AttachToolTip($"Resume pairing with all pairs in {_id}");
+            _uiSharedService.AttachToolTip($"Resume pairing with all pairs in {_id}");
         }
         else
         {
-            UiSharedService.AttachToolTip($"Pause pairing with all pairs in {_id}");
+            _uiSharedService.AttachToolTip($"Pause pairing with all pairs in {_id}");
         }
 
         return currentRightSideX;
