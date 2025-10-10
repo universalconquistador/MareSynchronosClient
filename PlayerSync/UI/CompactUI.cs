@@ -57,8 +57,9 @@ public class CompactUi : WindowMediatorSubscriberBase
     private bool _wasOpen;
     private bool _collapsed = false;
     private bool _expanded = false;
+    private bool _appliedThemeThisFrame;
     private float _windowContentWidth;
-    private IDisposable _theme;
+    private IDisposable? _theme;
 
     public CompactUi(ILogger<CompactUi> logger, UiSharedService uiShared, MareConfigService configService, ApiController apiController, PairManager pairManager,
         IBroadcastManager broadcastManager,
@@ -182,16 +183,20 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     public override void PreDraw()
     {
-        if (_collapsed) Flags |= ImGuiWindowFlags.NoResize;
-        _theme = _uiSharedService.ThemeManager.PushTheme();
-
         // Some things have to be pushed before the draw method is called.
         var themeManager = _uiSharedService.ThemeManager;
         var theme = themeManager.Current;
 
-        // Colors
-        ImGui.PushStyleColor(ImGuiCol.WindowBg, theme.PanelBg);
-        ImGui.PushStyleColor(ImGuiCol.Border, theme.PanelBorder);
+        if (_collapsed) Flags |= ImGuiWindowFlags.NoResize;
+        _appliedThemeThisFrame = !themeManager.UsingDalamudTheme;
+        if (_appliedThemeThisFrame)
+        {
+            _theme = _uiSharedService.ThemeManager.PushTheme();
+
+            // Colors
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, theme.PanelBg);
+            ImGui.PushStyleColor(ImGuiCol.Border, theme.PanelBorder);
+        }
 
         // Styles
         float windowRounding = NewUI ? 12.0f : 4.0f;
@@ -207,9 +212,15 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     public override void PostDraw()
     {
-        _theme.Dispose();
-        ImGui.PopStyleColor(2);
+        if (_appliedThemeThisFrame)
+        {
+            ImGui.PopStyleColor(2);
+            _theme?.Dispose();
+        }
         ImGui.PopStyleVar(3);
+        _theme = null;
+        _appliedThemeThisFrame = false;
+
         base.PostDraw();
     }
 
@@ -274,14 +285,14 @@ public class CompactUi : WindowMediatorSubscriberBase
                 _configService.Save();
                 WindowSetup();
             }
-            //var useDalamud = _uiSharedService.ThemeManager.UsingDalamudTheme;
-            //var config = _uiSharedService.ThemeManager.UIThemeConfig;
-            //if (ImGui.Checkbox("Sync Dalamud Color Theme", ref useDalamud))
-            //{
-            //    config.Current.UseDalamudTheme = useDalamud;
-            //    config.Save();
-            //    WindowSetup();
-            //}
+            var useDalamud = _uiSharedService.ThemeManager.UsingDalamudTheme;
+            var config = _uiSharedService.ThemeManager.UIThemeConfig;
+            if (ImGui.Checkbox("Sync Dalamud Color Theme", ref useDalamud))
+            {
+                config.Current.UseDalamudTheme = useDalamud;
+                config.Save();
+                WindowSetup();
+            }
             ImGui.Separator();
             _uiSharedService.ThemeEditor.Draw();
 
