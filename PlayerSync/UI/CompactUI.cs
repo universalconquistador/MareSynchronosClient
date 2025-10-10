@@ -32,6 +32,7 @@ public class CompactUi : WindowMediatorSubscriberBase
 {
     private readonly ApiController _apiController;
     private readonly MareConfigService _configService;
+    private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly ConcurrentDictionary<GameObjectHandler, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DrawEntityFactory _drawEntityFactory;
     private readonly FileUploadManager _fileTransferManager;
@@ -61,8 +62,8 @@ public class CompactUi : WindowMediatorSubscriberBase
     private float _windowContentWidth;
     private IDisposable? _theme;
 
-    public CompactUi(ILogger<CompactUi> logger, UiSharedService uiShared, MareConfigService configService, ApiController apiController, PairManager pairManager,
-        IBroadcastManager broadcastManager,
+    public CompactUi(ILogger<CompactUi> logger, UiSharedService uiShared, MareConfigService configService, ZoneSyncConfigService zoneSyncConfigService,  
+        ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager,
         ServerConfigurationManager serverManager, MareMediator mediator, FileUploadManager fileTransferManager,
         TagHandler tagHandler, DrawEntityFactory drawEntityFactory, SelectTagForPairUi selectTagForPairUi, SelectPairForTagUi selectPairForTagUi,
         PerformanceCollectorService performanceCollectorService, IpcManager ipcManager)
@@ -72,6 +73,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         _configService = configService;
         _apiController = apiController;
         _pairManager = pairManager;
+        _zoneSyncConfigService = zoneSyncConfigService;
         _broadcastManager = broadcastManager;
         _serverManager = serverManager;
         _fileTransferManager = fileTransferManager;
@@ -80,7 +82,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         _selectGroupForPairUi = selectTagForPairUi;
         _selectPairsForGroupUi = selectPairForTagUi;
         _ipcManager = ipcManager;
-        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService);
+        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _zoneSyncConfigService);
 
         AllowClickthrough = false;
         AllowPinning = false;
