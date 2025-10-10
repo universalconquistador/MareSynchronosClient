@@ -449,6 +449,7 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     private void DrawContent()
     {
+        var theme = _uiSharedService.Theme;
         _windowContentWidth = UiSharedService.GetWindowContentRegionWidth();
         if (!_apiController.IsCurrentVersion)
         {
@@ -459,10 +460,10 @@ public class CompactUi : WindowMediatorSubscriberBase
                 var uidTextSize = ImGui.CalcTextSize(unsupported);
                 ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X + ImGui.GetWindowContentRegionMin().X) / 2 - uidTextSize.X / 2);
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextColored(_uiSharedService.GetBaseColor("red"), unsupported);
+                ImGui.TextColored(theme.StatusError, unsupported);
             }
             UiSharedService.ColorTextWrapped($"Your PlayerSync installation is out of date, the current version is {ver.Major}.{ver.Minor}.{ver.Build}. " +
-                $"It is highly recommended to keep PlayerSync up to date. Open /xlplugins and update the plugin.", _uiSharedService.GetBaseColor("red"));
+                $"It is highly recommended to keep PlayerSync up to date. Open /xlplugins and update the plugin.", theme.StatusError);
         }
 
         if (!_ipcManager.Initialized)
@@ -474,12 +475,12 @@ public class CompactUi : WindowMediatorSubscriberBase
                 var uidTextSize = ImGui.CalcTextSize(unsupported);
                 ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X + ImGui.GetWindowContentRegionMin().X) / 2 - uidTextSize.X / 2);
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextColored(_uiSharedService.GetBaseColor("red"), unsupported);
+                ImGui.TextColored(theme.StatusError, unsupported);
             }
             var penumAvailable = _ipcManager.Penumbra.APIAvailable;
             var glamAvailable = _ipcManager.Glamourer.APIAvailable;
 
-            UiSharedService.ColorTextWrapped($"One or more Plugins essential for PlayerSync operation are unavailable. Enable or update following plugins:", _uiSharedService.GetBaseColor("red"));
+            UiSharedService.ColorTextWrapped($"One or more Plugins essential for PlayerSync operation are unavailable. Enable or update following plugins:", theme.StatusError);
             using var indent = ImRaii.PushIndent(10f);
             if (!penumAvailable)
             {
@@ -944,23 +945,24 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     private Vector4 GetUidColor()
     {
+        var theme = _uiSharedService.Theme;
         return _apiController.ServerState switch
         {
-            ServerState.Connecting => _uiSharedService.Theme.StatusWarn,
-            ServerState.Reconnecting => _uiSharedService.GetBaseColor("red"),
-            ServerState.Connected => _uiSharedService.GetBaseColor("green"),
-            ServerState.Disconnected => _uiSharedService.GetBaseColor("yellow"),
-            ServerState.Disconnecting => _uiSharedService.GetBaseColor("yellow"),
-            ServerState.Unauthorized => _uiSharedService.GetBaseColor("red"),
-            ServerState.VersionMisMatch => _uiSharedService.GetBaseColor("red"),
-            ServerState.Offline => _uiSharedService.GetBaseColor("red"),
-            ServerState.RateLimited => _uiSharedService.GetBaseColor("yellow"),
-            ServerState.NoSecretKey => _uiSharedService.GetBaseColor("yellow"),
-            ServerState.MultiChara => _uiSharedService.GetBaseColor("yellow"),
-            ServerState.OAuthMisconfigured => _uiSharedService.GetBaseColor("red"),
-            ServerState.OAuthLoginTokenStale => _uiSharedService.GetBaseColor("red"),
-            ServerState.NoAutoLogon => _uiSharedService.GetBaseColor("yellow"),
-            _ => _uiSharedService.GetBaseColor("red")
+            ServerState.Connecting => theme.StatusWarn,
+            ServerState.Reconnecting => theme.StatusError,
+            ServerState.Connected => theme.UidAliasText,
+            ServerState.Disconnected => theme.StatusWarn,
+            ServerState.Disconnecting => theme.StatusWarn,
+            ServerState.Unauthorized => theme.StatusError,
+            ServerState.VersionMisMatch => theme.StatusError,
+            ServerState.Offline => theme.StatusError,
+            ServerState.RateLimited => theme.StatusWarn,
+            ServerState.NoSecretKey => theme.StatusWarn,
+            ServerState.MultiChara => theme.StatusWarn,
+            ServerState.OAuthMisconfigured => theme.StatusError,
+            ServerState.OAuthLoginTokenStale => theme.StatusError,
+            ServerState.NoAutoLogon => theme.StatusWarn,
+            _ => theme.StatusError
         };
     }
 
