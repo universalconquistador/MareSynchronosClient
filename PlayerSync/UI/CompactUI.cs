@@ -125,13 +125,14 @@ public class CompactUi : WindowMediatorSubscriberBase
         _drawFolders = GetDrawFolders().ToList();
 
 #if DEBUG
-        string dev = "Dev Build";
+        string dev = "Dev";
         var ver = Assembly.GetExecutingAssembly().GetName().Version!;
-        WindowName = $"PlayerSync {dev} ({ver.Major}.{ver.Minor}.{ver.Build})###PlayerSyncMainUI";
+        WindowName = $"PlayerSync {dev} ({ver.Major}.{ver.Minor}.{ver.Build}.{ver.Revision})###PlayerSyncMainUI";
         Toggle();
 #else
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        WindowName = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build + "###PlayerSyncMainUI";
+        WindowName = "PlayerSync Dev " + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision + "###PlayerSyncMainUI";
+        Toggle();
 #endif
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (_) => IsOpen = true);
         Mediator.Subscribe<SwitchToIntroUiMessage>(this, (_) => IsOpen = false);

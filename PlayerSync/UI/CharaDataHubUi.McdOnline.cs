@@ -969,7 +969,7 @@ internal sealed partial class CharaDataHubUi
         {
             var selected = !string.IsNullOrEmpty(value)
                 && (string.Equals(id, value, StringComparison.Ordinal) || string.Equals(alias, value, StringComparison.Ordinal));
-            using var font = ImRaii.PushFont(UiBuilder.MonoFont, note is null);
+            using var font = ImRaii.PushFont(default, note is null);
             if (ImGui.Selectable(note is null ? aliasOrId : $"{note} ({aliasOrId})", selected, ImGuiSelectableFlags.None, new(width, 0)))
             {
                 value = aliasOrId;
