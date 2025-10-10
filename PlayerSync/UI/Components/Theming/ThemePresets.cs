@@ -33,14 +33,17 @@ public static class ThemePresets
             BtnTextHovered = new(0.700f, 0.700f, 0.700f, 1.000f),
             BtnTextActive = new(0.95f, 0.98f, 1.00f, 1.00f),
 
-            StatusConnected = new(0.22f, 0.80f, 0.50f, 1f),
-            StatusConnecting = new(1.00f, 0.85f, 0.35f, 1f),
-            StatusDisconnected = new(1.00f, 0.35f, 0.35f, 1f),
+            StatusConnected = new(0.117f, 1.000f, 0.000f, 1.000f),
+            StatusConnecting = new(0.117f, 1.000f, 0.000f, 1.000f),
+            StatusDisconnected = new(1.0000f, 1.000f, 0.4000f, 1.000f),
             StatusBroadcasting = new(0.20f, 0.88f, 0.55f, 1f),
 
             UidAliasText = new(0.117f, 1.000f, 0.000f, 1.000f),
             UsersOnlineText = new(1.000f, 1.000f, 1.000f, 1.000f),
             UsersOnlineNumber = new(0.117f, 1.000f, 0.000f, 1.000f),
+
+            StatusError = new(1.000f, 0.000f, 0.000f, 1.000f),
+            StatusWarn = new(1.0000f, 1.000f, 0.4000f, 1.000f),
 
         },
         // =========================

@@ -73,7 +73,7 @@ public class DrawFolderGroup : DrawFolderBase
             }
             //if (themed)
             //{
-                _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(theme.Accent, _wasHovered));
+                _uiSharedService.IconText(icon, newUI ? ThemePalette.GetDarkerColor(theme.Accent, _wasHovered) : theme.Accent);
             //}
         }
         if (_groupFullInfoDto.GroupPermissions.IsDisableInvites())
@@ -271,6 +271,7 @@ public class DrawFolderGroup : DrawFolderBase
     protected override float DrawRightSide(float currentRightSideX)
     {
         var theme = _uiSharedService.Theme;
+        bool newUI = _uiSharedService.NewUI;
         var spacingX = ImGui.GetStyle().ItemSpacing.X;
 
         FontAwesomeIcon pauseIcon = _groupFullInfoDto.GroupUserPermissions.IsPaused() ? FontAwesomeIcon.Play : FontAwesomeIcon.Pause;
@@ -348,9 +349,9 @@ public class DrawFolderGroup : DrawFolderBase
             //var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
             //var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-            ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(theme.Btn, true));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(theme.BtnHovered, true));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(theme.BtnActive, true));
+            ImGui.PushStyleColor(ImGuiCol.Button, newUI ? ThemePalette.GetDarkerColor(theme.Btn, true) : theme.Btn);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, newUI ? ThemePalette.GetDarkerColor(theme.BtnHovered, true) : theme.BtnHovered);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, newUI ? ThemePalette.GetDarkerColor(theme.BtnActive, true) : theme.BtnActive);
 
         }
 

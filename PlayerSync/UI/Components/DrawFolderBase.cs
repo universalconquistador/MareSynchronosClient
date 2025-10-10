@@ -110,6 +110,7 @@ public abstract class DrawFolderBase : IDrawFolder
     private float DrawRightSideInternal()
     {
         var theme = _uiSharedService.Theme;
+        bool newUI = _uiSharedService.NewUI;
         var barButtonSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.EllipsisV);
         var spacingX = ImGui.GetStyle().ItemSpacing.X;
         var windowEndX = ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth();
@@ -129,9 +130,9 @@ public abstract class DrawFolderBase : IDrawFolder
                 //var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
                 //var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-                ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(theme.Btn, true));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(theme.BtnHovered, true));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(theme.BtnActive, true));
+                ImGui.PushStyleColor(ImGuiCol.Button, newUI ? ThemePalette.GetDarkerColor(theme.Btn, true) : theme.Btn);
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, newUI ? ThemePalette.GetDarkerColor(theme.BtnHovered, true) : theme.BtnHovered);
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, newUI ? ThemePalette.GetDarkerColor(theme.BtnActive, true) : theme.BtnActive);
                 
             }
             

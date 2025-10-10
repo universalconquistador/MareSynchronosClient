@@ -117,6 +117,7 @@ public class ThemeEditor
 
     public void Draw()
     {
+        if (_themeManager.UsingDalamudTheme) ImGui.BeginDisabled();
         ImGui.Text("Theme Selection");
         ImGui.Separator();
 
@@ -126,9 +127,11 @@ public class ThemeEditor
         ImGui.Text("Theme Colors");
         ImGui.Separator();
         DrawTabbedColorEditor();
+        if (_themeManager.UsingDalamudTheme) ImGui.EndDisabled();
 
         ImGui.Spacing();
         DrawApplyButton();
+        
     }
 
     private void DrawThemeSelector()
