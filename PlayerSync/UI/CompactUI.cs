@@ -189,9 +189,9 @@ public class CompactUi : WindowMediatorSubscriberBase
         var themeManager = _uiSharedService.ThemeManager;
         var theme = themeManager.Current;
 
-        //// Colors
-        //ImGui.PushStyleColor(ImGuiCol.WindowBg, theme.PanelBg);
-        //ImGui.PushStyleColor(ImGuiCol.Border, theme.PanelBorder);
+        // Colors
+        ImGui.PushStyleColor(ImGuiCol.WindowBg, theme.PanelBg);
+        ImGui.PushStyleColor(ImGuiCol.Border, theme.PanelBorder);
 
         // Styles
         float windowRounding = NewUI ? 12.0f : 4.0f;
@@ -208,7 +208,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     public override void PostDraw()
     {
         _theme.Dispose();
-        //ImGui.PopStyleColor(2);
+        ImGui.PopStyleColor(2);
         ImGui.PopStyleVar(3);
         base.PostDraw();
     }
