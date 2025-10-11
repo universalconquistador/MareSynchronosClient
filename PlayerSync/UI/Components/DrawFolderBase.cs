@@ -123,16 +123,16 @@ public abstract class DrawFolderBase : IDrawFolder
             ImGui.SameLine(windowEndX - barButtonSize.X);
 
             var isRowHovered = _wasHovered;
-            if (isRowHovered)
+            if (isRowHovered && newUI)
             {
                 //var style = ImGui.GetStyle();
                 //var currentButton = style.Colors[(int)ImGuiCol.Button];
                 //var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
                 //var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-                ImGui.PushStyleColor(ImGuiCol.Button, newUI ? ThemePalette.GetDarkerColor(theme.Btn, true) : theme.Btn);
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, newUI ? ThemePalette.GetDarkerColor(theme.BtnHovered, true) : theme.BtnHovered);
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, newUI ? ThemePalette.GetDarkerColor(theme.BtnActive, true) : theme.BtnActive);
+                ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(theme.Btn, true));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(theme.BtnHovered, true));
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(theme.BtnActive, true));
                 
             }
             
@@ -150,7 +150,7 @@ public abstract class DrawFolderBase : IDrawFolder
             {
                 _menuWidth = 0;
             }
-            if (isRowHovered) ImGui.PopStyleColor(3);
+            if (isRowHovered && newUI) ImGui.PopStyleColor(3);
         }
 
         return DrawRightSide(rightSideStart);

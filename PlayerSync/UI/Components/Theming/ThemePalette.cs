@@ -10,6 +10,18 @@ public class ThemePalette
     public Vector4 HeaderBg { get; set; }
     public Vector4 Accent { get; set; }
     public Vector4 Accent2 { get; set; }
+    public Vector4 ChildBg { get; set; }
+    public Vector4 PopupBg { get; set; }
+
+    // Title Bar
+    public Vector4 TitleBg { get; set; }
+    public Vector4 TitleBgActive { get; set; }
+    public Vector4 TitleBgCollapsed { get; set; }
+
+    // Frame (user for entry hover over effects)
+    public Vector4 FrameBg { get; set; }
+    public Vector4 FrameBgHovered { get; set; }
+    public Vector4 FrameBgActive { get; set; }
 
     // Button colors
     public Vector4 Btn { get; set; }
@@ -89,6 +101,19 @@ public class ThemePalette
         HeaderBg = new(0.16f, 0.16f, 0.21f, 1.00f);
         Accent = new(0.26f, 0.59f, 0.98f, 1.00f);
         Accent2 = new(0.608f, 0.694f, 1f, 1f);
+        //ChildBg = new(1f, 1f, 1f);
+        //PopupBg = new(1f, 1f);
+
+        // Title Bar
+        TitleBg = new(0.26f, 0.59f, 0.98f, 1.00f);
+        TitleBgActive = new(0.26f, 0.59f, 0.98f, 1.00f);
+        TitleBgCollapsed = new(0.26f, 0.59f, 0.98f, 1.00f);
+
+        // Frame (user for entry hover over effects)
+        FrameBg = new(0.26f, 0.59f, 0.98f, 1.00f);
+        FrameBgHovered = new(0.26f, 0.59f, 0.98f, 1.00f);
+        FrameBgActive = new(0.26f, 0.59f, 0.98f, 1.00f);
+
 
         // Button colors
         Btn = new(0.16f, 0.16f, 0.21f, 1.00f);

@@ -53,7 +53,7 @@ public class DrawFolderGroup : DrawFolderBase
         Vector4 broadcastColor;
         //if (newUI)
         //{
-        broadcastColor = isBroadcasting ? ThemePalette.GetDarkerColor(ImGuiColors.HealerGreen, _wasHovered) : ThemePalette.GetDarkerColor(ImGui.GetStyle().Colors[(int)ImGuiCol.Text], _wasHovered);
+        broadcastColor = isBroadcasting ? newUI ? ThemePalette.GetDarkerColor(ImGuiColors.HealerGreen, _wasHovered) : ImGuiColors.HealerGreen : newUI ? ThemePalette.GetDarkerColor(ImGui.GetStyle().Colors[(int)ImGuiCol.Text], _wasHovered) : ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
         //}
         //else broadcastColor = ImGuiColors.HealerGreen;
         using (ImRaii.PushColor(ImGuiCol.Text, broadcastColor, isBroadcasting))
@@ -342,16 +342,16 @@ public class DrawFolderGroup : DrawFolderBase
 
         // Applies theming to the pause button
         var isRowHovered = ImGui.IsItemHovered() || _wasHovered;
-        if (isRowHovered)
+        if (isRowHovered && newUI)
         {
             //var style = ImGui.GetStyle();
             //var currentButton = style.Colors[(int)ImGuiCol.Button];
             //var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
             //var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-            ImGui.PushStyleColor(ImGuiCol.Button, newUI ? ThemePalette.GetDarkerColor(theme.Btn, true) : theme.Btn);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, newUI ? ThemePalette.GetDarkerColor(theme.BtnHovered, true) : theme.BtnHovered);
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, newUI ? ThemePalette.GetDarkerColor(theme.BtnActive, true) : theme.BtnActive);
+            ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(theme.Btn, true));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(theme.BtnHovered, true));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(theme.BtnActive, true));
 
         }
 
@@ -361,7 +361,7 @@ public class DrawFolderGroup : DrawFolderBase
             perm.SetPaused(!perm.IsPaused());
             _ = _apiController.GroupChangeIndividualPermissionState(new GroupPairUserPermissionDto(_groupFullInfoDto.Group, new(_apiController.UID), perm));
         }
-        if (isRowHovered) ImGui.PopStyleColor(3);
+        if (isRowHovered && newUI) ImGui.PopStyleColor(3);
         return currentRightSideX;
     }
 }

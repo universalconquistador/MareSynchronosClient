@@ -791,7 +791,14 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var groupUpSyncshells = _configService.Current.GroupUpSyncshells;
         var groupInVisible = _configService.Current.ShowSyncshellUsersInVisible;
         var syncshellOfflineSeparate = _configService.Current.ShowSyncshellOfflineUsersSeparately;
+        var showWindowOnPluginLoad = _configService.Current.ShowUIOnPluginLoad;
 
+        if (ImGui.Checkbox("Show the plugin UI automatically.", ref showWindowOnPluginLoad))
+        {
+            _configService.Current.ShowUIOnPluginLoad = showWindowOnPluginLoad;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This opens the UI automatically whenever the plugin is loaded/reloaded.");
         if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))
         {
             _configService.Current.EnableRightClickMenus = enableRightClickMenu;

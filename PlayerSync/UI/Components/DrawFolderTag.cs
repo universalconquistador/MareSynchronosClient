@@ -71,6 +71,7 @@ public class DrawFolderTag : DrawFolderBase
     protected override float DrawIcon()
     {
         var theme = _uiSharedService.Theme;
+        var newUI = _uiSharedService.NewUI;
         var icon = _id switch
         {
             TagHandler.CustomUnpairedTag => FontAwesomeIcon.ArrowsLeftRight,
@@ -83,8 +84,8 @@ public class DrawFolderTag : DrawFolderBase
         };
 
         ImGui.AlignTextToFramePadding();
-        var accentColor = theme.Accent;
-        _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
+        // ##ICON###HOVEROVER
+        _uiSharedService.IconText(icon, newUI ? ThemePalette.GetDarkerColor(theme.Accent, _wasHovered) : theme.Accent);
 
         if (RenderCount)
         {
