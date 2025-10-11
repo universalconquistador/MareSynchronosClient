@@ -462,8 +462,8 @@ public class TopTabMenu : IMediatorSubscriber
             }
         }
         string zoneSyncText = zoneSyncEnabled
-            ? "Click to turn OFF ZoneSync." + UiSharedService.TooltipSeparator + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator +
-            "You can change the filter in the settings." + UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty)
+            ? "Click to turn OFF ZoneSync." + UiSharedService.TooltipSeparator + "You can change the filter in the settings." + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator +
+             UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty)
             : "Click to turn ON ZoneSync." + UiSharedService.TooltipSeparator + "You can change the filter in the settings." +
             UiSharedService.TooltipSeparator + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty);
         string warningText = "You must go to Pairing Settings first in the Settings to enable this feature.";

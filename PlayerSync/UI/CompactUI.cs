@@ -169,7 +169,7 @@ public class CompactUi : WindowMediatorSubscriberBase
                 if (_collapsed)
                 {
                     SizeConstraints = _uiSharedService.ThemeManager.CompactUICollapsedSizeConstraints;
-                    // We can't change UmGui from here, so we set a flag to handle it after
+                    // We can't change ImGui from here, so we set a flag to handle it after
                     _expanded = true;
                 }
                 SizeConstraints = _uiSharedService.ThemeManager.CompactUISizeConstraints;
@@ -270,16 +270,22 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     private void DrawThemeEditor()
     {
-        var startPos = ImGui.GetCursorPos();
-        startPos.Y += 20f * ImGuiHelpers.GlobalScale;
-        ImGui.SetCursorPos(startPos);
+        //var startPos = ImGui.GetCursorPos();
+        //startPos.Y += 20f * ImGuiHelpers.GlobalScale;
+        //ImGui.SetCursorPos(startPos);
+        
         using (ImRaii.PushId("themeeditor"))
         {
             using (_uiSharedService.UidFont.Push())
             {
-                ImGui.Text("Theme Editor");
+                var header = "Theme Editor";
+                var headerTextSize = ImGui.CalcTextSize(header);
+                ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (headerTextSize.X / 2));
+                ImGui.AlignTextToFramePadding();
+                ImGui.Text(header);
             }
             ImGui.Separator();
+            ImGui.Dummy(new Vector2(5));
             var useUIThemeMode = _configService.Current.NewUI;
             if (ImGui.Checkbox("Enable Alternate UI", ref useUIThemeMode))
             {
@@ -295,7 +301,9 @@ public class CompactUi : WindowMediatorSubscriberBase
                 config.Save();
                 WindowSetup();
             }
+            ImGui.Dummy(new Vector2(5));
             ImGui.Separator();
+            ImGui.Dummy(new Vector2(5));
             _uiSharedService.ThemeEditor.Draw();
 
             if (_uiSharedService.ThemeEditor.CloseRequested)
@@ -324,16 +332,16 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         DrawTitleBar();
 
+        var startPos = ImGui.GetCursorPos();
+        float headerHeight = 10f * ImGuiHelpers.GlobalScale;
+        startPos.Y += headerHeight / 2f + ImGui.GetStyle().WindowPadding.Y;
+        ImGui.SetCursorPos(startPos);
         if (_showThemeEditor)
         {
             DrawThemeEditor();
         }
         else
         {
-            var startPos = ImGui.GetCursorPos();
-            float headerHeight = 10f * ImGuiHelpers.GlobalScale;
-            startPos.Y += headerHeight / 2f + ImGui.GetStyle().WindowPadding.Y;
-            ImGui.SetCursorPos(startPos);
             DrawContent();
         }
 
@@ -571,9 +579,6 @@ public class CompactUi : WindowMediatorSubscriberBase
             : (ImGui.GetWindowContentRegionMax().Y - ImGui.GetWindowContentRegionMin().Y
                 + ImGui.GetTextLineHeight() - ImGui.GetStyle().WindowPadding.Y - ImGui.GetStyle().WindowBorderSize) - _transferPartHeight - ImGui.GetCursorPosY() - offset;
 
-        //var childBg = ImRaii.PushColor(ImGuiCol.ChildBg, _uiSharedService.Theme.PanelBg);
-        //var scrollBg = ImRaii.PushColor(ImGuiCol.ScrollbarBg, new Vector4(0, 0, 0, 0));
-
         ImGui.BeginChild("list", new Vector2(_windowContentWidth, ySize), border: false, ImGuiWindowFlags.NoBackground);
 
         _broadcastsFolder?.Draw();
@@ -584,9 +589,6 @@ public class CompactUi : WindowMediatorSubscriberBase
         }
 
         ImGui.EndChild();
-
-        //childBg.Dispose();
-        //scrollBg.Dispose();
 
     }
     private void DrawServerStatus()

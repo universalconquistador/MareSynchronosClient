@@ -206,10 +206,15 @@ internal class EventViewerUI : WindowMediatorSubscriberBase
                 var maxTextLength = ImGui.GetWindowContentRegionMax().X - posX;
                 var textSize = ImGui.CalcTextSize(ev.Message).X;
                 var msg = ev.Message;
-                while (textSize > maxTextLength)
+                while (textSize > maxTextLength && msg.Length > 5)
                 {
                     msg = msg[..^5] + "...";
                     textSize = ImGui.CalcTextSize(msg).X;
+                }
+                if (msg.Length <= 3)
+                {
+                    ImGui.TextUnformatted(msg);
+                    return;
                 }
                 ImGui.TextUnformatted(msg);
                 if (!string.Equals(msg, ev.Message, StringComparison.Ordinal))

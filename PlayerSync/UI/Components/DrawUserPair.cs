@@ -385,16 +385,16 @@ public class DrawUserPair
         float currentRightSide = windowEndX - barButtonSize.X;
 
         var isRowHovered = _wasHovered;
-        if (isRowHovered)
+        if (isRowHovered && newUI)
         {
             var style = ImGui.GetStyle();
             var currentButton = style.Colors[(int)ImGuiCol.Button];
             var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
             var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-            ImGui.PushStyleColor(ImGuiCol.Button, newUI ? ThemePalette.GetDarkerColor(currentButton, true) : currentButton);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, newUI ? ThemePalette.GetDarkerColor(currentButtonHovered, true) : currentButtonHovered);
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, newUI ? ThemePalette.GetDarkerColor(currentButtonActive, true) : currentButtonActive);
+            ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(currentButton, true));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(currentButtonHovered, true));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(currentButtonActive, true));
         }
 
         ImGui.SameLine(currentRightSide);
@@ -409,10 +409,7 @@ public class DrawUserPair
         ImGui.SameLine(currentRightSide);
         bool pauseButtonPressed = _uiSharedService.IconButton(pauseIcon);
 
-        if (isRowHovered)
-        {
-            ImGui.PopStyleColor(3);
-        }
+        if (isRowHovered && newUI) ImGui.PopStyleColor(3);
 
         if (pauseButtonPressed)
         {
