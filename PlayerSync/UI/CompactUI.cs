@@ -130,7 +130,6 @@ public class CompactUi : WindowMediatorSubscriberBase
         string dev = "Dev Build";
         var ver = Assembly.GetExecutingAssembly().GetName().Version!;
         WindowName = $"PlayerSync {dev} ({ver.Major}.{ver.Minor}.{ver.Build})###PlayerSyncMainUI";
-        Toggle();
 #else
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
         WindowName = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build + "###PlayerSyncMainUI";
@@ -156,7 +155,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             _showThemeEditor = !_showThemeEditor;
         });
 
-        if (_configService.Current.ShowUIOnPluginLoad) IsOpen = true;
+        if (_configService.Current.ShowUIOnPluginLoad) Toggle();
     }
 
     private bool NewUI => _uiSharedService.NewUI;
