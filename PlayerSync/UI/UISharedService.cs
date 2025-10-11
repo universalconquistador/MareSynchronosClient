@@ -807,90 +807,48 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             DrawUnlinkOAuthButton(selectedServer);
         }
     }
-
-    //public bool DrawOtherPluginState()
-    //{
-    //    ImGui.TextUnformatted("Mandatory Plugins:");
-
-    //    ImGui.SameLine(150);
-    //    ColorText("Penumbra", GetBoolColor(_penumbraExists));
-    //    AttachToolTip($"Penumbra is " + (_penumbraExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("Glamourer", GetBoolColor(_glamourerExists));
-    //    AttachToolTip($"Glamourer is " + (_glamourerExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.TextUnformatted("Optional Plugins:");
-    //    ImGui.SameLine(150);
-    //    ColorText("SimpleHeels", GetBoolColor(_heelsExists));
-    //    AttachToolTip($"SimpleHeels is " + (_heelsExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("Customize+", GetBoolColor(_customizePlusExists));
-    //    AttachToolTip($"Customize+ is " + (_customizePlusExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("Honorific", GetBoolColor(_honorificExists));
-    //    AttachToolTip($"Honorific is " + (_honorificExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("Moodles", GetBoolColor(_moodlesExists));
-    //    AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("PetNicknames", GetBoolColor(_petNamesExists));
-    //    AttachToolTip($"PetNicknames is " + (_petNamesExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("Brio", GetBoolColor(_brioExists));
-    //    AttachToolTip($"Brio is " + (_brioExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    if (!_penumbraExists || !_glamourerExists)
-    //    {
-    //        ImGui.TextColored(ImGuiColors.DalamudRed, "You need to install both Penumbra and Glamourer and keep them up to date to use PlayerSync.");
-    //        return false;
-    //    }
-
-    //    return true;
-    //}
-
     public bool DrawOtherPluginState()
     {
         ImFontPtr AxisFont = default;
         ImGui.PushFont(AxisFont);
 
-        ImGui.TextUnformatted("Mandatory Plugins:");
+        string mySpacer2 = "\u00A0\u00A0"; //2 spaces
+        string mySpacer = "\u00A0"; //one space
+                                    //Just in case you didnt know what \u00A0 is. Clue in the variable
+
+        ImGui.TextUnformatted("Mandatory Plugins:" + mySpacer);
         ImGui.SameLine();
-        ColorText("Penumbra", GetBoolColor(_penumbraExists));
+        float PosiX1 = ImGui.GetCursorPosX(); //Hey i know where to go on the X-Axis now!!
+        ColorText("Penumbra" + mySpacer2, GetBoolColor(_penumbraExists));
         AttachToolTip($"Penumbra is " + (_penumbraExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("Glamourer", GetBoolColor(_glamourerExists));
+        ColorText("Glamourer" + mySpacer2, GetBoolColor(_glamourerExists));
         AttachToolTip($"Glamourer is " + (_glamourerExists ? "available and up to date." : "unavailable or not up to date."));
 
         ImGui.TextUnformatted("Optional Plugins:");
-        ImGui.SameLine();
-        ColorText("SimpleHeels", GetBoolColor(_heelsExists));
+        ImGui.SameLine(PosiX1); //Move to same spot but below Penumbra 
+        ColorText("SimpleHeels" + mySpacer2, GetBoolColor(_heelsExists));
         AttachToolTip($"SimpleHeels is " + (_heelsExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("Customize+", GetBoolColor(_customizePlusExists));
+        ColorText("Customize+" + mySpacer2, GetBoolColor(_customizePlusExists));
         AttachToolTip($"Customize+ is " + (_customizePlusExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("Honorific", GetBoolColor(_honorificExists));
+        ColorText("Honorific" + mySpacer2, GetBoolColor(_honorificExists));
         AttachToolTip($"Honorific is " + (_honorificExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("Moodles", GetBoolColor(_moodlesExists));
+        ColorText("Moodles" + mySpacer2, GetBoolColor(_moodlesExists));
         AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("PetNicknames", GetBoolColor(_petNamesExists));
+        ColorText("PetNicknames" + mySpacer2, GetBoolColor(_petNamesExists));
         AttachToolTip($"PetNicknames is " + (_petNamesExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("Brio", GetBoolColor(_brioExists));
+        ColorText("Brio" + mySpacer2, GetBoolColor(_brioExists));
         AttachToolTip($"Brio is " + (_brioExists ? "available and up to date." : "unavailable or not up to date."));
 
         ImGui.PopFont();
