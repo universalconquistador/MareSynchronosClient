@@ -793,7 +793,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var syncshellOfflineSeparate = _configService.Current.ShowSyncshellOfflineUsersSeparately;
         var showWindowOnPluginLoad = _configService.Current.ShowUIOnPluginLoad;
 
-        if (ImGui.Checkbox("Show the plugin UI automatically.", ref showWindowOnPluginLoad))
+        if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
         {
             _configService.Current.ShowUIOnPluginLoad = showWindowOnPluginLoad;
             _configService.Save();
