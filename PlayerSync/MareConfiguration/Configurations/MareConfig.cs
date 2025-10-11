@@ -68,4 +68,5 @@ public class MareConfig : IMareConfiguration
     public bool ListenForBroadcasts { get; set; } = true;
     public string LastSeenVersion { get; set; } = string.Empty;
     public bool NewUI { get; set; } = true;
+    public bool ShowUIOnPluginLoad { get; set; } = false;
 }

@@ -155,6 +155,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         {
             _showThemeEditor = !_showThemeEditor;
         });
+
+        if (_configService.Current.ShowUIOnPluginLoad) IsOpen = true;
     }
 
     private bool NewUI => _uiSharedService.NewUI;
