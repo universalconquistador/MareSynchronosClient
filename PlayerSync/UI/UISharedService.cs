@@ -859,38 +859,39 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         ImFontPtr AxisFont = default;
         ImGui.PushFont(AxisFont);
 
-        ImGui.TextUnformatted("Mandatory Plugins:");
+        ImGui.TextUnformatted("Mandatory Plugins: ");
         ImGui.SameLine();
-        ColorText("Penumbra", GetBoolColor(_penumbraExists));
+        float PosiX1 = ImGui.GetCursorPosX();
+        ColorText("Penumbra  ", GetBoolColor(_penumbraExists));
         AttachToolTip($"Penumbra is " + (_penumbraExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("Glamourer", GetBoolColor(_glamourerExists));
+        ColorText("Glamourer  ", GetBoolColor(_glamourerExists));
         AttachToolTip($"Glamourer is " + (_glamourerExists ? "available and up to date." : "unavailable or not up to date."));
 
         ImGui.TextUnformatted("Optional Plugins:");
-        ImGui.SameLine();
-        ColorText("SimpleHeels", GetBoolColor(_heelsExists));
+        ImGui.SameLine(PosiX1);
+        ColorText("SimpleHeels  ", GetBoolColor(_heelsExists));
         AttachToolTip($"SimpleHeels is " + (_heelsExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("Customize+", GetBoolColor(_customizePlusExists));
+        ColorText("Customize+  ", GetBoolColor(_customizePlusExists));
         AttachToolTip($"Customize+ is " + (_customizePlusExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("Honorific", GetBoolColor(_honorificExists));
+        ColorText("Honorific  ", GetBoolColor(_honorificExists));
         AttachToolTip($"Honorific is " + (_honorificExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("Moodles", GetBoolColor(_moodlesExists));
+        ColorText("Moodles  ", GetBoolColor(_moodlesExists));
         AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("PetNicknames", GetBoolColor(_petNamesExists));
+        ColorText("PetNicknames  ", GetBoolColor(_petNamesExists));
         AttachToolTip($"PetNicknames is " + (_petNamesExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine();
 
-        ColorText("Brio", GetBoolColor(_brioExists));
+        ColorText("Brio  ", GetBoolColor(_brioExists));
         AttachToolTip($"Brio is " + (_brioExists ? "available and up to date." : "unavailable or not up to date."));
 
         ImGui.PopFont();
