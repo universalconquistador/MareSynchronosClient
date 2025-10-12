@@ -53,7 +53,7 @@ public class DrawFolderBroadcasts
                     }
 
                     ImGui.SameLine();
-                    _uiSharedService.IconText(FontAwesomeIcon.Wifi, ThemePalette.GetDarkerColor(theme.Accent, _wasHovered));
+                    _uiSharedService.IconText(FontAwesomeIcon.Wifi, newUI ? ThemePalette.GetDarkerColor(theme.Accent, _wasHovered) : theme.Accent);
 
                     ImGui.SameLine();
                     ImGui.TextUnformatted($"[{_broadcasts.Count}] Nearby Broadcasts");

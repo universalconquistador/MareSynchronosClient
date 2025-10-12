@@ -791,7 +791,14 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var groupUpSyncshells = _configService.Current.GroupUpSyncshells;
         var groupInVisible = _configService.Current.ShowSyncshellUsersInVisible;
         var syncshellOfflineSeparate = _configService.Current.ShowSyncshellOfflineUsersSeparately;
+        var showWindowOnPluginLoad = _configService.Current.ShowUIOnPluginLoad;
 
+        if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
+        {
+            _configService.Current.ShowUIOnPluginLoad = showWindowOnPluginLoad;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This opens the UI automatically whenever the plugin is loaded/reloaded.");
         if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))
         {
             _configService.Current.EnableRightClickMenus = enableRightClickMenu;
@@ -1446,6 +1453,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             + "- Current Clan (this is not your Free Company, this is e.g. Keeper or Seeker for Miqo'te)" + UiSharedService.TooltipSeparator
             + "The census data is only saved temporarily and will be removed from the server on disconnect. It is stored temporarily associated with your UID while you are connected." + UiSharedService.TooltipSeparator
             + "If you do not wish to participate in the statistical census, untick this box and reconnect to the server.");
+        var useBackupServer = _serverConfigurationManager.EnableBackupServer;
+        if (ImGui.Checkbox("Use Backup Server", ref useBackupServer))
+        {
+            _serverConfigurationManager.EnableBackupServer = useBackupServer;
+        }
+        _uiShared.DrawHelpText("Only use this if advised by the PlayerSync support team, or if you know there is an ISP issue affecting you.");
         ImGuiHelpers.ScaledDummy(new Vector2(10, 10));
 
         var idx = _uiShared.DrawServiceSelection();

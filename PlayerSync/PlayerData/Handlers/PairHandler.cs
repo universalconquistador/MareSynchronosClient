@@ -476,6 +476,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             if (updateModdedPaths)
             {
                 // ensure collection is set
+                // This call can sometimes fail with a no ref
                 var objIndex = await _dalamudUtil.RunOnFrameworkThread(() => _charaHandler!.GetGameObject()!.ObjectIndex).ConfigureAwait(false);
                 await _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection, objIndex).ConfigureAwait(false);
 

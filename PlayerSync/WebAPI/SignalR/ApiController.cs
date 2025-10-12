@@ -3,7 +3,6 @@ using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto;
-using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.API.SignalR;
 using MareSynchronos.MareConfiguration;
@@ -292,6 +291,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
                 await LoadIninitialPairsAsync().ConfigureAwait(false);
                 await LoadOnlinePairsAsync().ConfigureAwait(false);
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
             }
             catch (OperationCanceledException)
             {
@@ -550,6 +550,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             ServerState = ServerState.Connected;
             await LoadIninitialPairsAsync().ConfigureAwait(false);
             await LoadOnlinePairsAsync().ConfigureAwait(false);
+            Mediator.Publish(new GroupZoneSyncUpdateMessage());
             Mediator.Publish(new ConnectedMessage(_connectionDto));
         }
         catch (Exception ex)

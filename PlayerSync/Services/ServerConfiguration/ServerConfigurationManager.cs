@@ -42,6 +42,21 @@ public class ServerConfigurationManager
 
     public string CurrentApiUrl => CurrentServer.ServerUri;
     public ServerStorage CurrentServer => _configService.Current.ServerStorage[CurrentServerIndex];
+
+    public string BackupServerUri => _configService.Current.BackupServerUri;
+    public bool EnableBackupServer
+    {
+        get
+        {
+            return _configService.Current.EnableBackupServer;
+        }
+        set
+        {
+            _configService.Current.EnableBackupServer = value;
+            _configService.Save();
+        }
+    }
+
     public bool SendCensusData
     {
         get
