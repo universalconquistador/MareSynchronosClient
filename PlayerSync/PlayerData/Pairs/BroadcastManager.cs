@@ -319,10 +319,10 @@ namespace MareSynchronos.PlayerData.Pairs
                     AvailableBroadcastGroups = broadcasts.AsReadOnly();
                     Mediator.Publish(new RefreshUiMessage());
 
-                    if (AvailableBroadcastGroups.Count > 0
+                    bool availableBroadcastGroupWithoutMine = AvailableBroadcastGroups.Any(broadcast => broadcast.Broadcasters.Count != 1 || broadcast.Broadcasters[0].UID != _apiController.UID);
+                    if (availableBroadcastGroupWithoutMine
                         && _mareConfigService.Current.ShowAvailableBroadcastsNotification
-                        && !_sentBroadcastAvailableNotification
-                        && !IsBroadcastingGroup)
+                        && !_sentBroadcastAvailableNotification)
                     {
                         Mediator.Publish(new NotificationMessage("Broadcasts Available", $"{AvailableBroadcastGroups.Count} broadcasts at your location. Open the PlayerSync window to browse and join them.", MareConfiguration.Models.NotificationType.Info));
                         _sentBroadcastAvailableNotification = true;
