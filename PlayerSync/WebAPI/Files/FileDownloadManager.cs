@@ -335,7 +335,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 Logger.LogDebug("{hash}: Detected cancellation of direct download, discarding file.", directDownload.Hash);
                 _orchestrator.ReleaseDownloadSlot();
                 File.Delete(tempFilename);
-                Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
+                Logger.LogDebug(ex, "{hash}: Error during direct download.", directDownload.Hash);
                 ClearDownload();
                 return;
             }
