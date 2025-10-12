@@ -38,22 +38,25 @@ public abstract class DrawFolderBase : IDrawFolder
     public void Draw()
     {
         if (!RenderIfEmpty && !DrawPairs.Any()) return;
-
+        var newUI = _uiSharedService.NewUI;
+        var theme = _uiSharedService.Theme;
         using var id = ImRaii.PushId("folder_" + _id);
-        //var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
-        var paddingX = 4f;
-        var paddingY = 3f;
-        using (ImRaii.Child("folder__" + _id, new System.Numerics.Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
+        // Hover effect for the Syncshells
+        var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
+        var paddingX = newUI ? 4f : 0;
+        var paddingY = newUI ? 3f : 0;
+        
+        using (ImRaii.Child("folder__" + _id, new Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
         {
-            ImGui.SetCursorPos(new Vector2(paddingX, paddingY));
+            if (newUI) ImGui.SetCursorPos(new Vector2(paddingX, paddingY));
 
             // draw opener
             var icon = _tagHandler.IsTagOpen(_id) ? FontAwesomeIcon.CaretDown : FontAwesomeIcon.CaretRight;
 
             ImGui.AlignTextToFramePadding();
 
-            var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-            _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
+            //_uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(theme.Accent, _wasHovered));
+            _uiSharedService.IconText(icon, theme.TextPrimary);
             if (ImGui.IsItemClicked())
             {
                 _tagHandler.SetTagOpen(_id, !_tagHandler.IsTagOpen(_id));
@@ -72,7 +75,7 @@ public abstract class DrawFolderBase : IDrawFolder
 
         _wasHovered = ImGui.IsItemHovered();
 
-        //color.Dispose();
+        color.Dispose();
 
         ImGui.Separator();
 
@@ -106,6 +109,8 @@ public abstract class DrawFolderBase : IDrawFolder
 
     private float DrawRightSideInternal()
     {
+        var theme = _uiSharedService.Theme;
+        bool newUI = _uiSharedService.NewUI;
         var barButtonSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.EllipsisV);
         var spacingX = ImGui.GetStyle().ItemSpacing.X;
         var windowEndX = ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth();
@@ -118,26 +123,20 @@ public abstract class DrawFolderBase : IDrawFolder
             ImGui.SameLine(windowEndX - barButtonSize.X);
 
             var isRowHovered = _wasHovered;
-            if (isRowHovered)
+            if (isRowHovered && newUI)
             {
-                var style = ImGui.GetStyle();
-                var currentButton = style.Colors[(int)ImGuiCol.Button];
-                var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
-                var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
+                //var style = ImGui.GetStyle();
+                //var currentButton = style.Colors[(int)ImGuiCol.Button];
+                //var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
+                //var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-                ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(currentButton, true));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(currentButtonHovered, true));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(currentButtonActive, true));
+                ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(theme.Btn, true));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(theme.BtnHovered, true));
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(theme.BtnActive, true));
+                
             }
-
-            bool menuButtonPressed = _uiSharedService.IconButton(FontAwesomeIcon.EllipsisV);
-
-            if (isRowHovered)
-            {
-                ImGui.PopStyleColor(3);
-            }
-
-            if (menuButtonPressed)
+            
+            if (_uiSharedService.IconButton(FontAwesomeIcon.EllipsisV))
             {
                 ImGui.OpenPopup("User Flyout Menu");
             }
@@ -151,6 +150,7 @@ public abstract class DrawFolderBase : IDrawFolder
             {
                 _menuWidth = 0;
             }
+            if (isRowHovered && newUI) ImGui.PopStyleColor(3);
         }
 
         return DrawRightSide(rightSideStart);

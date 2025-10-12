@@ -6,6 +6,8 @@ using MareSynchronos.WebAPI;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.MareConfiguration.Models;
 using Microsoft.AspNetCore.SignalR;
+using MareSynchronos.API.Data.Enum;
+using MareSynchronos.API.Data.Extensions;
 
 namespace PlayerSync.PlayerData.Pairs;
 
@@ -16,6 +18,10 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly PairManager _pairManager;
+    private readonly object _zoneSyncLock = new();
+    private CancellationTokenSource? _zoneSyncCts;
+    private Task? _zoneSyncPendingTask;
+    private bool _waitingToJoinZoneGroup;
 
     public GroupZoneSyncManager(ILogger<GroupZoneSyncManager> logger, MareMediator mediator,
             ApiController apiController,
@@ -30,13 +36,66 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         _zoneSyncConfigService = zoneSyncConfigService;
         _pairManager = pairManager;
 
-        Mediator.Subscribe<ZoneSwitchEndMessage>(this, (__) => _ = SendGroupZoneSyncInfo());
-        Mediator.Subscribe<ConnectedMessage>(this, (__) => _ = SendGroupZoneSyncInfo());
-        Mediator.Subscribe<WorldChangeMessage>(this, (__) => _ = SendGroupZoneSyncInfo());
+        Mediator.Subscribe<ZoneSwitchEndMessage>(this, (__) => ScheduleGroupZoneSync());
+        Mediator.Subscribe<WorldChangeMessage>(this, (__) => ScheduleGroupZoneSync());
         Mediator.Subscribe<GroupZoneSetEnableState>(this, (msg) => _ = GroupZoneJoinEnabled(msg.isEnabled));
-        Mediator.Subscribe<GroupZoneSyncUpdateMessage>(this, (__) => _ = SendGroupZoneSyncInfo());
+        Mediator.Subscribe<GroupZoneSyncUpdateMessage>(this, (__) => ScheduleGroupZoneSync());
 
         _logger.LogDebug("ZoneSync manger initialized.");
+    }
+
+    /// <summary>
+    /// Debounce based scheduler for ZoneSync so we can add some delay before triggering.
+    /// Also resets in case the user is zoning quickly (teleporting between areas)
+    /// </summary>
+    public void ScheduleGroupZoneSync()
+    {
+        var enableGroupZoneSyncJoining = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+        if (!enableGroupZoneSyncJoining) return;
+
+        var delay = TimeSpan.FromSeconds(_zoneSyncConfigService.Current.ZoneJoinDelayTime);
+
+        var newCts = new CancellationTokenSource();
+        CancellationTokenSource? oldCts;
+
+        lock (_zoneSyncLock)
+        {
+            _waitingToJoinZoneGroup = true;
+            oldCts = _zoneSyncCts;
+            _zoneSyncCts = newCts;
+
+            _zoneSyncPendingTask = DebouncedSendAsync(delay, newCts.Token);
+        }
+
+        oldCts?.Cancel();
+        oldCts?.Dispose();
+    }
+
+    private async Task DebouncedSendAsync(TimeSpan delay, CancellationToken token)
+    {
+        try
+        {
+            _logger.LogDebug("Sending ZoneSync join message in {sec}s.", delay);
+            await Task.Delay(delay, token).ConfigureAwait(false);
+            _logger.LogDebug("Sending ZoneSync join message now.");
+            await SendGroupZoneSyncInfo().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogDebug("SendGroupZoneSyncInfo reset before timer expired.");
+        }
+        finally
+        {
+            lock (_zoneSyncLock)
+            {
+                if (_zoneSyncCts == null || token == _zoneSyncCts.Token)
+                {
+                    _zoneSyncCts?.Dispose();
+                    _zoneSyncCts = null;
+                    _waitingToJoinZoneGroup = false;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -45,9 +104,6 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
     /// <returns></returns>
     private async Task SendGroupZoneSyncInfo()
     {
-        var enableGroupZoneSyncJoining = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
-        if (!enableGroupZoneSyncJoining) return;
-
         var dutyBound = _dalamudUtilService.IsBoundByDuty;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
         bool? inst = TerritoryTools.TerritoryStaticMap.IsInstance(ownLocation.TerritoryId);
@@ -92,11 +148,15 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         }
         
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
-            ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
+        ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
+        GroupZonePermissions perms = new();
+        perms.SetDisableSounds(_zoneSyncConfigService.Current.DisableSounds);
+        perms.SetDisableVFX(_zoneSyncConfigService.Current.DisableVFX);
+        perms.SetDisableAnimations(_zoneSyncConfigService.Current.DisableAnimations);
 
         try
         {
-            await _apiController.GroupZoneJoin(new(ownLocation)).ConfigureAwait(false);
+            await _apiController.GroupZoneJoin(new(ownLocation, perms)).ConfigureAwait(false);
         }
         catch (HubException)
         {
@@ -118,7 +178,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         if (isZoneGroupEnabled)
         {
             // If the user turns it on, initiate a zone join before actually zoning
-            await SendGroupZoneSyncInfo().ConfigureAwait(false);
+            ScheduleGroupZoneSync();
         }
         else
         {

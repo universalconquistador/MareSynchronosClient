@@ -80,7 +80,7 @@ internal sealed partial class CharaDataHubUi
 		}
 		if (sb.Length > 0)
 		{
-			UiSharedService.AttachToolTip(sb.ToString());
+			_uiSharedService.AttachToolTip(sb.ToString());
 		}
 	}
 
@@ -123,7 +123,7 @@ internal sealed partial class CharaDataHubUi
 		}
 		if (sb.Length > 0)
 		{
-			UiSharedService.AttachToolTip(sb.ToString());
+			_uiSharedService.AttachToolTip(sb.ToString());
 		}
 	}
 

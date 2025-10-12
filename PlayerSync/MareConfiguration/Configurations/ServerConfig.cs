@@ -17,4 +17,6 @@ public class ServerConfig : IMareConfiguration
     public bool ShownCensusPopup { get; set; } = false;
 
     public int Version { get; set; } = 2;
+    public bool EnableBackupServer { get; set; } = false;
+    public string BackupServerUri { get; } = "wss://psrp1.playersync.io";
 }

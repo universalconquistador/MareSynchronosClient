@@ -29,6 +29,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using SixLabors.ImageSharp;
 
 namespace MareSynchronos.UI;
 
@@ -74,12 +75,13 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     private bool _penumbraExists = false;
     private bool _petNamesExists = false;
     private int _serverSelectionIndex = -1;
+    private readonly ThemeEditor _themeEditor;
+    private readonly ThemeManager _themeManager;
     public UiSharedService(ILogger<UiSharedService> logger, IpcManager ipcManager, ApiController apiController,
         CacheMonitor cacheMonitor, FileDialogManager fileDialogManager,
         MareConfigService configService, DalamudUtilService dalamudUtil, IDalamudPluginInterface pluginInterface,
-        ITextureProvider textureProvider,
-        Dalamud.Localization localization,
-        ServerConfigurationManager serverManager, TokenProvider tokenProvider, MareMediator mediator) : base(logger, mediator)
+        ITextureProvider textureProvider, Dalamud.Localization localization, 
+        ServerConfigurationManager serverManager, TokenProvider tokenProvider, MareMediator mediator, ThemeManager themeManager) : base(logger, mediator)
     {
         _ipcManager = ipcManager;
         _apiController = apiController;
@@ -93,6 +95,9 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         _serverConfigurationManager = serverManager;
         _tokenProvider = tokenProvider;
         _localization.SetupWithLangCode("en");
+        _themeManager = themeManager;
+        _themeEditor = new ThemeEditor(_themeManager, this);
+        //_themeManager.SetCustomTheme(_themeManager.PredefinedThemes["Dalamud"]);
 
         _isDirectoryWritable = IsDirectoryWritable(_configService.Current.CacheFolder);
 
@@ -119,6 +124,11 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         IconFont = _pluginInterface.UiBuilder.IconFontFixedWidthHandle;
     }
 
+    public bool NewUI => _configService.Current.NewUI;
+    public ThemePalette Theme => _themeManager.Current;
+    public ThemeEditor ThemeEditor => _themeEditor;
+    public ThemeManager ThemeManager => _themeManager;
+
     public static string DoubleNewLine => Environment.NewLine + Environment.NewLine;
     public ApiController ApiController => _apiController;
 
@@ -137,32 +147,54 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public Dictionary<ushort, string> WorldData => _dalamudUtil.WorldData.Value;
     public uint WorldId => _dalamudUtil.GetHomeWorldId();
 
-    public static void AttachToolTip(string text)
+    public void AttachToolTip(string text)
     {
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
         {
-            var theme = UI.Components.Theming.ThemeManager.Instance?.Current;
-            using var bgColor = ImRaii.PushColor(ImGuiCol.PopupBg, theme?.TooltipBg ?? new Vector4(0.05f, 0.06f, 0.10f, 0.95f));
-            using var textColor = ImRaii.PushColor(ImGuiCol.Text, theme?.TooltipText ?? new Vector4(0.90f, 0.95f, 1.00f, 1.00f));
-
-            ImGui.BeginTooltip();
-            ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35f);
-            if (text.Contains(TooltipSeparator, StringComparison.Ordinal))
+            ImRaii.Color? bgColor = null, textColor = null;
+            try
             {
-                var splitText = text.Split(TooltipSeparator, StringSplitOptions.RemoveEmptyEntries);
-                for (int i = 0; i < splitText.Length; i++)
+                if (NewUI)
                 {
-                    ImGui.TextUnformatted(splitText[i]);
-                    if (i != splitText.Length - 1) ImGui.Separator();
+                    bgColor = ImRaii.PushColor(ImGuiCol.PopupBg, Theme.TooltipBg);
+                    textColor = ImRaii.PushColor(ImGuiCol.Text, Theme.TooltipText);
                 }
+                ImGui.BeginTooltip();
+                ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35f);
+                if (text.Contains(TooltipSeparator, StringComparison.Ordinal))
+                {
+                    var splitText = text.Split(TooltipSeparator, StringSplitOptions.RemoveEmptyEntries);
+                    for (int i = 0; i < splitText.Length; i++)
+                    {
+                        ImGui.TextUnformatted(splitText[i]);
+                        if (i != splitText.Length - 1) ImGui.Separator();
+                    }
+                }
+                else
+                {
+                    ImGui.TextUnformatted(text);
+                }
+                ImGui.PopTextWrapPos();
+                ImGui.EndTooltip();
             }
-            else
+            finally
             {
-                ImGui.TextUnformatted(text);
+                bgColor?.Dispose();
+                textColor?.Dispose();
             }
-            ImGui.PopTextWrapPos();
-            ImGui.EndTooltip();
         }
+    }
+
+    public Vector4 GetBaseColor(string color)
+    {
+        return color switch
+        {    // replace these with enum
+            "green" => NewUI ? Theme.UidAliasText : ImGuiColors.ParsedGreen,
+            "yellow" => NewUI ? Theme.StatusConnecting : ImGuiColors.DalamudYellow,
+            "red" => NewUI ? Theme.StatusConnecting : ImGuiColors.DalamudRed,
+            "white" => NewUI ? Theme.StatusConnecting : ImGuiColors.DalamudWhite,
+            _ => GetBaseColor("red")
+        };
     }
 
     public static string ByteToString(long bytes, bool addSuffix = true)
@@ -776,88 +808,46 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             DrawUnlinkOAuthButton(selectedServer);
         }
     }
-
-    //public bool DrawOtherPluginState()
-    //{
-    //    ImGui.TextUnformatted("Mandatory Plugins:");
-
-    //    ImGui.SameLine(150);
-    //    ColorText("Penumbra", GetBoolColor(_penumbraExists));
-    //    AttachToolTip($"Penumbra is " + (_penumbraExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("Glamourer", GetBoolColor(_glamourerExists));
-    //    AttachToolTip($"Glamourer is " + (_glamourerExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.TextUnformatted("Optional Plugins:");
-    //    ImGui.SameLine(150);
-    //    ColorText("SimpleHeels", GetBoolColor(_heelsExists));
-    //    AttachToolTip($"SimpleHeels is " + (_heelsExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("Customize+", GetBoolColor(_customizePlusExists));
-    //    AttachToolTip($"Customize+ is " + (_customizePlusExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("Honorific", GetBoolColor(_honorificExists));
-    //    AttachToolTip($"Honorific is " + (_honorificExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("Moodles", GetBoolColor(_moodlesExists));
-    //    AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("PetNicknames", GetBoolColor(_petNamesExists));
-    //    AttachToolTip($"PetNicknames is " + (_petNamesExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    ImGui.SameLine();
-    //    ColorText("Brio", GetBoolColor(_brioExists));
-    //    AttachToolTip($"Brio is " + (_brioExists ? "available and up to date." : "unavailable or not up to date."));
-
-    //    if (!_penumbraExists || !_glamourerExists)
-    //    {
-    //        ImGui.TextColored(ImGuiColors.DalamudRed, "You need to install both Penumbra and Glamourer and keep them up to date to use PlayerSync.");
-    //        return false;
-    //    }
-
-    //    return true;
-    //}
-
     public bool DrawOtherPluginState()
     {
         ImFontPtr AxisFont = default;
         ImGui.PushFont(AxisFont);
 
+        float mySpace = ImGui.GetStyle().ItemSpacing.X;
+        float sglobal = ImGui.GetIO().FontGlobalScale;
+        float spacey = 2;
+
         ImGui.TextUnformatted("Mandatory Plugins:");
-        ImGui.SameLine();
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
+        float PosiX1 = ImGui.GetCursorPosX(); //Hey i know where to go on the X-Axis now!!
         ColorText("Penumbra", GetBoolColor(_penumbraExists));
         AttachToolTip($"Penumbra is " + (_penumbraExists ? "available and up to date." : "unavailable or not up to date."));
-        ImGui.SameLine();
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
 
         ColorText("Glamourer", GetBoolColor(_glamourerExists));
         AttachToolTip($"Glamourer is " + (_glamourerExists ? "available and up to date." : "unavailable or not up to date."));
 
         ImGui.TextUnformatted("Optional Plugins:");
-        ImGui.SameLine();
+        ImGui.SameLine(PosiX1); //Move to same spot but below Penumbra 
         ColorText("SimpleHeels", GetBoolColor(_heelsExists));
         AttachToolTip($"SimpleHeels is " + (_heelsExists ? "available and up to date." : "unavailable or not up to date."));
-        ImGui.SameLine();
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
 
         ColorText("Customize+", GetBoolColor(_customizePlusExists));
         AttachToolTip($"Customize+ is " + (_customizePlusExists ? "available and up to date." : "unavailable or not up to date."));
-        ImGui.SameLine();
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
 
         ColorText("Honorific", GetBoolColor(_honorificExists));
         AttachToolTip($"Honorific is " + (_honorificExists ? "available and up to date." : "unavailable or not up to date."));
-        ImGui.SameLine();
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
 
         ColorText("Moodles", GetBoolColor(_moodlesExists));
         AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
-        ImGui.SameLine();
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
 
         ColorText("PetNicknames", GetBoolColor(_petNamesExists));
         AttachToolTip($"PetNicknames is " + (_petNamesExists ? "available and up to date." : "unavailable or not up to date."));
-        ImGui.SameLine();
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
 
         ColorText("Brio", GetBoolColor(_brioExists));
         AttachToolTip($"Brio is " + (_brioExists ? "available and up to date." : "unavailable or not up to date."));
@@ -1079,10 +1069,8 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         bool result = ImGui.Button(string.Empty, new Vector2(x, frameHeight));
         Vector2 pos = new Vector2(cursorScreenPos.X + ImGui.GetStyle().FramePadding.X,
             cursorScreenPos.Y + (height ?? ImGui.GetFrameHeight()) / 2f - (vector.Y / 2f));
-        // Use button text color from theme
-        var buttonTextColor = ThemeManager.Instance?.Current.BtnText ?? new Vector4(1, 1, 1, 1);
         using (IconFont.Push())
-            windowDrawList.AddText(pos, ImGui.GetColorU32(buttonTextColor), text);
+            windowDrawList.AddText(pos, ImGui.GetColorU32(ImGuiCol.Text), text);
         ImGui.PopID();
 
         return result;
@@ -1189,20 +1177,13 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
         // Get button text color based on button state from theme
         Vector4 textColor;
-        var theme = ThemeManager.Instance?.Current;
-        if (theme != null)
-        {
-            if (ImGui.IsItemActive())
-                textColor = theme.BtnTextActive;
-            else if (ImGui.IsItemHovered())
-                textColor = theme.BtnTextHovered;
-            else
-                textColor = theme.BtnText;
-        }
+        if (ImGui.IsItemActive())
+            textColor = Theme.BtnTextActive;
+        else if (ImGui.IsItemHovered())
+            textColor = Theme.BtnTextHovered;
         else
-        {
-            textColor = new Vector4(1, 1, 1, 1);
-        }
+            textColor = Theme.BtnText;
+
         var textColorU32 = ImGui.GetColorU32(textColor);
 
         using (IconFont.Push())

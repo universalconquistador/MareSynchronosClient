@@ -30,15 +30,16 @@ public class DrawGroupedGroupFolder : IDrawFolder
     public void Draw()
     {
         if (!_groups.Any()) return;
-
+        bool newUI = _uiSharedService.NewUI;
+        var theme = _uiSharedService.Theme;
         string _id = "__folder_syncshells";
         using var id = ImRaii.PushId(_id);
         var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
-        var paddingX = 4f;
-        var paddingY = 3f;
-        using (ImRaii.Child("folder__" + _id, new System.Numerics.Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
+        var paddingX = newUI ? 4f : 0;
+        var paddingY = newUI ? 3f : 0;
+        using (ImRaii.Child("folder__" + _id, new Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
         {
-            ImGui.SetCursorPos(new Vector2(paddingX, paddingY));
+            if (newUI) ImGui.SetCursorPos(new Vector2(paddingX, paddingY));
             ImGui.Dummy(new Vector2(0f, ImGui.GetFrameHeight()));
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(0f, 0f)))
                 ImGui.SameLine();
@@ -46,8 +47,8 @@ public class DrawGroupedGroupFolder : IDrawFolder
             var icon = _tagHandler.IsTagOpen(_id) ? FontAwesomeIcon.CaretDown : FontAwesomeIcon.CaretRight;
             ImGui.AlignTextToFramePadding();
 
-            var accentColor = ThemeManager.Instance?.Current.Accent ?? ImGuiColors.HealerGreen;
-            _uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
+            //_uiSharedService.IconText(icon, ThemePalette.GetDarkerColor(theme.Accent, _wasHovered));
+            _uiSharedService.IconText(icon, theme.TextPrimary);
             if (ImGui.IsItemClicked())
             {
                 _tagHandler.SetTagOpen(_id, !_tagHandler.IsTagOpen(_id));
@@ -55,14 +56,16 @@ public class DrawGroupedGroupFolder : IDrawFolder
 
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.UsersRectangle, ThemePalette.GetDarkerColor(accentColor, _wasHovered));
+
+            // ##ICON###HOVEROVER
+            _uiSharedService.IconText(FontAwesomeIcon.UsersRectangle, newUI ? ThemePalette.GetDarkerColor(theme.Accent, _wasHovered) : theme.Accent);
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().ItemSpacing with { X = ImGui.GetStyle().ItemSpacing.X / 2f }))
             {
                 ImGui.SameLine();
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted("[" + OnlinePairs.ToString() + "]");
             }
-            UiSharedService.AttachToolTip(OnlinePairs + " online in all of your joined syncshells" + Environment.NewLine +
+            _uiSharedService.AttachToolTip(OnlinePairs + " online in all of your joined syncshells" + Environment.NewLine +
                 TotalPairs + " pairs combined in all of your joined syncshells");
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();

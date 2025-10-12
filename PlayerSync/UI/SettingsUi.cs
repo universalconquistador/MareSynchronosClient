@@ -24,7 +24,6 @@ using MareSynchronos.WebAPI.SignalR.Utils;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -145,8 +144,8 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.EditTrackerPosition = false;
         _uidToAddForIgnore = string.Empty;
         _secretKeysConversionCts = _secretKeysConversionCts.CancelRecreate();
-        _downloadServersTask = null;
-        _speedTestTask = null;
+        //_downloadServersTask = null;
+        //_speedTestTask = null;
         _speedTestCts?.Cancel();
         _speedTestCts?.Dispose();
         _speedTestCts = null;
@@ -432,8 +431,8 @@ public class SettingsUi : WindowMediatorSubscriberBase
         }
     }
 
-    private Task<List<string>?>? _downloadServersTask = null;
-    private Task<List<string>?>? _speedTestTask = null;
+    //private Task<List<string>?>? _downloadServersTask = null;
+    //private Task<List<string>?>? _speedTestTask = null;
     private CancellationTokenSource? _speedTestCts;
 
     private void DrawDebug()
@@ -463,7 +462,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 ImGui.SetClipboardText("ERROR: No created character data, cannot copy.");
             }
         }
-        UiSharedService.AttachToolTip("Use this when reporting mods being rejected from the server.");
+        _uiShared.AttachToolTip("Use this when reporting mods being rejected from the server.");
 
         _uiShared.DrawCombo("Log Level", Enum.GetValues<LogLevel>(), (l) => l.ToString(), (l) =>
         {
@@ -570,7 +569,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 _cacheMonitor.StartPenumbraWatcher(_ipcManager.Penumbra.ModDirectory);
                 _cacheMonitor.InvokeScan();
             }
-            UiSharedService.AttachToolTip("Attempts to resume monitoring for both Penumbra and Mare Storage. "
+            _uiShared.AttachToolTip("Attempts to resume monitoring for both Penumbra and Mare Storage. "
                 + "Resuming the monitoring will also force a full scan to run." + Environment.NewLine
                 + "If the button remains present after clicking it, consult /xllog for errors");
         }
@@ -583,7 +582,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                     _cacheMonitor.StopMonitoring();
                 }
             }
-            UiSharedService.AttachToolTip("Stops the monitoring for both Penumbra and PlayerSync Storage. "
+            _uiShared.AttachToolTip("Stops the monitoring for both Penumbra and PlayerSync Storage. "
                 + "Do not stop the monitoring, unless you plan to move the Penumbra and PlayerSync Storage folders, to ensure correct functionality of PlayerSync." + Environment.NewLine
                 + "If you stop the monitoring to move folders around, resume it after you are finished moving the files."
                 + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
@@ -621,7 +620,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                     _cacheMonitor.RecalculateFileCacheSize(CancellationToken.None);
                 });
             }
-            UiSharedService.AttachToolTip("This will run compression on all files in your current PlayerSync Storage." + Environment.NewLine
+            _uiShared.AttachToolTip("This will run compression on all files in your current PlayerSync Storage." + Environment.NewLine
                 + "You do not need to run this manually if you keep the file compactor enabled.");
             ImGui.SameLine();
             if (_uiShared.IconTextButton(FontAwesomeIcon.File, "Decompact all files in storage"))
@@ -632,7 +631,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                     _cacheMonitor.RecalculateFileCacheSize(CancellationToken.None);
                 });
             }
-            UiSharedService.AttachToolTip("This will run decompression on all files in your current PlayerSync Storage.");
+            _uiShared.AttachToolTip("This will run decompression on all files in your current PlayerSync Storage.");
         }
         else
         {
@@ -707,7 +706,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 }
             });
         }
-        UiSharedService.AttachToolTip("You normally do not need to do this. THIS IS NOT SOMETHING YOU SHOULD BE DOING TO TRY TO FIX SYNC ISSUES." + Environment.NewLine
+        _uiShared.AttachToolTip("You normally do not need to do this. THIS IS NOT SOMETHING YOU SHOULD BE DOING TO TRY TO FIX SYNC ISSUES." + Environment.NewLine
             + "This will solely remove all downloaded data from all players and will require you to re-download everything again." + Environment.NewLine
             + "PlayerSync's storage is self-clearing and will not surpass the limit you have set it to." + Environment.NewLine
             + "If you still think you need to do this hold CTRL while pressing the button.");
@@ -791,7 +790,14 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var groupUpSyncshells = _configService.Current.GroupUpSyncshells;
         var groupInVisible = _configService.Current.ShowSyncshellUsersInVisible;
         var syncshellOfflineSeparate = _configService.Current.ShowSyncshellOfflineUsersSeparately;
+        var showWindowOnPluginLoad = _configService.Current.ShowUIOnPluginLoad;
 
+        if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
+        {
+            _configService.Current.ShowUIOnPluginLoad = showWindowOnPluginLoad;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This opens the UI automatically whenever the plugin is loaded/reloaded.");
         if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))
         {
             _configService.Current.EnableRightClickMenus = enableRightClickMenu;
@@ -1064,7 +1070,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         {
             ImGui.Separator();
             _uiShared.BigText("READ THIS! YOU ARE RESPONSIBLE FOR YOUR ACTIONS!", ImGuiColors.DalamudRed);
-            UiSharedService.ColorTextWrapped("This feature enables joining sever controlled syncshells AUTOMATICALLY.", ImGuiColors.DalamudRed);
+            UiSharedService.ColorTextWrapped("This feature enables joining server controlled syncshells AUTOMATICALLY.", ImGuiColors.DalamudRed);
             UiSharedService.ColorTextWrapped("You should NOT enable this feature if you are unwilling to self-moderate and pause others.", ImGuiColors.DalamudRed);
             UiSharedService.ColorTextWrapped("Using this feature to break PlayerSync ToS will result in a ban from PlayerSync.", ImGuiColors.DalamudRed);
             ImGui.Dummy(new Vector2(10));
@@ -1099,7 +1105,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                         _zoneSyncConfigService.Current.UserHasConfirmedWarning = true;
                         _zoneSyncConfigService.Save();
                     }
-                    UiSharedService.AttachToolTip("Hold SHIFT and click to confirm.");
+                    _uiShared.AttachToolTip("Hold SHIFT and click to confirm.");
                 }
             }
             ImGui.Dummy(new Vector2(10));
@@ -1107,11 +1113,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             ImGui.Dummy(new Vector2(10));
         }
         
-        UiSharedService.TextWrapped("Read these rules before proceeding. Violations may result in a ban.");
-        UiSharedService.ColorTextWrapped("1) NO NSFW IN TOWN with ZoneSync enabled!", ImGuiColors.DalamudRed);
-        UiSharedService.TextWrapped("2) No nuisance behavior (crashing people, taking up entire screen, etc.)");
-        UiSharedService.TextWrapped("3) All player actions are subject to the PlayerSync Terms of Service.");
-        ImGui.Dummy(new Vector2(10));
+        UiSharedService.ColorTextWrapped("Read these rules before proceeding:", ImGuiColors.DalamudRed);
+        UiSharedService.TextWrapped("1) You are responsible for your conduct and should self-moderate your appearance and actions.");
+        UiSharedService.TextWrapped("2) Pause unwanted user pairs as needed.");
+        UiSharedService.TextWrapped("3) No nuisance behavior (crashing people, taking up entire screen, etc.)");
+        UiSharedService.TextWrapped("4) All player actions are subject to the PlayerSync Terms of Service.");
+        ImGuiHelpers.ScaledDummy(10f);
 
         bool warningConfirmed = !_zoneSyncConfigService.Current.UserHasConfirmedWarning;
         ImGui.BeginDisabled(warningConfirmed);
@@ -1131,14 +1138,13 @@ public class SettingsUi : WindowMediatorSubscriberBase
             }
             if (_globalControlCountdown != 0 && !enableGroupZoneSyncJoining)
             {
-                UiSharedService.AttachToolTip("You can enable ZoneSync again in " + _globalControlCountdown + " seconds.");
+                _uiShared.AttachToolTip("You can enable ZoneSync again in " + _globalControlCountdown + " seconds.");
             }
         }
-        
-        ImGui.Dummy(new Vector2(10));
+
+        ImGuiHelpers.ScaledDummy(5f);
         ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("ZoneSync Allowed Areas");
-        ImGui.SameLine();
+        ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "This does not work for instanced areas.");
         ImGui.SetNextItemWidth(150 * ImGuiHelpers.GlobalScale);
         using (ImRaii.Disabled(_globalControlCountdown > 0 && enableGroupZoneSyncJoining))
         {
@@ -1162,17 +1168,50 @@ public class SettingsUi : WindowMediatorSubscriberBase
             }, _zoneSyncConfigService.Current.ZoneSyncFilter);
             if (_globalControlCountdown != 0 && enableGroupZoneSyncJoining)
             {
-                UiSharedService.AttachToolTip("Wait a moment before changing ");
-            }
-            ImGui.SameLine();   
+                _uiShared.AttachToolTip("Wait a moment before changing ");
+            } 
         }
-        ImGui.TextUnformatted("(This does not work for instanced areas.)");
+        ImGui.SameLine();
+        ImGui.TextUnformatted("ZoneSync Allowed Areas");
+        ImGuiHelpers.ScaledDummy(5f);
+
+        ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Setting this too low may not give your PC enough time to unload/load other players.");
+        var zoneSyncJoinDelay = _zoneSyncConfigService.Current.ZoneJoinDelayTime;
+        if (ImGui.SliderInt("ZoneSync Join Delay", ref zoneSyncJoinDelay, 5, 15))
+        {
+            _zoneSyncConfigService.Current.ZoneJoinDelayTime = zoneSyncJoinDelay;
+            _zoneSyncConfigService.Save();
+        }
+        _uiShared.DrawHelpText("Set the wait time between entering a zone and joining a ZoneSync. Increase this if your PC ");
+
+        ImGuiHelpers.ScaledDummy(5f);
+        UiSharedService.TextWrapped("Note: These permissions are applied only to ZoneSync syncshells.");
+        UiSharedService.TextWrapped("Note: The default permissions settings here are not applied retroactively to existing pairs.");
+
+        bool permSfx = _zoneSyncConfigService.Current.DisableSounds;
+        bool permVfx = _zoneSyncConfigService.Current.DisableVFX;
+        bool permAni = _zoneSyncConfigService.Current.DisableAnimations;
+
+        if (ImGui.Checkbox("Disable ZoneSync sounds", ref permSfx))
+        {
+            _zoneSyncConfigService.Current.DisableSounds = permSfx;
+            _zoneSyncConfigService.Save();
+        }
+        _uiShared.DrawHelpText("This setting will disable sound sync for all new ZoneSync pairs.");
+        if (ImGui.Checkbox("Disable ZoneSync vfx", ref permVfx))
+        {
+            _zoneSyncConfigService.Current.DisableVFX = permVfx;
+            _zoneSyncConfigService.Save();
+        }
+        _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
+        if (ImGui.Checkbox("Disable ZoneSync animations", ref permAni))
+        {
+            _zoneSyncConfigService.Current.DisableAnimations = permAni;
+            _zoneSyncConfigService.Save();
+        }
+        _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
 
         ImGui.EndDisabled();
-
-        ImGui.Dummy(new Vector2(10));
-        ImGui.Separator();
-        ImGui.Dummy(new Vector2(10));
     }
 
     private void DrawPerformance()
@@ -1423,6 +1462,13 @@ public class SettingsUi : WindowMediatorSubscriberBase
             + "If you do not wish to participate in the statistical census, untick this box and reconnect to the server.");
         ImGuiHelpers.ScaledDummy(new Vector2(10, 10));
 
+        var useBackupServer = _serverConfigurationManager.EnableBackupServer;
+        if (ImGui.Checkbox("Use Proxied Server", ref useBackupServer))
+        {
+            _serverConfigurationManager.EnableBackupServer = useBackupServer;
+        }
+        _uiShared.DrawHelpText("Only use this if advised by the PlayerSync support team, or if you know there is an ISP issue affecting you.");
+
         var idx = _uiShared.DrawServiceSelection();
         if (_lastSelectedServerIndex != idx)
         {
@@ -1629,7 +1675,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                         _uiShared.DrawHelpText("When enabled and logging into this character in XIV, PlayerSync will automatically connect to the current service.");
                         if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete Character") && UiSharedService.CtrlPressed())
                             _serverConfigurationManager.RemoveCharacterFromServer(idx, item);
-                        UiSharedService.AttachToolTip("Hold CTRL to delete this entry.");
+                        _uiShared.AttachToolTip("Hold CTRL to delete this entry.");
 
                         i++;
                         if (item != selectedServer.Authentications.ToList()[^1])
@@ -1690,7 +1736,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                             selectedServer.SecretKeys.Remove(item.Key);
                             _serverConfigurationManager.Save();
                         }
-                        UiSharedService.AttachToolTip("Hold CTRL to delete this secret key entry");
+                        _uiShared.AttachToolTip("Hold CTRL to delete this secret key entry");
                     }
                     else
                     {

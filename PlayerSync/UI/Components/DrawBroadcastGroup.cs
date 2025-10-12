@@ -61,7 +61,7 @@ public class DrawBroadcastGroup
     public void Draw()
     {
         using (ImRaii.PushId(GetType() + _id))
-        //using (ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered))
+        using (ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered))
         using (ImRaii.Child(GetType() + _id, new Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight())))
         {
             DrawLeftSide();
@@ -80,10 +80,12 @@ public class DrawBroadcastGroup
 
     private void DrawLeftSide()
     {
-        using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.StatusBroadcasting ?? new Vector4(0.094f, 0.835f, 0.369f, 1f), _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID))
+        var theme = _uiSharedService.Theme;
+        var newUI = _uiSharedService.NewUI;
+        using (ImRaii.PushColor(ImGuiCol.Text, newUI ? theme.StatusBroadcasting : ImGuiColors.HealerGreen, _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID))
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.BroadcastTower, _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID ? null : ThemeManager.Instance?.Current.Accent);
+            _uiSharedService.IconText(FontAwesomeIcon.BroadcastTower, _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID ? null : newUI ? theme.Accent : null);
         }
     }
 
@@ -92,13 +94,13 @@ public class DrawBroadcastGroup
         ImGui.SameLine(leftSide);
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted($"[{_broadcast.CurrentMemberCount}]");
-        UiSharedService.AttachToolTip($"{_broadcast.CurrentMemberCount} members");
+        _uiSharedService.AttachToolTip($"{_broadcast.CurrentMemberCount} members");
         ImGui.SameLine();
         using (ImRaii.PushFont(UiBuilder.MonoFont))
         {
             ImGui.TextUnformatted($"{_broadcast.GroupAliasOrGID}");
         }
-        UiSharedService.AttachToolTip($"Syncshell {_broadcast.Group.AliasOrGID}\nOwner: {_broadcast.Owner.UID}\nBroadcast by: {string.Join(", ", _broadcast.Broadcasters.Select(user => user.UID))}");
+        _uiSharedService.AttachToolTip($"Syncshell {_broadcast.Group.AliasOrGID}\nOwner: {_broadcast.Owner.UID}\nBroadcast by: {string.Join(", ", _broadcast.Broadcasters.Select(user => user.UID))}");
     }
 
     private float DrawRightSide()
@@ -152,7 +154,7 @@ public class DrawBroadcastGroup
                 _mediator.Publish(new PrefillJoinSyncshellParameters(_broadcast.Group.GID, _broadcast.Passwordless, _broadcast.IsGuestModeEnabled));
             }
         }
-        UiSharedService.AttachToolTip(joinTooltip);
+        _uiSharedService.AttachToolTip(joinTooltip);
 
         if (ImGui.BeginPopup("Broadcast Context Menu"))
         {

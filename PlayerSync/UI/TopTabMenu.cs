@@ -1,6 +1,5 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
@@ -10,9 +9,7 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
-using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.WebAPI;
-using System;
 using System.Numerics;
 
 namespace MareSynchronos.UI;
@@ -27,6 +24,7 @@ public class TopTabMenu : IMediatorSubscriber
     private readonly IBroadcastManager _broadcastManager;
     private readonly UiSharedService _uiSharedService;
     private readonly MareConfigService _mareConfigService;
+    private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private string _filter = string.Empty;
     private int _globalControlCountdown = 0;
 
@@ -34,7 +32,7 @@ public class TopTabMenu : IMediatorSubscriber
     MareMediator IMediatorSubscriber.Mediator => _mareMediator;
 
     private SelectedTab _selectedTab = SelectedTab.None;
-    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, MareConfigService mareConfigService)
+    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, MareConfigService mareConfigService, ZoneSyncConfigService zoneSyncConfigService)
     {
         _mareMediator = mareMediator;
         _apiController = apiController;
@@ -42,6 +40,7 @@ public class TopTabMenu : IMediatorSubscriber
         _broadcastManager = broadcastManager;
         _uiSharedService = uiSharedService;
         _mareConfigService = mareConfigService;
+        _zoneSyncConfigService = zoneSyncConfigService;
     }
 
     private enum SelectedTab
@@ -50,7 +49,7 @@ public class TopTabMenu : IMediatorSubscriber
         Individual,
         Syncshell,
         Filter,
-        Broadcast,
+        PlayerSync,
         UserConfig
     }
 
@@ -83,6 +82,9 @@ public class TopTabMenu : IMediatorSubscriber
     
     public void Draw()
     {
+        var theme = _uiSharedService.Theme;
+        bool newUI = _uiSharedService.NewUI;
+
         var availableWidth = ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X;
         var spacing = ImGui.GetStyle().ItemSpacing;
         int buttonCount = Enum.GetValues<SelectedTab>().Length - 1;
@@ -91,14 +93,24 @@ public class TopTabMenu : IMediatorSubscriber
         var buttonSize = new Vector2(buttonX, buttonY);
         var drawList = ImGui.GetWindowDrawList();
         var underlineColor = ImGui.GetColorU32(ImGuiCol.Separator);
-        var theme = ThemeManager.Instance?.Current;
-        var buttonColor = theme?.Btn ?? new Vector4(0.16f, 0.16f, 0.21f, 1.00f);
+        
+        // vanilla mare code
+        var buttonColor = theme.Btn;
+        
+        // themed code
         var buttonHoveredColor = theme?.BtnHovered ?? new Vector4(0.26f, 0.59f, 0.98f, 1.00f);
         var buttonActiveColor = theme?.BtnActive ?? new Vector4(0.06f, 0.53f, 0.98f, 1.00f);
 
-        var btncolor = ImRaii.PushColor(ImGuiCol.Button, ImGui.ColorConvertFloat4ToU32(buttonColor));
-        var btnHoveredColor = ImRaii.PushColor(ImGuiCol.ButtonHovered, ImGui.ColorConvertFloat4ToU32(buttonHoveredColor));
-        var btnActiveColor = ImRaii.PushColor(ImGuiCol.ButtonActive, ImGui.ColorConvertFloat4ToU32(buttonActiveColor));
+        // vanilla mare code
+        //var btncolor = ImRaii.PushColor(ImGuiCol.Button, ImGui.ColorConvertFloat4ToU32(buttonColor));
+
+        // themed code
+        //ImRaii.Color? btnHoveredColor = null, btnActiveColor = null;
+        //if (themed)
+        //{
+        //var btnHoveredColor = ImRaii.PushColor(ImGuiCol.ButtonHovered, ImGui.ColorConvertFloat4ToU32(buttonHoveredColor));
+        //var btnActiveColor = ImRaii.PushColor(ImGuiCol.ButtonActive, ImGui.ColorConvertFloat4ToU32(buttonActiveColor));
+        //}
 
         ImGuiHelpers.ScaledDummy(spacing.Y / 2f);
 
@@ -106,28 +118,27 @@ public class TopTabMenu : IMediatorSubscriber
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            bool clicked = ImGui.Button(FontAwesomeIcon.User.ToIconString(), buttonSize);
 
-            Vector4 textColor;
-            if (theme != null)
-            {
-                if (ImGui.IsItemActive())
-                    textColor = theme.BtnTextActive;
-                else if (ImGui.IsItemHovered())
-                    textColor = theme.BtnTextHovered;
-                else
-                    textColor = theme.BtnText;
-            }
-            else
-            {
-                textColor = new Vector4(1, 1, 1, 1);
-            }
+            //Vector4 textColor;
+            //if (theme != null)
+            //{
+            //    if (ImGui.IsItemActive())
+            //        textColor = theme.BtnTextActive;
+            //    else if (ImGui.IsItemHovered())
+            //        textColor = theme.BtnTextHovered;
+            //    else
+            //        textColor = theme.BtnText;
+            //}
+            //else
+            //{
+            //    textColor = new Vector4(1, 1, 1, 1);
+            //}
 
-            var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.User.ToIconString()).X) / 2f,
-                                     x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.User.ToIconString()).Y) / 2f);
-            drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.User.ToIconString());
+            //var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.User.ToIconString()).X) / 2f,
+            //                         x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.User.ToIconString()).Y) / 2f);
+            //drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.User.ToIconString());
 
-            if (clicked)
+            if (ImGui.Button(FontAwesomeIcon.User.ToIconString(), buttonSize))
             {
                 TabSelection = TabSelection == SelectedTab.Individual ? SelectedTab.None : SelectedTab.Individual;
             }
@@ -139,34 +150,33 @@ public class TopTabMenu : IMediatorSubscriber
                     xAfter with { Y = xAfter.Y + buttonSize.Y + spacing.Y, X = xAfter.X - spacing.X },
                     underlineColor, 2);
         }
-        UiSharedService.AttachToolTip("Individual Pair Menu");
+        _uiSharedService.AttachToolTip("Individual Pair Menu");
 
         // Syncshell tab
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            bool clicked = ImGui.Button(FontAwesomeIcon.Users.ToIconString(), buttonSize);
 
-            Vector4 textColor;
-            if (theme != null)
-            {
-                if (ImGui.IsItemActive())
-                    textColor = theme.BtnTextActive;
-                else if (ImGui.IsItemHovered())
-                    textColor = theme.BtnTextHovered;
-                else
-                    textColor = theme.BtnText;
-            }
-            else
-            {
-                textColor = new Vector4(1, 1, 1, 1);
-            }
+            //Vector4 textColor;
+            //if (theme != null)
+            //{
+            //    if (ImGui.IsItemActive())
+            //        textColor = theme.BtnTextActive;
+            //    else if (ImGui.IsItemHovered())
+            //        textColor = theme.BtnTextHovered;
+            //    else
+            //        textColor = theme.BtnText;
+            //}
+            //else
+            //{
+            //    textColor = new Vector4(1, 1, 1, 1);
+            //}
 
-            var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.Users.ToIconString()).X) / 2f,
-                                     x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.Users.ToIconString()).Y) / 2f);
-            drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.Users.ToIconString());
+            //var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.Users.ToIconString()).X) / 2f,
+            //                         x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.Users.ToIconString()).Y) / 2f);
+            //drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.Users.ToIconString());
 
-            if (clicked)
+            if (ImGui.Button(FontAwesomeIcon.Users.ToIconString(), buttonSize))
             {
                 TabSelection = TabSelection == SelectedTab.Syncshell ? SelectedTab.None : SelectedTab.Syncshell;
             }
@@ -178,35 +188,34 @@ public class TopTabMenu : IMediatorSubscriber
                     xAfter with { Y = xAfter.Y + buttonSize.Y + spacing.Y, X = xAfter.X - spacing.X },
                     underlineColor, 2);
         }
-        UiSharedService.AttachToolTip("Syncshell Menu");
+        _uiSharedService.AttachToolTip("Syncshell Menu");
 
         // Filter tab
         ImGui.SameLine();
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            bool clicked = ImGui.Button(FontAwesomeIcon.Filter.ToIconString(), buttonSize);
 
-            Vector4 textColor;
-            if (theme != null)
-            {
-                if (ImGui.IsItemActive())
-                    textColor = theme.BtnTextActive;
-                else if (ImGui.IsItemHovered())
-                    textColor = theme.BtnTextHovered;
-                else
-                    textColor = theme.BtnText;
-            }
-            else
-            {
-                textColor = new Vector4(1, 1, 1, 1);
-            }
+            //Vector4 textColor;
+            //if (theme != null)
+            //{
+            //    if (ImGui.IsItemActive())
+            //        textColor = theme.BtnTextActive;
+            //    else if (ImGui.IsItemHovered())
+            //        textColor = theme.BtnTextHovered;
+            //    else
+            //        textColor = theme.BtnText;
+            //}
+            //else
+            //{
+            //    textColor = new Vector4(1, 1, 1, 1);
+            //}
 
-            var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.Filter.ToIconString()).X) / 2f,
-                                     x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.Filter.ToIconString()).Y) / 2f);
-            drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.Filter.ToIconString());
+            //var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.Filter.ToIconString()).X) / 2f,
+            //                         x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.Filter.ToIconString()).Y) / 2f);
+            //drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.Filter.ToIconString());
 
-            if (clicked)
+            if (ImGui.Button(FontAwesomeIcon.Filter.ToIconString(), buttonSize))
             {
                 TabSelection = TabSelection == SelectedTab.Filter ? SelectedTab.None : SelectedTab.Filter;
             }
@@ -218,82 +227,103 @@ public class TopTabMenu : IMediatorSubscriber
                     xAfter with { Y = xAfter.Y + buttonSize.Y + spacing.Y, X = xAfter.X - spacing.X },
                     underlineColor, 2);
         }
-        UiSharedService.AttachToolTip("Filter");
+        _uiSharedService.AttachToolTip("Filter");
 
         // Broadcast tab
         ImGui.SameLine();
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            bool clicked = ImGui.Button(FontAwesomeIcon.Wifi.ToIconString(), buttonSize);
 
-            Vector4 textColor;
-            if (_broadcastManager.IsBroadcasting())
+            //Vector4 textColor;
+            //if (_broadcastManager.IsBroadcasting())
+            //{
+            //    textColor = ThemeManager.Instance?.Current.StatusBroadcasting ?? new Vector4(0.094f, 0.835f, 0.369f, 1f);
+            //}
+            //else
+            //{
+            //    if (theme != null)
+            //    {
+            //        if (ImGui.IsItemActive())
+            //            textColor = theme.BtnTextActive;
+            //        else if (ImGui.IsItemHovered())
+            //            textColor = theme.BtnTextHovered;
+            //        else
+            //            textColor = theme.BtnText;
+            //    }
+            //    else
+            //    {
+            //        textColor = new Vector4(1, 1, 1, 1);
+            //    }
+            //}
+
+            //var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.Wifi.ToIconString()).X) / 2f,
+            //                         x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.Wifi.ToIconString()).Y) / 2f);
+            //drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.Wifi.ToIconString());
+            //Vector4 textColor;
+            //if (themed)
+            //{
+            //    textColor = _broadcastManager.IsBroadcasting() ? ThemeManager.Instance?.Current.StatusBroadcasting ?? new Vector4(0.094f, 0.835f, 0.369f, 1f) : new Vector4(1, 1, 1, 1);
+            //}
+            //else
+            //{
+            //var textColor = _broadcastManager.IsBroadcasting() ? theme.StatusBroadcasting : theme?.BtnText ?? ImGuiColors.DalamudWhite;
+            //}
+            var psBase = new Vector4(0.18f, 0.61f, 0.81f, 0.85f); // #2E9BCF
+            var psHover = new Vector4(0.58f, 0.84f, 0.95f, 0.85f); // #93D7F3
+            var psActive = new Vector4(0.12f, 0.44f, 0.63f, 1.00f); // #1F709F
+            var psIcon = new Vector4(0.72f, 0.90f, 1.00f, 1.00f); // #B7E6FF
+
+            using (ImRaii.PushColor(ImGuiCol.Button, psBase))
+            using (ImRaii.PushColor(ImGuiCol.ButtonHovered, psHover))
+            using (ImRaii.PushColor(ImGuiCol.ButtonActive, psActive))
+            using (ImRaii.PushColor(ImGuiCol.Text, psIcon))
             {
-                textColor = ThemeManager.Instance?.Current.StatusBroadcasting ?? new Vector4(0.094f, 0.835f, 0.369f, 1f);
-            }
-            else
-            {
-                if (theme != null)
+                if (ImGui.Button(FontAwesomeIcon.Sync.ToIconString(), buttonSize))
                 {
-                    if (ImGui.IsItemActive())
-                        textColor = theme.BtnTextActive;
-                    else if (ImGui.IsItemHovered())
-                        textColor = theme.BtnTextHovered;
-                    else
-                        textColor = theme.BtnText;
-                }
-                else
-                {
-                    textColor = new Vector4(1, 1, 1, 1);
+                    TabSelection = TabSelection == SelectedTab.PlayerSync ? SelectedTab.None : SelectedTab.PlayerSync;
                 }
             }
-
-            var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.Wifi.ToIconString()).X) / 2f,
-                                     x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.Wifi.ToIconString()).Y) / 2f);
-            drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.Wifi.ToIconString());
-
-            if (clicked)
-            {
-                TabSelection = TabSelection == SelectedTab.Broadcast ? SelectedTab.None : SelectedTab.Broadcast;
-            }
+            //if (ImGui.Button(FontAwesomeIcon.Wifi.ToIconString(), buttonSize))
+            //{
+            //    TabSelection = TabSelection == SelectedTab.Broadcast ? SelectedTab.None : SelectedTab.Broadcast;
+            //}
 
             ImGui.SameLine();
             var xAfter = ImGui.GetCursorScreenPos();
-            if (TabSelection == SelectedTab.Broadcast)
+            if (TabSelection == SelectedTab.PlayerSync)
                 drawList.AddLine(x with { Y = x.Y + buttonSize.Y + spacing.Y },
                     xAfter with { Y = xAfter.Y + buttonSize.Y + spacing.Y, X = xAfter.X - spacing.X },
                     underlineColor, 2);
         }
-        UiSharedService.AttachToolTip("Syncshell Broadcast");
+        _uiSharedService.AttachToolTip("PlayerSync");
 
         // UserConfig tab
         ImGui.SameLine();
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var x = ImGui.GetCursorScreenPos();
-            bool clicked = ImGui.Button(FontAwesomeIcon.UserCog.ToIconString(), buttonSize);
 
-            Vector4 textColor;
-            if (theme != null)
-            {
-                if (ImGui.IsItemActive())
-                    textColor = theme.BtnTextActive;
-                else if (ImGui.IsItemHovered())
-                    textColor = theme.BtnTextHovered;
-                else
-                    textColor = theme.BtnText;
-            }
-            else
-            {
-                textColor = new Vector4(1, 1, 1, 1);
-            }
+            //Vector4 textColor;
+            //if (theme != null)
+            //{
+            //    if (ImGui.IsItemActive())
+            //        textColor = theme.BtnTextActive;
+            //    else if (ImGui.IsItemHovered())
+            //        textColor = theme.BtnTextHovered;
+            //    else
+            //        textColor = theme.BtnText;
+            //}
+            //else
+            //{
+            //    textColor = new Vector4(1, 1, 1, 1);
+            //}
 
-            var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.UserCog.ToIconString()).X) / 2f,
-                                     x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.UserCog.ToIconString()).Y) / 2f);
-            drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.UserCog.ToIconString());
+            //var iconPos = new Vector2(x.X + (buttonSize.X - ImGui.CalcTextSize(FontAwesomeIcon.UserCog.ToIconString()).X) / 2f,
+            //                         x.Y + (buttonSize.Y - ImGui.CalcTextSize(FontAwesomeIcon.UserCog.ToIconString()).Y) / 2f);
+            //drawList.AddText(iconPos, ImGui.GetColorU32(textColor), FontAwesomeIcon.UserCog.ToIconString());
 
-            if (clicked)
+            if (ImGui.Button(FontAwesomeIcon.UserCog.ToIconString(), buttonSize))
             {
                 TabSelection = TabSelection == SelectedTab.UserConfig ? SelectedTab.None : SelectedTab.UserConfig;
             }
@@ -305,12 +335,12 @@ public class TopTabMenu : IMediatorSubscriber
                     xAfter with { Y = xAfter.Y + buttonSize.Y + spacing.Y, X = xAfter.X - spacing.X },
                     underlineColor, 2);
         }
-        UiSharedService.AttachToolTip("Your User Menu");
+        _uiSharedService.AttachToolTip("Your User Menu");
 
         ImGui.NewLine();
-        btnActiveColor.Dispose();
-        btnHoveredColor.Dispose();
-        btncolor.Dispose();
+        //btnActiveColor.Dispose();
+        //btnHoveredColor.Dispose();
+        //btncolor.Dispose();
 
         ImGuiHelpers.ScaledDummy(spacing);
 
@@ -328,9 +358,9 @@ public class TopTabMenu : IMediatorSubscriber
         {
             DrawFilter(availableWidth, spacing.X);
         }
-        else if (TabSelection == SelectedTab.Broadcast)
+        else if (TabSelection == SelectedTab.PlayerSync)
         {
-            DrawBroadcast(availableWidth, spacing.X);
+            DrawPlayerSync(availableWidth, spacing.X);
         }
         else if (TabSelection == SelectedTab.UserConfig)
         {
@@ -358,7 +388,7 @@ public class TopTabMenu : IMediatorSubscriber
                 _pairToAdd = string.Empty;
             }
         }
-        UiSharedService.AttachToolTip("Pair with " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd));
+        _uiSharedService.AttachToolTip("Pair with " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd));
         ImGui.SameLine();
         using (ImRaii.Disabled(isSelf || string.IsNullOrEmpty(_pairToAdd)))
         {
@@ -368,7 +398,7 @@ public class TopTabMenu : IMediatorSubscriber
                 _pairToAdd = string.Empty;
             }
         }
-        UiSharedService.AttachToolTip("Keep " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd) + " paused" + Environment.NewLine + Environment.NewLine
+        _uiSharedService.AttachToolTip("Keep " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd) + " paused" + Environment.NewLine + Environment.NewLine
             + "Only works for UID, not Alias.");
     }
 
@@ -389,25 +419,56 @@ public class TopTabMenu : IMediatorSubscriber
         }
     }
 
-    private void DrawBroadcast(float availableXWidth, float spacingX)
+    private void DrawPlayerSync(float availableXWidth, float spacingX)
     {
+        var theme = _uiSharedService.Theme;
         bool showBroadcastingSyncshells = _mareConfigService.Current.ListenForBroadcasts;
-        if (ImGui.Checkbox("Enable Broadcast Features", ref showBroadcastingSyncshells))
+        var buttonSize = (ImGui.GetContentRegionAvail().X - spacingX) / 2f;
+        if (_uiSharedService.IconTextButton(showBroadcastingSyncshells ? FontAwesomeIcon.TimesCircle : FontAwesomeIcon.Wifi, 
+            showBroadcastingSyncshells ? "Don't Show Broadcasts" : "Show Broadcasts", buttonSize))
         {
-            if (showBroadcastingSyncshells)
-            {
-                _broadcastManager.StartListening();
-            }
-            else
-            {
-                _broadcastManager.StopListening();
-            }
+            showBroadcastingSyncshells = !showBroadcastingSyncshells;
+
+            if (showBroadcastingSyncshells) _broadcastManager.StartListening();
+            else _broadcastManager.StopListening();
+
             _mareConfigService.Current.ListenForBroadcasts = showBroadcastingSyncshells;
             _mareConfigService.Save();
         }
-        UiSharedService.AttachToolTip("Show Syncshells broadcasting in your location for easy joining." + Environment.NewLine + Environment.NewLine +
-            "Use the menu for a Syncshell that you own or moderate to broadcast it to players nearby.");
+        ImGui.SameLine();
 
+        _uiSharedService.AttachToolTip(
+            showBroadcastingSyncshells
+                ? "Click to turn OFF broadcast features." + UiSharedService.TooltipSeparator + "Stops showing nearby Syncshell broadcasts."
+                : "Click to turn ON broadcast features." + UiSharedService.TooltipSeparator + "Shows Syncshells broadcasting in your location for easy joining."
+        );
+        
+        // Button for ZoneSync
+        bool warningAccepted = _zoneSyncConfigService.Current.UserHasConfirmedWarning;
+        bool zoneSyncEnabled = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+        using (ImRaii.Disabled(!warningAccepted))
+        {
+            using (ImRaii.Disabled(_globalControlCountdown > 0))
+            {
+                if (_uiSharedService.IconTextButton(zoneSyncEnabled ? FontAwesomeIcon.TimesCircle : FontAwesomeIcon.Globe,
+                    zoneSyncEnabled ? "Disable ZoneSync" : "Enable ZoneSync", buttonSize))
+                {
+                    _ = GlobalControlCountdown(5);
+                    zoneSyncEnabled = !zoneSyncEnabled;
+                    _mareMediator.Publish(new GroupZoneSetEnableState(zoneSyncEnabled));
+                    _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = zoneSyncEnabled;
+                    _zoneSyncConfigService.Save();
+                }
+            }
+        }
+        string zoneSyncText = zoneSyncEnabled
+            ? "Click to turn OFF ZoneSync." + UiSharedService.TooltipSeparator + "You can change the filter in the settings." + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator +
+             UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty)
+            : "Click to turn ON ZoneSync." + UiSharedService.TooltipSeparator + "You can change the filter in the settings." +
+            UiSharedService.TooltipSeparator + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty);
+        string warningText = "You must go to Pairing Settings first in the Settings to enable this feature.";
+        _uiSharedService.AttachToolTip(warningAccepted ? zoneSyncText : warningText);
+        
         if (showBroadcastingSyncshells)
         {
             string? broadcastGroupId = _broadcastManager.BroadcastingGroupId;
@@ -415,7 +476,7 @@ public class TopTabMenu : IMediatorSubscriber
             {
                 ImGuiHelpers.ScaledDummy(4.0f);
 
-                using (ImRaii.PushColor(ImGuiCol.Text, ThemeManager.Instance?.Current.StatusBroadcasting ?? new Vector4(0.094f, 0.835f, 0.369f, 1f)))
+                using (ImRaii.PushColor(ImGuiCol.Text, theme.StatusBroadcasting))
                 {
                     var header = "Broadcasting";
                     var headerSize = ImGui.CalcTextSize(header);
@@ -460,7 +521,7 @@ public class TopTabMenu : IMediatorSubscriber
                 ImGui.OpenPopup("Individual Pause");
             }
         }
-        UiSharedService.AttachToolTip("Globally resume or pause all individual pairs." + UiSharedService.TooltipSeparator
+        _uiSharedService.AttachToolTip("Globally resume or pause all individual pairs." + UiSharedService.TooltipSeparator
             + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty));
 
         ImGui.SameLine();
@@ -473,7 +534,7 @@ public class TopTabMenu : IMediatorSubscriber
                 ImGui.OpenPopup("Individual Sounds");
             }
         }
-        UiSharedService.AttachToolTip("Globally enable or disable sound sync with all individual pairs."
+        _uiSharedService.AttachToolTip("Globally enable or disable sound sync with all individual pairs."
             + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty));
 
         ImGui.SameLine();
@@ -486,7 +547,7 @@ public class TopTabMenu : IMediatorSubscriber
                 ImGui.OpenPopup("Individual Animations");
             }
         }
-        UiSharedService.AttachToolTip("Globally enable or disable animation sync with all individual pairs." + UiSharedService.TooltipSeparator
+        _uiSharedService.AttachToolTip("Globally enable or disable animation sync with all individual pairs." + UiSharedService.TooltipSeparator
             + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty));
 
         ImGui.SameLine();
@@ -499,7 +560,7 @@ public class TopTabMenu : IMediatorSubscriber
                 ImGui.OpenPopup("Individual VFX");
             }
         }
-        UiSharedService.AttachToolTip("Globally enable or disable VFX sync with all individual pairs." + UiSharedService.TooltipSeparator
+        _uiSharedService.AttachToolTip("Globally enable or disable VFX sync with all individual pairs." + UiSharedService.TooltipSeparator
             + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty));
 
 
@@ -568,7 +629,7 @@ public class TopTabMenu : IMediatorSubscriber
                 ImGui.OpenPopup("Syncshell Pause");
             }
         }
-        UiSharedService.AttachToolTip("Globally resume or pause all syncshells." + UiSharedService.TooltipSeparator
+        _uiSharedService.AttachToolTip("Globally resume or pause all syncshells." + UiSharedService.TooltipSeparator
                         + "Note: This will not affect users with preferred permissions in syncshells."
             + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty));
 
@@ -582,7 +643,7 @@ public class TopTabMenu : IMediatorSubscriber
                 ImGui.OpenPopup("Syncshell Sounds");
             }
         }
-        UiSharedService.AttachToolTip("Globally enable or disable sound sync with all syncshells." + UiSharedService.TooltipSeparator
+        _uiSharedService.AttachToolTip("Globally enable or disable sound sync with all syncshells." + UiSharedService.TooltipSeparator
                         + "Note: This will not affect users with preferred permissions in syncshells."
                         + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty));
 
@@ -596,7 +657,7 @@ public class TopTabMenu : IMediatorSubscriber
                 ImGui.OpenPopup("Syncshell Animations");
             }
         }
-        UiSharedService.AttachToolTip("Globally enable or disable animation sync with all syncshells." + UiSharedService.TooltipSeparator
+        _uiSharedService.AttachToolTip("Globally enable or disable animation sync with all syncshells." + UiSharedService.TooltipSeparator
                         + "Note: This will not affect users with preferred permissions in syncshells."
             + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty));
 
@@ -610,7 +671,7 @@ public class TopTabMenu : IMediatorSubscriber
                 ImGui.OpenPopup("Syncshell VFX");
             }
         }
-        UiSharedService.AttachToolTip("Globally enable or disable VFX sync with all syncshells." + UiSharedService.TooltipSeparator
+        _uiSharedService.AttachToolTip("Globally enable or disable VFX sync with all syncshells." + UiSharedService.TooltipSeparator
                         + "Note: This will not affect users with preferred permissions in syncshells."
             + (_globalControlCountdown > 0 ? UiSharedService.TooltipSeparator + "Available again in " + _globalControlCountdown + " seconds." : string.Empty));
 
@@ -685,7 +746,7 @@ public class TopTabMenu : IMediatorSubscriber
                 _ = _apiController.SetBulkPermissions(new(new(StringComparer.Ordinal), bulkSyncshells)).ConfigureAwait(false);
             }
         }
-        UiSharedService.AttachToolTip("Globally align syncshell permissions to suggested syncshell permissions." + UiSharedService.TooltipSeparator
+        _uiSharedService.AttachToolTip("Globally align syncshell permissions to suggested syncshell permissions." + UiSharedService.TooltipSeparator
             + "Note: This will not affect users with preferred permissions in syncshells." + Environment.NewLine
             + "Note: If multiple users share one syncshell the permissions to that user will be set to " + Environment.NewLine
             + "the ones of the last applied syncshell in alphabetical order." + UiSharedService.TooltipSeparator
@@ -723,13 +784,13 @@ public class TopTabMenu : IMediatorSubscriber
         {
             _mareMediator.Publish(new UiToggleMessage(typeof(EditProfileUi)));
         }
-        UiSharedService.AttachToolTip("Edit your PlayerSync Profile");
+        _uiSharedService.AttachToolTip("Edit your PlayerSync Profile");
         ImGui.SameLine();
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.PersonCircleQuestion, "Chara Data Analysis", buttonX))
         {
             _mareMediator.Publish(new UiToggleMessage(typeof(DataAnalysisUi)));
         }
-        UiSharedService.AttachToolTip("View and analyze your generated character data");
+        _uiSharedService.AttachToolTip("View and analyze your generated character data");
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Running, "Character Data Hub", availableWidth))
         {
             _mareMediator.Publish(new UiToggleMessage(typeof(CharaDataHubUi)));
@@ -738,9 +799,9 @@ public class TopTabMenu : IMediatorSubscriber
 
     private async Task GlobalControlCountdown(int countdown)
     {
-#if DEBUG
-        return;
-#endif
+//#if DEBUG
+//        return;
+//#endif
 
         _globalControlCountdown = countdown;
         while (_globalControlCountdown > 0)
