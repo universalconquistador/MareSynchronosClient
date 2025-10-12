@@ -974,6 +974,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var onlineNotifsNamedOnly = _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs;
         _uiShared.BigText("Notifications");
 
+        ImGui.SetNextItemWidth(ImGui.CalcTextSize("W").X * 10f * ImGui.GetIO().FontGlobalScale);
         _uiShared.DrawCombo("Info Notification Display##settingsUi", (NotificationLocation[])Enum.GetValues(typeof(NotificationLocation)), (i) => i.ToString(),
         (i) =>
         {
@@ -986,6 +987,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                       + Environment.NewLine + "'Toast' will show Warning toast notifications in the bottom right corner"
                       + Environment.NewLine + "'Both' will show chat as well as the toast notification");
 
+        ImGui.SetNextItemWidth(ImGui.CalcTextSize("W").X * 10f * ImGui.GetIO().FontGlobalScale);
         _uiShared.DrawCombo("Warning Notification Display##settingsUi", (NotificationLocation[])Enum.GetValues(typeof(NotificationLocation)), (i) => i.ToString(),
         (i) =>
         {
@@ -998,6 +1000,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                               + Environment.NewLine + "'Toast' will show Warning toast notifications in the bottom right corner"
                               + Environment.NewLine + "'Both' will show chat as well as the toast notification");
 
+        ImGui.SetNextItemWidth(ImGui.CalcTextSize("W").X * 10f * ImGui.GetIO().FontGlobalScale);
         _uiShared.DrawCombo("Error Notification Display##settingsUi", (NotificationLocation[])Enum.GetValues(typeof(NotificationLocation)), (i) => i.ToString(),
         (i) =>
         {
