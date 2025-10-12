@@ -34,7 +34,6 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         _pairManager = pairManager;
 
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (__) => _ = SendGroupZoneSyncInfo());
-        Mediator.Subscribe<ConnectedMessage>(this, (__) => _ = SendGroupZoneSyncInfo());
         Mediator.Subscribe<WorldChangeMessage>(this, (__) => _ = SendGroupZoneSyncInfo());
         Mediator.Subscribe<GroupZoneSetEnableState>(this, (msg) => _ = GroupZoneJoinEnabled(msg.isEnabled));
         Mediator.Subscribe<GroupZoneSyncUpdateMessage>(this, (__) => _ = SendGroupZoneSyncInfo());
