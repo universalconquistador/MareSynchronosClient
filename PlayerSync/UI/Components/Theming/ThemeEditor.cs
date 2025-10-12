@@ -473,7 +473,7 @@ public class ThemeEditor
     private void CopyCurrentTheme()
     {
         var current = _themeManager.Current;
-        _editingTheme = new ThemePalette(current);
+        _editingTheme = current.Clone();
         _editingThemeName = _themeManager.CurrentThemeName;
         _hasChanges = false;
     }
