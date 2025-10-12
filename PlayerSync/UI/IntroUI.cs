@@ -219,11 +219,12 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             UiSharedService.DistanceSeparator();
 
             UiSharedService.TextWrapped("Once you have registered you can connect to the service using the tools provided below.");
+            ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Check \"Use Proxied Server\" if you had to use the mirror repo.");
 
             int serverIdx = 0;
             var selectedServer = _serverConfigurationManager.GetServerByIndex(serverIdx);
 
-            using (var node = ImRaii.TreeNode("Advanced Options"))
+            using (var node = ImRaii.TreeNode("Advanced Options", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 if (node)
                 {
@@ -242,6 +243,12 @@ public partial class IntroUi : WindowMediatorSubscriberBase
                         _serverConfigurationManager.GetServerByIndex(serverIdx).UseOAuth2 = !_useLegacyLogin;
                         _serverConfigurationManager.Save();
                     }
+                    var useBackupServer = _serverConfigurationManager.EnableBackupServer;
+                    if (ImGui.Checkbox("Use Proxied Server", ref useBackupServer))
+                    {
+                        _serverConfigurationManager.EnableBackupServer = useBackupServer;
+                    }
+                    _uiShared.DrawHelpText("Only use this if advised by the PlayerSync support team, or if you know there is an ISP issue affecting you.");
                 }
             }
 
@@ -301,9 +308,11 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             }
             else
             {
+                ImGuiHelpers.ScaledDummy(5);
                 if (string.IsNullOrEmpty(selectedServer.OAuthToken))
                 {
                     UiSharedService.TextWrapped("Press the button below to verify the server has OAuth2 capabilities. Afterwards, authenticate using Discord in the Browser window.");
+                    ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "You must sign up on Discord before this will work.");
                     _uiShared.DrawOAuth(selectedServer);
                 }
                 else

@@ -1,6 +1,7 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.UI;
 
@@ -117,19 +118,27 @@ public class ThemeEditor
 
     public void Draw()
     {
-        if (_themeManager.UsingDalamudTheme) ImGui.BeginDisabled();
-        ImGui.Text("Theme Selection");
+        // Main Theme Editor body, disabled when using Dalamud as the theme source
+        using (ImRaii.Disabled(_themeManager.UsingDalamudTheme))
+        {
+            // Theme selection dropdown
+            ImGui.Text("Theme Selection");
+            DrawThemeSelector();
+
+            ImGui.Dummy(new Vector2(5));
+            ImGui.Separator();
+            ImGui.Dummy(new Vector2(5));
+
+            // Color picker region
+            ImGui.Text("Theme Colors");
+            DrawTabbedColorEditor();
+        }
+
+        ImGui.Dummy(new Vector2(5));
         ImGui.Separator();
+        ImGui.Dummy(new Vector2(5));
 
-        DrawThemeSelector();
-        ImGui.Spacing();
-
-        ImGui.Text("Theme Colors");
-        ImGui.Separator();
-        DrawTabbedColorEditor();
-        if (_themeManager.UsingDalamudTheme) ImGui.EndDisabled();
-
-        ImGui.Spacing();
+        // Reset and Save/Exit buttons
         DrawApplyButton();
         
     }
@@ -268,7 +277,10 @@ public class ThemeEditor
     private void DrawColorSquare(string label, string propertyName, Vector4 color)
     {
         var buttonId = $"##ColorSquare{propertyName}";
-        if (ImGui.ColorButton(buttonId, color, ImGuiColorEditFlags.NoTooltip | ImGuiColorEditFlags.AlphaPreview, new Vector2(30, 20)))
+        // Add scaling to the color picker buttons
+        var colorSquareX = 30 * ImGuiHelpers.GlobalScale;
+        var colorSquareY = 20 * ImGuiHelpers.GlobalScale;
+        if (ImGui.ColorButton(buttonId, color, ImGuiColorEditFlags.NoTooltip | ImGuiColorEditFlags.AlphaPreview, new Vector2(colorSquareX, colorSquareY)))
         {
             _colorPickerPopupId = propertyName;
             ImGui.OpenPopup($"ColorPicker{propertyName}");
@@ -417,7 +429,7 @@ public class ThemeEditor
 
     private void DrawApplyButton()
     {
-        ImGui.Separator();
+        //ImGui.Separator();
 
         // Show that changes are automatically applied
         ImGui.TextColored(_editingTheme.Accent, "Changes applied automatically");
