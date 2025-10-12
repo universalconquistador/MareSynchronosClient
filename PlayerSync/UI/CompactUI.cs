@@ -636,33 +636,33 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth() - totalButtonsWidth);
 
-        if (_apiController.ServerState is not (ServerState.Reconnecting or ServerState.Disconnecting))
+        
+        if (NewUI)
         {
-            if (NewUI)
-            {
-                ImGui.PushStyleColor(ImGuiCol.Text, theme.BtnText);
-                if (_uiSharedService.IconButton(FontAwesomeIcon.Cog))
-                {
-                    Mediator.Publish(new UiToggleMessage(typeof(SettingsUi)));
-                }
-                ImGui.PopStyleColor();
-                _uiSharedService.AttachToolTip("Open PlayerSync Settings");
-            }
-
-            // Palette/Theme Editor button
-            var offset = buttonSize.X * 2 + ImGui.GetStyle().ItemSpacing.X;
-            ImGui.SameLine(!NewUI ? ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth() - offset : 0);
-
             ImGui.PushStyleColor(ImGuiCol.Text, theme.BtnText);
-            if (_uiSharedService.IconButton(FontAwesomeIcon.Palette))
+            if (_uiSharedService.IconButton(FontAwesomeIcon.Cog))
             {
-                Mediator.Publish(new ToggleThemeEditorMessage());
+                Mediator.Publish(new UiToggleMessage(typeof(SettingsUi)));
             }
             ImGui.PopStyleColor();
-            _uiSharedService.AttachToolTip("Open Theme Editor");
+            _uiSharedService.AttachToolTip("Open PlayerSync Settings");
+        }
 
-            ImGui.SameLine();
+        // Palette/Theme Editor button
+        var offset = buttonSize.X * 2 + ImGui.GetStyle().ItemSpacing.X;
+        ImGui.SameLine(!NewUI ? ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth() - offset : 0);
 
+        ImGui.PushStyleColor(ImGuiCol.Text, theme.BtnText);
+        if (_uiSharedService.IconButton(FontAwesomeIcon.Palette))
+        {
+            Mediator.Publish(new ToggleThemeEditorMessage());
+        }
+        ImGui.PopStyleColor();
+        _uiSharedService.AttachToolTip("Open Theme Editor");
+
+        ImGui.SameLine();
+        if (_apiController.ServerState is not (ServerState.Reconnecting or ServerState.Disconnecting))
+        {
             using (ImRaii.PushColor(ImGuiCol.Text, color))
             {
                 if (_uiSharedService.IconButton(connectedIcon))
