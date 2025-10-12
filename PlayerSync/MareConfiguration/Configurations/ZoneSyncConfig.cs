@@ -11,4 +11,5 @@ public class ZoneSyncConfig : IMareConfiguration
     public bool DisableSounds { get; set; } = true;
     public bool DisableVFX { get; set; } = true;
     public bool DisableAnimations { get; set; } = true;
+    public int ZoneJoinDelayTime { get; set; } = 10;
 }
