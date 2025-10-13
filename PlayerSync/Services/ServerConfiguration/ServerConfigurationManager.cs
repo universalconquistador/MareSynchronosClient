@@ -40,8 +40,38 @@ public class ServerConfigurationManager
         EnsureMainExists();
     }
 
-    public string CurrentApiUrl => CurrentServer.ServerUri;
-    public ServerStorage CurrentServer => _configService.Current.ServerStorage[CurrentServerIndex];
+    public string CurrentApiUrl => EnableBackupServer && !string.IsNullOrWhiteSpace(BackupServerUri)
+        ? BackupServerUri : _configService.Current.ServerStorage[CurrentServerIndex].ServerUri;
+
+    public string RealApiUrl => _configService.Current.ServerStorage[CurrentServerIndex].ServerUri;
+
+    public ServerStorage CurrentServer
+    {
+        get
+        {
+            var server = _configService.Current.ServerStorage[CurrentServerIndex];
+            if (!EnableBackupServer || string.IsNullOrWhiteSpace(BackupServerUri))
+                return server;
+
+            return CloneWithServerUri(server, BackupServerUri!);
+        }
+    }
+
+    private static ServerStorage CloneWithServerUri(ServerStorage server, string newUri)
+    {
+        return new ServerStorage
+        {
+            Authentications = server.Authentications,
+            FullPause = server.FullPause,
+            SecretKeys = server.SecretKeys,
+            ServerName = server.ServerName,
+            ServerUri = newUri,
+            UseOAuth2 = server.UseOAuth2,
+            OAuthToken = server.OAuthToken,
+            HttpTransportType = server.HttpTransportType,
+            ForceWebSockets = server.ForceWebSockets
+        };
+    }
 
     public string BackupServerUri => _configService.Current.BackupServerUri;
     public bool EnableBackupServer

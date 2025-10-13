@@ -166,6 +166,11 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
             _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = false;
             _zoneSyncConfigService.Save();
         }
+        catch (System.AggregateException)
+        {
+            // TODO Find out who is calling early
+            _logger.LogDebug("ZoneSync was called before the server state was connected.");
+        }
     }
 
     /// <summary>

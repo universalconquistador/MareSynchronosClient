@@ -79,7 +79,8 @@ public class HubFactory : MediatorSubscriberBase
 
         Logger.LogDebug("Building new HubConnection using transport {transport}", transportType);
 
-        var url = _serverConfigurationManager.EnableBackupServer ? _serverConfigurationManager.BackupServerUri : _serverConfigurationManager.CurrentApiUrl;
+        var url = _serverConfigurationManager.CurrentApiUrl;
+        Logger.LogInformation("Connecting to hub server using \"{url}\"", url);
         _instance = new HubConnectionBuilder()
             .WithUrl(url + IMareHub.Path, options =>
             {
