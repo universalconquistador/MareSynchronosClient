@@ -215,9 +215,9 @@ public class ThemeManager
         ImGui.PushStyleColor(ImGuiCol.TabActive, _currentTheme.BtnActive);
         ImGui.PushStyleColor(ImGuiCol.TabUnfocused, _currentTheme.Btn);
         ImGui.PushStyleColor(ImGuiCol.TabUnfocusedActive, _currentTheme.BtnActive);
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, _currentTheme.Btn);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, _currentTheme.BtnHovered);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, _currentTheme.BtnActive);
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, _currentTheme.FrameBg);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, _currentTheme.FrameBgHovered);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, _currentTheme.FrameBgActive);
         ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0, 0, 0, 0));
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, _currentTheme.Btn);
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, _currentTheme.BtnHovered);
@@ -236,7 +236,7 @@ public class ThemeManager
         ImGui.PushStyleColor(ImGuiCol.TableBorderLight, _currentTheme.PanelBorder);
         ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0, 0, 0, 0));
         ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(_currentTheme.HeaderBg.X, _currentTheme.HeaderBg.Y, _currentTheme.HeaderBg.Z, 0.6f));
-        ImGui.PushStyleColor(ImGuiCol.PopupBg, _currentTheme.PanelBg);
+        ImGui.PushStyleColor(ImGuiCol.PopupBg, _currentTheme.PopupBg);
         ImGui.PushStyleColor(ImGuiCol.ModalWindowDimBg, new Vector4(_currentTheme.PanelBg.X, _currentTheme.PanelBg.Y, _currentTheme.PanelBg.Z, 0.50f));
         ImGui.PushStyleColor(ImGuiCol.TextSelectedBg, _currentTheme.BtnActive);
 

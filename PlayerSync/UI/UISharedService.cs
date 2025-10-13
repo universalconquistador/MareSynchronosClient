@@ -1216,16 +1216,20 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         bool result = ImGui.Button(string.Empty, new Vector2(x, frameHeight));
         Vector2 pos = new Vector2(cursorScreenPos.X + ImGui.GetStyle().FramePadding.X, cursorScreenPos.Y + ImGui.GetStyle().FramePadding.Y);
 
-        // Get button text color based on button state from theme
-        Vector4 textColor;
-        if (ImGui.IsItemActive())
-            textColor = Theme.BtnTextActive;
-        else if (ImGui.IsItemHovered())
-            textColor = Theme.BtnTextHovered;
-        else
-            textColor = Theme.BtnText;
+        //
+        // Can't do this here as it affects the Settings and other UI windows as well.
+        //
 
-        var textColorU32 = ImGui.GetColorU32(textColor);
+        //// Get button text color based on button state from theme
+        //Vector4 textColor;
+        //if (ImGui.IsItemActive())
+        //    textColor = Theme.BtnTextActive;
+        //else if (ImGui.IsItemHovered())
+        //    textColor = Theme.BtnTextHovered;
+        //else
+        //    textColor = Theme.BtnText;
+
+        var textColorU32 = ImGui.GetColorU32(ImGuiCol.Text);
 
         using (IconFont.Push())
             windowDrawList.AddText(pos, textColorU32, icon.ToIconString());

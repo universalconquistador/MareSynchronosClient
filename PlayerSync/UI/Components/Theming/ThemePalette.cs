@@ -101,18 +101,18 @@ public class ThemePalette
         HeaderBg = new(0.16f, 0.16f, 0.21f, 1.00f);
         Accent = new(0.26f, 0.59f, 0.98f, 1.00f);
         Accent2 = new(0.608f, 0.694f, 1f, 1f);
-        ChildBg = new(1f, 1f, 1f, 1f);
-        PopupBg = new(1f, 1f, 1f, 1f);
+        ChildBg = new(0.00f, 0.00f, 0.00f, 0.00f);
+        PopupBg = new(0.080f, 0.080f, 0.080f, 0.940f);
 
         // Title Bar
         TitleBg = new(0.26f, 0.59f, 0.98f, 1.00f);
-        TitleBgActive = new(0.26f, 0.59f, 0.98f, 1.00f);
+        TitleBgActive = new(0.26f, 0.59f, 0.98f, 0.400f);
         TitleBgCollapsed = new(0.26f, 0.59f, 0.98f, 1.00f);
 
-        // Frame (user for entry hover over effects)
-        FrameBg = new(0.26f, 0.59f, 0.98f, 1.00f);
-        FrameBgHovered = new(0.26f, 0.59f, 0.98f, 1.00f);
-        FrameBgActive = new(0.26f, 0.59f, 0.98f, 1.00f);
+        // Frame (use for entry hover over effects)
+        FrameBg = new(0.290f, 0.290f, 0.290f, 0.540f);
+        FrameBgHovered = new(0.540f, 0.540f, 0.540f, 1.00f);
+        FrameBgActive = new(0.640f, 0.640f, 0.640f, 0.670f);
 
         // Button colors
         Btn = new(0.16f, 0.16f, 0.21f, 1.00f);
