@@ -74,7 +74,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
 
         if (_groupJoinInfo == null || !_groupJoinInfo.Success)
         {
-            float sitstaygooddoggy = 142f * ImGui.GetIO().FontGlobalScale;  // Fixed position reference for the text boxes
+            float PositionalX = 142f * ImGui.GetIO().FontGlobalScale;  // Fixed position reference for the text boxes
             float inputboxsize = 250f;
 
             UiSharedService.TextWrapped("Here you can join existing Syncshells. " +
@@ -87,14 +87,14 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("Syncshell ID");
             ImGui.SameLine();  
-            ImGui.SetCursorPosX(sitstaygooddoggy);
+            ImGui.SetCursorPosX(PositionalX);
             ImGui.SetNextItemWidth(inputboxsize * ImGui.GetIO().FontGlobalScale);
             ImGui.InputTextWithHint("##syncshellId", "Full Syncshell ID", ref _desiredSyncshellToJoin, 20);
 
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("Syncshell Password");
             ImGui.SameLine();
-            ImGui.SetCursorPosX(sitstaygooddoggy);
+            ImGui.SetCursorPosX(PositionalX);
             if (_passwordless || _guestmode)
             {
                 using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
