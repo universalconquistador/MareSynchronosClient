@@ -60,94 +60,6 @@ public class ThemeManager
     public float Padding => _padding;
     public float ScaledSpacing => _spacing * ImGuiHelpers.GlobalScale;
 
-    public ThemePalette ActiveThemeToThemePalette()
-    {
-        var style = ImGui.GetStyle();
-        var colors = style.Colors;
-
-        var theme = new ThemePalette
-        {
-            // Core panel colors
-            PanelBg = colors[(int)ImGuiCol.WindowBg],
-            PanelBorder = colors[(int)ImGuiCol.Border],
-            HeaderBg = colors[(int)ImGuiCol.Header], // could also use TitleBg/TitleBgActive
-
-            // Accent(s)
-            Accent = colors[(int)ImGuiCol.CheckMark],
-            Accent2 = colors[(int)ImGuiCol.SliderGrab], // reasonable second accent
-
-            // Buttons
-            Btn = colors[(int)ImGuiCol.Button],
-            BtnHovered = colors[(int)ImGuiCol.ButtonHovered],
-            BtnActive = colors[(int)ImGuiCol.ButtonActive],
-            // ImGui has no explicit "button text" colors; reuse text colors
-            BtnText = colors[(int)ImGuiCol.Text],
-            BtnTextHovered = colors[(int)ImGuiCol.Text],
-            BtnTextActive = colors[(int)ImGuiCol.Text],
-
-            // Text
-            TextPrimary = colors[(int)ImGuiCol.Text],
-            TextDisabled = colors[(int)ImGuiCol.TextDisabled],
-            // Best-effort mappings for secondary/muted
-            TextSecondary = colors[(int)ImGuiCol.Text],
-            TextMuted = colors[(int)ImGuiCol.TextDisabled],
-            TextMuted2 = colors[(int)ImGuiCol.TextDisabled],
-
-            // Links (ImGui has no link color; pick something sensible)
-            Link = colors[(int)ImGuiCol.HeaderHovered],
-            LinkHover = colors[(int)ImGuiCol.HeaderActive],
-
-            // Tooltip / popups
-            TooltipBg = colors[(int)ImGuiCol.PopupBg],
-            TooltipText = colors[(int)ImGuiCol.Text],
-
-            // “Status” colors (pick reasonable mappings)
-            StatusOk = colors[(int)ImGuiCol.CheckMark],
-            StatusWarn = colors[(int)ImGuiCol.SeparatorHovered],
-            StatusError = colors[(int)ImGuiCol.TextSelectedBg],
-            StatusPaused = colors[(int)ImGuiCol.TabUnfocused],
-            StatusInfo = colors[(int)ImGuiCol.SliderGrab],
-
-            // Connection/service status (reuse)
-            StatusConnected = colors[(int)ImGuiCol.CheckMark],
-            StatusConnecting = colors[(int)ImGuiCol.SliderGrabActive],
-            StatusDisconnected = colors[(int)ImGuiCol.TabUnfocused],
-            StatusBroadcasting = colors[(int)ImGuiCol.TextSelectedBg],
-
-            // UI text accents
-            UidAliasText = colors[(int)ImGuiCol.Text],
-            UsersOnlineText = colors[(int)ImGuiCol.TextDisabled],
-            UsersOnlineNumber = colors[(int)ImGuiCol.Text],
-
-            // Surfaces / layers
-            BackgroundOpacity = colors[(int)ImGuiCol.WindowBg].W,
-            Surface0 = colors[(int)ImGuiCol.ChildBg],
-            Surface1 = colors[(int)ImGuiCol.TableRowBgAlt],
-            Surface2 = colors[(int)ImGuiCol.TableHeaderBg],
-            Surface3 = colors[(int)ImGuiCol.MenuBarBg],
-
-            // Design tokens (leave as-is if you already manage them elsewhere)
-            RadiusSmall = style.FrameRounding * 0.5f,
-            RadiusMedium = style.FrameRounding,
-            RadiusLarge = style.WindowRounding,
-            SpacingXS = 2f,
-            SpacingS = 4f,
-            SpacingM = 6f,
-            SpacingL = 8f,
-
-            // Rounding from style vars
-            WindowRounding = style.WindowRounding,
-            ChildRounding = style.ChildRounding,
-            FrameRounding = style.FrameRounding,
-            PopupRounding = style.PopupRounding,
-            ScrollbarRounding = style.ScrollbarRounding,
-            GrabRounding = style.GrabRounding,
-            TabRounding = style.TabRounding,
-        };
-
-        return theme;
-    }
-
     public void SetTheme(string themeName)
     {
         if (_predefinedThemes.TryGetValue(themeName, out var theme))
@@ -215,9 +127,9 @@ public class ThemeManager
         ImGui.PushStyleColor(ImGuiCol.TabActive, _currentTheme.BtnActive);
         ImGui.PushStyleColor(ImGuiCol.TabUnfocused, _currentTheme.Btn);
         ImGui.PushStyleColor(ImGuiCol.TabUnfocusedActive, _currentTheme.BtnActive);
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, _currentTheme.Btn);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, _currentTheme.BtnHovered);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, _currentTheme.BtnActive);
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, _currentTheme.FrameBg);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, _currentTheme.FrameBgHovered);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, _currentTheme.FrameBgActive);
         ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0, 0, 0, 0));
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, _currentTheme.Btn);
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, _currentTheme.BtnHovered);
@@ -236,9 +148,13 @@ public class ThemeManager
         ImGui.PushStyleColor(ImGuiCol.TableBorderLight, _currentTheme.PanelBorder);
         ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0, 0, 0, 0));
         ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(_currentTheme.HeaderBg.X, _currentTheme.HeaderBg.Y, _currentTheme.HeaderBg.Z, 0.6f));
-        ImGui.PushStyleColor(ImGuiCol.PopupBg, _currentTheme.PanelBg);
+        ImGui.PushStyleColor(ImGuiCol.PopupBg, _currentTheme.PopupBg);
         ImGui.PushStyleColor(ImGuiCol.ModalWindowDimBg, new Vector4(_currentTheme.PanelBg.X, _currentTheme.PanelBg.Y, _currentTheme.PanelBg.Z, 0.50f));
         ImGui.PushStyleColor(ImGuiCol.TextSelectedBg, _currentTheme.BtnActive);
+        //Added
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, _currentTheme.FrameBg);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, _currentTheme.FrameBgHovered);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, _currentTheme.FrameBgActive);
 
         // Apply rounding styles
         //ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, _currentTheme.WindowRounding);
@@ -249,7 +165,7 @@ public class ThemeManager
         ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, _currentTheme.GrabRounding);
         ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, _currentTheme.TabRounding);
 
-        return new ThemeScope(37, 6);
+        return new ThemeScope(40, 6);
     }
 
     private class ThemeScope : IDisposable
