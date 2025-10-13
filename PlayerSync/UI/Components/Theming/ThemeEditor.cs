@@ -78,6 +78,10 @@ public class ThemeEditor
         ImGui.PushStyleColor(ImGuiCol.PopupBg, _editingTheme.PanelBg);
         ImGui.PushStyleColor(ImGuiCol.ModalWindowDimBg, new Vector4(_editingTheme.PanelBg.X, _editingTheme.PanelBg.Y, _editingTheme.PanelBg.Z, 0.50f));
         ImGui.PushStyleColor(ImGuiCol.TextSelectedBg, _editingTheme.BtnActive);
+        // Added
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, _editingTheme.FrameBg);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, _editingTheme.FrameBgHovered);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, _editingTheme.FrameBgActive);
 
         // Apply rounding styles
         //ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, _editingTheme.WindowRounding);
@@ -88,7 +92,7 @@ public class ThemeEditor
         ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, _editingTheme.GrabRounding);
         ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, _editingTheme.TabRounding);
 
-        return new EditingThemeScope(37, 6);
+        return new EditingThemeScope(40, 6);
     }
 
     private class EditingThemeScope : IDisposable
@@ -196,6 +200,7 @@ public class ThemeEditor
                 ImGui.Text("Panel Colors");
                 DrawColorSquare("Panel Background", "PanelBg", _editingTheme.PanelBg);
                 DrawColorSquare("Panel Border", "PanelBorder", _editingTheme.PanelBorder);
+                DrawColorSquare("Popup Background", "PopupBg", _editingTheme.PopupBg);
                 DrawColorSquare("Header Background", "HeaderBg", _editingTheme.HeaderBg);
                 DrawColorSquare("Accent", "Accent", _editingTheme.Accent);
 
@@ -204,6 +209,12 @@ public class ThemeEditor
                 DrawColorSquare("Button", "Btn", _editingTheme.Btn);
                 DrawColorSquare("Button Hovered", "BtnHovered", _editingTheme.BtnHovered);
                 DrawColorSquare("Button Active", "BtnActive", _editingTheme.BtnActive);
+                
+                ImGui.Spacing();
+                ImGui.Text("Element Frames");
+                DrawColorSquare("Frame Background", "FrameBg", _editingTheme.FrameBg);
+                DrawColorSquare("Frame Background Hovered", "FrameBgHovered", _editingTheme.FrameBgHovered);
+                DrawColorSquare("Frame Background Active", "FrameBgActive", _editingTheme.FrameBgActive);
 
                 ImGui.EndTabItem();
             }
@@ -345,6 +356,10 @@ public class ThemeEditor
             case "StatusError": _editingTheme.StatusError = color; break;
             case "StatusPaused": _editingTheme.StatusPaused = color; break;
             case "StatusInfo": _editingTheme.StatusInfo = color; break;
+            case "PopupBg": _editingTheme.PopupBg = color; break;
+            case "FrameBg": _editingTheme.FrameBg = color; break;
+            case "FrameBgHovered": _editingTheme.FrameBgHovered = color; break;
+            case "FrameBgActive": _editingTheme.FrameBgActive = color; break;
         }
         _hasChanges = true;
         _themeManager.SetCustomTheme(_editingTheme);
@@ -381,6 +396,12 @@ public class ThemeEditor
         HandleColorPickerPopup("StatusError", "Error", _editingTheme.StatusError, (color) => _editingTheme.StatusError = color);
         HandleColorPickerPopup("StatusPaused", "Paused", _editingTheme.StatusPaused, (color) => _editingTheme.StatusPaused = color);
         HandleColorPickerPopup("StatusInfo", "Info", _editingTheme.StatusInfo, (color) => _editingTheme.StatusInfo = color);
+        // Added
+        HandleColorPickerPopup("PopupBg", "Popup Background", _editingTheme.PopupBg, (color) => _editingTheme.PopupBg = color);
+        HandleColorPickerPopup("FrameBg", "Frame Panel Background", _editingTheme.FrameBg, (color) => _editingTheme.FrameBg = color);
+        HandleColorPickerPopup("FrameBgHovered", "Frame Panel Hovered", _editingTheme.FrameBgHovered, (color) => _editingTheme.FrameBgHovered = color);
+        HandleColorPickerPopup("FrameBgActive", "Frame Panel Active", _editingTheme.FrameBgActive, (color) => _editingTheme.FrameBgActive = color);
+
     }
 
     private void HandleColorPickerPopup(string propertyName, string displayName, Vector4 currentColor, Action<Vector4> setColor)

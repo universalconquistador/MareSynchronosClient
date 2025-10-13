@@ -111,7 +111,7 @@ public class ThemePalette
 
         // Frame (use for entry hover over effects)
         FrameBg = new(0.290f, 0.290f, 0.290f, 0.540f);
-        FrameBgHovered = new(0.540f, 0.540f, 0.540f, 1.00f);
+        FrameBgHovered = new(0.540f, 0.540f, 0.540f, 0.400f);
         FrameBgActive = new(0.640f, 0.640f, 0.640f, 0.670f);
 
         // Button colors

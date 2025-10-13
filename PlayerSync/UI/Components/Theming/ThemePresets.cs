@@ -13,14 +13,20 @@ public static class ThemePresets
         // =========================
         ["Classic"] = new ThemePalette
         {
-            PanelBg = new(0.060f, 0.060f, 0.060f, 0.930f),
+            PanelBg = new(0.060f, 0.060f, 0.060f, 1.0f),
             PanelBorder = new(0.430f, 0.430f, 0.500f, 0.500f),
             HeaderBg = new(0.389f, 0.109f, 0.109f, 0.828f),
             Accent = new(1.000f, 1.000f, 1.000f, 1.000f),
 
             Btn = new(0.710f, 0.710f, 0.710f, 0.400f),
-            BtnHovered = new(0.540f, 0.540f, 0.540f, 0.400f),
+            BtnHovered = new(0.365f, 0.078f, 0.078f, 0.945f),
             BtnActive = new(0.484f, 0.101f, 0.101f, 0.945f),
+
+            // Added
+            PopupBg = new(0.060f, 0.060f, 0.060f, 0.930f),
+            FrameBg = new(0.290f, 0.290f, 0.290f, 0.540f),
+            FrameBgHovered = new(0.540f, 0.540f, 0.540f, 0.400f),
+            FrameBgActive = new(0.640f, 0.640f, 0.640f, 0.670f),
 
             TextPrimary = new(1.000f, 1.000f, 1.000f, 1.000f),
             TextSecondary = new(0.70f, 0.76f, 0.88f, 1.00f),
