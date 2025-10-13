@@ -300,7 +300,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             {
                 config.Current.UseDalamudTheme = useDalamud;
                 config.Save();
-                WindowSetup();
+                //WindowSetup();
             }
             ImGui.Dummy(new Vector2(5));
             ImGui.Separator();
