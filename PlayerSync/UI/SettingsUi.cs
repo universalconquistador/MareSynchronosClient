@@ -1466,6 +1466,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         if (ImGui.Checkbox("Use Proxied Server", ref useBackupServer))
         {
             _serverConfigurationManager.EnableBackupServer = useBackupServer;
+            _ = _apiController.CreateConnectionsAsync();
         }
         _uiShared.DrawHelpText("Only use this if advised by the PlayerSync support team, or if you know there is an ISP issue affecting you.");
 
