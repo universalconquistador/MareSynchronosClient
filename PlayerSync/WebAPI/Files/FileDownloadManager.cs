@@ -318,13 +318,21 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 }
             });
 
-            var tempFilename = _fileDbManager.GetCacheFilePath(directDownload.Hash, "bin");
-
             try
             {
                 downloadTracker.DownloadStatus = DownloadStatus.WaitingForSlot;
                 await _orchestrator.WaitForDownloadSlotAsync(token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex)
+            {
+                Logger.LogDebug("{hash}: Detected cancellation of file queued for direct download, canceling.", directDownload.Hash);
+                ClearDownload();
+                return;
+            }
 
+            var tempFilename = _fileDbManager.GetCacheFilePath(directDownload.Hash, "bin");
+            try
+            {
                 // Download the compressed file directly
                 downloadTracker.DownloadStatus = DownloadStatus.Downloading;
                 Logger.LogDebug("Beginning direct download of {hash} from {url}", directDownload.Hash, directDownload.DirectDownloadUrl!);
@@ -375,7 +383,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             }
         });
 
-        // Wait for all the batches and direct downloads to complete
+        // Wait for all the direct downloads to complete
         await directDownloadsTask.ConfigureAwait(false);
 
         Logger.LogDebug("Download end: {id}", gameObjectHandler);
