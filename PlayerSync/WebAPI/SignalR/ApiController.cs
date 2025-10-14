@@ -40,6 +40,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private HubConnection? _mareHub;
     private ServerState _serverState;
     private CensusUpdateMessage? _lastCensus;
+    private string _clientAssemblyVersion = "";
 
     public ApiController(ILogger<ApiController> logger, HubFactory hubFactory, DalamudUtilService dalamudUtil,
         PairManager pairManager, ServerConfigurationManager serverManager, MareMediator mediator,
@@ -329,6 +330,20 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     }
 
     private bool _naggedAboutLod = false;
+
+    private Task CheckClientVersion(SystemInfoDto systemInfoDto)
+    {
+        var version = systemInfoDto.ClientAssemblyVersion;
+        if (version != null)
+        {
+            if (_clientAssemblyVersion != version)
+            {
+                Mediator.Publish(new NotificationMessage("PlayerSync Update Available", $"Version {version} of PlayerSync is available for download.", NotificationType.Info));
+            }
+            _clientAssemblyVersion = version;
+        }
+        return Task.CompletedTask;
+    }
 
     public Task CyclePauseAsync(UserData userData)
     {

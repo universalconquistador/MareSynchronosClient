@@ -128,6 +128,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
                 UiSharedService.ColorTextWrapped("Failed to join the Syncshell. This is due to one of following reasons:" + Environment.NewLine +
                     "- The Syncshell does not exist or the password is incorrect" + Environment.NewLine +
                     "- You are already in that Syncshell or are banned from that Syncshell" + Environment.NewLine +
+                    "- You are already in the max number of Syncshells allowed by the service" + Environment.NewLine +
                     "- The Syncshell is at capacity or has invites disabled" + Environment.NewLine, ImGuiColors.DalamudYellow);
             }
         }

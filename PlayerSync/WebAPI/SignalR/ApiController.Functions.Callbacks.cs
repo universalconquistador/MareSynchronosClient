@@ -8,7 +8,6 @@ using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
-using static FFXIVClientStructs.FFXIV.Client.Game.UI.MapMarkerData.Delegates;
 
 namespace MareSynchronos.WebAPI;
 
@@ -124,6 +123,7 @@ public partial class ApiController
     public Task Client_UpdateSystemInfo(SystemInfoDto systemInfo)
     {
         SystemInfoDto = systemInfo;
+        ExecuteSafely(() => _ = CheckClientVersion(systemInfo));
         return Task.CompletedTask;
     }
 

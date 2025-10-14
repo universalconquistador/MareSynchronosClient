@@ -768,7 +768,7 @@ public class TopTabMenu : IMediatorSubscriber
             ImGui.SameLine();
         }
 
-        using (ImRaii.Disabled(_pairManager.GroupPairs.Select(k => k.Key).Distinct().Count() >= _apiController.ServerInfo.MaxGroupsJoinedByUser))
+        using (ImRaii.Disabled(_pairManager.GroupPairs.Select(k => k.Key).Where(k => !k.PublicData.IsZoneSync).Distinct().Count() >= _apiController.ServerInfo.MaxGroupsJoinedByUser))
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Users, "Join existing Syncshell", buttonX))
             {
