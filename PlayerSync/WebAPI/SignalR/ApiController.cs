@@ -40,7 +40,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private HubConnection? _mareHub;
     private ServerState _serverState;
     private CensusUpdateMessage? _lastCensus;
-    private string _clientAssemblyVersion = "none";
+    private Version _newClientAssemblyVersion;
 
     public ApiController(ILogger<ApiController> logger, HubFactory hubFactory, DalamudUtilService dalamudUtil,
         PairManager pairManager, ServerConfigurationManager serverManager, MareMediator mediator,
@@ -82,9 +82,13 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public bool IsConnected => ServerState == ServerState.Connected;
 
+    // Only run during connection
     public bool IsCurrentVersion => (Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0)) >= (_connectionDto?.CurrentClientVersion ?? new Version(0, 0, 0, 0));
 
     public int OnlineUsers => SystemInfoDto.OnlineUsers;
+
+    // Used to check "live" if an update is available
+    public bool IsCurrentAssemblyVersion => (Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0)) >= (SystemInfoDto.ClientAssemblyVersion ?? new Version(0, 0, 0, 0));
 
     public bool ServerAlive => ServerState is ServerState.Connected or ServerState.RateLimited or ServerState.Unauthorized or ServerState.Disconnected;
 
@@ -333,15 +337,15 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     private Task CheckClientVersion(SystemInfoDto systemInfoDto)
     {
-        var version = systemInfoDto.ClientAssemblyVersion;
-        if (version != null)
+        if (systemInfoDto.ClientAssemblyVersion == null) return Task.CompletedTask;
+        if (!IsCurrentAssemblyVersion && (_newClientAssemblyVersion != systemInfoDto.ClientAssemblyVersion))
         {
-            if (_clientAssemblyVersion != version && _clientAssemblyVersion != "none")
-            {
-                Mediator.Publish(new NotificationMessage("PlayerSync Update Available", $"Version {version} of PlayerSync is available for download.", NotificationType.Info));
-            }
-            _clientAssemblyVersion = version;
+            var ver = systemInfoDto.ClientAssemblyVersion;
+            var version = $"{ver.Major}.{ver.Minor}.{ver.Build}.{ver.Revision}";
+            Mediator.Publish(new NotificationMessage("PlayerSync Update Available", $"Version {version} of PlayerSync is available for download.", NotificationType.Info));
+            _newClientAssemblyVersion = systemInfoDto.ClientAssemblyVersion;
         }
+        
         return Task.CompletedTask;
     }
 
