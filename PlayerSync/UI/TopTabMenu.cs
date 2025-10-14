@@ -93,13 +93,13 @@ public class TopTabMenu : IMediatorSubscriber
         var buttonSize = new Vector2(buttonX, buttonY);
         var drawList = ImGui.GetWindowDrawList();
         var underlineColor = ImGui.GetColorU32(ImGuiCol.Separator);
-        
+
         // vanilla mare code
-        var buttonColor = theme.Btn;
-        
+        //var btncolor = ImRaii.PushColor(ImGuiCol.Button, ImGui.ColorConvertFloat4ToU32(new(0, 0, 0, 0)));
+
         // themed code
-        var buttonHoveredColor = theme?.BtnHovered ?? new Vector4(0.26f, 0.59f, 0.98f, 1.00f);
-        var buttonActiveColor = theme?.BtnActive ?? new Vector4(0.06f, 0.53f, 0.98f, 1.00f);
+        //var buttonHoveredColor = theme?.BtnHovered ?? new Vector4(0.26f, 0.59f, 0.98f, 1.00f);
+        //var buttonActiveColor = theme?.BtnActive ?? new Vector4(0.06f, 0.53f, 0.98f, 1.00f);
 
         // vanilla mare code
         //var btncolor = ImRaii.PushColor(ImGuiCol.Button, ImGui.ColorConvertFloat4ToU32(buttonColor));

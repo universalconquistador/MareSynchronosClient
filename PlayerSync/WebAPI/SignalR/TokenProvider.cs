@@ -165,7 +165,7 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
                 var (OAuthToken, UID) = _serverManager.GetOAuth2(out _)
                     ?? throw new InvalidOperationException("Requested OAuth2 but received null");
 
-                jwtIdentifier = new(_serverManager.CurrentApiUrl,
+                jwtIdentifier = new(_serverManager.RealApiUrl,
                     playerIdentifier,
                     UID, OAuthToken);
             }
@@ -174,7 +174,7 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
                 var secretKey = _serverManager.GetSecretKey(out _)
                     ?? throw new InvalidOperationException("Requested SecretKey but received null");
 
-                jwtIdentifier = new(_serverManager.CurrentApiUrl,
+                jwtIdentifier = new(_serverManager.RealApiUrl,
                                     playerIdentifier,
                                     string.Empty,
                                     secretKey);

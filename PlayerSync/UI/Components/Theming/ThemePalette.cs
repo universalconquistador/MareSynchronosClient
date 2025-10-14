@@ -101,19 +101,18 @@ public class ThemePalette
         HeaderBg = new(0.16f, 0.16f, 0.21f, 1.00f);
         Accent = new(0.26f, 0.59f, 0.98f, 1.00f);
         Accent2 = new(0.608f, 0.694f, 1f, 1f);
-        //ChildBg = new(1f, 1f, 1f);
-        //PopupBg = new(1f, 1f);
+        ChildBg = new(0.00f, 0.00f, 0.00f, 0.00f);
+        PopupBg = new(0.080f, 0.080f, 0.080f, 0.940f);
 
         // Title Bar
         TitleBg = new(0.26f, 0.59f, 0.98f, 1.00f);
-        TitleBgActive = new(0.26f, 0.59f, 0.98f, 1.00f);
+        TitleBgActive = new(0.26f, 0.59f, 0.98f, 0.400f);
         TitleBgCollapsed = new(0.26f, 0.59f, 0.98f, 1.00f);
 
-        // Frame (user for entry hover over effects)
-        FrameBg = new(0.26f, 0.59f, 0.98f, 1.00f);
-        FrameBgHovered = new(0.26f, 0.59f, 0.98f, 1.00f);
-        FrameBgActive = new(0.26f, 0.59f, 0.98f, 1.00f);
-
+        // Frame (use for entry hover over effects)
+        FrameBg = new(0.290f, 0.290f, 0.290f, 0.540f);
+        FrameBgHovered = new(0.540f, 0.540f, 0.540f, 0.400f);
+        FrameBgActive = new(0.640f, 0.640f, 0.640f, 0.670f);
 
         // Button colors
         Btn = new(0.16f, 0.16f, 0.21f, 1.00f);
@@ -188,71 +187,7 @@ public class ThemePalette
     }
 
     // Copy constructor for theme variations
-    public ThemePalette(ThemePalette source)
-    {
-        // Copy all properties from source
-        PanelBg = source.PanelBg;
-        PanelBorder = source.PanelBorder;
-        HeaderBg = source.HeaderBg;
-        Accent = source.Accent;
-        Accent2 = source.Accent2;
-
-        Btn = source.Btn;
-        BtnHovered = source.BtnHovered;
-        BtnActive = source.BtnActive;
-        BtnText = source.BtnText;
-        BtnTextHovered = source.BtnTextHovered;
-        BtnTextActive = source.BtnTextActive;
-
-        TextPrimary = source.TextPrimary;
-        TextSecondary = source.TextSecondary;
-        TextMuted = source.TextMuted;
-        TextMuted2 = source.TextMuted2;
-        TextDisabled = source.TextDisabled;
-
-        Link = source.Link;
-        LinkHover = source.LinkHover;
-
-        TooltipBg = source.TooltipBg;
-        TooltipText = source.TooltipText;
-
-        StatusOk = source.StatusOk;
-        StatusWarn = source.StatusWarn;
-        StatusError = source.StatusError;
-        StatusPaused = source.StatusPaused;
-        StatusInfo = source.StatusInfo;
-
-        StatusConnected = source.StatusConnected;
-        StatusConnecting = source.StatusConnecting;
-        StatusDisconnected = source.StatusDisconnected;
-        StatusBroadcasting = source.StatusBroadcasting;
-
-        UidAliasText = source.UidAliasText;
-        UsersOnlineText = source.UsersOnlineText;
-        UsersOnlineNumber = source.UsersOnlineNumber;
-
-        BackgroundOpacity = source.BackgroundOpacity;
-        Surface0 = source.Surface0;
-        Surface1 = source.Surface1;
-        Surface2 = source.Surface2;
-        Surface3 = source.Surface3;
-
-        RadiusSmall = source.RadiusSmall;
-        RadiusMedium = source.RadiusMedium;
-        RadiusLarge = source.RadiusLarge;
-        SpacingXS = source.SpacingXS;
-        SpacingS = source.SpacingS;
-        SpacingM = source.SpacingM;
-        SpacingL = source.SpacingL;
-
-        WindowRounding = source.WindowRounding;
-        ChildRounding = source.ChildRounding;
-        FrameRounding = source.FrameRounding;
-        PopupRounding = source.PopupRounding;
-        ScrollbarRounding = source.ScrollbarRounding;
-        GrabRounding = source.GrabRounding;
-        TabRounding = source.TabRounding;
-    }
+    public ThemePalette Clone() => (ThemePalette)this.MemberwiseClone();
 
     public static Vector4 GetDarkerColor(Vector4 color, bool isHovered) => isHovered
         ? new Vector4(color.X * 0.7f, color.Y * 0.7f, color.Z * 0.7f, color.W)
