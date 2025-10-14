@@ -338,7 +338,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private Task CheckClientVersion()
     {
         if (SystemInfoDto.ClientAssemblyVersion == null) return Task.CompletedTask;
-        if (!IsCurrentAssemblyVersion && (_newClientAssemblyVersion != systemInfoDto.ClientAssemblyVersion))
+        if (!IsCurrentAssemblyVersion && (_newClientAssemblyVersion != SystemInfoDto.ClientAssemblyVersion))
         {
             var ver = SystemInfoDto.ClientAssemblyVersion;
             var version = $"{ver.Major}.{ver.Minor}.{ver.Build}.{ver.Revision}";
