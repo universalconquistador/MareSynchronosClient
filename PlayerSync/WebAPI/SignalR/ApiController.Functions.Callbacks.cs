@@ -123,7 +123,7 @@ public partial class ApiController
     public Task Client_UpdateSystemInfo(SystemInfoDto systemInfo)
     {
         SystemInfoDto = systemInfo;
-        ExecuteSafely(() => _ = CheckClientVersion(systemInfo));
+        ExecuteSafely(() => _ = CheckClientVersion());
         return Task.CompletedTask;
     }
 

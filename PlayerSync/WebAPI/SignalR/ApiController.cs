@@ -335,15 +335,15 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     private bool _naggedAboutLod = false;
 
-    private Task CheckClientVersion(SystemInfoDto systemInfoDto)
+    private Task CheckClientVersion()
     {
-        if (systemInfoDto.ClientAssemblyVersion == null) return Task.CompletedTask;
+        if (SystemInfoDto.ClientAssemblyVersion == null) return Task.CompletedTask;
         if (!IsCurrentAssemblyVersion && (_newClientAssemblyVersion != systemInfoDto.ClientAssemblyVersion))
         {
-            var ver = systemInfoDto.ClientAssemblyVersion;
+            var ver = SystemInfoDto.ClientAssemblyVersion;
             var version = $"{ver.Major}.{ver.Minor}.{ver.Build}.{ver.Revision}";
             Mediator.Publish(new NotificationMessage("PlayerSync Update Available", $"Version {version} of PlayerSync is available for download.", NotificationType.Info));
-            _newClientAssemblyVersion = systemInfoDto.ClientAssemblyVersion;
+            _newClientAssemblyVersion = SystemInfoDto.ClientAssemblyVersion;
         }
         
         return Task.CompletedTask;
