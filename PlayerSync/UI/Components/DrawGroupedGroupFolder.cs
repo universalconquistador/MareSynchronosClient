@@ -58,7 +58,7 @@ public class DrawGroupedGroupFolder : IDrawFolder
             ImGui.AlignTextToFramePadding();
 
             // ##ICON###HOVEROVER
-            _uiSharedService.IconText(FontAwesomeIcon.UsersRectangle, newUI ? ThemePalette.GetDarkerColor(theme.Accent, _wasHovered) : theme.Accent);
+            _uiSharedService.IconText(FontAwesomeIcon.UsersRectangle, theme.Accent);
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().ItemSpacing with { X = ImGui.GetStyle().ItemSpacing.X / 2f }))
             {
                 ImGui.SameLine();
