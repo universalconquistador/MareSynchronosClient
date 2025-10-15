@@ -20,7 +20,6 @@ public sealed class FileCacheManager : IHostedService
     private readonly MareMediator _mareMediator;
     private readonly string _csvPath;
     private readonly ConcurrentDictionary<string, List<FileCacheEntity>> _fileCaches = new(StringComparer.Ordinal); // Key: mod file hash, value: locations of that file on disk
-    private readonly ConcurrentDictionary<string, List<FileCacheEntity>> _fileCaches = new(StringComparer.Ordinal); // Key: mod file hash, value: locations of that file on disk
     private readonly SemaphoreSlim _getCachesByPathsSemaphore = new(1, 1);
     private readonly object _fileWriteLock = new();
     private readonly IpcManager _ipcManager;
