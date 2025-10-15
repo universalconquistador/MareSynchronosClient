@@ -53,7 +53,7 @@ public class DrawFolderGroup : DrawFolderBase
         Vector4 broadcastColor;
         //if (newUI)
         //{
-        broadcastColor = isBroadcasting ? newUI ? ThemePalette.GetDarkerColor(ImGuiColors.HealerGreen, _wasHovered) : ImGuiColors.HealerGreen : newUI ? ThemePalette.GetDarkerColor(ImGui.GetStyle().Colors[(int)ImGuiCol.Text], _wasHovered) : ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
+        broadcastColor = isBroadcasting ? ImGuiColors.HealerGreen : theme.TextPrimary;
         //}
         //else broadcastColor = ImGuiColors.HealerGreen;
         using (ImRaii.PushColor(ImGuiCol.Text, broadcastColor, isBroadcasting))
@@ -73,7 +73,7 @@ public class DrawFolderGroup : DrawFolderBase
             }
             //if (themed)
             //{
-                _uiSharedService.IconText(icon, newUI ? ThemePalette.GetDarkerColor(theme.Accent, _wasHovered) : theme.Accent);
+                _uiSharedService.IconText(icon, theme.Accent);
             //}
         }
         if (_groupFullInfoDto.GroupPermissions.IsDisableInvites())
@@ -340,20 +340,20 @@ public class DrawFolderGroup : DrawFolderBase
 
         ImGui.SameLine();
 
-        // Applies theming to the pause button
-        var isRowHovered = ImGui.IsItemHovered() || _wasHovered;
-        if (isRowHovered && newUI)
-        {
-            //var style = ImGui.GetStyle();
-            //var currentButton = style.Colors[(int)ImGuiCol.Button];
-            //var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
-            //var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
+        //// Applies theming to the pause button
+        //var isRowHovered = ImGui.IsItemHovered() || _wasHovered;
+        //if (isRowHovered && newUI)
+        //{
+        //    //var style = ImGui.GetStyle();
+        //    //var currentButton = style.Colors[(int)ImGuiCol.Button];
+        //    //var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
+        //    //var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-            ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(theme.Btn, true));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(theme.BtnHovered, true));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(theme.BtnActive, true));
+        //    ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(theme.Btn, true));
+        //    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(theme.BtnHovered, true));
+        //    ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(theme.BtnActive, true));
 
-        }
+        //}
 
         if (_uiSharedService.IconButton(pauseIcon))
         {
@@ -361,7 +361,7 @@ public class DrawFolderGroup : DrawFolderBase
             perm.SetPaused(!perm.IsPaused());
             _ = _apiController.GroupChangeIndividualPermissionState(new GroupPairUserPermissionDto(_groupFullInfoDto.Group, new(_apiController.UID), perm));
         }
-        if (isRowHovered && newUI) ImGui.PopStyleColor(3);
+        //if (isRowHovered && newUI) ImGui.PopStyleColor(3);
         return currentRightSideX;
     }
 }
