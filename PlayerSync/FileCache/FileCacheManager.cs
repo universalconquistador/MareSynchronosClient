@@ -19,7 +19,7 @@ public sealed class FileCacheManager : IHostedService
     private readonly MareConfigService _configService;
     private readonly MareMediator _mareMediator;
     private readonly string _csvPath;
-    private readonly ConcurrentDictionary<string, List<FileCacheEntity>> _fileCaches = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, List<FileCacheEntity>> _fileCaches = new(StringComparer.Ordinal); // Key: mod file hash, value: locations of that file on disk
     private readonly SemaphoreSlim _getCachesByPathsSemaphore = new(1, 1);
     private readonly object _fileWriteLock = new();
     private readonly IpcManager _ipcManager;
@@ -189,7 +189,28 @@ public sealed class FileCacheManager : IHostedService
 
             Dictionary<string, FileCacheEntity?> result = new(StringComparer.OrdinalIgnoreCase);
 
-            var dict = _fileCaches.SelectMany(f => f.Value)
+            // Need to actually evaluate the ConcurrentDictionary entries before doing anything that requires a coherent view of the entire collection, like uniqueness or sorting
+            var allCacheEntities = _fileCaches
+                .SelectMany(f => f.Value)
+                .ToList();
+
+            // Temp logging of duplicates so we can investigate the cause
+            var duplicates = allCacheEntities.GroupBy(d => d.PrefixedFilePath);
+            if (duplicates.Any())
+            {
+                _logger.LogWarning("Duplicate entries in the file cache! Details:");
+                foreach (var group in duplicates)
+                {
+                    _logger.LogWarning("  {key} ({count}):", group.Key, group.Count());
+                    foreach (var entry in group)
+                    {
+                        _logger.LogWarning("    {hash} {resolved}", entry.Hash, entry.ResolvedFilepath);
+                    }
+                }
+            }
+
+            var dict = allCacheEntities
+                .DistinctBy(d => d.PrefixedFilePath)
                 .ToDictionary(d => d.PrefixedFilePath, d => d, StringComparer.OrdinalIgnoreCase);
 
             foreach (var entry in cleanedPaths)
