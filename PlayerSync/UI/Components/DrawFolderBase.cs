@@ -122,19 +122,19 @@ public abstract class DrawFolderBase : IDrawFolder
         {
             ImGui.SameLine(windowEndX - barButtonSize.X);
 
-            var isRowHovered = _wasHovered;
-            if (isRowHovered && newUI)
-            {
-                //var style = ImGui.GetStyle();
-                //var currentButton = style.Colors[(int)ImGuiCol.Button];
-                //var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
-                //var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
+            //var isRowHovered = _wasHovered;
+            //if (isRowHovered && newUI)
+            //{
+            //    //var style = ImGui.GetStyle();
+            //    //var currentButton = style.Colors[(int)ImGuiCol.Button];
+            //    //var currentButtonHovered = style.Colors[(int)ImGuiCol.ButtonHovered];
+            //    //var currentButtonActive = style.Colors[(int)ImGuiCol.ButtonActive];
 
-                ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(theme.Btn, true));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(theme.BtnHovered, true));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(theme.BtnActive, true));
+            //    ImGui.PushStyleColor(ImGuiCol.Button, ThemePalette.GetDarkerColor(theme.Btn, true));
+            //    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ThemePalette.GetDarkerColor(theme.BtnHovered, true));
+            //    ImGui.PushStyleColor(ImGuiCol.ButtonActive, ThemePalette.GetDarkerColor(theme.BtnActive, true));
                 
-            }
+            //}
             
             if (_uiSharedService.IconButton(FontAwesomeIcon.EllipsisV))
             {
@@ -150,7 +150,7 @@ public abstract class DrawFolderBase : IDrawFolder
             {
                 _menuWidth = 0;
             }
-            if (isRowHovered && newUI) ImGui.PopStyleColor(3);
+            //if (isRowHovered && newUI) ImGui.PopStyleColor(3);
         }
 
         return DrawRightSide(rightSideStart);
