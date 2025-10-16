@@ -1,6 +1,5 @@
 ﻿using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.UI;
-using MareSynchronos.UI.Components.Theming;
 using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.MareConfiguration.Configurations;

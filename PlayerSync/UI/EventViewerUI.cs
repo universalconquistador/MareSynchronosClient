@@ -187,7 +187,7 @@ internal class EventViewerUI : WindowMediatorSubscriberBase
 
                 ImGui.TableNextColumn();
                 _uiSharedService.IconText(icon, iconColor == new Vector4() ? null : iconColor);
-                _uiSharedService.AttachToolTip(ev.EventSeverity.ToString());
+                UiSharedService.AttachToolTip(ev.EventSeverity.ToString());
                 ImGui.TableNextColumn();
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted(ev.EventTime.ToString("G", CultureInfo.CurrentCulture));
@@ -219,7 +219,7 @@ internal class EventViewerUI : WindowMediatorSubscriberBase
                 ImGui.TextUnformatted(msg);
                 if (!string.Equals(msg, ev.Message, StringComparison.Ordinal))
                 {
-                    _uiSharedService.AttachToolTip(ev.Message);
+                    UiSharedService.AttachToolTip(ev.Message);
                 }
             }
         }

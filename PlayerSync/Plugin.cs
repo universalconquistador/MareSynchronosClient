@@ -31,7 +31,6 @@ using System.Reflection;
 using MareSynchronos.Services.CharaData;
 using Dalamud.Game;
 using PlayerSync.PlayerData.Pairs;
-using MareSynchronos.UI.Components.Theming;
 
 namespace MareSynchronos;
 
@@ -186,7 +185,6 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton((s) => new XivDataStorageService(pluginInterface.ConfigDirectory.FullName));
             collection.AddSingleton((s) => new PlayerPerformanceConfigService(pluginInterface.ConfigDirectory.FullName));
             collection.AddSingleton((s) => new ZoneSyncConfigService(pluginInterface.ConfigDirectory.FullName));
-            collection.AddSingleton((s) => new UIThemeConfigService(pluginInterface.ConfigDirectory.FullName));
             collection.AddSingleton((s) => new CharaDataConfigService(pluginInterface.ConfigDirectory.FullName));
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<MareConfigService>());
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<ServerConfigService>());
@@ -196,11 +194,9 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<XivDataStorageService>());
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<PlayerPerformanceConfigService>());
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<ZoneSyncConfigService>());
-            collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<UIThemeConfigService>());
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<CharaDataConfigService>());
             collection.AddSingleton<ConfigurationMigrator>();
             collection.AddSingleton<ConfigurationSaveService>();
-            collection.AddSingleton<ThemeManager>();
 
             collection.AddSingleton<HubFactory>();
 
@@ -220,14 +216,12 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped<WindowMediatorSubscriberBase, EventViewerUI>();
             // collection.AddScoped<WindowMediatorSubscriberBase, ModernSettingsUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, CharaDataHubUi>();
-            collection.AddScoped<ThemeManager>();
             collection.AddScoped<WindowMediatorSubscriberBase, EditProfileUi>((s) => new EditProfileUi(s.GetRequiredService<ILogger<EditProfileUi>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<UiSharedService>(), s.GetRequiredService<FileDialogManager>(),
                 s.GetRequiredService<MareProfileManager>(), s.GetRequiredService<PerformanceCollectorService>()));
             collection.AddScoped<WindowMediatorSubscriberBase, PopupHandler>();
             collection.AddScoped<IPopupHandler, BanUserPopupHandler>();
             collection.AddScoped<IPopupHandler, CensusPopupHandler>();
-            collection.AddScoped<IPopupHandler, ChangelogPopupHandler>();
             collection.AddScoped<CacheCreationService>();
             collection.AddScoped<PlayerDataFactory>();
             collection.AddScoped<VisibleUserDataDistributor>();
@@ -241,9 +235,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped((s) => new UiSharedService(s.GetRequiredService<ILogger<UiSharedService>>(), s.GetRequiredService<IpcManager>(), s.GetRequiredService<ApiController>(),
                 s.GetRequiredService<CacheMonitor>(), s.GetRequiredService<FileDialogManager>(), s.GetRequiredService<MareConfigService>(), s.GetRequiredService<DalamudUtilService>(),
                 pluginInterface, textureProvider, s.GetRequiredService<Dalamud.Localization>(), s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<TokenProvider>(),
-                s.GetRequiredService<MareMediator>(), s.GetRequiredService<ThemeManager>()));
-            
-
+                s.GetRequiredService<MareMediator>()));
             collection.AddHostedService(p => p.GetRequiredService<ConfigurationSaveService>());
             collection.AddHostedService(p => p.GetRequiredService<MareMediator>());
             collection.AddHostedService(p => p.GetRequiredService<NotificationService>());
