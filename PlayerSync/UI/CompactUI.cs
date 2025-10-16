@@ -125,9 +125,9 @@ public class CompactUi : WindowMediatorSubscriberBase
 #else
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
 
-        WindowName = "PlayerSync " + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision + "###PlayerSyncMainUI";
+        WindowName = "PlayerSync Dev " + ver.Major + "." + ver.Minor + "." + ver.Build + "." + ver.Revision + "###PlayerSyncMainUI";
 
-        WindowName = "PlayerSync " + ver.ToString() + "###PlayerSyncMainUI";
+        WindowName = "PlayerSync Dev " + ver.ToString() + "###PlayerSyncMainUI";
 
 #endif
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (_) => IsOpen = true);
