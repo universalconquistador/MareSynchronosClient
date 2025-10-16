@@ -145,11 +145,10 @@ public sealed class XivDataAnalyzer
 
                         var binding = *bindingPtr;
 
-                        // FIXED: use hkArray<short>, cast to ushort when adding
                         hkArray<short>* boneTransformPtr = &binding.TransformTrackToBoneIndices;
                         if (boneTransformPtr == null || boneTransformPtr->Length <= 0)
                         {
-                            _logger.LogWarning("Invalid,Empty, or NULL bones in Binding Pointer {i}", i);
+                            _logger.LogWarning("Invalid,Empty,or NULL bones in Binding Pointer {i}", i);
                             continue;
                         }
 
