@@ -85,7 +85,7 @@ public class IdDisplayHandler
             {
                 _editEntry = string.Empty;
             }
-            _uiSharedService.AttachToolTip("Hit ENTER to save\nRight click to cancel");
+            UiSharedService.AttachToolTip("Hit ENTER to save\nRight click to cancel");
         }
     }
 
@@ -179,7 +179,7 @@ public class IdDisplayHandler
             {
                 _editEntry = string.Empty;
             }
-            _uiSharedService.AttachToolTip("Hit ENTER to save\nRight click to cancel");
+            UiSharedService.AttachToolTip("Hit ENTER to save\nRight click to cancel");
         }
     }
 
