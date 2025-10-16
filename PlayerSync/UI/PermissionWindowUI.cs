@@ -35,6 +35,8 @@ public class PermissionWindowUI : WindowMediatorSubscriberBase
             MaximumSize = new(450, 500)
         };
         IsOpen = true;
+        AllowPinning = false;
+        AllowClickthrough = false;
     }
 
     protected override void DrawInternal()
