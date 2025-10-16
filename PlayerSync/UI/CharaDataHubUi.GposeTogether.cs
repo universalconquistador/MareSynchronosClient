@@ -69,7 +69,7 @@ internal sealed partial class CharaDataHubUi
             {
                 ImGui.SetClipboardText(_charaDataGposeTogetherManager.CurrentGPoseLobbyId);
             }
-            _uiSharedService.AttachToolTip("Copy Lobby ID to clipboard.");
+            UiSharedService.AttachToolTip("Copy Lobby ID to clipboard.");
             using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
             {
                 if (_uiSharedService.IconTextButton(FontAwesomeIcon.ArrowLeft, "Leave GPose Lobby"))
@@ -77,7 +77,7 @@ internal sealed partial class CharaDataHubUi
                     _charaDataGposeTogetherManager.LeaveGPoseLobby();
                 }
             }
-            _uiSharedService.AttachToolTip("Leave the current GPose lobby." + UiSharedService.TooltipSeparator + "Hold CTRL and click to leave.");
+            UiSharedService.AttachToolTip("Leave the current GPose lobby." + UiSharedService.TooltipSeparator + "Hold CTRL and click to leave.");
         }
         UiSharedService.DistanceSeparator();
         using (ImRaii.Disabled(string.IsNullOrEmpty(_charaDataGposeTogetherManager.CurrentGPoseLobbyId)))
@@ -86,7 +86,7 @@ internal sealed partial class CharaDataHubUi
             {
                 _ = _charaDataGposeTogetherManager.PushCharacterDownloadDto();
             }
-            _uiSharedService.AttachToolTip("This will send your current appearance, pose and world data to all users in the lobby.");
+            UiSharedService.AttachToolTip("This will send your current appearance, pose and world data to all users in the lobby.");
             if (!_uiSharedService.IsInGpose)
             {
                 ImGuiHelpers.ScaledDummy(5);
@@ -143,7 +143,7 @@ internal sealed partial class CharaDataHubUi
                     _ = _charaDataGposeTogetherManager.ApplyCharaData(user);
                 }
             }
-            _uiSharedService.AttachToolTip("Apply newly received character data to selected actor." + UiSharedService.TooltipSeparator + "Note: If the button is grayed out, the latest data has already been applied.");
+            UiSharedService.AttachToolTip("Apply newly received character data to selected actor." + UiSharedService.TooltipSeparator + "Note: If the button is grayed out, the latest data has already been applied.");
             ImGui.SameLine();
             using (ImRaii.Disabled(!_uiSharedService.IsInGpose || user.CharaData == null || sameMapAndServer.SameEverything))
             {
@@ -152,7 +152,7 @@ internal sealed partial class CharaDataHubUi
                     _ = _charaDataGposeTogetherManager.SpawnAndApplyData(user);
                 }
             }
-            _uiSharedService.AttachToolTip("Spawn new actor, apply character data and and assign it to this user." + UiSharedService.TooltipSeparator + "Note: If the button is grayed out, " +
+            UiSharedService.AttachToolTip("Spawn new actor, apply character data and and assign it to this user." + UiSharedService.TooltipSeparator + "Note: If the button is grayed out, " +
                 "the user has not sent any character data or you are on the same map, server and instance. If the latter is the case, join a group with that user and assign the character to them.");
 
 
@@ -162,7 +162,7 @@ internal sealed partial class CharaDataHubUi
                 ImGui.SameLine();
                 _uiSharedService.IconText(FontAwesomeIcon.ExternalLinkSquareAlt, ImGuiColors.DalamudGrey);
             }
-            _uiSharedService.AttachToolTip(user.WorldDataDescriptor + UiSharedService.TooltipSeparator);
+            UiSharedService.AttachToolTip(user.WorldDataDescriptor + UiSharedService.TooltipSeparator);
 
             ImGui.SameLine();
             _uiSharedService.IconText(FontAwesomeIcon.Map, sameMapAndServer.SameMap ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed);
@@ -170,18 +170,18 @@ internal sealed partial class CharaDataHubUi
             {
                 _dalamudUtilService.SetMarkerAndOpenMap(new(user.WorldData.Value.PositionX, user.WorldData.Value.PositionY, user.WorldData.Value.PositionZ), user.Map);
             }
-            _uiSharedService.AttachToolTip((sameMapAndServer.SameMap ? "You are on the same map." : "You are not on the same map.") + UiSharedService.TooltipSeparator
+            UiSharedService.AttachToolTip((sameMapAndServer.SameMap ? "You are on the same map." : "You are not on the same map.") + UiSharedService.TooltipSeparator
                 + "Note: Click to open the users location on your map." + Environment.NewLine
                 + "Note: For GPose synchronization to work properly, you must be on the same map.");
 
             ImGui.SameLine();
             _uiSharedService.IconText(FontAwesomeIcon.Globe, sameMapAndServer.SameServer ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed);
-            _uiSharedService.AttachToolTip((sameMapAndServer.SameMap ? "You are on the same server." : "You are not on the same server.") + UiSharedService.TooltipSeparator
+            UiSharedService.AttachToolTip((sameMapAndServer.SameMap ? "You are on the same server." : "You are not on the same server.") + UiSharedService.TooltipSeparator
                 + "Note: GPose synchronization is not dependent on the current server, but you will have to spawn a character for the other lobby users.");
 
             ImGui.SameLine();
             _uiSharedService.IconText(FontAwesomeIcon.Running, sameMapAndServer.SameEverything ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed);
-            _uiSharedService.AttachToolTip(sameMapAndServer.SameEverything ? "You are in the same instanced area." : "You are not the same instanced area." + UiSharedService.TooltipSeparator +
+            UiSharedService.AttachToolTip(sameMapAndServer.SameEverything ? "You are in the same instanced area." : "You are not the same instanced area." + UiSharedService.TooltipSeparator +
                 "Note: Users not in your instance, but on the same map, will be drawn as floating wisps." + Environment.NewLine
                 + "Note: GPose synchronization is not dependent on the current instance, but you will have to spawn a character for the other lobby users.");
 
@@ -213,12 +213,12 @@ internal sealed partial class CharaDataHubUi
                         user.Address = nint.Zero;
                     }
                 }
-                _uiSharedService.AttachToolTip("Unassign Actor for this user");
+                UiSharedService.AttachToolTip("Unassign Actor for this user");
                 if (_uiSharedService.IsInGpose && user.Address == nint.Zero)
                 {
                     ImGui.SameLine();
                     _uiSharedService.IconText(FontAwesomeIcon.ExclamationTriangle, ImGuiColors.DalamudRed);
-                    _uiSharedService.AttachToolTip("No valid character assigned for this user. Pose data will not be applied.");
+                    UiSharedService.AttachToolTip("No valid character assigned for this user. Pose data will not be applied.");
                 }
             }
         }, 5, width);

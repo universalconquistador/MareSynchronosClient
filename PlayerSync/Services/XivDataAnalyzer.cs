@@ -1,6 +1,7 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Havok.Animation;
+using FFXIVClientStructs.Havok.Common.Base.Container.Array;
 using FFXIVClientStructs.Havok.Common.Base.Types;
 using FFXIVClientStructs.Havok.Common.Serialize.Util;
 using MareSynchronos.FileCache;
@@ -65,29 +66,33 @@ public sealed class XivDataAnalyzer
 
     public unsafe Dictionary<string, List<ushort>>? GetBoneIndicesFromPap(string hash)
     {
-        if (_configService.Current.BonesDictionary.TryGetValue(hash, out var bones)) return bones;
+        if (_configService.Current.BonesDictionary.TryGetValue(hash, out var bones))
+            return bones;
 
         var cacheEntity = _fileCacheManager.GetFileCacheByHash(hash);
-        if (cacheEntity == null) return null;
+        if (cacheEntity == null)
+            return null;
 
         using BinaryReader reader = new BinaryReader(File.Open(cacheEntity.ResolvedFilepath, FileMode.Open, FileAccess.Read, FileShare.Read));
 
         // most of this shit is from vfxeditor, surely nothing will change in the pap format :copium:
         reader.ReadInt32(); // ignore
         reader.ReadInt32(); // ignore
-        reader.ReadInt16(); // read 2 (num animations)
-        reader.ReadInt16(); // read 2 (modelid)
-        var type = reader.ReadByte();// read 1 (type)
-        if (type != 0) return null; // it's not human, just ignore it, whatever
+        reader.ReadInt16(); // num animations
+        reader.ReadInt16(); // model id
+        var type = reader.ReadByte(); // type
+        if (type != 0)
+            return null; // it's not human, ignore
 
-        reader.ReadByte(); // read 1 (variant)
+        reader.ReadByte(); // variant
         reader.ReadInt32(); // ignore
         var havokPosition = reader.ReadInt32();
         var footerPosition = reader.ReadInt32();
         var havokDataSize = footerPosition - havokPosition;
         reader.BaseStream.Position = havokPosition;
         var havokData = reader.ReadBytes(havokDataSize);
-        if (havokData.Length <= 8) return null; // no havok data
+        if (havokData.Length <= 8)
+            return null; // havok data isnt there. 
 
         var output = new Dictionary<string, List<ushort>>(StringComparer.OrdinalIgnoreCase);
         var tempHavokDataPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()) + ".hkx";
@@ -107,37 +112,74 @@ public sealed class XivDataAnalyzer
 
             var resource = hkSerializeUtil.LoadFromFile((byte*)tempHavokDataPathAnsi, null, loadoptions);
             if (resource == null)
-            {
                 throw new InvalidOperationException("Resource was null after loading");
-            }
 
             var rootLevelName = @"hkRootLevelContainer"u8;
             fixed (byte* n1 = rootLevelName)
             {
                 var container = (hkRootLevelContainer*)resource->GetContentsPointer(n1, hkBuiltinTypeRegistry.Instance()->GetTypeInfoRegistry());
+                if (container == null)
+                {
+                    _logger.LogWarning("RootLevelContainer was null in {path}", tempHavokDataPath);
+                    return null;
+                }
+
                 var animationName = @"hkaAnimationContainer"u8;
                 fixed (byte* n2 = animationName)
                 {
-                    var animContainer = (hkaAnimationContainer*)container->findObjectByName(n2, null);
-                    for (int i = 0; i < animContainer->Bindings.Length; i++)
+                    var animContainer = (hkaAnimationContainer*)container->findObjectByName(n2, prevObject: null);
+                    if (animContainer == null)
                     {
-                        var binding = animContainer->Bindings[i].ptr;
-                        var boneTransform = binding->TransformTrackToBoneIndices;
-                        string name = binding->OriginalSkeletonName.String! + "_" + i;
-                        output[name] = [];
-                        for (int boneIdx = 0; boneIdx < boneTransform.Length; boneIdx++)
-                        {
-                            output[name].Add((ushort)boneTransform[boneIdx]);
-                        }
-                        output[name].Sort();
+                        _logger.LogWarning("Animation container was null in {path}", tempHavokDataPath);
+                        return null;
                     }
 
+                    for (int i = 0; i < animContainer->Bindings.Length; i++)
+                    {
+                        var bindingPtr = animContainer->Bindings[i].ptr;
+                        if (bindingPtr == null)
+                        {
+                            _logger.LogWarning("BindingPointer {i} was null in {path}", i, tempHavokDataPath);
+                            continue;
+                        }
+
+                        var binding = *bindingPtr;
+
+                        // FIXED: use hkArray<short>, cast to ushort when adding
+                        hkArray<short>* boneTransformPtr = &binding.TransformTrackToBoneIndices;
+                        if (boneTransformPtr == null || boneTransformPtr->Length <= 0)
+                        {
+                            _logger.LogWarning("Invalid,Empty,or NULL bones in Binding Pointer {i}", i);
+                            continue;
+                        }
+
+                        var boneTransform = *boneTransformPtr;
+
+                        string name = binding.OriginalSkeletonName.String ?? $"Unknown_{i}";
+                        if (!output.ContainsKey(name))
+                            output[name] = new List<ushort>();
+
+                        for (int boneIdx = 0; boneIdx < boneTransform.Length; boneIdx++)
+                        {
+                            try
+                            {
+                                output[name].Add((ushort)boneTransform[boneIdx]);
+                            }
+                            catch
+                            {
+                                _logger.LogWarning("Bone index is invalid: {boneIdx} in binding {i}", boneIdx, i);
+                                break;
+                            }
+                        }
+
+                        output[name].Sort();
+                    }
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not load havok file in {path}", tempHavokDataPath);
+            _logger.LogWarning(ex, "Havok file not loadable in {path}", tempHavokDataPath);
         }
         finally
         {
@@ -147,8 +189,10 @@ public sealed class XivDataAnalyzer
 
         _configService.Current.BonesDictionary[hash] = output;
         _configService.Save();
+
         return output;
     }
+
 
     public async Task<long> GetTrianglesByHash(string hash)
     {

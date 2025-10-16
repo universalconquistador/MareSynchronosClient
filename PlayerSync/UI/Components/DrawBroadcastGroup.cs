@@ -3,7 +3,6 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Extensions;
-using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
@@ -80,12 +79,10 @@ public class DrawBroadcastGroup
 
     private void DrawLeftSide()
     {
-        var theme = _uiSharedService.Theme;
-        var newUI = _uiSharedService.NewUI;
-        using (ImRaii.PushColor(ImGuiCol.Text, newUI ? theme.StatusBroadcasting : ImGuiColors.HealerGreen, _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID))
+        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID))
         {
             ImGui.AlignTextToFramePadding();
-            _uiSharedService.IconText(FontAwesomeIcon.BroadcastTower, _broadcastManager.BroadcastingGroupId == _broadcast.Group.GID ? null : newUI ? theme.Accent : null);
+            _uiSharedService.IconText(FontAwesomeIcon.BroadcastTower);
         }
     }
 
@@ -94,13 +91,13 @@ public class DrawBroadcastGroup
         ImGui.SameLine(leftSide);
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted($"[{_broadcast.CurrentMemberCount}]");
-        _uiSharedService.AttachToolTip($"{_broadcast.CurrentMemberCount} members");
+        UiSharedService.AttachToolTip($"{_broadcast.CurrentMemberCount} members");
         ImGui.SameLine();
         using (ImRaii.PushFont(UiBuilder.MonoFont))
         {
             ImGui.TextUnformatted($"{_broadcast.GroupAliasOrGID}");
         }
-        _uiSharedService.AttachToolTip($"Syncshell {_broadcast.Group.AliasOrGID}\nOwner: {_broadcast.Owner.UID}\nBroadcast by: {string.Join(", ", _broadcast.Broadcasters.Select(user => user.UID))}");
+        UiSharedService.AttachToolTip($"Syncshell {_broadcast.Group.AliasOrGID}\nOwner: {_broadcast.Owner.UID}\nBroadcast by: {string.Join(", ", _broadcast.Broadcasters.Select(user => user.UID))}");
     }
 
     private float DrawRightSide()
@@ -135,7 +132,7 @@ public class DrawBroadcastGroup
             }
             else
             {
-                joinTooltip = $"You are already a member of {_broadcast.GroupAliasOrGID}";
+                joinTooltip = $"You are alrady a member of {_broadcast.GroupAliasOrGID}";
             }
         }
         else
@@ -154,7 +151,7 @@ public class DrawBroadcastGroup
                 _mediator.Publish(new PrefillJoinSyncshellParameters(_broadcast.Group.GID, _broadcast.Passwordless, _broadcast.IsGuestModeEnabled));
             }
         }
-        _uiSharedService.AttachToolTip(joinTooltip);
+        UiSharedService.AttachToolTip(joinTooltip);
 
         if (ImGui.BeginPopup("Broadcast Context Menu"))
         {

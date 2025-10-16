@@ -35,6 +35,8 @@ public class PermissionWindowUI : WindowMediatorSubscriberBase
             MaximumSize = new(450, 500)
         };
         IsOpen = true;
+        AllowPinning = false;
+        AllowClickthrough = false;
     }
 
     protected override void DrawInternal()
@@ -143,7 +145,7 @@ public class PermissionWindowUI : WindowMediatorSubscriberBase
                     new(StringComparer.Ordinal)
                 ));
             }
-        _uiSharedService.AttachToolTip("Save and apply all changes");
+        UiSharedService.AttachToolTip("Save and apply all changes");
 
         var rightSideButtons = _uiSharedService.GetIconTextButtonSize(Dalamud.Interface.FontAwesomeIcon.Undo, "Revert") +
             _uiSharedService.GetIconTextButtonSize(Dalamud.Interface.FontAwesomeIcon.ArrowsSpin, "Reset to Default");
@@ -156,7 +158,7 @@ public class PermissionWindowUI : WindowMediatorSubscriberBase
             {
                 _ownPermissions = Pair.UserPair.OwnPermissions.DeepClone();
             }
-        _uiSharedService.AttachToolTip("Revert all changes");
+        UiSharedService.AttachToolTip("Revert all changes");
 
         ImGui.SameLine();
         if (_uiSharedService.IconTextButton(Dalamud.Interface.FontAwesomeIcon.ArrowsSpin, "Reset to Default"))
@@ -175,7 +177,7 @@ public class PermissionWindowUI : WindowMediatorSubscriberBase
                 new(StringComparer.Ordinal)
             ));
         }
-        _uiSharedService.AttachToolTip("This will set all permissions to your defined default permissions in the PlayerSync Settings");
+        UiSharedService.AttachToolTip("This will set all permissions to your defined default permissions in the PlayerSync Settings");
 
         var ySize = ImGui.GetCursorPosY() + style.FramePadding.Y * ImGuiHelpers.GlobalScale + style.FrameBorderSize;
         ImGui.SetWindowSize(new(400, ySize));
