@@ -1,10 +1,14 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
-using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.UI.Handlers;
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Numerics;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace MareSynchronos.UI.Components;
 
@@ -29,35 +33,26 @@ public class DrawFolderBroadcasts
 
     public void Draw()
     {
-        bool newUI = _uiSharedService.NewUI;
-        var theme = _uiSharedService.Theme;
         using (ImRaii.PushId("broadcasts"))
         {
             using (ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered))
+            using (ImRaii.Child("broadcasts_folder", new Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight())))
             {
-                var paddingX = newUI ? 4f : 0;
-                var paddingY = newUI ? 3f : 0;
-                using (ImRaii.Child("broadcasts_folder", new Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight() + (paddingY * 2))))
+                var expanderIcon = _tagHandler.IsTagOpen(_tagId) ? FontAwesomeIcon.CaretDown : FontAwesomeIcon.CaretRight;
+
+                ImGui.AlignTextToFramePadding();
+
+                _uiSharedService.IconText(expanderIcon);
+                if (ImGui.IsItemClicked())
                 {
-                    if (newUI) ImGui.SetCursorPos(new Vector2(paddingX, paddingY));
-
-                    var expanderIcon = _tagHandler.IsTagOpen(_tagId) ? FontAwesomeIcon.CaretDown : FontAwesomeIcon.CaretRight;
-
-                    ImGui.AlignTextToFramePadding();
-
-                    //_uiSharedService.IconText(expanderIcon, ThemePalette.GetDarkerColor(theme.Accent, _wasHovered));
-                    _uiSharedService.IconText(expanderIcon, theme.TextPrimary);
-                    if (ImGui.IsItemClicked())
-                    {
-                        _tagHandler.SetTagOpen(_tagId, !_tagHandler.IsTagOpen(_tagId));
-                    }
-
-                    ImGui.SameLine();
-                    _uiSharedService.IconText(FontAwesomeIcon.Wifi, theme.Accent);
-
-                    ImGui.SameLine();
-                    ImGui.TextUnformatted($"[{_broadcasts.Count}] Nearby Broadcasts");
+                    _tagHandler.SetTagOpen(_tagId, !_tagHandler.IsTagOpen(_tagId));
                 }
+
+                ImGui.SameLine();
+                _uiSharedService.IconText(FontAwesomeIcon.Wifi);
+
+                ImGui.SameLine();
+                ImGui.TextUnformatted($"[{_broadcasts.Count}] Nearby Broadcasts");
             }
             _wasHovered = ImGui.IsItemHovered();
 

@@ -119,7 +119,7 @@ internal partial class CharaDataHubUi
                     ImGui.SameLine();
                     _uiSharedService.IconText(FontAwesomeIcon.ExternalLinkAlt, ImGuiColors.DalamudGrey);
                 }
-                _uiSharedService.AttachToolTip(pose.Key.MetaInfo.Description);
+                UiSharedService.AttachToolTip(pose.Key.MetaInfo.Description);
                 UiSharedService.ColorText("Description", ImGuiColors.DalamudGrey);
                 ImGui.SameLine();
                 UiSharedService.TextWrapped(pose.Key.Description ?? "No Pose Description was set", circleOriginX);
@@ -129,7 +129,7 @@ internal partial class CharaDataHubUi
                 if (circleOffsetY < 0) circleOffsetY = 0;
                 ImGui.SetCursorPos(new Vector2(circleOriginX, pos.Y));
                 ImGui.Dummy(new Vector2(circleDiameter, circleDiameter));
-                _uiSharedService.AttachToolTip("Click to open corresponding map and set map marker" + UiSharedService.TooltipSeparator
+                UiSharedService.AttachToolTip("Click to open corresponding map and set map marker" + UiSharedService.TooltipSeparator
                     + pose.Key.WorldDataDescriptor);
                 if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                 {
@@ -201,7 +201,7 @@ internal partial class CharaDataHubUi
         }
         if (_charaDataManager.GetSharedWithYouTimeoutTask != null && !_charaDataManager.GetSharedWithYouTimeoutTask.IsCompleted)
         {
-            _uiSharedService.AttachToolTip("You can only refresh all character data from server every minute. Please wait.");
+            UiSharedService.AttachToolTip("You can only refresh all character data from server every minute. Please wait.");
         }
     }
 }

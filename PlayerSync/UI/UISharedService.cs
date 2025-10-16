@@ -18,7 +18,6 @@ using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
-using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
@@ -29,7 +28,6 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using SixLabors.ImageSharp;
 
 namespace MareSynchronos.UI;
 
@@ -75,13 +73,12 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     private bool _penumbraExists = false;
     private bool _petNamesExists = false;
     private int _serverSelectionIndex = -1;
-    private readonly ThemeEditor _themeEditor;
-    private readonly ThemeManager _themeManager;
     public UiSharedService(ILogger<UiSharedService> logger, IpcManager ipcManager, ApiController apiController,
         CacheMonitor cacheMonitor, FileDialogManager fileDialogManager,
         MareConfigService configService, DalamudUtilService dalamudUtil, IDalamudPluginInterface pluginInterface,
-        ITextureProvider textureProvider, Dalamud.Localization localization, 
-        ServerConfigurationManager serverManager, TokenProvider tokenProvider, MareMediator mediator, ThemeManager themeManager) : base(logger, mediator)
+        ITextureProvider textureProvider,
+        Dalamud.Localization localization,
+        ServerConfigurationManager serverManager, TokenProvider tokenProvider, MareMediator mediator) : base(logger, mediator)
     {
         _ipcManager = ipcManager;
         _apiController = apiController;
@@ -95,9 +92,6 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         _serverConfigurationManager = serverManager;
         _tokenProvider = tokenProvider;
         _localization.SetupWithLangCode("en");
-        _themeManager = themeManager;
-        _themeEditor = new ThemeEditor(_themeManager, this);
-        //_themeManager.SetCustomTheme(_themeManager.PredefinedThemes["Dalamud"]);
 
         _isDirectoryWritable = IsDirectoryWritable(_configService.Current.CacheFolder);
 
@@ -124,11 +118,6 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         IconFont = _pluginInterface.UiBuilder.IconFontFixedWidthHandle;
     }
 
-    public bool NewUI => _configService.Current.NewUI;
-    public ThemePalette Theme => _themeManager.Current;
-    public ThemeEditor ThemeEditor => _themeEditor;
-    public ThemeManager ThemeManager => _themeManager;
-
     public static string DoubleNewLine => Environment.NewLine + Environment.NewLine;
     public ApiController ApiController => _apiController;
 
@@ -147,54 +136,28 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public Dictionary<ushort, string> WorldData => _dalamudUtil.WorldData.Value;
     public uint WorldId => _dalamudUtil.GetHomeWorldId();
 
-    public void AttachToolTip(string text)
+    public static void AttachToolTip(string text)
     {
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
         {
-            ImRaii.Color? bgColor = null, textColor = null;
-            try
+            ImGui.BeginTooltip();
+            ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35f);
+            if (text.Contains(TooltipSeparator, StringComparison.Ordinal))
             {
-                if (NewUI)
+                var splitText = text.Split(TooltipSeparator, StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < splitText.Length; i++)
                 {
-                    bgColor = ImRaii.PushColor(ImGuiCol.PopupBg, Theme.TooltipBg);
-                    textColor = ImRaii.PushColor(ImGuiCol.Text, Theme.TooltipText);
+                    ImGui.TextUnformatted(splitText[i]);
+                    if (i != splitText.Length - 1) ImGui.Separator();
                 }
-                ImGui.BeginTooltip();
-                ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35f);
-                if (text.Contains(TooltipSeparator, StringComparison.Ordinal))
-                {
-                    var splitText = text.Split(TooltipSeparator, StringSplitOptions.RemoveEmptyEntries);
-                    for (int i = 0; i < splitText.Length; i++)
-                    {
-                        ImGui.TextUnformatted(splitText[i]);
-                        if (i != splitText.Length - 1) ImGui.Separator();
-                    }
-                }
-                else
-                {
-                    ImGui.TextUnformatted(text);
-                }
-                ImGui.PopTextWrapPos();
-                ImGui.EndTooltip();
             }
-            finally
+            else
             {
-                bgColor?.Dispose();
-                textColor?.Dispose();
+                ImGui.TextUnformatted(text);
             }
+            ImGui.PopTextWrapPos();
+            ImGui.EndTooltip();
         }
-    }
-
-    public Vector4 GetBaseColor(string color)
-    {
-        return color switch
-        {    // replace these with enum
-            "green" => NewUI ? Theme.UidAliasText : ImGuiColors.ParsedGreen,
-            "yellow" => NewUI ? Theme.StatusConnecting : ImGuiColors.DalamudYellow,
-            "red" => NewUI ? Theme.StatusConnecting : ImGuiColors.DalamudRed,
-            "white" => NewUI ? Theme.StatusConnecting : ImGuiColors.DalamudWhite,
-            _ => GetBaseColor("red")
-        };
     }
 
     public static string ByteToString(long bytes, bool addSuffix = true)
@@ -808,6 +771,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             DrawUnlinkOAuthButton(selectedServer);
         }
     }
+
     public bool DrawOtherPluginState()
     {
         ImFontPtr AxisFont = default;
@@ -1174,26 +1138,10 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         float frameHeight = ImGui.GetFrameHeight();
         bool result = ImGui.Button(string.Empty, new Vector2(x, frameHeight));
         Vector2 pos = new Vector2(cursorScreenPos.X + ImGui.GetStyle().FramePadding.X, cursorScreenPos.Y + ImGui.GetStyle().FramePadding.Y);
-
-        //
-        // Can't do this here as it affects the Settings and other UI windows as well.
-        //
-
-        //// Get button text color based on button state from theme
-        //Vector4 textColor;
-        //if (ImGui.IsItemActive())
-        //    textColor = Theme.BtnTextActive;
-        //else if (ImGui.IsItemHovered())
-        //    textColor = Theme.BtnTextHovered;
-        //else
-        //    textColor = Theme.BtnText;
-
-        var textColorU32 = ImGui.GetColorU32(ImGuiCol.Text);
-
         using (IconFont.Push())
-            windowDrawList.AddText(pos, textColorU32, icon.ToIconString());
+            windowDrawList.AddText(pos, ImGui.GetColorU32(ImGuiCol.Text), icon.ToIconString());
         Vector2 pos2 = new Vector2(pos.X + vector.X + num2, cursorScreenPos.Y + ImGui.GetStyle().FramePadding.Y);
-        windowDrawList.AddText(pos2, textColorU32, text);
+        windowDrawList.AddText(pos2, ImGui.GetColorU32(ImGuiCol.Text), text);
         ImGui.PopID();
         if (num > 0)
         {

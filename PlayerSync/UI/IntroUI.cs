@@ -348,7 +348,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
                         }
                     }
                     if (string.IsNullOrEmpty(auth.UID))
-                        _uiShared.AttachToolTip("Select a UID to be able to connect to the service");
+                        UiSharedService.AttachToolTip("Select a UID to be able to connect to the service");
                 }
             }
         }

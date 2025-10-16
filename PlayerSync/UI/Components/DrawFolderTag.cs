@@ -1,10 +1,8 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.PlayerData.Pairs;
-using MareSynchronos.UI.Components.Theming;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
 using System.Collections.Immutable;
@@ -70,7 +68,6 @@ public class DrawFolderTag : DrawFolderBase
 
     protected override float DrawIcon()
     {
-        var theme = _uiSharedService.Theme;
         var icon = _id switch
         {
             TagHandler.CustomUnpairedTag => FontAwesomeIcon.ArrowsLeftRight,
@@ -83,8 +80,7 @@ public class DrawFolderTag : DrawFolderBase
         };
 
         ImGui.AlignTextToFramePadding();
-        // ##ICON###HOVEROVER
-        _uiSharedService.IconText(icon, theme.Accent);
+        _uiSharedService.IconText(icon);
 
         if (RenderCount)
         {
@@ -95,7 +91,7 @@ public class DrawFolderTag : DrawFolderBase
 
                 ImGui.TextUnformatted("[" + OnlinePairs.ToString() + "]");
             }
-            _uiSharedService.AttachToolTip(OnlinePairs + " online" + Environment.NewLine + TotalPairs + " total");
+            UiSharedService.AttachToolTip(OnlinePairs + " online" + Environment.NewLine + TotalPairs + " total");
         }
         ImGui.SameLine();
         return ImGui.GetCursorPosX();
@@ -108,12 +104,12 @@ public class DrawFolderTag : DrawFolderBase
         {
             _selectPairForTagUi.Open(_id);
         }
-        _uiSharedService.AttachToolTip("Select Individual Pairs for this Pair Group");
+        UiSharedService.AttachToolTip("Select Individual Pairs for this Pair Group");
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Delete Pair Group", menuWidth, true) && UiSharedService.CtrlPressed())
         {
             _tagHandler.RemoveTag(_id);
         }
-        _uiSharedService.AttachToolTip("Hold CTRL to remove this Group permanently." + Environment.NewLine +
+        UiSharedService.AttachToolTip("Hold CTRL to remove this Group permanently." + Environment.NewLine +
             "Note: this will not unpair with users in this Group.");
     }
 
@@ -158,11 +154,11 @@ public class DrawFolderTag : DrawFolderBase
         }
         if (allArePaused)
         {
-            _uiSharedService.AttachToolTip($"Resume pairing with all pairs in {_id}");
+            UiSharedService.AttachToolTip($"Resume pairing with all pairs in {_id}");
         }
         else
         {
-            _uiSharedService.AttachToolTip($"Pause pairing with all pairs in {_id}");
+            UiSharedService.AttachToolTip($"Pause pairing with all pairs in {_id}");
         }
 
         return currentRightSideX;

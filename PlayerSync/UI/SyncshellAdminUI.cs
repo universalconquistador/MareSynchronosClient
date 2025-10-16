@@ -136,7 +136,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                             _ = _apiController.GroupChangeGroupPermissionState(new(GroupFullInfo.Group, perm));
                         }
                     }
-                    _uiSharedService.AttachToolTip("Players will be able to join the Syncshell without a password.\nHold CTRL and click if you are sure you want to enable this.");
+                    UiSharedService.AttachToolTip("Players will be able to join the Syncshell without a password.\nHold CTRL and click if you are sure you want to enable this.");
                 }
                 else
                 {
@@ -156,7 +156,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                 {
                     ImGui.SetClipboardText(_apiController.GroupCreateTempInvite(new(GroupFullInfo.Group), 1).Result.FirstOrDefault() ?? string.Empty);
                 }
-                _uiSharedService.AttachToolTip("Creates a single-use password for joining the syncshell which is valid for 24h and copies it to the clipboard.");
+                UiSharedService.AttachToolTip("Creates a single-use password for joining the syncshell which is valid for 24h and copies it to the clipboard.");
                 ImGui.InputInt("##amountofinvites", ref _multiInvites);
                 ImGui.SameLine();
                 using (ImRaii.Disabled(_multiInvites <= 1 || _multiInvites > 100))
@@ -236,19 +236,19 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                                     if (pair.Value.Value.IsModerator())
                                     {
                                         _uiSharedService.IconText(FontAwesomeIcon.UserShield);
-                                        _uiSharedService.AttachToolTip("Moderator");
+                                        UiSharedService.AttachToolTip("Moderator");
                                         if (pair.Value.Value.IsGuest()) ImGui.SameLine();
                                     }
                                     if (pair.Value.Value.IsPinned())
                                     {
                                         _uiSharedService.IconText(FontAwesomeIcon.Thumbtack);
-                                        _uiSharedService.AttachToolTip("Pinned");
+                                        UiSharedService.AttachToolTip("Pinned");
                                         if (pair.Value.Value.IsGuest()) ImGui.SameLine();
                                     }
                                     if (pair.Value.Value.IsGuest())
                                     {
                                         _uiSharedService.IconText(FontAwesomeIcon.PersonWalkingLuggage);
-                                        _uiSharedService.AttachToolTip("Guest");
+                                        UiSharedService.AttachToolTip("Guest");
                                     }
                                 }
                                 else
@@ -267,7 +267,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
                                         _ = _apiController.GroupSetUserInfo(new GroupPairUserInfoDto(GroupFullInfo.Group, pair.Key.UserData, userInfo));
                                     }
-                                    _uiSharedService.AttachToolTip(pair.Value != null && pair.Value.Value.IsModerator() ? "Demod user" : "Mod user");
+                                    UiSharedService.AttachToolTip(pair.Value != null && pair.Value.Value.IsModerator() ? "Demod user" : "Mod user");
                                     ImGui.SameLine();
                                 }
 
@@ -281,7 +281,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
                                         _ = _apiController.GroupSetUserInfo(new GroupPairUserInfoDto(GroupFullInfo.Group, pair.Key.UserData, userInfo));
                                     }
-                                    _uiSharedService.AttachToolTip(pair.Value != null && pair.Value.Value.IsPinned() ? "Unpin user" : "Pin user");
+                                    UiSharedService.AttachToolTip(pair.Value != null && pair.Value.Value.IsPinned() ? "Unpin user" : "Pin user");
                                     ImGui.SameLine();
 
                                     using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
@@ -291,7 +291,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                                             _ = _apiController.GroupRemoveUser(new GroupPairDto(GroupFullInfo.Group, pair.Key.UserData));
                                         }
                                     }
-                                    _uiSharedService.AttachToolTip("Remove user from Syncshell"
+                                    UiSharedService.AttachToolTip("Remove user from Syncshell"
                                         + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
 
                                     ImGui.SameLine();
@@ -302,7 +302,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                                             Mediator.Publish(new OpenBanUserPopupMessage(pair.Key, GroupFullInfo));
                                         }
                                     }
-                                    _uiSharedService.AttachToolTip("Ban user from Syncshell"
+                                    UiSharedService.AttachToolTip("Ban user from Syncshell"
                                         + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
                                 }
                             }
@@ -320,7 +320,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                             _ = _apiController.GroupClear(new(GroupFullInfo.Group), false);
                         }
                     }
-                    _uiSharedService.AttachToolTip("This will remove all non-pinned, non-moderator users from the Syncshell."
+                    UiSharedService.AttachToolTip("This will remove all non-pinned, non-moderator users from the Syncshell."
                         + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
 
                     using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
@@ -330,7 +330,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                             _ = _apiController.GroupClear(new(GroupFullInfo.Group), true);
                         }
                     }
-                    _uiSharedService.AttachToolTip("This will remove all users who joined with no password (guests) from the Syncshell."
+                    UiSharedService.AttachToolTip("This will remove all users who joined with no password (guests) from the Syncshell."
                         + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
 
                     ImGuiHelpers.ScaledDummy(2f);
@@ -342,7 +342,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                         _pruneTestTask = _apiController.GroupPrune(new(GroupFullInfo.Group), _pruneDays, execute: false);
                         _pruneTask = null;
                     }
-                    _uiSharedService.AttachToolTip($"This will start the prune process for this Syncshell of inactive PlayerSync users that have not logged in in the past {_pruneDays} days."
+                    UiSharedService.AttachToolTip($"This will start the prune process for this Syncshell of inactive PlayerSync users that have not logged in in the past {_pruneDays} days."
                         + Environment.NewLine + "You will be able to review the amount of inactive users before executing the prune."
                         + UiSharedService.TooltipSeparator + "Note: this check excludes pinned users and moderators of this Syncshell.");
                     ImGui.SameLine();
@@ -379,7 +379,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                                         _pruneTestTask = null;
                                     }
                                 }
-                                _uiSharedService.AttachToolTip($"Pruning will remove {_pruneTestTask?.Result ?? 0} inactive user(s)."
+                                UiSharedService.AttachToolTip($"Pruning will remove {_pruneTestTask?.Result ?? 0} inactive user(s)."
                                     + UiSharedService.TooltipSeparator + "Hold CTRL to enable this button");
                             }
                         }
@@ -518,7 +518,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                     {
                         tooltip += Environment.NewLine + Environment.NewLine + "WARNING: A Syncshell without a password can be joined by anyone with the Syncshell ID\nor that it is broadcast to. Hold CTRL if you are sure you want to not have a password\non this Syncshell.";
                     }
-                    _uiSharedService.AttachToolTip(tooltip);
+                    UiSharedService.AttachToolTip(tooltip);
 
                     if (!_pwChangeSuccess)
                     {
@@ -536,7 +536,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                         IsOpen = false;
                         _ = _apiController.GroupDelete(new(GroupFullInfo.Group));
                     }
-                    _uiSharedService.AttachToolTip("Hold CTRL and Shift and click to delete this Syncshell." + Environment.NewLine + "WARNING: this action is irreversible.");
+                    UiSharedService.AttachToolTip("Hold CTRL and Shift and click to delete this Syncshell." + Environment.NewLine + "WARNING: this action is irreversible.");
                 }
                 ownerTab.Dispose();
             }
