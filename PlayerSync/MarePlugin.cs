@@ -101,18 +101,6 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
 
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (msg) => {
             if (_launchTask == null || _launchTask.IsCompleted) _launchTask = Task.Run(WaitForPlayerAndLaunchCharacterManager);
-
-            // Check for version changes and show changelog after UI is ready
-        //    Logger.LogInformation("SwitchToMainUiMessage received, scheduling changelog check in 2 seconds");
-        //    Task.Delay(2000).ContinueWith(_ => {
-        //        Logger.LogInformation("Executing scheduled changelog check");
-        //        _changelogService.CheckForNewVersion();
-        //    });
-        //});
-
-        //// Also trigger changelog check after a longer delay as fallback
-        //Task.Delay(5000).ContinueWith(_ => {
-        //    Logger.LogInformation("Fallback changelog check - checking if setup is valid");
             if (_mareConfigService.Current.HasValidSetup())
             {
                 Logger.LogInformation("Setup is valid, triggering fallback changelog check");

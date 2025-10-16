@@ -291,7 +291,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
                         _filterGamePath = string.Empty;
                     }
                 }
-                _uiSharedService.AttachToolTip("Hold CTRL to delete all game paths from the displayed list"
+                UiSharedService.AttachToolTip("Hold CTRL to delete all game paths from the displayed list"
                     + UiSharedService.TooltipSeparator + "You usually do not need to do this. All animation and VFX data will be automatically handled through PlayerSync.");
                 ImGuiHelpers.ScaledDummy(5);
                 ImGuiHelpers.ScaledDummy(30);
@@ -333,7 +333,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
                             }
                             ImGui.TableNextColumn();
                             ImGui.TextUnformatted(entry);
-                            _uiSharedService.AttachToolTip(entry + UiSharedService.TooltipSeparator + "Click to copy to clipboard");
+                            UiSharedService.AttachToolTip(entry + UiSharedService.TooltipSeparator + "Click to copy to clipboard");
                             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                             {
                                 ImGui.SetClipboardText(entry);
@@ -342,7 +342,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
                             if (hasFileResolve)
                             {
                                 ImGui.TextUnformatted(filePath ?? "Unk");
-                                _uiSharedService.AttachToolTip(filePath ?? "Unk" + UiSharedService.TooltipSeparator + "Click to copy to clipboard");
+                                UiSharedService.AttachToolTip(filePath ?? "Unk" + UiSharedService.TooltipSeparator + "Click to copy to clipboard");
                                 if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                                 {
                                     ImGui.SetClipboardText(filePath);
@@ -351,7 +351,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
                             else
                             {
                                 ImGui.TextUnformatted("-");
-                                _uiSharedService.AttachToolTip("Resolve Game Paths to used File Paths to display the associated file paths.");
+                                UiSharedService.AttachToolTip("Resolve Game Paths to used File Paths to display the associated file paths.");
                             }
                         }
                     }
@@ -460,10 +460,10 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
                 ImGui.TextUnformatted(value.Owner.Name);
                 ImGui.TableNextColumn();
                 ImGui.TextUnformatted(value.GamePath);
-                _uiSharedService.AttachToolTip(value.GamePath);
+                UiSharedService.AttachToolTip(value.GamePath);
                 ImGui.TableNextColumn();
                 ImGui.TextUnformatted(value.FilePath);
-                _uiSharedService.AttachToolTip(value.FilePath);
+                UiSharedService.AttachToolTip(value.FilePath);
                 if (value.AlreadyTransient)
                 {
                     ImGui.PopStyleColor();
@@ -711,7 +711,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
                 ImGui.TextUnformatted($"(and {filePaths.Count - 1} more)");
                 ImGui.SameLine();
                 _uiSharedService.IconText(FontAwesomeIcon.InfoCircle);
-                _uiSharedService.AttachToolTip(string.Join(Environment.NewLine, filePaths.Skip(1)));
+                UiSharedService.AttachToolTip(string.Join(Environment.NewLine, filePaths.Skip(1)));
             }
 
             var gamepaths = item.GamePaths;
@@ -724,7 +724,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
                 ImGui.TextUnformatted($"(and {gamepaths.Count - 1} more)");
                 ImGui.SameLine();
                 _uiSharedService.IconText(FontAwesomeIcon.InfoCircle);
-                _uiSharedService.AttachToolTip(string.Join(Environment.NewLine, gamepaths.Skip(1)));
+                UiSharedService.AttachToolTip(string.Join(Environment.NewLine, gamepaths.Skip(1)));
             }
         }
     }

@@ -290,7 +290,7 @@ internal sealed partial class CharaDataHubUi
         {
             ImGui.SetClipboardText(code);
         }
-        _uiSharedService.AttachToolTip("Copy Code to Clipboard");
+        UiSharedService.AttachToolTip("Copy Code to Clipboard");
 
         string creationTime = dataDto.CreatedDate.ToLocalTime().ToString();
         string updateTime = dataDto.UpdatedDate.ToLocalTime().ToString();
@@ -398,7 +398,7 @@ internal sealed partial class CharaDataHubUi
         }
         if (!UiSharedService.CtrlPressed())
         {
-            _uiSharedService.AttachToolTip("Hold CTRL and click to delete the current data. This operation is irreversible.");
+            UiSharedService.AttachToolTip("Hold CTRL and click to delete the current data. This operation is irreversible.");
         }
     }
 
@@ -444,7 +444,7 @@ internal sealed partial class CharaDataHubUi
             {
                 UiSharedService.ScaledSameLine(50);
                 _uiSharedService.IconText(FontAwesomeIcon.Plus, ImGuiColors.DalamudYellow);
-                _uiSharedService.AttachToolTip("This pose has not been added to the server yet. Save changes to upload this Pose data.");
+                UiSharedService.AttachToolTip("This pose has not been added to the server yet. Save changes to upload this Pose data.");
             }
 
             bool poseHasChanges = updateDto.PoseHasChanges(pose);
@@ -452,7 +452,7 @@ internal sealed partial class CharaDataHubUi
             {
                 UiSharedService.ScaledSameLine(50);
                 _uiSharedService.IconText(FontAwesomeIcon.ExclamationTriangle, ImGuiColors.DalamudYellow);
-                _uiSharedService.AttachToolTip("This pose has changes that have not been saved to the server yet.");
+                UiSharedService.AttachToolTip("This pose has changes that have not been saved to the server yet.");
             }
 
             UiSharedService.ScaledSameLine(75);
@@ -479,7 +479,7 @@ internal sealed partial class CharaDataHubUi
                 ImGui.SameLine();
                 bool hasPoseData = !string.IsNullOrEmpty(pose.PoseData);
                 _uiSharedService.IconText(FontAwesomeIcon.Running, UiSharedService.GetBoolColor(hasPoseData));
-                _uiSharedService.AttachToolTip(hasPoseData
+                UiSharedService.AttachToolTip(hasPoseData
                     ? "This Pose entry has pose data attached"
                     : "This Pose entry has no pose data attached");
                 ImGui.SameLine();
@@ -491,7 +491,7 @@ internal sealed partial class CharaDataHubUi
                     {
                         _charaDataManager.AttachPoseData(pose, updateDto);
                     }
-                    _uiSharedService.AttachToolTip("Apply current pose data to pose");
+                    UiSharedService.AttachToolTip("Apply current pose data to pose");
                 }
                 ImGui.SameLine();
                 using (ImRaii.Disabled(!hasPoseData))
@@ -502,7 +502,7 @@ internal sealed partial class CharaDataHubUi
                         pose.PoseData = string.Empty;
                         updateDto.UpdatePoseList();
                     }
-                    _uiSharedService.AttachToolTip("Delete current pose data from pose");
+                    UiSharedService.AttachToolTip("Delete current pose data from pose");
                 }
 
                 ImGui.SameLine();
@@ -516,7 +516,7 @@ internal sealed partial class CharaDataHubUi
                 {
                     tooltipText += UiSharedService.TooltipSeparator + "Click to show location on map";
                 }
-                _uiSharedService.AttachToolTip(tooltipText);
+                UiSharedService.AttachToolTip(tooltipText);
                 if (hasWorldData && ImGui.IsItemClicked(ImGuiMouseButton.Left))
                 {
                     _dalamudUtilService.SetMarkerAndOpenMap(position: new Vector3(worldData.Value.PositionX, worldData.Value.PositionY, worldData.Value.PositionZ),
@@ -530,7 +530,7 @@ internal sealed partial class CharaDataHubUi
                     {
                         _charaDataManager.AttachWorldData(pose, updateDto);
                     }
-                    _uiSharedService.AttachToolTip("Apply current world position data to pose");
+                    UiSharedService.AttachToolTip("Apply current world position data to pose");
                 }
                 ImGui.SameLine();
                 using (ImRaii.Disabled(!hasWorldData))
@@ -541,7 +541,7 @@ internal sealed partial class CharaDataHubUi
                         pose.WorldData = default(WorldData);
                         updateDto.UpdatePoseList();
                     }
-                    _uiSharedService.AttachToolTip("Delete current world position data from pose");
+                    UiSharedService.AttachToolTip("Delete current world position data from pose");
                 }
             }
 
@@ -578,7 +578,7 @@ internal sealed partial class CharaDataHubUi
         }
         if (_charaDataManager.DataGetTimeoutTask != null && !_charaDataManager.DataGetTimeoutTask.IsCompleted)
         {
-            _uiSharedService.AttachToolTip("You can only refresh all character data from server every minute. Please wait.");
+            UiSharedService.AttachToolTip("You can only refresh all character data from server every minute. Please wait.");
         }
 
         using (var table = ImRaii.Table("Own Character Data", 12, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY,
@@ -605,7 +605,7 @@ internal sealed partial class CharaDataHubUi
                 ImGui.Dummy(new(0, 0));
                 ImGui.TableNextColumn();
                 ImGui.Checkbox("###createOnlyShowfav", ref _createOnlyShowFav);
-                _uiSharedService.AttachToolTip("Filter by favorites");
+                UiSharedService.AttachToolTip("Filter by favorites");
                 ImGui.TableNextColumn();
                 var x1 = ImGui.GetContentRegionAvail().X;
                 ImGui.SetNextItemWidth(x1);
@@ -622,7 +622,7 @@ internal sealed partial class CharaDataHubUi
                 ImGui.Dummy(new(0, 0));
                 ImGui.TableNextColumn();
                 ImGui.Checkbox("###createShowNotDl", ref _createOnlyShowNotDownloadable);
-                _uiSharedService.AttachToolTip("Filter by not downloadable");
+                UiSharedService.AttachToolTip("Filter by not downloadable");
                 ImGui.TableNextColumn();
                 ImGui.Dummy(new(0, 0));
                 ImGui.TableNextColumn();
@@ -670,7 +670,7 @@ internal sealed partial class CharaDataHubUi
                     if (uDto?.HasChanges ?? false)
                     {
                         UiSharedService.ColorText(idText, ImGuiColors.DalamudYellow);
-                        _uiSharedService.AttachToolTip("This entry has unsaved changes");
+                        UiSharedService.AttachToolTip("This entry has unsaved changes");
                     }
                     else
                     {
@@ -681,7 +681,7 @@ internal sealed partial class CharaDataHubUi
                     ImGui.TableNextColumn();
                     ImGui.TextUnformatted(entry.Description);
                     if (ImGui.IsItemClicked()) SelectedDtoId = entry.Id;
-                    _uiSharedService.AttachToolTip(entry.Description);
+                    UiSharedService.AttachToolTip(entry.Description);
 
                     ImGui.TableNextColumn();
                     ImGui.TextUnformatted(entry.CreatedDate.ToLocalTime().ToString());
@@ -700,25 +700,25 @@ internal sealed partial class CharaDataHubUi
                         && !string.IsNullOrEmpty(entry.GlamourerData);
                     _uiSharedService.BooleanToColoredIcon(isDownloadable, false);
                     if (ImGui.IsItemClicked()) SelectedDtoId = entry.Id;
-                    _uiSharedService.AttachToolTip(isDownloadable ? "Can be downloaded by others" : "Cannot be downloaded: Has missing files or data, please review this entry manually");
+                    UiSharedService.AttachToolTip(isDownloadable ? "Can be downloaded by others" : "Cannot be downloaded: Has missing files or data, please review this entry manually");
 
                     ImGui.TableNextColumn();
                     var count = entry.FileGamePaths.Concat(entry.FileSwaps).Count();
                     ImGui.TextUnformatted(count.ToString());
                     if (ImGui.IsItemClicked()) SelectedDtoId = entry.Id;
-                    _uiSharedService.AttachToolTip(count == 0 ? "No File data attached" : "Has File data attached");
+                    UiSharedService.AttachToolTip(count == 0 ? "No File data attached" : "Has File data attached");
 
                     ImGui.TableNextColumn();
                     bool hasGlamourerData = !string.IsNullOrEmpty(entry.GlamourerData);
                     _uiSharedService.BooleanToColoredIcon(hasGlamourerData, false);
                     if (ImGui.IsItemClicked()) SelectedDtoId = entry.Id;
-                    _uiSharedService.AttachToolTip(string.IsNullOrEmpty(entry.GlamourerData) ? "No Glamourer data attached" : "Has Glamourer data attached");
+                    UiSharedService.AttachToolTip(string.IsNullOrEmpty(entry.GlamourerData) ? "No Glamourer data attached" : "Has Glamourer data attached");
 
                     ImGui.TableNextColumn();
                     bool hasCustomizeData = !string.IsNullOrEmpty(entry.CustomizeData);
                     _uiSharedService.BooleanToColoredIcon(hasCustomizeData, false);
                     if (ImGui.IsItemClicked()) SelectedDtoId = entry.Id;
-                    _uiSharedService.AttachToolTip(string.IsNullOrEmpty(entry.CustomizeData) ? "No Customize+ data attached" : "Has Customize+ data attached");
+                    UiSharedService.AttachToolTip(string.IsNullOrEmpty(entry.CustomizeData) ? "No Customize+ data attached" : "Has Customize+ data attached");
 
                     ImGui.TableNextColumn();
                     FontAwesomeIcon eIcon = FontAwesomeIcon.None;
@@ -728,7 +728,7 @@ internal sealed partial class CharaDataHubUi
                     if (ImGui.IsItemClicked()) SelectedDtoId = entry.Id;
                     if (eIcon != FontAwesomeIcon.None)
                     {
-                        _uiSharedService.AttachToolTip($"This entry will expire on {entry.ExpiryDate.ToLocalTime()}");
+                        UiSharedService.AttachToolTip($"This entry will expire on {entry.ExpiryDate.ToLocalTime()}");
                     }
                 }
             }
@@ -744,11 +744,11 @@ internal sealed partial class CharaDataHubUi
         }
         if (_charaDataManager.DataCreationTask != null)
         {
-            _uiSharedService.AttachToolTip("You can only create new character data every few seconds. Please wait.");
+            UiSharedService.AttachToolTip("You can only create new character data every few seconds. Please wait.");
         }
         if (!_charaDataManager.Initialized)
         {
-            _uiSharedService.AttachToolTip("Please use the button \"Get Own Chara Data\" once before you can add new data entries.");
+            UiSharedService.AttachToolTip("Please use the button \"Get Own Chara Data\" once before you can add new data entries.");
         }
 
         if (_charaDataManager.Initialized)
@@ -856,7 +856,7 @@ internal sealed partial class CharaDataHubUi
                             }
                         }
                     }
-                    _uiSharedService.AttachToolTip("This will apply the current list of allowed specific individuals to ALL of your MCDO entries." + UiSharedService.TooltipSeparator
+                    UiSharedService.AttachToolTip("This will apply the current list of allowed specific individuals to ALL of your MCDO entries." + UiSharedService.TooltipSeparator
                         + "Hold CTRL to enable.");
                 }
             }
@@ -925,7 +925,7 @@ internal sealed partial class CharaDataHubUi
                             }
                         }
                     }
-                    _uiSharedService.AttachToolTip("This will apply the current list of allowed specific syncshells to ALL of your MCDO entries." + UiSharedService.TooltipSeparator
+                    UiSharedService.AttachToolTip("This will apply the current list of allowed specific syncshells to ALL of your MCDO entries." + UiSharedService.TooltipSeparator
                         + "Hold CTRL to enable.");
                 }
             }
