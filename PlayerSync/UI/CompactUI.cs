@@ -145,6 +145,8 @@ public class CompactUi : WindowMediatorSubscriberBase
             MinimumSize = new Vector2(375, 400),
             MaximumSize = new Vector2(375, 2000),
         };
+
+        if (_configService.Current.ShowUIOnPluginLoad) IsOpen = true;
     }
 
     protected override void DrawInternal()
