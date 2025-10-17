@@ -32,7 +32,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private Task<int>? _pruneTestTask;
     private Task<int>? _pruneTask;
     private int _pruneDays = 14;
+    private Memory<byte> _rulesBuffer = new byte[2000];
     private Memory<byte> _descriptionBuffer = new byte[2000];
+    private bool _isProfileSaved;
 
     public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService)
@@ -48,16 +50,19 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         _multiInvites = 30;
         _pwChangeSuccess = true;
         IsOpen = true;
+        _isProfileSaved = true;
         SizeConstraints = new WindowSizeConstraints()
         {
-            MinimumSize = new(700, 500),
+            MinimumSize = new(700, 600),
             MaximumSize = new(700, 2000),
         };
         Mediator.Subscribe<GroupInfoChanged>(this, message =>
         {
-            System.Text.Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.Description, _descriptionBuffer.Span);
+            Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.GroupProfile.Description, _descriptionBuffer.Span);
+            Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.GroupProfile.Rules, _rulesBuffer.Span);
         });
-        System.Text.Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.Description, _descriptionBuffer.Span);
+        Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile.Description, _descriptionBuffer.Span);
+        Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile.Rules, _rulesBuffer.Span);
     }
 
     public GroupFullInfoDto GroupFullInfo { get; private set; }
@@ -102,16 +107,34 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
         if (tabbar)
         {
-            var descriptionTab = ImRaii.TabItem("Description");
-            if (descriptionTab)
+            var profileTab = ImRaii.TabItem("Profile");
+            if (profileTab)
             {
-                ImGui.InputTextMultiline("###description_input", _descriptionBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300));
-                if (_uiSharedService.IconTextButton(FontAwesomeIcon.Save, "Save"))
+                ImGui.TextUnformatted("Syncshell Description");
+                if (ImGui.InputTextMultiline("###description_input", _descriptionBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300)))
+                    _isProfileSaved = false;
+
+                ImGuiHelpers.ScaledDummy(2f);
+
+                ImGuiHelpers.ScaledDummy(2f);
+                ImGui.TextUnformatted("Syncshell Rules (Displayed on the finalize/join screen.)");
+                if (ImGui.InputTextMultiline("###rules_input", _rulesBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300)))
+                    _isProfileSaved = false;
+
+                ImGuiHelpers.ScaledDummy(2f);
+                using (ImRaii.Disabled(_isProfileSaved))
                 {
-                    _ = _apiController.GroupSetDescription(new(GroupFullInfo.Group), Encoding.UTF8.GetString(_descriptionBuffer.Span.Slice(0, _descriptionBuffer.Span.IndexOf((byte)0))));
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Save, "Save"))
+                    {
+                        string? rules = Encoding.UTF8.GetString(_rulesBuffer.Span.Slice(0, _rulesBuffer.Span.IndexOf((byte)0))) ?? "";
+                        string? description = Encoding.UTF8.GetString(_descriptionBuffer.Span.Slice(0, _descriptionBuffer.Span.IndexOf((byte)0))) ?? "";
+                        _ = _apiController.GroupSetProfile(new(GroupFullInfo.Group), new(rules, description));
+                        _isProfileSaved = true;
+                    }
                 }
+                ImGuiHelpers.ScaledDummy(2f);
             }
-            descriptionTab.Dispose();
+            profileTab.Dispose();
 
             var inviteTab = ImRaii.TabItem("Invites");
             if (inviteTab)
