@@ -28,6 +28,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private bool _passwordless = false;
     private bool _isGuestModeEnabled = false;
     private bool _guestmode = false;
+    private int _globalControlCountdown = 0;
 
     public JoinSyncshellUI(ILogger<JoinSyncshellUI> logger, MareMediator mediator,
         UiSharedService uiSharedService, ApiController apiController, PerformanceCollectorService performanceCollectorService) 
@@ -50,6 +51,16 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         });
 
         Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;
+    }
+
+    private async Task GlobalControlCountdown(int countdown)
+    {
+        _globalControlCountdown = countdown;
+        while (_globalControlCountdown > 0)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            _globalControlCountdown--;
+        }
     }
 
     public override void OnOpen()
@@ -134,15 +145,29 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         else
         {
             ImGui.TextUnformatted("You are about to join the Syncshell " + _groupJoinInfo.GroupAliasOrGID + " by " + _groupJoinInfo.OwnerAliasOrUID);
-            if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.Description))
+            try
             {
-                ImGuiHelpers.ScaledDummy(2f);
-                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
-                    ImGui.TextUnformatted("Description");
-                ImGuiHelpers.ScaledDummy(2f);
-                ImGui.TextWrapped(_groupJoinInfo.PublicData.Description);
-                ImGui.Separator();
+                if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.GroupProfile.Description))
+                {
+                    ImGuiHelpers.ScaledDummy(2f);
+                    ImGui.TextColored(ImGuiColors.DalamudGrey, "Syncshell Profile");
+                    ImGuiHelpers.ScaledDummy(2f);
+                    ImGui.TextWrapped(_groupJoinInfo.PublicData.GroupProfile.Description);
+                    ImGui.Separator();
+                }
+                if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.GroupProfile.Rules))
+                {
+
+                    ImGuiHelpers.ScaledDummy(2f);
+                    ImGui.TextColored(ImGuiColors.DalamudRed, "This Syncshell has the following rules:");
+                    ImGuiHelpers.ScaledDummy(2f);
+                    ImGui.TextWrapped(_groupJoinInfo.PublicData.GroupProfile.Rules);
+                    ImGui.Separator();
+                    _ = GlobalControlCountdown(5);
+                }
             }
+            catch (Exception) { }
+            
             ImGuiHelpers.ScaledDummy(2f);
             ImGui.TextUnformatted("This Syncshell staff has set the following suggested Syncshell permissions:");
             ImGui.AlignTextToFramePadding();
@@ -216,14 +241,21 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
                 UiSharedService.TextWrapped("Your default syncshell permissions on joining are in line with the suggested Syncshell permissions through the owner.");
             }
             ImGuiHelpers.ScaledDummy(2f);
-            if (_uiSharedService.IconTextButton(Dalamud.Interface.FontAwesomeIcon.Plus, "Finalize and join " + _groupJoinInfo.GroupAliasOrGID))
+            using (ImRaii.Disabled(_globalControlCountdown > 0))
             {
-                GroupUserPreferredPermissions joinPermissions = GroupUserPreferredPermissions.NoneSet;
-                joinPermissions.SetDisableSounds(_ownPermissions.DisableGroupSounds);
-                joinPermissions.SetDisableAnimations(_ownPermissions.DisableGroupAnimations);
-                joinPermissions.SetDisableVFX(_ownPermissions.DisableGroupVFX);
-                _ = _apiController.GroupJoinFinalize(new GroupJoinDto(_groupJoinInfo.Group, _previousPassword, joinPermissions));
-                IsOpen = false;
+                if (_uiSharedService.IconTextButton(Dalamud.Interface.FontAwesomeIcon.Plus, "Finalize and join " + _groupJoinInfo.GroupAliasOrGID))
+                {
+                    GroupUserPreferredPermissions joinPermissions = GroupUserPreferredPermissions.NoneSet;
+                    joinPermissions.SetDisableSounds(_ownPermissions.DisableGroupSounds);
+                    joinPermissions.SetDisableAnimations(_ownPermissions.DisableGroupAnimations);
+                    joinPermissions.SetDisableVFX(_ownPermissions.DisableGroupVFX);
+                    _ = _apiController.GroupJoinFinalize(new GroupJoinDto(_groupJoinInfo.Group, _previousPassword, joinPermissions));
+                    IsOpen = false;
+                }
+                if (_globalControlCountdown > 0)
+                {
+                    UiSharedService.AttachToolTip($"Please read the rules before joining. ({_globalControlCountdown})");
+                }
             }
         }
     }
