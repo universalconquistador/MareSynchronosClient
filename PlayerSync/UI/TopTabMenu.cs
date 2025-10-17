@@ -178,7 +178,7 @@ public class TopTabMenu : IMediatorSubscriber
                     xAfter with { Y = xAfter.Y + buttonSize.Y + spacing.Y, X = xAfter.X - spacing.X },
                     underlineColor, 2);
         }
-        UiSharedService.AttachToolTip("Syncshell Broadcast");
+        UiSharedService.AttachToolTip("PlayerSync");
 
         // UserConfig tab
         ImGui.SameLine();
