@@ -112,6 +112,11 @@ public class DrawFolderGroup : DrawFolderBase
         ImGui.Separator();
 
         ImGui.TextUnformatted("General Syncshell Actions");
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.PeopleGroup, "Open Syncshell Profile", menuWidth, true))
+        {
+            ImGui.CloseCurrentPopup();
+            _mareMediator.Publish(new OpenSyncshellProfilePanel(_groupFullInfoDto));
+        }
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Copy, "Copy ID", menuWidth, true))
         {
             ImGui.CloseCurrentPopup();

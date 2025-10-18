@@ -114,6 +114,13 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
                 SizePx = 35
             }));
         });
+        HeaderFont = _pluginInterface.UiBuilder.FontAtlas.NewDelegateFontHandle(e =>
+        {
+            e.OnPreBuild(tk => tk.AddDalamudAssetFont(Dalamud.DalamudAsset.NotoSansJpMedium, new()
+            {
+                SizePx = 23
+            }));
+        });
         GameFont = _pluginInterface.UiBuilder.FontAtlas.NewGameFontHandle(new(GameFontFamilyAndSize.Axis12));
         IconFont = _pluginInterface.UiBuilder.IconFontFixedWidthHandle;
     }
@@ -133,6 +140,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public string PlayerName => _dalamudUtil.GetPlayerName();
 
     public IFontHandle UidFont { get; init; }
+    public IFontHandle HeaderFont { get; init; }
     public Dictionary<ushort, string> WorldData => _dalamudUtil.WorldData.Value;
     public uint WorldId => _dalamudUtil.GetHomeWorldId();
 
@@ -432,6 +440,11 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public void BigText(string text, Vector4? color = null)
     {
         FontText(text, UidFont, color);
+    }
+
+    public void HeaderText(string text, Vector4? color = null)
+    {
+        FontText(text, HeaderFont, color);
     }
 
     public void BooleanToColoredIcon(bool value, bool inline = true)
