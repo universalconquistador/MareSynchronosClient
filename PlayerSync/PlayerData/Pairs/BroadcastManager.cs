@@ -6,13 +6,8 @@ using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace MareSynchronos.PlayerData.Pairs
 {
@@ -270,6 +265,11 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private async Task PollBroadcastsInternal()
         {
+            if (!_apiController.IsConnected)
+            {
+                _logger.LogInformation("Can't call PollBroadcastsInternal when not connected.");
+                return;
+            }
             try
             {
                 WorldData location = await _dalamudUtilService.RunOnFrameworkThread(() =>
@@ -309,7 +309,21 @@ namespace MareSynchronos.PlayerData.Pairs
                 {
                     Logger.LogTrace("Receiving broadcast groups for {location}...", locationString);
 
-                    broadcasts = await _apiController.BroadcastReceive(location).ConfigureAwait(false);
+                    try
+                    {
+                        
+                        broadcasts = await _apiController.BroadcastReceive(location).ConfigureAwait(false);
+                    }
+                    catch (InvalidDataException ex)
+                    {
+                        _logger.LogInformation(ex, "Broadcast poll failed.");
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Broadcast poll failed.");
+                        return;
+                    }
                 }
 
                 Logger.LogTrace("Received {count} groups.", broadcasts.Count);

@@ -90,8 +90,9 @@ public class DrawBroadcastGroup
     {
         ImGui.SameLine(leftSide);
         ImGui.AlignTextToFramePadding();
+        // This needs to show current online count
         ImGui.TextUnformatted($"[{_broadcast.CurrentMemberCount}]");
-        UiSharedService.AttachToolTip($"{_broadcast.CurrentMemberCount} members");
+        UiSharedService.AttachToolTip($"{_broadcast.CurrentMemberCount} members online");
         ImGui.SameLine();
         using (ImRaii.PushFont(UiBuilder.MonoFont))
         {
