@@ -110,14 +110,14 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             var profileTab = ImRaii.TabItem("Profile");
             if (profileTab)
             {
-                ImGui.TextUnformatted("Syncshell Description");
+                _uiSharedService.HeaderText("Syncshell Description");
                 if (ImGui.InputTextMultiline("###description_input", _descriptionBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300)))
                     _isProfileSaved = false;
 
                 ImGuiHelpers.ScaledDummy(2f);
 
                 ImGuiHelpers.ScaledDummy(2f);
-                ImGui.TextUnformatted("Syncshell Rules (Displayed on the finalize/join screen.)");
+                _uiSharedService.HeaderText("Syncshell Rules");
                 if (ImGui.InputTextMultiline("###rules_input", _rulesBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300)))
                     _isProfileSaved = false;
 

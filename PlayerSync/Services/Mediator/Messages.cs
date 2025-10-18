@@ -82,6 +82,7 @@ public record OpenCensusPopupMessage() : MessageBase;
 public record OpenChangelogPopupMessage(string Version, string ChangelogText) : MessageBase;
 public record ForceShowChangelogMessage() : MessageBase;
 public record OpenSyncshellAdminPanel(GroupFullInfoDto GroupInfo) : MessageBase;
+public record OpenSyncshellProfilePanel(GroupFullInfoDto GroupInfo) : MessageBase;
 public record OpenPermissionWindow(Pair Pair) : MessageBase;
 public record DownloadLimitChangedMessage() : SameThreadMessage;
 public record CensusUpdateMessage(byte Gender, byte RaceId, byte TribeId) : MessageBase;
