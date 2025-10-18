@@ -104,6 +104,11 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
     /// <returns></returns>
     private async Task SendGroupZoneSyncInfo()
     {
+        if (!_apiController.IsConnected)
+        {
+            _logger.LogWarning("Can't call SendGroupZoneSyncInfo when not connected.");
+            return;
+        }
         var dutyBound = _dalamudUtilService.IsBoundByDuty;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
         bool? inst = TerritoryTools.TerritoryStaticMap.IsInstance(ownLocation.TerritoryId);
@@ -166,10 +171,18 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
             _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = false;
             _zoneSyncConfigService.Save();
         }
-        catch (System.AggregateException)
+        catch (AggregateException)
         {
             // TODO Find out who is calling early
             _logger.LogDebug("ZoneSync was called before the server state was connected.");
+        }
+        catch (InvalidDataException ex)
+        {
+            _logger.LogWarning(ex, "ZoneSync join failed.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "ZoneSync join failed.");
         }
     }
 
@@ -198,6 +211,11 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
 
     private async Task GroupZoneLeaveAll()
     {
+        if (!_apiController.IsConnected)
+        {
+            _logger.LogWarning("Can't call GroupZoneLeaveAll when not connected.");
+            return;
+        }
         var zoneSync = _pairManager.Groups.Where(g => g.Value.PublicData.IsZoneSync);
         foreach (var sync in zoneSync)
         {
