@@ -65,6 +65,17 @@ public sealed class UiService : DisposableMediatorSubscriberBase
             }
         });
 
+        Mediator.Subscribe<OpenSyncshellProfilePanel>(this, (msg) =>
+        {
+            if (!_createdWindows.Exists(p => p is SyncshellProfileUi ui
+                && string.Equals(ui.GroupFullInfo.GID, msg.GroupInfo.GID, StringComparison.Ordinal)))
+            {
+                var window = _uiFactory.CreateSyncshellProfileUi(msg.GroupInfo);
+                _createdWindows.Add(window);
+                _windowSystem.AddWindow(window);
+            }
+        });
+
         Mediator.Subscribe<OpenPermissionWindow>(this, (msg) =>
         {
             if (!_createdWindows.Exists(p => p is PermissionWindowUI ui
