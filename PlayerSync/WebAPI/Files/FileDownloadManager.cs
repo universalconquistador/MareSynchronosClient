@@ -25,6 +25,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
     // Guards access to _activeDownloadStreams
     private readonly object _downloadInfoLock = new object();
     private readonly List<ThrottledStream> _activeDownloadStreams;
+    private static int _downloadHaltRefCount;
 
     public FileDownloadManager(ILogger<FileDownloadManager> logger, MareMediator mediator,
         FileTransferOrchestrator orchestrator,
@@ -71,22 +72,69 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         _downloadStatus.Clear();
     }
 
+    //public async Task DownloadFiles(GameObjectHandler gameObject, List<FileReplacementData> fileReplacementDto, CancellationToken ct)
+    //{
+    //    Mediator.Publish(new HaltScanMessage(nameof(DownloadFiles)));
+    //    try
+    //    {
+    //        await DownloadFilesInternal(gameObject, fileReplacementDto, ct).ConfigureAwait(false);
+    //    }
+    //    catch
+    //    {
+    //        ClearDownload();
+    //    }
+    //    finally
+    //    {
+    //        Mediator.Publish(new DownloadFinishedMessage(gameObject));
+    //        Mediator.Publish(new ResumeScanMessage(nameof(DownloadFiles)));
+    //    }
+    //}
     public async Task DownloadFiles(GameObjectHandler gameObject, List<FileReplacementData> fileReplacementDto, CancellationToken ct)
     {
-        Mediator.Publish(new HaltScanMessage(nameof(DownloadFiles)));
+        // Increment first; only the first concurrent call actually publishes Halt.
+        var shouldPublishHalt = Interlocked.Increment(ref _downloadHaltRefCount) == 1;
+        if (shouldPublishHalt)
+            SafePublish(() => Mediator.Publish(new HaltScanMessage(nameof(DownloadFiles))),
+                        "HaltScan(DownloadFiles)");
+
         try
         {
             await DownloadFilesInternal(gameObject, fileReplacementDto, ct).ConfigureAwait(false);
         }
-        catch
+        catch (OperationCanceledException)
         {
-            ClearDownload();
+            ClearDownload(); // optional
+            Logger.LogInformation("DownloadFiles cancelled");
+        }
+        catch (Exception ex)
+        {
+            ClearDownload(); // optional
+            Logger.LogError(ex, "DownloadFiles failed unexpectedly");
+            // swallow to reach finally and decrement the refcount
         }
         finally
         {
-            Mediator.Publish(new DownloadFinishedMessage(gameObject));
-            Mediator.Publish(new ResumeScanMessage(nameof(DownloadFiles)));
+            // Never let a throwing subscriber block the resume/decrement path.
+            SafePublish(() => Mediator.Publish(new DownloadFinishedMessage(gameObject)),"DownloadFinishedMessage");
+
+            // Decrement; only the *last* concurrent call publishes Resume.
+            var newCount = Interlocked.Decrement(ref _downloadHaltRefCount);
+            if (newCount == 0)
+                SafePublish(() => Mediator.Publish(new ResumeScanMessage(nameof(DownloadFiles))), "ResumeScan(DownloadFiles)");
+            else if (newCount < 0)
+            {
+                // Defensive: shouldn't happen, but don’t let it go unnoticed.
+                Interlocked.Exchange(ref _downloadHaltRefCount, 0);
+                Logger.LogError("DownloadFiles halt refcount went negative; resetting to 0");
+                SafePublish(() => Mediator.Publish(new ResumeScanMessage(nameof(DownloadFiles))), "ResumeScan(DownloadFiles/reset)");
+            }
         }
+    }
+
+    private void SafePublish(Action publish, string what)
+    {
+        try { publish(); }
+        catch (Exception ex) { Logger.LogWarning(ex, "{what} publish threw", what); }
     }
 
     protected override void Dispose(bool disposing)
