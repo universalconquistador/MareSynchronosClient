@@ -972,6 +972,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.Separator();
 
         var disableOptionalPluginWarnings = _configService.Current.DisableOptionalPluginWarnings;
+        var syncConflictNotifs = _configService.Current.ShowSyncConflictNotifications;
         var pairingRequestNotifs = _configService.Current.ShowPairingRequestNotification;
         var broadcastNotifs = _configService.Current.ShowAvailableBroadcastsNotification;
         var onlineNotifs = _configService.Current.ShowOnlineNotifications;
@@ -1021,6 +1022,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will not show any \"Warning\" labeled messages for missing optional plugins.");
+        if (ImGui.Checkbox("Enable sync conflict notifications", ref syncConflictNotifs))
+        {
+            _configService.Current.ShowSyncConflictNotifications = syncConflictNotifs;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Enabling this will show chat notifications when loading PlayerSync with a potentially conflicting plugin.");
         if (ImGui.Checkbox("Enable pairing request notifications", ref pairingRequestNotifs))
         {
             _configService.Current.ShowPairingRequestNotification = pairingRequestNotifs;
@@ -1177,12 +1184,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Setting this too low may not give your PC enough time to unload/load other players.");
         var zoneSyncJoinDelay = _zoneSyncConfigService.Current.ZoneJoinDelayTime;
-        if (ImGui.SliderInt("ZoneSync Join Delay", ref zoneSyncJoinDelay, 5, 15))
+        if (ImGui.SliderInt("ZoneSync Join Delay", ref zoneSyncJoinDelay, 5, 30))
         {
             _zoneSyncConfigService.Current.ZoneJoinDelayTime = zoneSyncJoinDelay;
             _zoneSyncConfigService.Save();
         }
-        _uiShared.DrawHelpText("Set the wait time between entering a zone and joining a ZoneSync. Increase this if your PC ");
+        _uiShared.DrawHelpText("Set the wait time in seconds between entering a zone and joining a ZoneSync. Increase this if you have pairing issues after zoning.");
 
         ImGuiHelpers.ScaledDummy(5f);
         UiSharedService.TextWrapped("Note: These permissions are applied only to ZoneSync syncshells.");
