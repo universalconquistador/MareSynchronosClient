@@ -66,7 +66,10 @@ public sealed class CommandManagerService : IDisposable
         if (!syncOk)
         {
             _log.Information("{Alias} is taken; will fall back to {Fallback}", _commandName, _secondaryCommandName);
-            _chat.PrintError("[PlayerSync] Another plugin conflicts with /sync, using /psync as a fallback.");
+            if (_mareConfigService.Current.ShowSyncConflictNotifications)
+            {
+                _chat.PrintError("[PlayerSync] Another plugin conflicts with /sync, using /psync as a fallback.");
+            }
         }
 
         var psyncHandler = new CommandInfo(OnCommand)
