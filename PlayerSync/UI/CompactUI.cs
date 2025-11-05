@@ -206,12 +206,12 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         using (ImRaii.PushId("header")) DrawUIDHeader();
         ImGui.Separator();
+        using (ImRaii.PushId("serverstatus")) DrawServerStatus();
+        ImGui.Separator();
         if (_configService.Current.ShowAnalysisOnCompactUi && !_configService.Current.ShowAnalysisCompactUiBottom)
         {
             using (ImRaii.PushId("analysis")) DrawAnalysisInfo();
         }
-        using (ImRaii.PushId("serverstatus")) DrawServerStatus();
-        ImGui.Separator();
 
         if (_apiController.ServerState is ServerState.Connected)
         {
