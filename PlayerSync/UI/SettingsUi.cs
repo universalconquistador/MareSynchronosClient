@@ -791,6 +791,9 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var groupInVisible = _configService.Current.ShowSyncshellUsersInVisible;
         var syncshellOfflineSeparate = _configService.Current.ShowSyncshellOfflineUsersSeparately;
         var showWindowOnPluginLoad = _configService.Current.ShowUIOnPluginLoad;
+        var showAnalysisOnUi = _configService.Current.ShowAnalysisOnCompactUi;
+        var showAnalysisBottom = _configService.Current.ShowAnalysisCompactUiBottom;
+        var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
 
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
         {
@@ -798,6 +801,27 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("This opens the UI automatically whenever the plugin is loaded/reloaded.");
+        if (ImGui.Checkbox("Show VRAM/triangle usage on main UI", ref showAnalysisOnUi))
+        {
+            _configService.Current.ShowAnalysisOnCompactUi = showAnalysisOnUi;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This shows your current VRAM usage and triangle count on the main UI.");
+        ImGui.Indent();
+        if (!showAnalysisOnUi) ImGui.BeginDisabled();
+        if (ImGui.Checkbox("Show VRAM/triangle usage color coded", ref showAnalysisColor))
+        {
+            _configService.Current.ShowAnalysisCompactUiColor = showAnalysisColor;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This will turn the values yellow if you exceed your configured threshold.");
+        if (ImGui.Checkbox("Display at bottom of the UI window", ref showAnalysisBottom))
+        {
+            _configService.Current.ShowAnalysisCompactUiBottom = showAnalysisBottom;
+            _configService.Save();
+        }
+        if (!showAnalysisOnUi) ImGui.EndDisabled();
+        ImGui.Unindent();
         if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))
         {
             _configService.Current.EnableRightClickMenus = enableRightClickMenu;

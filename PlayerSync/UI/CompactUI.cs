@@ -26,6 +26,8 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Numerics;
 using System.Reflection;
+using System.Threading.Tasks;
+using MareSynchronos.MareConfiguration.Configurations;
 
 namespace MareSynchronos.UI;
 
@@ -34,6 +36,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly ApiController _apiController;
     private readonly MareConfigService _configService;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
+    private readonly PlayerPerformanceConfigService _playerPerformanceConfig;
     private readonly ConcurrentDictionary<GameObjectHandler, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DrawEntityFactory _drawEntityFactory;
     private readonly FileUploadManager _fileTransferManager;
@@ -46,6 +49,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly TopTabMenu _tabMenu;
     private readonly TagHandler _tagHandler;
     private readonly UiSharedService _uiSharedService;
+    private readonly CharacterAnalyzer _characterAnalyzer;
     private List<IDrawFolder> _drawFolders;
     private DrawFolderBroadcasts? _broadcastsFolder;
     private Pair? _lastAddedUser;
@@ -62,7 +66,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager,
         ServerConfigurationManager serverManager, MareMediator mediator, FileUploadManager fileTransferManager,
         TagHandler tagHandler, DrawEntityFactory drawEntityFactory, SelectTagForPairUi selectTagForPairUi, SelectPairForTagUi selectPairForTagUi,
-        PerformanceCollectorService performanceCollectorService, IpcManager ipcManager)
+        PerformanceCollectorService performanceCollectorService, IpcManager ipcManager, CharacterAnalyzer characterAnalyzer, PlayerPerformanceConfigService playerPerformanceConfig)
         : base(logger, mediator, "###PlayerSyncMainUI", performanceCollectorService)
     {
         _uiSharedService = uiShared;
@@ -70,6 +74,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         _apiController = apiController;
         _pairManager = pairManager;
         _zoneSyncConfigService = zoneSyncConfigService;
+        _playerPerformanceConfig = playerPerformanceConfig;
         _broadcastManager = broadcastManager;
         _serverManager = serverManager;
         _fileTransferManager = fileTransferManager;
@@ -78,6 +83,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         _selectGroupForPairUi = selectTagForPairUi;
         _selectPairsForGroupUi = selectPairForTagUi;
         _ipcManager = ipcManager;
+        _characterAnalyzer = characterAnalyzer;
         _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _zoneSyncConfigService);
 
         AllowClickthrough = false;
@@ -147,6 +153,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         };
 
         if (_configService.Current.ShowUIOnPluginLoad) IsOpen = true;
+        _characterAnalyzer = characterAnalyzer;
+        _playerPerformanceConfig = playerPerformanceConfig;
     }
 
     protected override void DrawInternal()
@@ -198,6 +206,10 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         using (ImRaii.PushId("header")) DrawUIDHeader();
         ImGui.Separator();
+        if (_configService.Current.ShowAnalysisOnCompactUi && !_configService.Current.ShowAnalysisCompactUiBottom)
+        {
+            using (ImRaii.PushId("analysis")) DrawAnalysisInfo();
+        }
         using (ImRaii.PushId("serverstatus")) DrawServerStatus();
         ImGui.Separator();
 
@@ -207,6 +219,10 @@ public class CompactUi : WindowMediatorSubscriberBase
             using (ImRaii.PushId("pairlist")) DrawPairs();
             ImGui.Separator();
             float pairlistEnd = ImGui.GetCursorPosY();
+            if (_configService.Current.ShowAnalysisOnCompactUi && _configService.Current.ShowAnalysisCompactUiBottom)
+            {
+                using (ImRaii.PushId("analysis"))  DrawAnalysisInfo();
+            }
             using (ImRaii.PushId("transfers")) DrawTransfers();
             _transferPartHeight = ImGui.GetCursorPosY() - pairlistEnd - ImGui.GetTextLineHeight();
             using (ImRaii.PushId("group-user-popup")) _selectPairsForGroupUi.Draw(_pairManager.DirectPairs);
@@ -446,6 +462,48 @@ public class CompactUi : WindowMediatorSubscriberBase
         {
             UiSharedService.ColorTextWrapped(GetServerError(), GetUidColor());
         }
+    }
+
+    private void DrawAnalysisInfo()
+    {
+        if (_apiController.ServerState is not ServerState.Connected) { return; }
+
+        var metrics = _characterAnalyzer.LastMetrics;
+        var totalVram = metrics?.TotalVramBytes ?? 0L;
+        var totalTris = metrics?.TotalTriangles ?? 0L;
+        var playerAnalysis = $"Your mods' VRAM: {UiSharedService.ByteToString(totalVram)}, Triangles: {totalTris:N0}";
+        var textSize = ImGui.CalcTextSize(playerAnalysis);
+
+        ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (textSize.X / 2));
+        ImGui.TextUnformatted("Your mods' VRAM: ");
+        ImGui.SameLine(0, 0);
+
+        var color = _configService.Current.ShowAnalysisCompactUiColor;
+        var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
+        if ((currentVramWarning * 1024 * 1024 < totalVram) && color)
+        {
+            UiSharedService.ColorText($"{UiSharedService.ByteToString(totalVram)}", ImGuiColors.DalamudYellow);
+            UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{UiSharedService.ByteToString(totalVram - (currentVramWarning * 1024 * 1024))}.");
+        }
+        else
+        {
+            ImGui.TextUnformatted($"{UiSharedService.ByteToString(totalVram)}");
+        }
+        ImGui.SameLine(0, 0);
+        ImGui.TextUnformatted(", Triangles: ");
+        ImGui.SameLine(0, 0);
+        var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
+        if ((currentTriWarning * 1000 < totalTris) && color)
+        {
+            UiSharedService.ColorText($"{totalTris:N0}", ImGuiColors.DalamudYellow);
+            UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{totalTris - (currentTriWarning * 1000):N0} triangles.");
+        }
+        else
+        {
+            ImGui.TextUnformatted($"{totalTris:N0}");
+        }
+        
+        ImGui.Separator();
     }
 
     private IEnumerable<IDrawFolder> GetDrawFolders()
