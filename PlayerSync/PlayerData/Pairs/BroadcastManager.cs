@@ -1,4 +1,5 @@
 ﻿using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.MareConfiguration;
@@ -7,6 +8,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using System.Numerics;
+using static FFXIVClientStructs.FFXIV.Client.UI.RaptureAtkHistory.Delegates;
 
 
 namespace MareSynchronos.PlayerData.Pairs
@@ -330,8 +332,15 @@ namespace MareSynchronos.PlayerData.Pairs
 
                 if (IsListening)
                 {
-                    AvailableBroadcastGroups = broadcasts.AsReadOnly();
-                    Mediator.Publish(new RefreshUiMessage());
+                    var updateBroadcastGroups = broadcasts.AsReadOnly();
+                    var changed = AvailableBroadcastGroups.Count != updateBroadcastGroups.Count
+                        || !AvailableBroadcastGroups.SequenceEqual(updateBroadcastGroups, GroupBroadcastComparer.Instance);
+
+                    if (changed)
+                    {
+                        Mediator.Publish(new RefreshUiMessage());
+                    }
+                    AvailableBroadcastGroups = updateBroadcastGroups;
 
                     bool availableBroadcastGroupWithoutMine = AvailableBroadcastGroups.Any(broadcast => broadcast.Broadcasters.Count != 1 || broadcast.Broadcasters[0].UID != _apiController.UID);
                     if (availableBroadcastGroupWithoutMine
