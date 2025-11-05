@@ -333,8 +333,7 @@ namespace MareSynchronos.PlayerData.Pairs
                 if (IsListening)
                 {
                     var updateBroadcastGroups = broadcasts.AsReadOnly();
-                    var changed = AvailableBroadcastGroups.Count != updateBroadcastGroups.Count
-                        || !AvailableBroadcastGroups.SequenceEqual(updateBroadcastGroups, GroupBroadcastComparer.Instance);
+                    var changed = !GroupBroadcastComparer.MultisetEquals(AvailableBroadcastGroups, updateBroadcastGroups);
 
                     if (changed)
                     {
