@@ -161,28 +161,33 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             ImGuiHelpers.ScaledDummy(2f);
             ImGui.Separator();
 
-            if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.GroupProfile.Description))
+            bool sep = false;
+            if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.GroupProfile?.Description ?? ""))
             {
                 ImGuiHelpers.ScaledDummy(2f);
                 //ImGui.TextColored(ImGuiColors.DalamudGrey, "Syncshell Profile");
                 _uiSharedService.HeaderText("Syncshell Description");
-                ImGui.TextWrapped(_groupJoinInfo.PublicData.GroupProfile.Description);
+                ImGui.TextWrapped(_groupJoinInfo.PublicData.GroupProfile!.Description);
+                sep = true;
             }
 
-            if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.GroupProfile.Rules))
+            if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.GroupProfile?.Rules ?? ""))
             {
                 ImGuiHelpers.ScaledDummy(2f);
                 //ImGui.TextColored(ImGuiColors.DalamudRed, "This Syncshell has the following rules:");
                 _uiSharedService.HeaderText("This Syncshell has the following rules:", ImGuiColors.DalamudRed);
-                ImGui.TextWrapped(_groupJoinInfo.PublicData.GroupProfile.Rules);
+                ImGui.TextWrapped(_groupJoinInfo.PublicData.GroupProfile!.Rules);
+                sep = true;
 
                 _ = GlobalControlCountdown(5);
             }
-
-            ImGuiHelpers.ScaledDummy(2f);
-            ImGui.Separator();
-            ImGuiHelpers.ScaledDummy(2f);
-
+            if (sep)
+            {
+                ImGuiHelpers.ScaledDummy(2f);
+                ImGui.Separator();
+                ImGuiHelpers.ScaledDummy(2f);
+            }
+            
             _uiSharedService.HeaderText("Syncshell suggested permissions:");
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("- Sounds ");
