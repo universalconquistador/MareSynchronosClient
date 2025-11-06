@@ -826,6 +826,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Current.ShowCompactStats = ShowCompactStats;
             _configService.Save();
         }
+        _uiShared.DrawHelpText("Compact display on 1 line for Performance Stats if enabled, Purely Aesthetic. ");
         if (!showAnalysisOnUi) ImGui.EndDisabled();
         ImGui.Unindent();
         if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))
