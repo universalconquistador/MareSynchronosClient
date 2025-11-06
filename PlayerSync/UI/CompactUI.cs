@@ -513,7 +513,6 @@ public class CompactUi : WindowMediatorSubscriberBase
             else if ((currentVramWarning * 1024 * 1024 > totalVram) && color)
             {
                 UiSharedService.ColorText($"{UiSharedService.ByteToString(totalVram)}", allgood);
-                UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{UiSharedService.ByteToString(totalVram - (currentVramWarning * 1024 * 1024))}.");
             }
             else
             {
@@ -540,7 +539,6 @@ public class CompactUi : WindowMediatorSubscriberBase
             else if ((currentTriWarning * 1000 > totalTris) && color)
             {
                 UiSharedService.ColorText($"{totalTris:N0}", allgood);
-                UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{totalTris - (currentTriWarning * 1000):N0} triangles.");
             }
             else
             {
