@@ -98,7 +98,7 @@ public class DrawBroadcastGroup
         {
             ImGui.TextUnformatted($"{_broadcast.GroupAliasOrGID}");
         }
-        UiSharedService.AttachToolTip($"Syncshell {_broadcast.Group.AliasOrGID}\nOwner: {_broadcast.Owner.UID}\nBroadcast by: {string.Join(", ", _broadcast.Broadcasters.Select(user => user.UID))}");
+        UiSharedService.AttachToolTip($"Syncshell {_broadcast.Group.AliasOrGID}\nOwner: {_broadcast.Owner.AliasOrUID}\nBroadcast by: {string.Join(", ", _broadcast.Broadcasters.Select(user => user.AliasOrUID))}");
     }
 
     private float DrawRightSide()

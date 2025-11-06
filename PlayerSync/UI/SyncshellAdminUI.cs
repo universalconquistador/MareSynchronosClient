@@ -58,11 +58,11 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         };
         Mediator.Subscribe<GroupInfoChanged>(this, message =>
         {
-            Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.GroupProfile.Description, _descriptionBuffer.Span);
-            Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.GroupProfile.Rules, _rulesBuffer.Span);
+            Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.GroupProfile?.Description ?? "NYE", _descriptionBuffer.Span);
+            Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.GroupProfile?.Rules ?? "NYE", _rulesBuffer.Span);
         });
-        Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile.Description, _descriptionBuffer.Span);
-        Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile.Rules, _rulesBuffer.Span);
+        Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile?.Description ?? "NYE", _descriptionBuffer.Span);
+        Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile?.Rules ?? "NYE", _rulesBuffer.Span);
     }
 
     public GroupFullInfoDto GroupFullInfo { get; private set; }
