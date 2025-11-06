@@ -8,7 +8,6 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using System.Numerics;
-using static FFXIVClientStructs.FFXIV.Client.UI.RaptureAtkHistory.Delegates;
 
 
 namespace MareSynchronos.PlayerData.Pairs
@@ -270,7 +269,7 @@ namespace MareSynchronos.PlayerData.Pairs
             if (!_apiController.IsConnected)
             {
                 _logger.LogInformation("Can't call PollBroadcastsInternal when not connected.");
-                _nextPeriodicPoll = DateTimeOffset.UtcNow + _pollInterval;
+                _pollingBroadcasts = 0;
                 return;
             }
             try
