@@ -463,49 +463,152 @@ public class CompactUi : WindowMediatorSubscriberBase
             UiSharedService.ColorTextWrapped(GetServerError(), GetUidColor());
         }
     }
-
+    
+    //Color Display Linked to CheckBox
     private void DrawAnalysisInfo()
     {
         if (_apiController.ServerState is not ServerState.Connected) { return; }
 
+
+
+        var color = _configService.Current.ShowAnalysisCompactUiColor;
+        var compact = _configService.Current.ShowCompactStats;
+        var tealblue = new Vector4(0.0f, 1.0f, 1.0f, 1.0f);
+        var allgood = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
         var metrics = _characterAnalyzer.LastMetrics;
         var totalVram = metrics?.TotalVramBytes ?? 0L;
         var totalTris = metrics?.TotalTriangles ?? 0L;
-        var playerAnalysis = $"Your mods' VRAM: {UiSharedService.ByteToString(totalVram)}, Triangles: {totalTris:N0}";
+
+        var playerAnalysis = $"Current VRAM: {UiSharedService.ByteToString(totalVram)}";
+        var playerAnalysis2 = $"Current Triangle Count: {totalTris:N0}";
+
         var textSize = ImGui.CalcTextSize(playerAnalysis);
-
-        ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (textSize.X / 2));
-        ImGui.TextUnformatted("Your mods' VRAM: ");
-        ImGui.SameLine(0, 0);
-
-        var color = _configService.Current.ShowAnalysisCompactUiColor;
-        var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
-        if ((currentVramWarning * 1024 * 1024 < totalVram) && color)
-        {
-            UiSharedService.ColorText($"{UiSharedService.ByteToString(totalVram)}", ImGuiColors.DalamudYellow);
-            UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{UiSharedService.ByteToString(totalVram - (currentVramWarning * 1024 * 1024))}.");
-        }
-        else
-        {
-            ImGui.TextUnformatted($"{UiSharedService.ByteToString(totalVram)}");
-        }
-        ImGui.SameLine(0, 0);
-        ImGui.TextUnformatted(", Triangles: ");
-        ImGui.SameLine(0, 0);
+        var textSize2 = ImGui.CalcTextSize(playerAnalysis2);
         var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
-        if ((currentTriWarning * 1000 < totalTris) && color)
+        var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
+
+        if (compact) //compact color options
         {
-            UiSharedService.ColorText($"{totalTris:N0}", ImGuiColors.DalamudYellow);
-            UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{totalTris - (currentTriWarning * 1000):N0} triangles.");
+
+            var playerAnalysis3 = $"Current VRAM: {UiSharedService.ByteToString(totalVram)}, Current Triangles: {totalTris:N0}";
+            var textSize3 = ImGui.CalcTextSize(playerAnalysis3);
+
+            ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (textSize3.X / 2));
+            if (color)
+            {
+                UiSharedService.ColorText("Current VRAM: ", tealblue);
+            }
+            else
+            {
+                ImGui.TextUnformatted("Current VRAM: ");
+            }
+
+            ImGui.SameLine(0, 0);
+
+            //var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
+            if ((currentVramWarning * 1024 * 1024 < totalVram) && color)
+            {
+                UiSharedService.ColorText($"{UiSharedService.ByteToString(totalVram)}", ImGuiColors.DalamudYellow);
+                UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{UiSharedService.ByteToString(totalVram - (currentVramWarning * 1024 * 1024))}.");
+            }
+            else if ((currentVramWarning * 1024 * 1024 > totalVram) && color)
+            {
+                UiSharedService.ColorText($"{UiSharedService.ByteToString(totalVram)}", allgood);
+                UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{UiSharedService.ByteToString(totalVram - (currentVramWarning * 1024 * 1024))}.");
+            }
+            else
+            {
+                ImGui.TextUnformatted($"{UiSharedService.ByteToString(totalVram)}");
+            }
+            ImGui.SameLine(0, 0);
+            if (color)
+            {
+                UiSharedService.ColorText(", Current Triangles: ", tealblue);
+            }
+            else
+            {
+                ImGui.TextUnformatted(", Current Triangles: ");
+            }
+                
+        
+            ImGui.SameLine(0, 0);
+
+            if ((currentTriWarning * 1000 < totalTris) && color)
+            {
+                UiSharedService.ColorText($"{totalTris:N0}", ImGuiColors.DalamudYellow);
+                UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{totalTris - (currentTriWarning * 1000):N0} triangles.");
+            }
+            else if ((currentTriWarning * 1000 > totalTris) && color)
+            {
+                UiSharedService.ColorText($"{totalTris:N0}", allgood);
+                UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{totalTris - (currentTriWarning * 1000):N0} triangles.");
+            }
+            else
+            {
+                ImGui.TextUnformatted($"{totalTris:N0}");
+            }
+
+            ImGui.Separator();
         }
+
+        // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
         else
         {
-            ImGui.TextUnformatted($"{totalTris:N0}");
-        }
-        
-        ImGui.Separator();
-    }
+            ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (textSize.X / 2));
+            if (color)
+            {
+                UiSharedService.ColorText("Current VRAM: ", tealblue);
+            }
+            else
+            {
+                ImGui.TextUnformatted("Current VRAM: ");
+            }
+            ImGui.SameLine(0, 0);
 
+            if ((currentVramWarning * 1024 * 1024 < totalVram) && color)
+            {
+                UiSharedService.ColorText($"{UiSharedService.ByteToString(totalVram)}", ImGuiColors.DalamudYellow);
+                UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{UiSharedService.ByteToString(totalVram - (currentVramWarning * 1024 * 1024))}.");
+            }
+            else if ((currentVramWarning * 1024 * 1024 > totalVram) && color)
+            {
+                UiSharedService.ColorText($"{UiSharedService.ByteToString(totalVram)}", allgood);
+            }
+            else
+            {
+                ImGui.TextUnformatted($"{UiSharedService.ByteToString(totalVram)}");
+            }
+
+            ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (textSize2.X / 2));
+            if (color)
+            {
+                UiSharedService.ColorText("Current Triangle Count: ", tealblue);
+            }
+            else
+            {
+                ImGui.TextUnformatted("Current Triangle Count: ");
+            }
+            ImGui.SameLine(0, 0);
+
+            //var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
+            if ((currentTriWarning * 1000 < totalTris) && color)
+            {
+                UiSharedService.ColorText($"{totalTris:N0}", ImGuiColors.DalamudYellow);
+                UiSharedService.AttachToolTip($"You exceed your own threshold by " + $"{totalTris - (currentTriWarning * 1000):N0} triangles.");
+            }
+            else if ((currentTriWarning * 1000 > totalTris) && color)
+            {
+                UiSharedService.ColorText($"{totalTris:N0}", allgood);
+            }
+            else
+            {
+                ImGui.TextUnformatted($"{totalTris:N0}");
+            }
+
+            ImGui.Separator();
+        }
+    }
     private IEnumerable<IDrawFolder> GetDrawFolders()
     {
         List<IDrawFolder> drawFolders = [];

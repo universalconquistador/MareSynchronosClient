@@ -794,6 +794,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var showAnalysisOnUi = _configService.Current.ShowAnalysisOnCompactUi;
         var showAnalysisBottom = _configService.Current.ShowAnalysisCompactUiBottom;
         var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
+        var ShowCompactStats = _configService.Current.ShowCompactStats;
 
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
         {
@@ -818,6 +819,11 @@ public class SettingsUi : WindowMediatorSubscriberBase
         if (ImGui.Checkbox("Display at bottom of the UI window", ref showAnalysisBottom))
         {
             _configService.Current.ShowAnalysisCompactUiBottom = showAnalysisBottom;
+            _configService.Save();
+        }
+        if (ImGui.Checkbox("Compact Stats to 1 line", ref ShowCompactStats))
+        {
+            _configService.Current.ShowCompactStats = ShowCompactStats;
             _configService.Save();
         }
         if (!showAnalysisOnUi) ImGui.EndDisabled();
