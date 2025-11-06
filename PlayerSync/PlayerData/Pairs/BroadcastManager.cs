@@ -270,6 +270,7 @@ namespace MareSynchronos.PlayerData.Pairs
             if (!_apiController.IsConnected)
             {
                 _logger.LogInformation("Can't call PollBroadcastsInternal when not connected.");
+                _nextPeriodicPoll = DateTimeOffset.UtcNow + _pollInterval;
                 return;
             }
             try
