@@ -473,12 +473,14 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             {
                 bool isDisableAnimations = perm.IsPreferDisableAnimations();
                 bool isDisableSounds = perm.IsPreferDisableSounds();
-                bool isDisableVfx = perm.IsPreferDisableVFX();                
+                bool isDisableVfx = perm.IsPreferDisableVFX();
+
+                float PositionalX2 = 200f * ImGui.GetIO().FontGlobalScale;
 
                 ImGui.AlignTextToFramePadding();
                 ImGui.Text("Suggest Sound Sync");
                 _uiSharedService.BooleanToColoredIcon(!isDisableSounds);
-                ImGui.SameLine(230);
+                ImGui.SameLine(PositionalX2);
                 if (_uiSharedService.IconTextButton(isDisableSounds ? FontAwesomeIcon.VolumeUp : FontAwesomeIcon.VolumeMute,
                     isDisableSounds ? "Suggest to enable sound sync" : "Suggest to disable sound sync"))
                 {
@@ -489,7 +491,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                 ImGui.AlignTextToFramePadding();
                 ImGui.Text("Suggest Animation Sync");
                 _uiSharedService.BooleanToColoredIcon(!isDisableAnimations);
-                ImGui.SameLine(230);
+                ImGui.SameLine(PositionalX2);
                 if (_uiSharedService.IconTextButton(isDisableAnimations ? FontAwesomeIcon.Running : FontAwesomeIcon.Stop,
                     isDisableAnimations ? "Suggest to enable animation sync" : "Suggest to disable animation sync"))
                 {
@@ -500,7 +502,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                 ImGui.AlignTextToFramePadding();
                 ImGui.Text("Suggest VFX Sync");
                 _uiSharedService.BooleanToColoredIcon(!isDisableVfx);
-                ImGui.SameLine(230);
+                ImGui.SameLine(PositionalX2);
                 if (_uiSharedService.IconTextButton(isDisableVfx ? FontAwesomeIcon.Sun : FontAwesomeIcon.Circle,
                     isDisableVfx ? "Suggest to enable vfx sync" : "Suggest to disable vfx sync"))
                 {
