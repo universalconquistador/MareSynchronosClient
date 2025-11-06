@@ -505,7 +505,6 @@ public class CompactUi : WindowMediatorSubscriberBase
 
             ImGui.SameLine(0, 0);
 
-            //var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
             if ((currentVramWarning * 1024 * 1024 < totalVram) && color)
             {
                 UiSharedService.ColorText($"{UiSharedService.ByteToString(totalVram)}", ImGuiColors.DalamudYellow);
