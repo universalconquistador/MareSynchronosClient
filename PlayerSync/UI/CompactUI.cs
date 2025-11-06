@@ -429,39 +429,46 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     private void DrawUIDHeader()
     {
-        var uidText = GetUidText();
+        var PSNAME = _configService.Current.ShowPlayerSyncName;
 
-        using (_uiSharedService.UidFont.Push())
+        if (PSNAME)
         {
-            var uidTextSize = ImGui.CalcTextSize(uidText);
-            ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (uidTextSize.X / 2));
-            ImGui.TextColored(GetUidColor(), uidText);
-        }
+            var uidText = GetUidText();
 
-        if (_apiController.ServerState is ServerState.Connected)
-        {
-            if (ImGui.IsItemClicked())
+            using (_uiSharedService.UidFont.Push())
             {
-                ImGui.SetClipboardText(_apiController.DisplayName);
+                var uidTextSize = ImGui.CalcTextSize(uidText);
+                ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (uidTextSize.X / 2));
+                ImGui.TextColored(GetUidColor(), uidText);
             }
-            UiSharedService.AttachToolTip("Click to copy");
 
-            if (!string.Equals(_apiController.DisplayName, _apiController.UID, StringComparison.Ordinal))
+            if (_apiController.ServerState is ServerState.Connected)
             {
-                var origTextSize = ImGui.CalcTextSize(_apiController.UID);
-                ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (origTextSize.X / 2));
-                ImGui.TextColored(GetUidColor(), _apiController.UID);
                 if (ImGui.IsItemClicked())
                 {
-                    ImGui.SetClipboardText(_apiController.UID);
+                    ImGui.SetClipboardText(_apiController.DisplayName);
                 }
                 UiSharedService.AttachToolTip("Click to copy");
+
+                if (!string.Equals(_apiController.DisplayName, _apiController.UID, StringComparison.Ordinal))
+                {
+                    var origTextSize = ImGui.CalcTextSize(_apiController.UID);
+                    ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (origTextSize.X / 2));
+                    ImGui.TextColored(GetUidColor(), _apiController.UID);
+                    if (ImGui.IsItemClicked())
+                    {
+                        ImGui.SetClipboardText(_apiController.UID);
+                    }
+                    UiSharedService.AttachToolTip("Click to copy");
+                }
+            }
+            else
+            {
+                UiSharedService.ColorTextWrapped(GetServerError(), GetUidColor());
             }
         }
-        else
-        {
-            UiSharedService.ColorTextWrapped(GetServerError(), GetUidColor());
-        }
+        else { }
+            
     }
     
     //Color Display Linked to CheckBox
@@ -470,7 +477,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         if (_apiController.ServerState is not ServerState.Connected) { return; }
 
 
-
+        
         var color = _configService.Current.ShowAnalysisCompactUiColor;
         var compact = _configService.Current.ShowCompactStats;
         var tealblue = new Vector4(0.0f, 1.0f, 1.0f, 1.0f);

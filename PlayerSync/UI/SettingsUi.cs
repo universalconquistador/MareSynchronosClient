@@ -795,7 +795,14 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var showAnalysisBottom = _configService.Current.ShowAnalysisCompactUiBottom;
         var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
         var ShowCompactStats = _configService.Current.ShowCompactStats;
+        var ShowPlayerSyncName = _configService.Current.ShowPlayerSyncName;
 
+        if (ImGui.Checkbox("Show PlayerSync User Name", ref ShowPlayerSyncName))
+        {
+            _configService.Current.ShowPlayerSyncName = ShowPlayerSyncName;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Show your PlayerSync Name and Other Information");
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
         {
             _configService.Current.ShowUIOnPluginLoad = showWindowOnPluginLoad;
