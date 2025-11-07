@@ -1,0 +1,203 @@
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Colors;
+using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.API.Dto.Group;
+using MareSynchronos.MareConfiguration;
+using MareSynchronos.PlayerData.Pairs;
+using MareSynchronos.Services;
+using MareSynchronos.Services.Mediator;
+using MareSynchronos.WebAPI;
+using Microsoft.Extensions.Logging;
+using System.Collections.Immutable;
+using System.Numerics;
+
+namespace MareSynchronos.UI;
+
+internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
+{
+    private readonly UiSharedService _uiSharedService;
+    private readonly PairManager _pairManager;
+    private readonly PlayerPerformanceConfigService _playerPerformanceConfig;
+    private readonly ApiController _apiController;
+
+    public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
+        UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService, ApiController apiController)
+        : base(logger, mediator, "Player Analysis Viewer", performanceCollector)
+    { 
+        _uiSharedService = uiSharedService;
+        _pairManager = pairManager;
+        _playerPerformanceConfig = playerPerformanceConfigService;
+        _apiController = apiController;
+        SizeConstraints = new()
+        {
+            MinimumSize = new(600, 500),
+            MaximumSize = new(1000, 2000)
+        };
+        Mediator.Subscribe<OpenPlayerAnalysisViewerUIUiMessage>(this, (_) => Toggle());
+    }
+
+    protected override void DrawInternal()
+    {
+        ImmutableList<Pair> ImmutablePairList(IEnumerable<KeyValuePair<Pair, List<GroupFullInfoDto>>> u)
+            => u.Select(k => k.Key).ToImmutableList();
+        var allPairs = _pairManager.PairsWithGroups.ToDictionary(k => k.Key, k => k.Value);
+        bool FilterVisibleUsers(KeyValuePair<Pair, List<GroupFullInfoDto>> u) => u.Key.IsVisible;
+        var allVisiblePairs = ImmutablePairList(allPairs.Where(FilterVisibleUsers));
+
+        _uiSharedService.BigText("Visible Players (" + allVisiblePairs.Count().ToString() + ")");
+        ImGuiHelpers.ScaledDummy(2f);
+
+        var cursorPos = ImGui.GetCursorPosY();
+        var max = ImGui.GetWindowContentRegionMax();
+        var min = ImGui.GetWindowContentRegionMin();
+        var width = max.X - min.X;
+        var height = max.Y - cursorPos;
+        using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding,new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
+        using var table = ImRaii.Table("eventTable", 7, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY
+            | ImGuiTableFlags.RowBg | ImGuiTableFlags.Sortable | ImGuiTableFlags.SortMulti, new Vector2(width, height));
+        if (table)
+        {
+            ImGui.TableSetupScrollFreeze(0, 1);
+            ImGui.TableSetupColumn(string.Empty, ImGuiTableColumnFlags.NoSort);
+            ImGui.TableSetupColumn("UID");
+            ImGui.TableSetupColumn("Alias");
+            ImGui.TableSetupColumn("File Size");
+            ImGui.TableSetupColumn("Approx. VRAM Usage", ImGuiTableColumnFlags.DefaultSort);
+            ImGui.TableSetupColumn("Approx. Triangle Count");
+            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
+            ImGui.TableHeadersRow();
+
+            var sortedPairs = allVisiblePairs.ToList();
+            var sortSpecs = ImGui.TableGetSortSpecs();
+            if (sortSpecs.SpecsCount > 0)
+            {
+                sortedPairs.Sort((a, b) => ComparePairsForSort(a, b, sortSpecs));
+            }
+
+            foreach (var pair in sortedPairs)
+            {
+                // Target
+                ImGui.TableNextColumn();
+                _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
+                UiSharedService.AttachToolTip("Target " + pair.PlayerName);
+                if (ImGui.IsItemClicked())
+                {
+                    Mediator.Publish(new TargetPairMessage(pair));
+                }
+
+                // UID
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted(pair.UserData.UID);
+
+                // Alias
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted(pair.UserData.Alias ?? "--");
+
+                // File Size
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted(UiSharedService.ByteToString(pair.LastAppliedDataBytes, true));
+
+                // VRAM
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
+                var approxVram = pair.LastAppliedApproximateVRAMBytes;
+                if (pair.LastAppliedDataBytes >= 0)
+                {
+                    if ((currentVramWarning * 1024 * 1024 < approxVram))
+                    {
+                        UiSharedService.ColorText($"{UiSharedService.ByteToString(pair.LastAppliedApproximateVRAMBytes, true)}", ImGuiColors.DalamudYellow);
+                        UiSharedService.AttachToolTip($"Exceeds your threshold by " + $"{UiSharedService.ByteToString(approxVram - (currentVramWarning * 1024 * 1024))}.");
+                    }
+                    else
+                    {
+                        ImGui.TextUnformatted($"{UiSharedService.ByteToString(pair.LastAppliedApproximateVRAMBytes, true)}");
+                    }
+                }
+                else
+                {
+                    ImGui.TextUnformatted("--");
+                }
+
+                // Triangles
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
+                var approxTris = pair.LastAppliedDataTris;
+                if (pair.LastAppliedDataTris > 0)
+                {
+                    if ((currentTriWarning * 1000 < approxTris))
+                    {
+                        UiSharedService.ColorText(pair.LastAppliedDataTris > 1000 ? 
+                            (pair.LastAppliedDataTris / 1000d).ToString("0.0'k'") : pair.LastAppliedDataTris.ToString(), ImGuiColors.DalamudYellow);
+                        UiSharedService.AttachToolTip($"Exceeds your threshold by " + $"{approxTris - (currentTriWarning * 1000):N0} triangles.");
+                    }
+                    else
+                    {
+                        ImGui.TextUnformatted(pair.LastAppliedDataTris > 1000 ? (pair.LastAppliedDataTris / 1000d).ToString("0.0'k'") : pair.LastAppliedDataTris.ToString());
+                    }
+                }
+                else
+                {
+                    ImGui.TextUnformatted("--");
+                }
+
+                // Actions
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                if (ImGui.Button($"Pause##{pair.UserData.UID}"))
+                {
+                    _ = _apiController.PauseAsync(pair.UserData);
+                }
+                ImGui.SameLine();
+                if (ImGui.Button($"Refresh##{pair.UserData.UID}"))
+                {
+                    _ = _apiController.CyclePauseAsync(pair.UserData);
+                }
+            }
+        }
+    }
+
+    private static int ComparePairsForSort(Pair a, Pair b, ImGuiTableSortSpecsPtr sortSpecs)
+    {
+        for (int i = 0; i < sortSpecs.SpecsCount; i++)
+        {
+            var spec = sortSpecs.Specs[i];
+            int cmp = 0;
+            switch (spec.ColumnIndex)
+            {
+                case 1:
+                    cmp = string.Compare(a.UserData.UID, b.UserData.UID, StringComparison.OrdinalIgnoreCase);
+                    break;
+                case 2:
+                    {
+                        var aAlias = a.UserData.Alias ?? string.Empty;
+                        var bAlias = b.UserData.Alias ?? string.Empty;
+                        cmp = string.Compare(aAlias, bAlias, StringComparison.OrdinalIgnoreCase);
+                        break;
+                    }
+                case 3:
+                    cmp = a.LastAppliedDataBytes.CompareTo(b.LastAppliedDataBytes);
+                    break;
+                case 4:
+                    cmp = a.LastAppliedApproximateVRAMBytes.CompareTo(b.LastAppliedApproximateVRAMBytes);
+                    break;
+                case 5:
+                    cmp = a.LastAppliedDataTris.CompareTo(b.LastAppliedDataTris);
+                    break;
+                default:
+                    continue;
+            }
+            if (cmp != 0)
+            {
+                return spec.SortDirection == ImGuiSortDirection.Ascending ? cmp : -cmp;
+            }
+        }
+        return 0;
+    }
+}

@@ -26,8 +26,6 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Numerics;
 using System.Reflection;
-using System.Threading.Tasks;
-using MareSynchronos.MareConfiguration.Configurations;
 
 namespace MareSynchronos.UI;
 
@@ -333,12 +331,22 @@ public class CompactUi : WindowMediatorSubscriberBase
         var color = UiSharedService.GetBoolColor(!isConnectingOrConnected);
         var connectedIcon = isConnectingOrConnected ? FontAwesomeIcon.Unlink : FontAwesomeIcon.Link;
 
-        ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth() - buttonSize.X);
+        ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth() - buttonSize.X * 2 - ImGui.GetStyle().ItemSpacing.X);
         if (printShard)
         {
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() - ((userSize.Y + textSize.Y) / 2 + shardTextSize.Y) / 2 - ImGui.GetStyle().ItemSpacing.Y + buttonSize.Y / 2);
         }
 
+        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.ParsedGreen))
+        {
+            if (_uiSharedService.IconButton(FontAwesomeIcon.Eye))
+            {
+                Mediator.Publish(new UiToggleMessage(typeof(PlayerAnalysisViewerUI)));
+            }
+        }
+        UiSharedService.AttachToolTip("Open Player Analysis Viewer");
+        
+        ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth() - buttonSize.X);
         if (_apiController.ServerState is not (ServerState.Reconnecting or ServerState.Disconnecting))
         {
             using (ImRaii.PushColor(ImGuiCol.Text, color))
