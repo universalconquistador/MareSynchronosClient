@@ -478,11 +478,11 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         var color = _configService.Current.ShowAnalysisCompactUiColor;
         var compact = _configService.Current.ShowCompactStats;
-        var tealblue = new Vector4(0.0f, 1.0f, 1.0f, 1.0f);
-        var allgood = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
         var metrics = _characterAnalyzer.LastMetrics;
         var totalVram = metrics?.TotalVramBytes ?? 0L;
         var totalTris = metrics?.TotalTriangles ?? 0L;
+        var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
+        var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
 
         if (compact)
         {
@@ -493,7 +493,6 @@ public class CompactUi : WindowMediatorSubscriberBase
             ImGui.TextUnformatted("Your mods' VRAM: ");
             ImGui.SameLine(0, 0);
 
-            var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
             if ((currentVramWarning * 1024 * 1024 < totalVram) && color)
             {
                 UiSharedService.ColorText($"{UiSharedService.ByteToString(totalVram)}", ImGuiColors.DalamudYellow);
@@ -506,7 +505,6 @@ public class CompactUi : WindowMediatorSubscriberBase
             ImGui.SameLine(0, 0);
             ImGui.TextUnformatted(", Triangles: ");
             ImGui.SameLine(0, 0);
-            var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
             if ((currentTriWarning * 1000 < totalTris) && color)
             {
                 UiSharedService.ColorText($"{totalTris:N0}", ImGuiColors.DalamudYellow);
@@ -519,13 +517,13 @@ public class CompactUi : WindowMediatorSubscriberBase
         }
         else
         {
+            var tealblue = new Vector4(0.0f, 1.0f, 1.0f, 1.0f);
+            var allgood = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
             var playerAnalysis = $"Current VRAM: {UiSharedService.ByteToString(totalVram)}";
             var playerAnalysis2 = $"Current Triangle Count: {totalTris:N0}";
             var textSize = ImGui.CalcTextSize(playerAnalysis);
             var textSize2 = ImGui.CalcTextSize(playerAnalysis2);
-            var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
-            var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
-
+            
             ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (textSize.X / 2));
             if (color)
             {
@@ -562,7 +560,6 @@ public class CompactUi : WindowMediatorSubscriberBase
             }
             ImGui.SameLine(0, 0);
 
-            //var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
             if ((currentTriWarning * 1000 < totalTris) && color)
             {
                 UiSharedService.ColorText($"{totalTris:N0}", ImGuiColors.DalamudYellow);
