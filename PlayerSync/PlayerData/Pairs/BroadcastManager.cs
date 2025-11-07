@@ -268,7 +268,7 @@ namespace MareSynchronos.PlayerData.Pairs
         {
             if (!_apiController.IsConnected)
             {
-                _logger.LogInformation("Can't call PollBroadcastsInternal when not connected.");
+                _logger.LogDebug("Can't call PollBroadcastsInternal when not connected.");
                 _pollingBroadcasts = 0;
                 return;
             }
