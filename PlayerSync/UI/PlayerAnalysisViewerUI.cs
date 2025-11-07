@@ -173,7 +173,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 ImGui.AlignTextToFramePadding();
                 var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
                 var approxTris = pair.LastAppliedDataTris;
-                if (pair.LastAppliedDataTris > 0)
+                // For some reason we get triangles sometimes without data, so only display if we have data applied
+                if (pair.LastAppliedDataTris > 0 && pair.LastAppliedDataBytes >= 0)
                 {
                     if ((currentTriWarning * 1000 < approxTris))
                     {
