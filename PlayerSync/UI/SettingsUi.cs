@@ -794,7 +794,15 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var showAnalysisOnUi = _configService.Current.ShowAnalysisOnCompactUi;
         var showAnalysisBottom = _configService.Current.ShowAnalysisCompactUiBottom;
         var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
+        var ShowCompactStats = _configService.Current.ShowCompactStats;
+        var ShowPlayerSyncName = _configService.Current.ShowPlayerSyncName;
 
+        if (ImGui.Checkbox("Show PlayerSync User Name", ref ShowPlayerSyncName))
+        {
+            _configService.Current.ShowPlayerSyncName = ShowPlayerSyncName;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Show your PlayerSync Name and Other Information");
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
         {
             _configService.Current.ShowUIOnPluginLoad = showWindowOnPluginLoad;
@@ -820,6 +828,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Current.ShowAnalysisCompactUiBottom = showAnalysisBottom;
             _configService.Save();
         }
+        if (ImGui.Checkbox("Compact Stats to 1 line", ref ShowCompactStats))
+        {
+            _configService.Current.ShowCompactStats = ShowCompactStats;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Compact display on 1 line for Performance Stats if enabled, Purely Aesthetic. ");
         if (!showAnalysisOnUi) ImGui.EndDisabled();
         ImGui.Unindent();
         if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))

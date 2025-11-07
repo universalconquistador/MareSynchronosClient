@@ -57,6 +57,31 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding,new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
         using var table = ImRaii.Table("eventTable", 7, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY
             | ImGuiTableFlags.RowBg | ImGuiTableFlags.Sortable | ImGuiTableFlags.SortMulti, new Vector2(width, height));
+
+        void CText(string text) //center regular text function
+        {
+            float cellWidth = ImGui.GetColumnWidth();
+            float textWidth = ImGui.CalcTextSize(text).X;
+            float indent = (cellWidth - textWidth) * 0.5f;
+            
+            if (indent > 0)
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
+            
+            ImGui.Text(text);
+        }
+
+        void CCText(string text, Vector4 color) //center colored text function
+        {
+            Vector2 textSize = ImGui.CalcTextSize(text);
+            float cellWidth = ImGui.GetColumnWidth();
+            float indent = (cellWidth - textSize.X) * 0.5f;
+
+            if (indent > 0)
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
+
+            UiSharedService.ColorText(text, color);
+        }
+
         if (table)
         {
             ImGui.TableSetupScrollFreeze(0, 1);
@@ -102,33 +127,45 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 // Alias
                 ImGui.TableNextColumn();
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted(pair.UserData.Alias ?? "--");
-
+                if (pair.UserData.Alias != null)
+                    {
+                        ImGui.TextUnformatted(pair.UserData.Alias);
+                    }                
+                
                 // File Size
                 ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted(UiSharedService.ByteToString(pair.LastAppliedDataBytes, true));
+                ImGui.AlignTextToFramePadding();                
+                string FData(long bytes)
+                    {
+                        return bytes >= 0 ? UiSharedService.ByteToString(bytes, true) : "--";
+                    }
+                CText(FData(pair.LastAppliedDataBytes));
 
                 // VRAM
                 ImGui.TableNextColumn();
                 ImGui.AlignTextToFramePadding();
+                string FVram(long bytes)
+                    {
+                        return bytes >= 0 ? UiSharedService.ByteToString(bytes, true) : "--";
+                    }
+                
                 var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
                 var approxVram = pair.LastAppliedApproximateVRAMBytes;
                 if (pair.LastAppliedDataBytes >= 0)
                 {
                     if ((currentVramWarning * 1024 * 1024 < approxVram))
                     {
-                        UiSharedService.ColorText($"{UiSharedService.ByteToString(pair.LastAppliedApproximateVRAMBytes, true)}", ImGuiColors.DalamudYellow);
+                        CCText($"{UiSharedService.ByteToString(pair.LastAppliedApproximateVRAMBytes, true)}", ImGuiColors.DalamudYellow);
                         UiSharedService.AttachToolTip($"Exceeds your threshold by " + $"{UiSharedService.ByteToString(approxVram - (currentVramWarning * 1024 * 1024))}.");
                     }
                     else
                     {
-                        ImGui.TextUnformatted($"{UiSharedService.ByteToString(pair.LastAppliedApproximateVRAMBytes, true)}");
+                        CText(FVram(pair.LastAppliedApproximateVRAMBytes));
                     }
                 }
                 else
                 {
-                    ImGui.TextUnformatted("--");
+                    CText("--");
                 }
 
                 // Triangles
@@ -140,18 +177,18 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 {
                     if ((currentTriWarning * 1000 < approxTris))
                     {
-                        UiSharedService.ColorText(pair.LastAppliedDataTris > 1000 ? 
+                        CCText(pair.LastAppliedDataTris > 1000 ?
                             (pair.LastAppliedDataTris / 1000d).ToString("0.0'k'") : pair.LastAppliedDataTris.ToString(), ImGuiColors.DalamudYellow);
                         UiSharedService.AttachToolTip($"Exceeds your threshold by " + $"{approxTris - (currentTriWarning * 1000):N0} triangles.");
                     }
                     else
                     {
-                        ImGui.TextUnformatted(pair.LastAppliedDataTris > 1000 ? (pair.LastAppliedDataTris / 1000d).ToString("0.0'k'") : pair.LastAppliedDataTris.ToString());
+                        CText(pair.LastAppliedDataTris > 1000 ? (pair.LastAppliedDataTris / 1000d).ToString("0.0'k'") : pair.LastAppliedDataTris.ToString());
                     }
                 }
                 else
                 {
-                    ImGui.TextUnformatted("--");
+                    CText("--");
                 }
 
                 // Actions
