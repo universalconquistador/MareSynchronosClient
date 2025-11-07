@@ -72,6 +72,4 @@ public class MareConfig : IMareConfiguration
     public bool ShowAnalysisOnCompactUi {  get; set; } = true;
     public bool ShowAnalysisCompactUiBottom { get; set; } = false;
     public bool ShowAnalysisCompactUiColor {  get; set; } = false;
-    public bool ShowCompactStats { get; set; } = true;
-    public bool ShowPlayerSyncName { get; set; } = true;
 }

@@ -794,15 +794,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var showAnalysisOnUi = _configService.Current.ShowAnalysisOnCompactUi;
         var showAnalysisBottom = _configService.Current.ShowAnalysisCompactUiBottom;
         var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
-        var ShowCompactStats = _configService.Current.ShowCompactStats;
-        var ShowPlayerSyncName = _configService.Current.ShowPlayerSyncName;
 
-        if (ImGui.Checkbox("Show PlayerSync User Name", ref ShowPlayerSyncName))
-        {
-            _configService.Current.ShowPlayerSyncName = ShowPlayerSyncName;
-            _configService.Save();
-        }
-        _uiShared.DrawHelpText("Show your PlayerSync Name and Other Information");
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
         {
             _configService.Current.ShowUIOnPluginLoad = showWindowOnPluginLoad;
@@ -828,12 +820,6 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Current.ShowAnalysisCompactUiBottom = showAnalysisBottom;
             _configService.Save();
         }
-        if (ImGui.Checkbox("Compact Stats to 1 line", ref ShowCompactStats))
-        {
-            _configService.Current.ShowCompactStats = ShowCompactStats;
-            _configService.Save();
-        }
-        _uiShared.DrawHelpText("Compact display on 1 line for Performance Stats if enabled, Purely Aesthetic. ");
         if (!showAnalysisOnUi) ImGui.EndDisabled();
         ImGui.Unindent();
         if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))
@@ -1138,14 +1124,14 @@ public class SettingsUi : WindowMediatorSubscriberBase
             if (endCount < 11)
             {
                 ImGui.BeginDisabled();
-                ImGui.Button($"I Understand and Confirm ({11-endCount})");
+                ImGui.Button($"I Understand and Confirm ({11 - endCount})");
                 ImGui.EndDisabled();
             }
             else
             {
                 using (ImRaii.Disabled(!UiSharedService.ShiftPressed()))
                 {
-                    if (ImGui.Button("I Understand and Confirm")) 
+                    if (ImGui.Button("I Understand and Confirm"))
                     {
                         _zoneSyncConfigService.Current.UserHasConfirmedWarning = true;
                         _zoneSyncConfigService.Save();
@@ -1157,7 +1143,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
             ImGui.Separator();
             ImGui.Dummy(new Vector2(10));
         }
-        
+
         UiSharedService.ColorTextWrapped("Read these rules before proceeding:", ImGuiColors.DalamudRed);
         UiSharedService.TextWrapped("1) You are responsible for your conduct and should self-moderate your appearance and actions.");
         UiSharedService.TextWrapped("2) Pause unwanted user pairs as needed.");
@@ -1214,7 +1200,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
             if (_globalControlCountdown != 0 && enableGroupZoneSyncJoining)
             {
                 UiSharedService.AttachToolTip("Wait a moment before changing ");
-            } 
+            }
         }
         ImGui.SameLine();
         ImGui.TextUnformatted("ZoneSync Allowed Areas");
