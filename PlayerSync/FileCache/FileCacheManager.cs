@@ -81,7 +81,7 @@ public sealed class FileCacheManager : IHostedService
         return output;
     }
 
-    public Task<List<FileCacheEntity>> ValidateLocalIntegrity(IProgress<(int, int, FileCacheEntity)> progress,CancellationToken cancellationToken)
+    public Task<List<FileCacheEntity>> ValidateLocalIntegrity(IProgress<(int, int, FileCacheEntity)> progress, CancellationToken cancellationToken)
     {
         _mareMediator.Publish(new HaltScanMessage(nameof(ValidateLocalIntegrity)));
         List<FileCacheEntity> brokenEntities = [];
