@@ -71,7 +71,6 @@ public class MareConfig : IMareConfiguration
     public bool ShowSyncConflictNotifications { get; set; } = true;
     public bool ShowAnalysisOnCompactUi {  get; set; } = true;
     public bool ShowAnalysisCompactUiBottom { get; set; } = false;
-    public bool ShowAnalysisCompactUiColor {  get; set; } = false;
+    public bool ShowAnalysisCompactUiColor {  get; set; } = true;
     public bool ShowCompactStats { get; set; } = true;
-    public bool ShowPlayerSyncName { get; set; } = true;
 }
