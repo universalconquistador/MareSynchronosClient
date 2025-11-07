@@ -794,6 +794,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var showAnalysisOnUi = _configService.Current.ShowAnalysisOnCompactUi;
         var showAnalysisBottom = _configService.Current.ShowAnalysisCompactUiBottom;
         var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
+        var showCompactStats = _configService.Current.ShowCompactStats;
 
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
         {
@@ -815,6 +816,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("This will turn the values yellow if you exceed your configured threshold.");
+        if (ImGui.Checkbox("Show usage on a single line", ref showCompactStats))
+        {
+            _configService.Current.ShowCompactStats = showCompactStats;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Show player VRAM and triangle usage on a single line.");
         if (ImGui.Checkbox("Display at bottom of the UI window", ref showAnalysisBottom))
         {
             _configService.Current.ShowAnalysisCompactUiBottom = showAnalysisBottom;
