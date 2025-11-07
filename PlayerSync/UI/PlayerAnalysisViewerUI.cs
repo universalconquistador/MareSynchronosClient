@@ -78,6 +78,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
             foreach (var pair in sortedPairs)
             {
+                bool highlightRow = false;
+
                 // Target
                 ImGui.TableNextColumn();
                 _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
@@ -91,6 +93,11 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 ImGui.TableNextColumn();
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted(pair.UserData.UID);
+                if (ImGui.IsItemClicked())
+                {
+                    ImGui.SetClipboardText(pair.UserData.UID);
+                }
+                UiSharedService.AttachToolTip("Click to copy");
 
                 // Alias
                 ImGui.TableNextColumn();
@@ -154,10 +161,28 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 {
                     _ = _apiController.PauseAsync(pair.UserData);
                 }
+                if (ImGui.IsItemHovered())
+                {
+                    highlightRow = true;
+                }
+
                 ImGui.SameLine();
+
                 if (ImGui.Button($"Refresh##{pair.UserData.UID}"))
                 {
                     _ = _apiController.CyclePauseAsync(pair.UserData);
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    highlightRow = true;
+                }
+
+                // Row highlighting
+                if (highlightRow)
+                {
+                    var rowIndex = ImGui.TableGetRowIndex();
+                    var color = ImGui.GetColorU32(ImGuiCol.TableRowBgAlt);
+                    ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
                 }
             }
         }
