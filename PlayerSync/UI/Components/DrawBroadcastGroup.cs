@@ -133,7 +133,7 @@ public class DrawBroadcastGroup
             }
             else
             {
-                joinTooltip = $"You are alrady a member of {_broadcast.GroupAliasOrGID}";
+                joinTooltip = $"You are already a member of {_broadcast.GroupAliasOrGID}";
             }
         }
         else
