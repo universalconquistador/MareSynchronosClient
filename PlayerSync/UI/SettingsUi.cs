@@ -791,6 +791,10 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var groupInVisible = _configService.Current.ShowSyncshellUsersInVisible;
         var syncshellOfflineSeparate = _configService.Current.ShowSyncshellOfflineUsersSeparately;
         var showWindowOnPluginLoad = _configService.Current.ShowUIOnPluginLoad;
+        var showAnalysisOnUi = _configService.Current.ShowAnalysisOnCompactUi;
+        var showAnalysisBottom = _configService.Current.ShowAnalysisCompactUiBottom;
+        var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
+        var showCompactStats = _configService.Current.ShowCompactStats;
 
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
         {
@@ -798,6 +802,33 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("This opens the UI automatically whenever the plugin is loaded/reloaded.");
+        if (ImGui.Checkbox("Show VRAM/triangle usage on main UI", ref showAnalysisOnUi))
+        {
+            _configService.Current.ShowAnalysisOnCompactUi = showAnalysisOnUi;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This shows your current VRAM usage and triangle count on the main UI.");
+        ImGui.Indent();
+        if (!showAnalysisOnUi) ImGui.BeginDisabled();
+        if (ImGui.Checkbox("Show VRAM/triangle usage color coded", ref showAnalysisColor))
+        {
+            _configService.Current.ShowAnalysisCompactUiColor = showAnalysisColor;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This will turn the values yellow if you exceed your configured threshold.");
+        if (ImGui.Checkbox("Show usage on a single line", ref showCompactStats))
+        {
+            _configService.Current.ShowCompactStats = showCompactStats;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Show player VRAM and triangle usage on a single line.");
+        if (ImGui.Checkbox("Display at bottom of the UI window", ref showAnalysisBottom))
+        {
+            _configService.Current.ShowAnalysisCompactUiBottom = showAnalysisBottom;
+            _configService.Save();
+        }
+        if (!showAnalysisOnUi) ImGui.EndDisabled();
+        ImGui.Unindent();
         if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))
         {
             _configService.Current.EnableRightClickMenus = enableRightClickMenu;
@@ -972,6 +1003,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.Separator();
 
         var disableOptionalPluginWarnings = _configService.Current.DisableOptionalPluginWarnings;
+        var syncConflictNotifs = _configService.Current.ShowSyncConflictNotifications;
         var pairingRequestNotifs = _configService.Current.ShowPairingRequestNotification;
         var broadcastNotifs = _configService.Current.ShowAvailableBroadcastsNotification;
         var onlineNotifs = _configService.Current.ShowOnlineNotifications;
@@ -1021,6 +1053,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will not show any \"Warning\" labeled messages for missing optional plugins.");
+        if (ImGui.Checkbox("Enable sync conflict notifications", ref syncConflictNotifs))
+        {
+            _configService.Current.ShowSyncConflictNotifications = syncConflictNotifs;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Enabling this will show chat notifications when loading PlayerSync with a potentially conflicting plugin.");
         if (ImGui.Checkbox("Enable pairing request notifications", ref pairingRequestNotifs))
         {
             _configService.Current.ShowPairingRequestNotification = pairingRequestNotifs;
@@ -1093,14 +1131,14 @@ public class SettingsUi : WindowMediatorSubscriberBase
             if (endCount < 11)
             {
                 ImGui.BeginDisabled();
-                ImGui.Button($"I Understand and Confirm ({11-endCount})");
+                ImGui.Button($"I Understand and Confirm ({11 - endCount})");
                 ImGui.EndDisabled();
             }
             else
             {
                 using (ImRaii.Disabled(!UiSharedService.ShiftPressed()))
                 {
-                    if (ImGui.Button("I Understand and Confirm")) 
+                    if (ImGui.Button("I Understand and Confirm"))
                     {
                         _zoneSyncConfigService.Current.UserHasConfirmedWarning = true;
                         _zoneSyncConfigService.Save();
@@ -1112,7 +1150,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
             ImGui.Separator();
             ImGui.Dummy(new Vector2(10));
         }
-        
+
         UiSharedService.ColorTextWrapped("Read these rules before proceeding:", ImGuiColors.DalamudRed);
         UiSharedService.TextWrapped("1) You are responsible for your conduct and should self-moderate your appearance and actions.");
         UiSharedService.TextWrapped("2) Pause unwanted user pairs as needed.");
@@ -1169,7 +1207,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
             if (_globalControlCountdown != 0 && enableGroupZoneSyncJoining)
             {
                 UiSharedService.AttachToolTip("Wait a moment before changing ");
-            } 
+            }
         }
         ImGui.SameLine();
         ImGui.TextUnformatted("ZoneSync Allowed Areas");
@@ -1177,12 +1215,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Setting this too low may not give your PC enough time to unload/load other players.");
         var zoneSyncJoinDelay = _zoneSyncConfigService.Current.ZoneJoinDelayTime;
-        if (ImGui.SliderInt("ZoneSync Join Delay", ref zoneSyncJoinDelay, 5, 15))
+        if (ImGui.SliderInt("ZoneSync Join Delay", ref zoneSyncJoinDelay, 5, 30))
         {
             _zoneSyncConfigService.Current.ZoneJoinDelayTime = zoneSyncJoinDelay;
             _zoneSyncConfigService.Save();
         }
-        _uiShared.DrawHelpText("Set the wait time between entering a zone and joining a ZoneSync. Increase this if your PC ");
+        _uiShared.DrawHelpText("Set the wait time in seconds between entering a zone and joining a ZoneSync. Increase this if you have pairing issues after zoning.");
 
         ImGuiHelpers.ScaledDummy(5f);
         UiSharedService.TextWrapped("Note: These permissions are applied only to ZoneSync syncshells.");

@@ -28,6 +28,8 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private bool _passwordless = false;
     private bool _isGuestModeEnabled = false;
     private bool _guestmode = false;
+    private int _globalControlCountdown = 0;
+    private bool _timerRunning = false;
 
     public JoinSyncshellUI(ILogger<JoinSyncshellUI> logger, MareMediator mediator,
         UiSharedService uiSharedService, ApiController apiController, PerformanceCollectorService performanceCollectorService) 
@@ -52,6 +54,18 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;
     }
 
+    private async Task GlobalControlCountdown(int countdown)
+    {
+        if (_timerRunning) return;
+        _timerRunning = true;
+        _globalControlCountdown = countdown;
+        while (_globalControlCountdown > 0)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            _globalControlCountdown--;
+        }
+    }
+
     public override void OnOpen()
     {
         _desiredSyncshellToJoin = _prefillSyncshellToJoin ?? string.Empty;
@@ -69,19 +83,25 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     protected override void DrawInternal()
     {
         using (_uiSharedService.UidFont.Push())
-            ImGui.TextUnformatted(_groupJoinInfo == null || !_groupJoinInfo.Success ? "Join Syncshell" : "Finalize join Syncshell " + _groupJoinInfo.GroupAliasOrGID);
-        ImGui.Separator();
+            //ImGui.TextUnformatted(_groupJoinInfo == null || !_groupJoinInfo.Success ? "Join Syncshell" : "Finalize join Syncshell " + _groupJoinInfo.GroupAliasOrGID);
+            if (_groupJoinInfo == null || !_groupJoinInfo.Success)
+            {
+                ImGui.TextUnformatted("Join Syncshell");
+                ImGui.Separator();
+            }
 
         if (_groupJoinInfo == null || !_groupJoinInfo.Success)
         {
             float PositionalX = 142f * ImGui.GetIO().FontGlobalScale;  // Fixed position reference for the text boxes
             float inputboxsize = 250f;
-
+            ImGuiHelpers.ScaledDummy(2f);
             UiSharedService.TextWrapped("Here you can join existing Syncshells. " +
-                "Please keep in mind that you cannot join more than " + _apiController.ServerInfo.MaxGroupsJoinedByUser + " syncshells on this server." + Environment.NewLine +
-                "Joining a Syncshell will pair you implicitly with all existing users in the Syncshell." + Environment.NewLine +
+                "Please keep in mind that you cannot join more than " + _apiController.ServerInfo.MaxGroupsJoinedByUser + " syncshells on this server." + Environment.NewLine + Environment.NewLine +
+                "Joining a Syncshell will pair you implicitly with all existing users in the Syncshell." + Environment.NewLine + Environment.NewLine +
                 "All permissions to all users in the Syncshell will be set to the preferred Syncshell permissions on joining, excluding prior set preferred permissions.");
+            ImGuiHelpers.ScaledDummy(2f);
             ImGui.Separator();
+            ImGuiHelpers.ScaledDummy(2f);
             ImGui.TextUnformatted("Note: Syncshell ID and Password are case sensitive. MSS- is part of Syncshell IDs, unless using Vanity IDs.");
 
             ImGui.AlignTextToFramePadding();
@@ -114,6 +134,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
                 ImGui.SetNextItemWidth(inputboxsize * ImGui.GetIO().FontGlobalScale);
                 ImGui.InputTextWithHint("##syncshellpw", "Password", ref _syncshellPassword, 50, ImGuiInputTextFlags.Password);
             }
+            ImGuiHelpers.ScaledDummy(2f);
             using (ImRaii.Disabled(string.IsNullOrEmpty(_desiredSyncshellToJoin)))
             {
                 if (_uiSharedService.IconTextButton(Dalamud.Interface.FontAwesomeIcon.Plus, "Join Syncshell"))
@@ -133,18 +154,41 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         }
         else
         {
-            ImGui.TextUnformatted("You are about to join the Syncshell " + _groupJoinInfo.GroupAliasOrGID + " by " + _groupJoinInfo.OwnerAliasOrUID);
-            if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.Description))
+            //ImGui.TextUnformatted("You are about to join the Syncshell " + _groupJoinInfo.GroupAliasOrGID + " by " + _groupJoinInfo.OwnerAliasOrUID);
+            _uiSharedService.HeaderText("Joining Syncshell: " + _groupJoinInfo.GroupAliasOrGID);
+            ImGuiHelpers.ScaledDummy(2f);
+            _uiSharedService.HeaderText("Syncshell Owner: " + _groupJoinInfo.OwnerAliasOrUID);
+            ImGuiHelpers.ScaledDummy(2f);
+            ImGui.Separator();
+
+            bool sep = false;
+            if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.GroupProfile?.Description ?? ""))
             {
                 ImGuiHelpers.ScaledDummy(2f);
-                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
-                    ImGui.TextUnformatted("Description");
-                ImGuiHelpers.ScaledDummy(2f);
-                ImGui.TextWrapped(_groupJoinInfo.PublicData.Description);
-                ImGui.Separator();
+                //ImGui.TextColored(ImGuiColors.DalamudGrey, "Syncshell Profile");
+                _uiSharedService.HeaderText("Syncshell Description");
+                ImGui.TextWrapped(_groupJoinInfo.PublicData.GroupProfile!.Description);
+                sep = true;
             }
-            ImGuiHelpers.ScaledDummy(2f);
-            ImGui.TextUnformatted("This Syncshell staff has set the following suggested Syncshell permissions:");
+
+            if (!string.IsNullOrEmpty(_groupJoinInfo.PublicData.GroupProfile?.Rules ?? ""))
+            {
+                ImGuiHelpers.ScaledDummy(2f);
+                //ImGui.TextColored(ImGuiColors.DalamudRed, "This Syncshell has the following rules:");
+                _uiSharedService.HeaderText("This Syncshell has the following rules:", ImGuiColors.DalamudRed);
+                ImGui.TextWrapped(_groupJoinInfo.PublicData.GroupProfile!.Rules);
+                sep = true;
+
+                _ = GlobalControlCountdown(5);
+            }
+            if (sep)
+            {
+                ImGuiHelpers.ScaledDummy(2f);
+                ImGui.Separator();
+                ImGuiHelpers.ScaledDummy(2f);
+            }
+            
+            _uiSharedService.HeaderText("Syncshell suggested permissions:");
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("- Sounds ");
             _uiSharedService.BooleanToColoredIcon(!_groupJoinInfo.GroupPermissions.IsPreferDisableSounds());
@@ -161,6 +205,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             {
                 ImGuiHelpers.ScaledDummy(2f);
                 UiSharedService.ColorText("Your current preferred default Syncshell permissions deviate from the suggested permissions:", ImGuiColors.DalamudYellow);
+                ImGuiHelpers.ScaledDummy(1f);
                 if (_groupJoinInfo.GroupPermissions.IsPreferDisableSounds() != _ownPermissions.DisableGroupSounds)
                 {
                     ImGui.AlignTextToFramePadding();
@@ -213,18 +258,26 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             }
             else
             {
-                UiSharedService.TextWrapped("Your default syncshell permissions on joining are in line with the suggested Syncshell permissions through the owner.");
+                UiSharedService.ColorTextWrapped("Your default syncshell permissions are in line with the suggested Syncshell permissions.", ImGuiColors.HealerGreen);
             }
             ImGuiHelpers.ScaledDummy(2f);
-            if (_uiSharedService.IconTextButton(Dalamud.Interface.FontAwesomeIcon.Plus, "Finalize and join " + _groupJoinInfo.GroupAliasOrGID))
+            using (ImRaii.Disabled(_globalControlCountdown > 0))
             {
-                GroupUserPreferredPermissions joinPermissions = GroupUserPreferredPermissions.NoneSet;
-                joinPermissions.SetDisableSounds(_ownPermissions.DisableGroupSounds);
-                joinPermissions.SetDisableAnimations(_ownPermissions.DisableGroupAnimations);
-                joinPermissions.SetDisableVFX(_ownPermissions.DisableGroupVFX);
-                _ = _apiController.GroupJoinFinalize(new GroupJoinDto(_groupJoinInfo.Group, _previousPassword, joinPermissions));
-                IsOpen = false;
+                if (_uiSharedService.IconTextButton(Dalamud.Interface.FontAwesomeIcon.Plus, "Finalize and join " + _groupJoinInfo.GroupAliasOrGID))
+                {
+                    GroupUserPreferredPermissions joinPermissions = GroupUserPreferredPermissions.NoneSet;
+                    joinPermissions.SetDisableSounds(_ownPermissions.DisableGroupSounds);
+                    joinPermissions.SetDisableAnimations(_ownPermissions.DisableGroupAnimations);
+                    joinPermissions.SetDisableVFX(_ownPermissions.DisableGroupVFX);
+                    _ = _apiController.GroupJoinFinalize(new GroupJoinDto(_groupJoinInfo.Group, _previousPassword, joinPermissions));
+                    IsOpen = false;
+                }
+                if (_globalControlCountdown > 0)
+                {
+                    UiSharedService.AttachToolTip($"Please read the rules before joining. ({_globalControlCountdown})");
+                }
             }
+            ImGuiHelpers.ScaledDummy(5f);
         }
     }
 }

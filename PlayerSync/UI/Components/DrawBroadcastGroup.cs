@@ -90,14 +90,15 @@ public class DrawBroadcastGroup
     {
         ImGui.SameLine(leftSide);
         ImGui.AlignTextToFramePadding();
+        // This needs to show current online count
         ImGui.TextUnformatted($"[{_broadcast.CurrentMemberCount}]");
-        UiSharedService.AttachToolTip($"{_broadcast.CurrentMemberCount} members");
+        UiSharedService.AttachToolTip($"{_broadcast.CurrentMemberCount} members online");
         ImGui.SameLine();
         using (ImRaii.PushFont(UiBuilder.MonoFont))
         {
             ImGui.TextUnformatted($"{_broadcast.GroupAliasOrGID}");
         }
-        UiSharedService.AttachToolTip($"Syncshell {_broadcast.Group.AliasOrGID}\nOwner: {_broadcast.Owner.UID}\nBroadcast by: {string.Join(", ", _broadcast.Broadcasters.Select(user => user.UID))}");
+        UiSharedService.AttachToolTip($"Syncshell {_broadcast.Group.AliasOrGID}\nOwner: {_broadcast.Owner.AliasOrUID}\nBroadcast by: {string.Join(", ", _broadcast.Broadcasters.Select(user => user.AliasOrUID))}");
     }
 
     private float DrawRightSide()
@@ -132,7 +133,7 @@ public class DrawBroadcastGroup
             }
             else
             {
-                joinTooltip = $"You are alrady a member of {_broadcast.GroupAliasOrGID}";
+                joinTooltip = $"You are already a member of {_broadcast.GroupAliasOrGID}";
             }
         }
         else
