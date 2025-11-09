@@ -88,9 +88,9 @@ public sealed class Plugin : IDalamudPlugin
         })
         .ConfigureServices(collection =>
         {
-            collection.AddSingleton(new WindowSystem("MareSynchronos"));
+            collection.AddSingleton(new WindowSystem("PlayerSync"));
             collection.AddSingleton<FileDialogManager>();
-            collection.AddSingleton(new Dalamud.Localization("MareSynchronos.Localization.", "", useEmbedded: true));
+            collection.AddSingleton(new Dalamud.Localization("PlayerSync.Localization.", "", useEmbedded: true));
 
             // add mare related singletons
             collection.AddSingleton<MareMediator>();
@@ -174,7 +174,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 var httpClient = new HttpClient();
                 var ver = Assembly.GetExecutingAssembly().GetName().Version;
-                httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("MareSynchronos", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
+                httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PlayerSync", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
                 return httpClient;
             });
             collection.AddSingleton((s) => new MareConfigService(pluginInterface.ConfigDirectory.FullName));
@@ -214,7 +214,6 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped<WindowMediatorSubscriberBase, JoinSyncshellUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, CreateSyncshellUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, EventViewerUI>();
-            // collection.AddScoped<WindowMediatorSubscriberBase, ModernSettingsUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, CharaDataHubUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, PlayerAnalysisViewerUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, EditProfileUi>((s) => new EditProfileUi(s.GetRequiredService<ILogger<EditProfileUi>>(),
