@@ -34,6 +34,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _dalamudContextMenu = dalamudContextMenu;
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPairs());
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => ReapplyPairData());
+        Mediator.Subscribe<ChangeFilterMessage>(this, (_) => ReapplyPairData());
         _directPairsInternal = DirectPairsLazy();
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
