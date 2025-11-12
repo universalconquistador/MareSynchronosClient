@@ -73,4 +73,7 @@ public class MareConfig : IMareConfiguration
     public bool ShowAnalysisCompactUiBottom { get; set; } = false;
     public bool ShowAnalysisCompactUiColor {  get; set; } = true;
     public bool ShowCompactStats { get; set; } = true;
+    public bool FilterAnimations { get; set; } = false;
+    public bool FilterSounds { get; set; } = false;
+    public bool FilterVfx { get; set; } = false;
 }

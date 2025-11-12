@@ -1241,7 +1241,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _zoneSyncConfigService.Current.DisableVFX = permVfx;
             _zoneSyncConfigService.Save();
         }
-        _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
+        _uiShared.DrawHelpText("This setting will disable vfx sync for all new ZoneSync pairs.");
         if (ImGui.Checkbox("Disable ZoneSync animations", ref permAni))
         {
             _zoneSyncConfigService.Current.DisableAnimations = permAni;
@@ -1250,6 +1250,40 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
 
         ImGui.EndDisabled();
+
+        ImGui.Dummy(new Vector2(10));
+        ImGui.Separator();
+        ImGui.Dummy(new Vector2(10));
+
+        bool filterSounds = _configService.Current.FilterSounds;
+        bool filterVfx = _configService.Current.FilterVfx;
+        bool filterAnimations = _configService.Current.FilterAnimations;
+
+        _uiShared.BigText("Filtering");
+        ImGui.Dummy(new Vector2(10));
+        ImGui.TextUnformatted("These options do NOT change your per-pair permissions. Think of these as global overrides you can toggle on/off.");
+        ImGuiHelpers.ScaledDummy(5f);
+        if (ImGui.Checkbox("Filter out modded sounds", ref filterSounds))
+        {
+            _configService.Current.FilterSounds = filterSounds;
+            _configService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("This setting will prevent modded sounds from being heard.");
+        if (ImGui.Checkbox("Filter out modded vfx", ref filterVfx))
+        {
+            _configService.Current.FilterVfx = filterVfx;
+            _configService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("This setting will prevent modded vfx from being displayed.");
+        if (ImGui.Checkbox("Filter out modded animations", ref filterAnimations))
+        {
+            _configService.Current.FilterAnimations = filterAnimations;
+            _configService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("This setting will prevent modded animations from being displayed.");
     }
 
     private void DrawPerformance()

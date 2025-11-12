@@ -31,6 +31,7 @@ public record CutsceneStartMessage : MessageBase;
 public record GposeStartMessage : SameThreadMessage;
 public record GposeEndMessage : MessageBase;
 public record CutsceneEndMessage : MessageBase;
+public record ChangeFilterMessage : MessageBase;
 public record CutsceneFrameworkUpdateMessage : SameThreadMessage;
 public record ConnectedMessage(ConnectionDto Connection) : MessageBase;
 public record DisconnectedMessage : SameThreadMessage;
