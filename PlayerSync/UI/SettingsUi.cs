@@ -507,6 +507,25 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("Artificially slow down your uploads, for testing the upload system.");
+
+        bool overrideCdnTimeOffset = _configService.Current.OverrideCdnTimeZone;
+        if (ImGui.Checkbox($"Override CDN Time Zone (Current: '{(overrideCdnTimeOffset ? _configService.Current.OverrideCdnTimeZoneId : TimeZoneInfo.Local.Id)}', UTC offset: {_fileTransferOrchestrator.TimeZoneUtcOffsetMinutes} mins)", ref overrideCdnTimeOffset))
+        {
+            _configService.Current.OverrideCdnTimeZone = overrideCdnTimeOffset;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Overriding the time zone used to select a file transfer CDN can cause you to download and upload mod files via different servers." + UiSharedService.TooltipSeparator
+            + "Only override if you are testing the CDN or if the automatic selection based on your PC's selected time zone does not result in connecting to the optimal server.\n\n"
+            + "NOTE: Changing your system time zone may not reflect in Player Sync until you restart your game.");
+
+        using (ImRaii.Disabled(!overrideCdnTimeOffset))
+        {
+            _uiShared.DrawCombo("Override Time Zone", TimeZoneInfo.GetSystemTimeZones().Append(null), zone => zone != null ? $"{zone?.Id}: {zone?.DisplayName}" : "(none): +0:00", zone =>
+            {
+                _configService.Current.OverrideCdnTimeZoneId = zone?.Id ?? string.Empty;
+                _configService.Save();
+            }, !string.IsNullOrEmpty(_configService.Current.OverrideCdnTimeZoneId) ? TimeZoneInfo.FindSystemTimeZoneById(_configService.Current.OverrideCdnTimeZoneId) : null);
+        }
     }
 
     private void DrawFileStorageSettings()
