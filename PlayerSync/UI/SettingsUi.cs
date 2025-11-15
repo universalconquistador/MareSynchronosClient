@@ -515,7 +515,8 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("Overriding the time zone used to select a file transfer CDN can cause you to download and upload mod files via different servers." + UiSharedService.TooltipSeparator
-            + "Only override if you are testing the CDN or if the automatic selection based on your PC's selected time zone does not result in connecting to the optimal server.");
+            + "Only override if you are testing the CDN or if the automatic selection based on your PC's selected time zone does not result in connecting to the optimal server.\n\n"
+            + "NOTE: Changing your system time zone may not reflect in Player Sync until you restart your game.");
 
         using (ImRaii.Disabled(!overrideCdnTimeOffset))
         {
