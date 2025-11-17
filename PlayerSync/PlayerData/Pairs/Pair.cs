@@ -1,5 +1,6 @@
 ﻿using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Game.Text.SeStringHandling;
+using InteropGenerator.Runtime;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
@@ -51,7 +52,8 @@ public class Pair
     public long LastAppliedDataTris { get; set; } = -1;
     public long LastAppliedApproximateVRAMBytes { get; set; } = -1;
     public string Ident => _onlineUserIdentDto?.Ident ?? string.Empty;
-
+    public nint Address => CachedPlayer?.PlayerCharacter ?? nint.Zero;
+    
     public UserData UserData => UserPair.User;
 
     public UserFullPairDto UserPair { get; set; }
@@ -257,6 +259,11 @@ public class Pair
         bool disableIndividualAnimations = (UserPair.OtherPermissions.IsDisableAnimations() || UserPair.OwnPermissions.IsDisableAnimations() || _configService.Current.FilterAnimations);
         bool disableIndividualVFX = (UserPair.OtherPermissions.IsDisableVFX() || UserPair.OwnPermissions.IsDisableVFX() || _configService.Current.FilterVfx);
         bool disableIndividualSounds = (UserPair.OtherPermissions.IsDisableSounds() || UserPair.OwnPermissions.IsDisableSounds() || _configService.Current.FilterSounds);
+#if DEV
+        disableIndividualAnimations = false;
+        disableIndividualVFX = false;
+        disableIndividualSounds = false;
+#endif
 
         _logger.LogTrace("Disable: Sounds: {disableIndividualSounds}, Anims: {disableIndividualAnims}; " +
             "VFX: {disableGroupSounds}",
