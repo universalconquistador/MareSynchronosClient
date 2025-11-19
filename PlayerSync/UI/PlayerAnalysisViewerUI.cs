@@ -157,6 +157,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         }
 
         UiSharedService.TextWrapped("Players showing -- have no mods or have not been loaded yet.");
+        ImGuiHelpers.ScaledDummy(2f);
 
         if (shouldUpdate || _manualRefresh)
         {
@@ -398,6 +399,10 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         var allPausedPairs = ImmutablePairList(allPairs.Where(FilterPausedUsers));
 
         _uiSharedService.BigText("Paused Pairs");
+        ImGuiHelpers.ScaledDummy(2f);
+
+        UiSharedService.TextWrapped("This shows all pairs you have paused, not just players around you.");
+        UiSharedService.TextWrapped("Players may be paused manually, or automatically from exceeding performance thresholds.");
         ImGuiHelpers.ScaledDummy(2f);
 
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
