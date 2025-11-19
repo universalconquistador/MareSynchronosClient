@@ -1320,37 +1320,39 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.DrawHelpText("Set the wait time in seconds between entering a zone and joining a ZoneSync. Increase this if you have pairing issues after zoning.");
 
         ImGuiHelpers.ScaledDummy(5f);
-        UiSharedService.TextWrapped("Note: These permissions are applied only to ZoneSync syncshells.");
-        UiSharedService.TextWrapped("Note: The default permissions settings here are not applied retroactively to existing pairs.");
+        UiSharedService.TextWrapped("ZoneSync Synchshell permissions are based on your Default Permission Settings.");
+        UiSharedService.TextWrapped("Permissions can be found under Settings > Service Settings > Permission Settings.");
+        //UiSharedService.TextWrapped("Note: These permissions are applied only to ZoneSync syncshells.");
+        //UiSharedService.TextWrapped("Note: The default permissions settings here are not applied retroactively to existing pairs.");
 
-        bool permSfx = _zoneSyncConfigService.Current.DisableSounds;
-        bool permVfx = _zoneSyncConfigService.Current.DisableVFX;
-        bool permAni = _zoneSyncConfigService.Current.DisableAnimations;
+        //bool permSfx = _zoneSyncConfigService.Current.DisableSounds;
+        //bool permVfx = _zoneSyncConfigService.Current.DisableVFX;
+        //bool permAni = _zoneSyncConfigService.Current.DisableAnimations;
 
-        if (ImGui.Checkbox("Disable ZoneSync sounds", ref permSfx))
-        {
-            _zoneSyncConfigService.Current.DisableSounds = permSfx;
-            _zoneSyncConfigService.Save();
-        }
-        _uiShared.DrawHelpText("This setting will disable sound sync for all new ZoneSync pairs.");
-        if (ImGui.Checkbox("Disable ZoneSync vfx", ref permVfx))
-        {
-            _zoneSyncConfigService.Current.DisableVFX = permVfx;
-            _zoneSyncConfigService.Save();
-        }
-        _uiShared.DrawHelpText("This setting will disable vfx sync for all new ZoneSync pairs.");
-        if (ImGui.Checkbox("Disable ZoneSync animations", ref permAni))
-        {
-            _zoneSyncConfigService.Current.DisableAnimations = permAni;
-            _zoneSyncConfigService.Save();
-        }
-        _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
+        //if (ImGui.Checkbox("Disable ZoneSync sounds", ref permSfx))
+        //{
+        //    _zoneSyncConfigService.Current.DisableSounds = permSfx;
+        //    _zoneSyncConfigService.Save();
+        //}
+        //_uiShared.DrawHelpText("This setting will disable sound sync for all new ZoneSync pairs.");
+        //if (ImGui.Checkbox("Disable ZoneSync vfx", ref permVfx))
+        //{
+        //    _zoneSyncConfigService.Current.DisableVFX = permVfx;
+        //    _zoneSyncConfigService.Save();
+        //}
+        //_uiShared.DrawHelpText("This setting will disable vfx sync for all new ZoneSync pairs.");
+        //if (ImGui.Checkbox("Disable ZoneSync animations", ref permAni))
+        //{
+        //    _zoneSyncConfigService.Current.DisableAnimations = permAni;
+        //    _zoneSyncConfigService.Save();
+        //}
+        //_uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
 
         ImGui.EndDisabled();
 
         ImGui.Dummy(new Vector2(10));
         ImGui.Separator();
-        ImGui.Dummy(new Vector2(10));
+        //ImGui.Dummy(new Vector2(10));
 
         bool filterSounds = _configService.Current.FilterSounds;
         bool filterVfx = _configService.Current.FilterVfx;
