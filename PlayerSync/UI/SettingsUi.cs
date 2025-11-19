@@ -1180,7 +1180,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.Separator();
 
         _uiShared.BigText("ZoneSync");
-        ImGui.Dummy(new Vector2(10));
+        ImGui.Dummy(new Vector2(5));
 
         if (!_zoneSyncConfigService.Current.UserHasConfirmedWarning)
         {
@@ -1338,8 +1338,10 @@ public class SettingsUi : WindowMediatorSubscriberBase
         bool filterAnimations = _configService.Current.FilterAnimations;
 
         _uiShared.BigText("Filtering");
-        ImGui.Dummy(new Vector2(10));
-        ImGui.TextUnformatted("These options do NOT change your per-pair permissions. Think of these as global overrides you can toggle on/off.");
+        ImGui.Dummy(new Vector2(5));
+        UiSharedService.TextWrapped("These options do NOT change your per-pair permissions. Think of these as global overrides you can toggle on/off.");
+        UiSharedService.TextWrapped("You will not see the filtered sfx/ani/vfx for other players, but they will still be able to see you (if permissions allow).");
+        UiSharedService.ColorTextWrapped("Changing these options will redraw all visible pairs around you.", ImGuiColors.DalamudRed);
         ImGuiHelpers.ScaledDummy(5f);
         if (ImGui.Checkbox("Filter out modded sounds", ref filterSounds))
         {

@@ -82,6 +82,8 @@ namespace PlayerSync.Services
                 if (addr == nint.Zero) continue;
                 if (handle.PlayerCharacter?.Name.TextValue == Self) continue;
                 if (!_visibleByAddress.TryGetValue(addr, out var pair)) continue;
+                var color = _configService.Current.NameHighlightColor;
+                SeString fcTag = null;
 
                 if (_configService.Current.ShowPermsInsteadOfFCTags)
                 {
@@ -94,46 +96,80 @@ namespace PlayerSync.Services
                     var colorEnabled = _configService.Current.PermsColorsEnabled;
                     var ssb = new SeStringBuilder();
 
-                    ssb.Append(" «");
                     // sounds
                     ssb.AddColoredText("", isDisabledSounds ? colorDisabled : colorEnabled);
                     // animations
                     ssb.AddColoredText("", isDisabledAnimations ? colorDisabled : colorEnabled);
                     // vfx
                     ssb.AddColoredText("", isDisabledVfx ? colorDisabled : colorEnabled);
-                    ssb.Append("»");
 
-                    handle.FreeCompanyTag = ssb.Build();
+                    fcTag = ssb.Build();
                 }
+
+                if (_configService.Current.ShowNameHighlights && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights))
+                {
+                    // update name
+                    var original = handle.Name.TextValue;
+                    var ssb3 = new SeStringBuilder();
+                    ssb3.AddColoredText(original, color);
+                    handle.Name = ssb3.Build();
+
+                    // update fc quotes
+                    if (!_configService.Current.ShowPermsInsteadOfFCTags)
+                    {
+                        var originalTag = handle.FreeCompanyTag.TextValue;
+                        var tagNoQuotes = originalTag.Replace("«", string.Empty).Replace("»", string.Empty).Trim();
+                        var tagBulder = new SeStringBuilder();
+                        tagBulder.AddColoredText(tagNoQuotes, color);
+                        fcTag = tagBulder.Build();
+                    }
+
+                    var ssbFcTagLeft = new SeStringBuilder();
+                    ssbFcTagLeft.AddColoredText(" «", color);
+                    var ssbFcTagRight = new SeStringBuilder();
+                    ssbFcTagRight.AddColoredText("»", color);
+                    handle.FreeCompanyTagParts.LeftQuote = ssbFcTagLeft.Build();
+                    handle.FreeCompanyTagParts.RightQuote = ssbFcTagRight.Build();
+
+                    if (handle.DisplayTitle && handle.Title.TextValue != String.Empty)
+                    {
+                        // update title quotes
+                        var ssbTitleTagLeft = new SeStringBuilder();
+                        ssbTitleTagLeft.AddColoredText("《", color);
+                        var ssbTitleTagRight = new SeStringBuilder();
+                        ssbTitleTagRight.AddColoredText("》", color);
+                        handle.TitleParts.LeftQuote = ssbTitleTagLeft.Build();
+                        handle.TitleParts.RightQuote = ssbTitleTagRight.Build();
+                    }
+                }
+
+                handle.FreeCompanyTagParts.Text = fcTag!;
 
                 if (_configService.Current.ShowPairedIndicator)
                 {
-                    var original = handle.FreeCompanyTag;
-                    var ssb = new SeStringBuilder();
-                    ssb.Append(original);
-                    ssb.AddUiForeground(UiColorId);
-                    ssb.Append(" ⇔");
-                    ssb.AddUiForegroundOff();
-                    handle.FreeCompanyTag = ssb.Build();
-                }
-
-                if (_configService.Current.ShowNameHighlights)
-                {
-                    bool shouldColor = true;
-                    if (!_configService.Current.IncludeFriendHighlights && IsFriend(handle))
+                    if (handle.FreeCompanyTagParts.RightQuote != null)
                     {
-                        shouldColor = false;
+                        var ssb2 = new SeStringBuilder();
+                        ssb2.AddUiForeground(UiColorId);
+                        ssb2.Append(" ⇔");
+                        ssb2.AddUiForegroundOff();
+                        handle.FreeCompanyTagParts.RightQuote.Append(ssb2.Build());
                     }
-                    if (shouldColor)
+                    else
                     {
-                        var color = _configService.Current.NameHighlightColor;
-                        var original = handle.Name.TextValue;
-                        var ssb = new SeStringBuilder();
-                        ssb.AddColoredText(original, color);
-                        handle.Name = ssb.Build();
+                        var ssbTagLeft = new SeStringBuilder();
+                        ssbTagLeft.Append(" «");
+                        var ssbTagRight = new SeStringBuilder();
+                        ssbTagRight.Append("»");
+                        ssbTagRight.AddUiForeground(UiColorId);
+                        ssbTagRight.Append(" ⇔");
+                        ssbTagRight.AddUiForegroundOff();
+                        handle.FreeCompanyTagParts.LeftQuote = ssbTagLeft.Build();
+                        handle.FreeCompanyTagParts.RightQuote= ssbTagRight.Build();
                     }
                 }
             }
+
             if (redraw) _namePlateGui.RequestRedraw();
         }
 
