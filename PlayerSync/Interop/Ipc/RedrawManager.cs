@@ -23,6 +23,95 @@ public class RedrawManager
         _dalamudUtil = dalamudUtil;
     }
 
+    // science
+    private sealed class CoalesceState
+    {
+        public CancellationTokenSource? DelayCts;
+        public Task? RunningTask;
+        public DateTime LastRequestedUtc;
+    }
+
+    // science
+    private readonly ConcurrentDictionary<string, CoalesceState> _redrawCoalesce = new(StringComparer.Ordinal);
+
+    // science
+    private static readonly TimeSpan RedrawCoalesceWindow = TimeSpan.FromMilliseconds(75);
+
+    // science
+    private static string GetActorKey(GameObjectHandler handler) => handler.Address.ToString();
+
+    public async Task CoalescedRedrawAsync(
+        ILogger logger,
+        GameObjectHandler handler,
+        Guid applicationId,
+        Action<ICharacter> action,
+        CancellationToken token)
+    {
+        var key = GetActorKey(handler);
+        var state = _redrawCoalesce.GetOrAdd(key, _ => new CoalesceState());
+
+        // serialize access to this actor's coalescer using a per-key lock
+        // (we can reuse the PairHandler lock if accessible; otherwise a lightweight lock here)
+        // Simple approach: use a SemaphoreSlim per key in another dictionary, or use a lock(state)
+        // We'll use lock(state) since state is per-key.
+        CoalesceState snapshot;
+        lock (state)
+        {
+            // cancel any pending delay so we push the redraw out again
+            state.DelayCts?.Cancel();
+            state.DelayCts?.Dispose();
+            state.DelayCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            snapshot = state;
+            state.LastRequestedUtc = DateTime.UtcNow;
+        }
+
+        try
+        {
+            // wait the debounce window (reset each new request)
+            await Task.Delay(RedrawCoalesceWindow, snapshot.DelayCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // a newer request came in; its call will handle the redraw
+            return;
+        }
+
+        // only one actual redraw per window — if a redraw is still running, wait for it to finish then perform the next
+        Task? toAwait;
+        lock (snapshot)
+        {
+            toAwait = snapshot.RunningTask;
+            if (toAwait == null || toAwait.IsCompleted)
+            {
+                // start the actual redraw task
+                snapshot.RunningTask = PenumbraRedrawInternalAsync(logger, handler, applicationId, action, token);
+                toAwait = snapshot.RunningTask;
+            }
+            else
+            {
+                // Running — let it complete; the next request will schedule again
+            }
+        }
+
+        try
+        {
+            await toAwait!.ConfigureAwait(false);
+        }
+        finally
+        {
+            // cleanup if nothing else queued up
+            lock (snapshot)
+            {
+                // If no new DelayCts has been scheduled since we started, we can compact the map entry
+                if ((DateTime.UtcNow - snapshot.LastRequestedUtc) > RedrawCoalesceWindow
+                    && (snapshot.RunningTask == null || snapshot.RunningTask.IsCompleted))
+                {
+                    _redrawCoalesce.TryRemove(key, out _);
+                }
+            }
+        }
+    }
+
     public async Task PenumbraRedrawInternalAsync(ILogger logger, GameObjectHandler handler, Guid applicationId, Action<ICharacter> action, CancellationToken token)
     {
         _mareMediator.Publish(new PenumbraStartRedrawMessage(handler.Address));
