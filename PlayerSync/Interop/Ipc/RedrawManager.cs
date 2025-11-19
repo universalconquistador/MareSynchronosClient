@@ -50,14 +50,9 @@ public class RedrawManager
         var key = GetActorKey(handler);
         var state = _redrawCoalesce.GetOrAdd(key, _ => new CoalesceState());
 
-        // serialize access to this actor's coalescer using a per-key lock
-        // (we can reuse the PairHandler lock if accessible; otherwise a lightweight lock here)
-        // Simple approach: use a SemaphoreSlim per key in another dictionary, or use a lock(state)
-        // We'll use lock(state) since state is per-key.
         CoalesceState snapshot;
         lock (state)
         {
-            // cancel any pending delay so we push the redraw out again
             state.DelayCts?.Cancel();
             state.DelayCts?.Dispose();
             state.DelayCts = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -72,11 +67,10 @@ public class RedrawManager
         }
         catch (OperationCanceledException)
         {
-            // a newer request came in; its call will handle the redraw
             return;
         }
 
-        // only one actual redraw per window — if a redraw is still running, wait for it to finish then perform the next
+        // only one actual redraw per window
         Task? toAwait;
         lock (snapshot)
         {
@@ -89,7 +83,7 @@ public class RedrawManager
             }
             else
             {
-                // Running — let it complete; the next request will schedule again
+                // Running
             }
         }
 
@@ -99,10 +93,8 @@ public class RedrawManager
         }
         finally
         {
-            // cleanup if nothing else queued up
             lock (snapshot)
             {
-                // If no new DelayCts has been scheduled since we started, we can compact the map entry
                 if ((DateTime.UtcNow - snapshot.LastRequestedUtc) > RedrawCoalesceWindow
                     && (snapshot.RunningTask == null || snapshot.RunningTask.IsCompleted))
                 {
