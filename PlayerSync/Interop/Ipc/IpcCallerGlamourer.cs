@@ -112,7 +112,9 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
         try
         {
 
-            await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
+            // science
+            await _redrawManager.CoalescedRedrawAsync(logger, handler, applicationId, (chara) =>
+            //await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
             {
                 try
                 {
@@ -158,7 +160,9 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
         try
         {
             await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
-            await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
+            // science
+            await _redrawManager.CoalescedRedrawAsync(logger, handler, applicationId, (chara) =>
+            //await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
             {
                 try
                 {
