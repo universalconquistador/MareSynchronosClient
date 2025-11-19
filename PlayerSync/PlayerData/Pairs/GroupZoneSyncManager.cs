@@ -154,14 +154,10 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
         ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
-        GroupZonePermissions perms = new();
-        perms.SetDisableSounds(_zoneSyncConfigService.Current.DisableSounds);
-        perms.SetDisableVFX(_zoneSyncConfigService.Current.DisableVFX);
-        perms.SetDisableAnimations(_zoneSyncConfigService.Current.DisableAnimations);
 
         try
         {
-            await _apiController.GroupZoneJoin(new(ownLocation, perms)).ConfigureAwait(false);
+            await _apiController.GroupZoneJoin(new(ownLocation)).ConfigureAwait(false);
         }
         catch (HubException)
         {
