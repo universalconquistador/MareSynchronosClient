@@ -76,6 +76,8 @@ public class MareConfig : IMareConfiguration
     public bool FilterAnimations { get; set; } = false;
     public bool FilterSounds { get; set; } = false;
     public bool FilterVfx { get; set; } = false;
+    public bool OverrideCdnTimeZone { get; set; } = false;
+    public string OverrideCdnTimeZoneId { get; set; } = string.Empty;
     public bool ShowSoundSourceIndicator { get; set; } = true;
     public bool ShowPairedIndicator { get; set; } = true;
     public bool ShowPermsInsteadOfFCTags { get; set; } = false;
