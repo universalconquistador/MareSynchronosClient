@@ -11,7 +11,6 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI;
-using System.Reflection.Metadata;
 
 namespace PlayerSync.Services
 {
@@ -100,6 +99,10 @@ namespace PlayerSync.Services
                     fcTagBuilder.AddColoredText("", isDisabledVfx ? colorDisabled : colorEnabled);
                     fcTagBuilder.Append("»");
                 }
+                else
+                {
+                    fcTagBuilder.Append(handle.FreeCompanyTag.TextValue);
+                }
 
                 if (_configService.Current.ShowPairedIndicator)
                 {
@@ -112,8 +115,10 @@ namespace PlayerSync.Services
 
                 if (_configService.Current.ShowNameHighlights && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights))
                 {
-                    handle.TextColor = color.Foreground;
-                    handle.EdgeColor = color.Glow;
+                    _logger.LogTrace("Highlight color: FG=0x{FG:X8}, EDGE=0x{GL:X8}", color.Foreground, color.Glow);
+                    // this doesn't update right away when we disable name highlighting
+                    handle.TextColor = MakeOpaque(color.Foreground);
+                    handle.EdgeColor = MakeOpaque(color.Glow);
                 }
             }
         }
@@ -125,5 +130,12 @@ namespace PlayerSync.Services
         }
 
         private unsafe static bool IsFriend(INamePlateUpdateHandler handler) => ((Character*)handler.PlayerCharacter!.Address)->IsFriend;
+
+        // thank you Mayo for your uwu code
+        private static uint MakeOpaque(uint rgb)
+        {
+            if (rgb == 0) return 0;
+            return (rgb & 0x00FFFFFF) | 0xFF000000; // ensure AA = 0xFF
+        }
     }
 }
