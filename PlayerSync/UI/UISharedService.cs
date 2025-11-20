@@ -114,6 +114,13 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
                 SizePx = 35
             }));
         });
+        HeaderFont = _pluginInterface.UiBuilder.FontAtlas.NewDelegateFontHandle(e =>
+        {
+            e.OnPreBuild(tk => tk.AddDalamudAssetFont(Dalamud.DalamudAsset.NotoSansJpMedium, new()
+            {
+                SizePx = 23
+            }));
+        });
         GameFont = _pluginInterface.UiBuilder.FontAtlas.NewGameFontHandle(new(GameFontFamilyAndSize.Axis12));
         IconFont = _pluginInterface.UiBuilder.IconFontFixedWidthHandle;
     }
@@ -133,6 +140,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public string PlayerName => _dalamudUtil.GetPlayerName();
 
     public IFontHandle UidFont { get; init; }
+    public IFontHandle HeaderFont { get; init; }
     public Dictionary<ushort, string> WorldData => _dalamudUtil.WorldData.Value;
     public uint WorldId => _dalamudUtil.GetHomeWorldId();
 
@@ -434,6 +442,11 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         FontText(text, UidFont, color);
     }
 
+    public void HeaderText(string text, Vector4? color = null)
+    {
+        FontText(text, HeaderFont, color);
+    }
+
     public void BooleanToColoredIcon(bool value, bool inline = true)
     {
         using var colorgreen = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, value);
@@ -454,6 +467,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public void DrawCacheDirectorySetting()
     {
         ColorTextWrapped("Note: The storage folder should be somewhere close to root (i.e. C:\\SyncStorage) in a new empty folder. DO NOT point this to your game folder. DO NOT point this to your Penumbra folder.", ImGuiColors.DalamudYellow);
+        ColorTextWrapped("Do NOT share this folder with other syncs, it will conflict and cause issues.", ImGuiColors.DalamudRed);
         var cacheDirectory = _configService.Current.CacheFolder;
         ImGui.InputText("Storage Folder##cache", ref cacheDirectory, 255, ImGuiInputTextFlags.ReadOnly);
 

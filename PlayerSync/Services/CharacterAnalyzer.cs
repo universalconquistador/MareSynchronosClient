@@ -16,6 +16,7 @@ public sealed class CharacterAnalyzer : MediatorSubscriberBase, IDisposable
     private CancellationTokenSource? _analysisCts;
     private CancellationTokenSource _baseAnalysisCts = new();
     private string _lastDataHash = string.Empty;
+    public CharacterAnalysisMetrics? LastMetrics { get; private set; }
 
     public CharacterAnalyzer(ILogger<CharacterAnalyzer> logger, MareMediator mediator, FileCacheManager fileCacheManager, XivDataAnalyzer modelAnalyzer)
         : base(logger, mediator)
@@ -81,6 +82,7 @@ public sealed class CharacterAnalyzer : MediatorSubscriberBase, IDisposable
         }
 
         Mediator.Publish(new CharacterDataAnalyzedMessage());
+        LastMetrics = BuildMetrics(LastAnalysis);
 
         _analysisCts.CancelDispose();
         _analysisCts = null;
@@ -138,6 +140,7 @@ public sealed class CharacterAnalyzer : MediatorSubscriberBase, IDisposable
         }
 
         Mediator.Publish(new CharacterDataAnalyzedMessage());
+        LastMetrics = BuildMetrics(LastAnalysis);
 
         _lastDataHash = charaData.DataHash.Value;
     }
@@ -232,4 +235,41 @@ public sealed class CharacterAnalyzer : MediatorSubscriberBase, IDisposable
             }
         });
     }
+
+    private static CharacterAnalysisMetrics BuildMetrics(IReadOnlyDictionary<ObjectKind, Dictionary<string, FileDataEntry>> analysis)
+    {
+        var vramByKind = new Dictionary<ObjectKind, long>();
+        var trisByKind = new Dictionary<ObjectKind, long>();
+
+        foreach (var (kind, filesByHash) in analysis)
+        {
+            long vram = filesByHash.Values
+                .Where(f => string.Equals(f.FileType, "tex", StringComparison.Ordinal))
+                .Sum(f => f.OriginalSize);
+
+            long tris = filesByHash.Values
+                .Where(f => string.Equals(f.FileType, "mdl", StringComparison.Ordinal))
+                .Sum(f => f.Triangles);
+
+            vramByKind[kind] = vram;
+            trisByKind[kind] = tris;
+        }
+
+        return new CharacterAnalysisMetrics
+        {
+            TotalVramBytes = vramByKind.Values.Sum(),
+            TotalTriangles = trisByKind.Values.Sum(),
+            VramBytesByKind = vramByKind,
+            TrianglesByKind = trisByKind
+        };
+    }
+
+    public sealed class CharacterAnalysisMetrics
+    {
+        public long TotalVramBytes { get; init; }
+        public long TotalTriangles { get; init; }
+        public Dictionary<ObjectKind, long> VramBytesByKind { get; init; } = new();
+        public Dictionary<ObjectKind, long> TrianglesByKind { get; init; } = new();
+    }
+
 }

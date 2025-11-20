@@ -68,4 +68,22 @@ public class MareConfig : IMareConfiguration
     public string LastSeenVersion { get; set; } = string.Empty;
     public bool NewUI { get; set; } = true;
     public bool ShowUIOnPluginLoad { get; set; } = false;
+    public bool ShowSyncConflictNotifications { get; set; } = true;
+    public bool ShowAnalysisOnCompactUi {  get; set; } = true;
+    public bool ShowAnalysisCompactUiBottom { get; set; } = false;
+    public bool ShowAnalysisCompactUiColor {  get; set; } = true;
+    public bool ShowCompactStats { get; set; } = true;
+    public bool FilterAnimations { get; set; } = false;
+    public bool FilterSounds { get; set; } = false;
+    public bool FilterVfx { get; set; } = false;
+    public bool OverrideCdnTimeZone { get; set; } = false;
+    public string OverrideCdnTimeZoneId { get; set; } = string.Empty;
+    public bool ShowSoundSourceIndicator { get; set; } = true;
+    public bool ShowPairedIndicator { get; set; } = true;
+    public bool ShowPermsInsteadOfFCTags { get; set; } = false;
+    public SeStringTextColors PermsColorsEnabled { get; set; } = new(Glow: 0x5CB027u);
+    public SeStringTextColors PermsColorsDisabled { get; set; } = new(Glow: 0x5CB027u);
+    public bool ShowNameHighlights { get; set; } = false;
+    public bool IncludeFriendHighlights { get; set; } = false;
+    public SeStringTextColors NameHighlightColor { get; set; } = new(Glow: 0x5CB027u);
 }

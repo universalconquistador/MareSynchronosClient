@@ -3,6 +3,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
@@ -32,7 +33,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private Task<int>? _pruneTestTask;
     private Task<int>? _pruneTask;
     private int _pruneDays = 14;
+    private Memory<byte> _rulesBuffer = new byte[2000];
     private Memory<byte> _descriptionBuffer = new byte[2000];
+    private bool _isProfileSaved;
 
     public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService)
@@ -48,16 +51,19 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         _multiInvites = 30;
         _pwChangeSuccess = true;
         IsOpen = true;
+        _isProfileSaved = true;
         SizeConstraints = new WindowSizeConstraints()
         {
-            MinimumSize = new(700, 500),
+            MinimumSize = new(700, 600),
             MaximumSize = new(700, 2000),
         };
         Mediator.Subscribe<GroupInfoChanged>(this, message =>
         {
-            System.Text.Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.Description, _descriptionBuffer.Span);
+            Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.GroupProfile?.Description ?? "", _descriptionBuffer.Span);
+            Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.GroupProfile?.Rules ?? "", _rulesBuffer.Span);
         });
-        System.Text.Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.Description, _descriptionBuffer.Span);
+        Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile?.Description ?? "", _descriptionBuffer.Span);
+        Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile?.Rules ?? "", _rulesBuffer.Span);
     }
 
     public GroupFullInfoDto GroupFullInfo { get; private set; }
@@ -102,16 +108,34 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
         if (tabbar)
         {
-            var descriptionTab = ImRaii.TabItem("Description");
-            if (descriptionTab)
+            var profileTab = ImRaii.TabItem("Profile");
+            if (profileTab)
             {
-                ImGui.InputTextMultiline("###description_input", _descriptionBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300));
-                if (_uiSharedService.IconTextButton(FontAwesomeIcon.Save, "Save"))
+                _uiSharedService.HeaderText("Syncshell Description");
+                if (ImGui.InputTextMultiline("###description_input", _descriptionBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300)))
+                    _isProfileSaved = false;
+
+                ImGuiHelpers.ScaledDummy(2f);
+
+                ImGuiHelpers.ScaledDummy(2f);
+                _uiSharedService.HeaderText("Syncshell Rules");
+                if (ImGui.InputTextMultiline("###rules_input", _rulesBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300)))
+                    _isProfileSaved = false;
+
+                ImGuiHelpers.ScaledDummy(2f);
+                using (ImRaii.Disabled(_isProfileSaved))
                 {
-                    _ = _apiController.GroupSetDescription(new(GroupFullInfo.Group), Encoding.UTF8.GetString(_descriptionBuffer.Span.Slice(0, _descriptionBuffer.Span.IndexOf((byte)0))));
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Save, "Save"))
+                    {
+                        string? rules = Encoding.UTF8.GetString(_rulesBuffer.Span.Slice(0, _rulesBuffer.Span.IndexOf((byte)0))) ?? "";
+                        string? description = Encoding.UTF8.GetString(_descriptionBuffer.Span.Slice(0, _descriptionBuffer.Span.IndexOf((byte)0))) ?? "";
+                        _ = _apiController.GroupSetProfile(new(GroupFullInfo.Group), new(rules, description));
+                        _isProfileSaved = true;
+                    }
                 }
+                ImGuiHelpers.ScaledDummy(2f);
             }
-            descriptionTab.Dispose();
+            profileTab.Dispose();
 
             var inviteTab = ImRaii.TabItem("Invites");
             if (inviteTab)
@@ -450,12 +474,14 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             {
                 bool isDisableAnimations = perm.IsPreferDisableAnimations();
                 bool isDisableSounds = perm.IsPreferDisableSounds();
-                bool isDisableVfx = perm.IsPreferDisableVFX();                
+                bool isDisableVfx = perm.IsPreferDisableVFX();
+
+                float PositionalX2 = 200f * ImGui.GetIO().FontGlobalScale;
 
                 ImGui.AlignTextToFramePadding();
                 ImGui.Text("Suggest Sound Sync");
                 _uiSharedService.BooleanToColoredIcon(!isDisableSounds);
-                ImGui.SameLine(230);
+                ImGui.SameLine(PositionalX2);
                 if (_uiSharedService.IconTextButton(isDisableSounds ? FontAwesomeIcon.VolumeUp : FontAwesomeIcon.VolumeMute,
                     isDisableSounds ? "Suggest to enable sound sync" : "Suggest to disable sound sync"))
                 {
@@ -466,7 +492,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                 ImGui.AlignTextToFramePadding();
                 ImGui.Text("Suggest Animation Sync");
                 _uiSharedService.BooleanToColoredIcon(!isDisableAnimations);
-                ImGui.SameLine(230);
+                ImGui.SameLine(PositionalX2);
                 if (_uiSharedService.IconTextButton(isDisableAnimations ? FontAwesomeIcon.Running : FontAwesomeIcon.Stop,
                     isDisableAnimations ? "Suggest to enable animation sync" : "Suggest to disable animation sync"))
                 {
@@ -477,7 +503,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                 ImGui.AlignTextToFramePadding();
                 ImGui.Text("Suggest VFX Sync");
                 _uiSharedService.BooleanToColoredIcon(!isDisableVfx);
-                ImGui.SameLine(230);
+                ImGui.SameLine(PositionalX2);
                 if (_uiSharedService.IconTextButton(isDisableVfx ? FontAwesomeIcon.Sun : FontAwesomeIcon.Circle,
                     isDisableVfx ? "Suggest to enable vfx sync" : "Suggest to disable vfx sync"))
                 {

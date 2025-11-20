@@ -1,4 +1,5 @@
 ﻿using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.MareConfiguration;
@@ -6,13 +7,8 @@ using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace MareSynchronos.PlayerData.Pairs
 {
@@ -270,6 +266,12 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private async Task PollBroadcastsInternal()
         {
+            if (!_apiController.IsConnected)
+            {
+                _logger.LogDebug("Can't call PollBroadcastsInternal when not connected.");
+                _pollingBroadcasts = 0;
+                return;
+            }
             try
             {
                 WorldData location = await _dalamudUtilService.RunOnFrameworkThread(() =>
@@ -309,15 +311,35 @@ namespace MareSynchronos.PlayerData.Pairs
                 {
                     Logger.LogTrace("Receiving broadcast groups for {location}...", locationString);
 
-                    broadcasts = await _apiController.BroadcastReceive(location).ConfigureAwait(false);
+                    try
+                    {
+                        
+                        broadcasts = await _apiController.BroadcastReceive(location).ConfigureAwait(false);
+                    }
+                    catch (InvalidDataException ex)
+                    {
+                        _logger.LogInformation(ex, "Broadcast poll failed.");
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Broadcast poll failed.");
+                        return;
+                    }
                 }
 
                 Logger.LogTrace("Received {count} groups.", broadcasts.Count);
 
                 if (IsListening)
                 {
-                    AvailableBroadcastGroups = broadcasts.AsReadOnly();
-                    Mediator.Publish(new RefreshUiMessage());
+                    var updateBroadcastGroups = broadcasts.AsReadOnly();
+                    var changed = !GroupBroadcastComparer.MultisetEquals(AvailableBroadcastGroups, updateBroadcastGroups);
+
+                    if (changed)
+                    {
+                        Mediator.Publish(new RefreshUiMessage());
+                    }
+                    AvailableBroadcastGroups = updateBroadcastGroups;
 
                     bool availableBroadcastGroupWithoutMine = AvailableBroadcastGroups.Any(broadcast => broadcast.Broadcasters.Count != 1 || broadcast.Broadcasters[0].UID != _apiController.UID);
                     if (availableBroadcastGroupWithoutMine

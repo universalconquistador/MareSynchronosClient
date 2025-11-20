@@ -1299,7 +1299,7 @@ namespace TerritoryTools
             // The Royal Menagerie
             [740] = false,
             // Sanctum of the Twelve
-            [741] = true,
+            [741] = false,
             // Hells' Lid
             [742] = true,
             // The Fractal Continuum

@@ -22,9 +22,9 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
     private readonly FileCacheManager _fileDbManager;
     private readonly FileTransferOrchestrator _orchestrator;
 
-    // Guards access to _activeDownloadStreams
     private readonly object _downloadInfoLock = new object();
     private readonly List<ThrottledStream> _activeDownloadStreams;
+    private static int _downloadHaltRefCount;
 
     public FileDownloadManager(ILogger<FileDownloadManager> logger, MareMediator mediator,
         FileTransferOrchestrator orchestrator,
@@ -73,20 +73,46 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
     public async Task DownloadFiles(GameObjectHandler gameObject, List<FileReplacementData> fileReplacementDto, CancellationToken ct)
     {
-        Mediator.Publish(new HaltScanMessage(nameof(DownloadFiles)));
+        var shouldPublishHalt = Interlocked.Increment(ref _downloadHaltRefCount) == 1;
+        if (shouldPublishHalt)
+            SafePublish(() => Mediator.Publish(new HaltScanMessage(nameof(DownloadFiles))),
+                        "HaltScan(DownloadFiles)");
+
         try
         {
             await DownloadFilesInternal(gameObject, fileReplacementDto, ct).ConfigureAwait(false);
         }
-        catch
+        catch (OperationCanceledException)
         {
             ClearDownload();
+            Logger.LogInformation("DownloadFiles cancelled");
+        }
+        catch (Exception ex)
+        {
+            ClearDownload();
+            Logger.LogError(ex, "DownloadFiles failed unexpectedly");
+            // swallow to reach finally and decrement the refcount
         }
         finally
         {
-            Mediator.Publish(new DownloadFinishedMessage(gameObject));
-            Mediator.Publish(new ResumeScanMessage(nameof(DownloadFiles)));
+            SafePublish(() => Mediator.Publish(new DownloadFinishedMessage(gameObject)), "DownloadFinishedMessage");
+
+            var newCount = Interlocked.Decrement(ref _downloadHaltRefCount);
+            if (newCount == 0)
+                SafePublish(() => Mediator.Publish(new ResumeScanMessage(nameof(DownloadFiles))), "ResumeScan(DownloadFiles)");
+            else if (newCount < 0)
+            {
+                Interlocked.Exchange(ref _downloadHaltRefCount, 0);
+                Logger.LogError("DownloadFiles halt refcount went negative; resetting to 0");
+                SafePublish(() => Mediator.Publish(new ResumeScanMessage(nameof(DownloadFiles))), "ResumeScan(DownloadFiles/reset)");
+            }
         }
+    }
+
+    private void SafePublish(Action publish, string what)
+    {
+        try { publish(); }
+        catch (Exception ex) { Logger.LogWarning(ex, "{what} publish threw", what); }
     }
 
     protected override void Dispose(bool disposing)
@@ -394,7 +420,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
     private async Task<List<DownloadFileDto>> FilesGetSizes(List<string> hashes, CancellationToken ct)
     {
         if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
-        var response = await _orchestrator.SendRequestAsync(HttpMethod.Get, MareFiles.ServerFilesGetSizesFullPath(_orchestrator.FilesCdnUri!), hashes, ct).ConfigureAwait(false);
+        var response = await _orchestrator.SendRequestAsync(HttpMethod.Get, MareFiles.ServerFilesGetSizesFullPath(_orchestrator.FilesCdnUri!, _orchestrator.TimeZoneUtcOffsetMinutes), hashes, ct).ConfigureAwait(false);
         return await response.Content.ReadFromJsonAsync<List<DownloadFileDto>>(cancellationToken: ct).ConfigureAwait(false) ?? [];
     }
 

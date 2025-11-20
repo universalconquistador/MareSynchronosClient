@@ -1,4 +1,5 @@
-﻿using MareSynchronos.MareConfiguration;
+﻿using MareSynchronos.API.Data;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI.Files.Models;
 using MareSynchronos.WebAPI.SignalR;
@@ -35,7 +36,7 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
         _tokenProvider = tokenProvider;
         _httpClient = httpClient;
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("MareSynchronos", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
+        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PlayerSync", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
         _httpClient.Timeout = Timeout.InfiniteTimeSpan;
 
         _availableDownloadSlots = mareConfig.Current.ParallelDownloads;
@@ -59,6 +60,28 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     public List<FileTransfer> ForbiddenTransfers { get; } = [];
     public bool IsInitialized => FilesCdnUri != null;
     public HttpRequestHeaders DefaultRequestHeaders => _httpClient.DefaultRequestHeaders;
+    public int TimeZoneUtcOffsetMinutes
+    {
+        get
+        {
+            int result = LongitudinalRegion.FromLocalSystemTimeZone().UtcOffsetMinutes;
+
+            if (_mareConfig.Current.OverrideCdnTimeZone)
+            {
+                var overrideTimeZoneId = _mareConfig.Current.OverrideCdnTimeZoneId;
+                if (!string.IsNullOrEmpty(overrideTimeZoneId) && LongitudinalRegion.FromTimeZoneId(overrideTimeZoneId) is var region && region.HasValue)
+                {
+                    result = region.Value.UtcOffsetMinutes;
+                }
+                else
+                {
+                    result = 0;
+                }
+            }
+
+            return result;
+        }
+    }
 
     public void ReleaseDownloadSlot()
     {
