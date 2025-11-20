@@ -969,7 +969,8 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
             Mediator.Publish(new RedrawNameplateMessage());
         }
-        _uiShared.DrawHelpText("This will change the name color for active pairs you can see.");
+        _uiShared.DrawHelpText("This will change the name color for active pairs you can see." + Environment.NewLine +
+            "Turning this off may take a moment to reflect in game.");
 
         using (ImRaii.Disabled(!showNameHighlights))
         {

@@ -11,6 +11,7 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI;
+using System.Reflection.Metadata;
 
 namespace PlayerSync.Services
 {
@@ -35,7 +36,7 @@ namespace PlayerSync.Services
             _dalamudUtil = dalamudUtilService;
             _configService = mareConfigService;
 
-            _namePlateGui.OnNamePlateUpdate += UpdateNamePlateInternal;
+            _namePlateGui.OnNamePlateUpdate += UpdateNamePlate;
 
             Mediator.Subscribe<RedrawNameplateMessage>(this, (_) => _namePlateGui.RequestRedraw());
 
@@ -46,12 +47,7 @@ namespace PlayerSync.Services
 
         private static ImmutableList<Pair> ImmutablePairList(IEnumerable<KeyValuePair<Pair, List<GroupFullInfoDto>>> u) => u.Select(k => k.Key).ToImmutableList();
 
-        private void UpdateNamePlateInternal(INamePlateUpdateContext context, IReadOnlyList<INamePlateUpdateHandler> handlers)
-        {
-            UpdateNamePlate(context, handlers, false);
-        }
-
-        private void UpdateNamePlate(INamePlateUpdateContext context, IReadOnlyList<INamePlateUpdateHandler> handlers, bool redraw = false)
+        private void UpdateNamePlate(INamePlateUpdateContext context, IReadOnlyList<INamePlateUpdateHandler> handlers)
         {
             // We could probably make this into an IHostedService and just stop/start the service, unsure.
             if (!(_configService.Current.ShowPairedIndicator 
@@ -83,7 +79,7 @@ namespace PlayerSync.Services
                 if (handle.PlayerCharacter?.Name.TextValue == Self) continue;
                 if (!_visibleByAddress.TryGetValue(addr, out var pair)) continue;
                 var color = _configService.Current.NameHighlightColor;
-                SeString fcTag = null;
+                var fcTagBuilder = new SeStringBuilder();
 
                 if (_configService.Current.ShowPermsInsteadOfFCTags)
                 {
@@ -94,89 +90,38 @@ namespace PlayerSync.Services
                     var isDisabledVfx = permsSelf.IsDisableVFX() || permsOther.IsDisableVFX();
                     var colorDisabled = _configService.Current.PermsColorsDisabled;
                     var colorEnabled = _configService.Current.PermsColorsEnabled;
-                    var ssb = new SeStringBuilder();
 
+                    fcTagBuilder.Append(" «");
                     // sounds
-                    ssb.AddColoredText("", isDisabledSounds ? colorDisabled : colorEnabled);
+                    fcTagBuilder.AddColoredText("", isDisabledSounds ? colorDisabled : colorEnabled);
                     // animations
-                    ssb.AddColoredText("", isDisabledAnimations ? colorDisabled : colorEnabled);
+                    fcTagBuilder.AddColoredText("", isDisabledAnimations ? colorDisabled : colorEnabled);
                     // vfx
-                    ssb.AddColoredText("", isDisabledVfx ? colorDisabled : colorEnabled);
-
-                    fcTag = ssb.Build();
+                    fcTagBuilder.AddColoredText("", isDisabledVfx ? colorDisabled : colorEnabled);
+                    fcTagBuilder.Append("»");
                 }
-
-                if (_configService.Current.ShowNameHighlights && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights))
-                {
-                    // update name
-                    var original = handle.Name.TextValue;
-                    var ssb3 = new SeStringBuilder();
-                    ssb3.AddColoredText(original, color);
-                    handle.Name = ssb3.Build();
-
-                    // update fc quotes
-                    if (!_configService.Current.ShowPermsInsteadOfFCTags)
-                    {
-                        var originalTag = handle.FreeCompanyTag.TextValue;
-                        var tagNoQuotes = originalTag.Replace("«", string.Empty).Replace("»", string.Empty).Trim();
-                        var tagBulder = new SeStringBuilder();
-                        tagBulder.AddColoredText(tagNoQuotes, color);
-                        fcTag = tagBulder.Build();
-                    }
-
-                    var ssbFcTagLeft = new SeStringBuilder();
-                    ssbFcTagLeft.AddColoredText(" «", color);
-                    var ssbFcTagRight = new SeStringBuilder();
-                    ssbFcTagRight.AddColoredText("»", color);
-                    handle.FreeCompanyTagParts.LeftQuote = ssbFcTagLeft.Build();
-                    handle.FreeCompanyTagParts.RightQuote = ssbFcTagRight.Build();
-
-                    if (handle.DisplayTitle && handle.Title.TextValue != String.Empty)
-                    {
-                        // update title quotes
-                        var ssbTitleTagLeft = new SeStringBuilder();
-                        ssbTitleTagLeft.AddColoredText("《", color);
-                        var ssbTitleTagRight = new SeStringBuilder();
-                        ssbTitleTagRight.AddColoredText("》", color);
-                        handle.TitleParts.LeftQuote = ssbTitleTagLeft.Build();
-                        handle.TitleParts.RightQuote = ssbTitleTagRight.Build();
-                    }
-                }
-
-                handle.FreeCompanyTagParts.Text = fcTag!;
 
                 if (_configService.Current.ShowPairedIndicator)
                 {
-                    if (handle.FreeCompanyTagParts.RightQuote != null)
-                    {
-                        var ssb2 = new SeStringBuilder();
-                        ssb2.AddUiForeground(UiColorId);
-                        ssb2.Append(" ⇔");
-                        ssb2.AddUiForegroundOff();
-                        handle.FreeCompanyTagParts.RightQuote.Append(ssb2.Build());
-                    }
-                    else
-                    {
-                        var ssbTagLeft = new SeStringBuilder();
-                        ssbTagLeft.Append(" «");
-                        var ssbTagRight = new SeStringBuilder();
-                        ssbTagRight.Append("»");
-                        ssbTagRight.AddUiForeground(UiColorId);
-                        ssbTagRight.Append(" ⇔");
-                        ssbTagRight.AddUiForegroundOff();
-                        handle.FreeCompanyTagParts.LeftQuote = ssbTagLeft.Build();
-                        handle.FreeCompanyTagParts.RightQuote= ssbTagRight.Build();
-                    }
+                    fcTagBuilder.AddUiForeground(UiColorId);
+                    fcTagBuilder.Append(" ⇔");
+                    fcTagBuilder.AddUiForegroundOff();
+                }
+
+                handle.FreeCompanyTag = fcTagBuilder.Build();
+
+                if (_configService.Current.ShowNameHighlights && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights))
+                {
+                    handle.TextColor = color.Foreground;
+                    handle.EdgeColor = color.Glow;
                 }
             }
-
-            if (redraw) _namePlateGui.RequestRedraw();
         }
 
         public void Dispose()
         {
             _logger.LogTrace("Disposing of NamePlateManager");
-            _namePlateGui.OnNamePlateUpdate -= UpdateNamePlateInternal;
+            _namePlateGui.OnNamePlateUpdate -= UpdateNamePlate;
         }
 
         private unsafe static bool IsFriend(INamePlateUpdateHandler handler) => ((Character*)handler.PlayerCharacter!.Address)->IsFriend;
