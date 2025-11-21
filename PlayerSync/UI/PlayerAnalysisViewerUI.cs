@@ -44,7 +44,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         _dalamudUtil = dalamudUtilService;
         SizeConstraints = new()
         {
-            MinimumSize = new(600, 500),
+            MinimumSize = new(1000, 500),
             MaximumSize = new(1000, 2000)
         };
         Mediator.Subscribe<OpenPlayerAnalysisViewerUIUiMessage>(this, (_) => Toggle());
@@ -122,7 +122,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
             default:
                 break;
         }
-        _uiSharedService.BigText("Visible Players (" + _cachedVisiblePairs.Count().ToString() + ")");
+        _uiSharedService.BigText("Visible Players (" + _cachedVisiblePairs.Count.ToString() + ")");
         ImGuiHelpers.ScaledDummy(2f);
 
         ImGui.TextUnformatted("Refresh:");
@@ -174,7 +174,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         var width = max.X - min.X;
         var height = max.Y - cursorPos;
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding,new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
-        using var table = ImRaii.Table("eventTable", 7, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY
+        using var table = ImRaii.Table("eventTable", 7, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.ScrollY
             | ImGuiTableFlags.RowBg | ImGuiTableFlags.Sortable | ImGuiTableFlags.SortMulti, new Vector2(width, height));
 
         void CText(string text) //center regular text function
@@ -204,13 +204,13 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         if (table)
         {
             ImGui.TableSetupScrollFreeze(0, 1);
-            ImGui.TableSetupColumn(string.Empty, ImGuiTableColumnFlags.NoSort);
-            ImGui.TableSetupColumn("UID");
-            ImGui.TableSetupColumn("Alias");
-            ImGui.TableSetupColumn("File Size");
-            ImGui.TableSetupColumn("Approx. VRAM Usage", ImGuiTableColumnFlags.DefaultSort);
-            ImGui.TableSetupColumn("Approx. Triangle Count");
-            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
+            ImGui.TableSetupColumn(string.Empty, ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoSort, 28f);
+            ImGui.TableSetupColumn("UID", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+            ImGui.TableSetupColumn("Alias", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+            ImGui.TableSetupColumn("File Size", ImGuiTableColumnFlags.WidthStretch, 0.8f);
+            ImGui.TableSetupColumn("Approx. VRAM Usage", ImGuiTableColumnFlags.DefaultSort | ImGuiTableColumnFlags.WidthStretch, 1.0f);
+            ImGui.TableSetupColumn("Approx. Triangle Count", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 170f);
             ImGui.TableHeadersRow();
 
             var sortedPairs = allVisiblePairs.ToList();
@@ -406,12 +406,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         ImGuiHelpers.ScaledDummy(2f);
 
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
-        using var table = ImRaii.Table("pauseTable", 3, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg);
+        using var table = ImRaii.Table("pauseTable", 3, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg, new Vector2(0, 0));
 
         ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableSetupColumn("UID");
-        ImGui.TableSetupColumn("Alias");
-        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
+        ImGui.TableSetupColumn("UID", ImGuiTableColumnFlags.WidthFixed, 240f);
+        ImGui.TableSetupColumn("Alias", ImGuiTableColumnFlags.WidthFixed, 240f);
+        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 200f);
         ImGui.TableHeadersRow();
 
         foreach (var pair in allPausedPairs)
@@ -548,6 +548,11 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextUnformatted(uid);
+                    if (ImGui.IsItemClicked())
+                    {
+                        ImGui.SetClipboardText(pair.UserData.UID);
+                    }
+                    UiSharedService.AttachToolTip("Click to copy");
 
                     // Alias
                     ImGui.TableNextColumn();
