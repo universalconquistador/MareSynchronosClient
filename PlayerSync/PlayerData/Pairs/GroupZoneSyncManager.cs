@@ -48,6 +48,8 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         _logger.LogDebug("ZoneSync manger initialized.");
     }
 
+    private DefaultPermissionsDto OwnDefaultPermissions => _apiController.DefaultPermissions.DeepClone()!;
+
     /// <summary>
     /// Debounce based scheduler for ZoneSync so we can add some delay before triggering.
     /// Also resets in case the user is zoning quickly (teleporting between areas)
@@ -160,9 +162,9 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
 
         GroupUserPreferredPermissions joinPermissions = GroupUserPreferredPermissions.NoneSet;
-        joinPermissions.SetDisableSounds(_ownPermissions.DisableGroupSounds);
-        joinPermissions.SetDisableAnimations(_ownPermissions.DisableGroupAnimations);
-        joinPermissions.SetDisableVFX(_ownPermissions.DisableGroupVFX);
+        joinPermissions.SetDisableSounds(OwnDefaultPermissions.DisableGroupSounds);
+        joinPermissions.SetDisableAnimations(OwnDefaultPermissions.DisableGroupAnimations);
+        joinPermissions.SetDisableVFX(OwnDefaultPermissions.DisableGroupVFX);
 
         try
         {
