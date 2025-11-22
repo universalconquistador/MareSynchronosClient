@@ -115,10 +115,13 @@ namespace PlayerSync.Services
 
                 if (_configService.Current.ShowNameHighlights && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights))
                 {
-                    _logger.LogTrace("Highlight color: FG=0x{FG:X8}, EDGE=0x{GL:X8}", color.Foreground, color.Glow);
-                    // this doesn't update right away when we disable name highlighting
-                    handle.TextColor = MakeOpaque(color.Foreground);
-                    handle.EdgeColor = MakeOpaque(color.Glow);
+                    var textColor = MakeOpaque(color.Foreground);
+                    var textGlow = MakeOpaque(color.Glow);
+
+                    // workaround for now since 0 can mess with honorifics
+                    if (textGlow == 0) textGlow = 4278255873;
+                    handle.TextColor = textColor;
+                    handle.EdgeColor = textGlow;
                 }
             }
         }
@@ -131,7 +134,6 @@ namespace PlayerSync.Services
 
         private unsafe static bool IsFriend(INamePlateUpdateHandler handler) => ((Character*)handler.PlayerCharacter!.Address)->IsFriend;
 
-        // thank you Mayo for your uwu code
         private static uint MakeOpaque(uint rgb)
         {
             if (rgb == 0) return 0;

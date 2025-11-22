@@ -77,11 +77,11 @@ public class MareConfig : IMareConfiguration
     public bool FilterSounds { get; set; } = false;
     public bool FilterVfx { get; set; } = false;
     public bool ShowSoundSourceIndicator { get; set; } = true;
-    public bool ShowPairedIndicator { get; set; } = true;
+    public bool ShowPairedIndicator { get; set; } = false;
     public bool ShowPermsInsteadOfFCTags { get; set; } = false;
-    public SeStringTextColors PermsColorsEnabled { get; set; } = new(Glow: 0x5CB027u);
-    public SeStringTextColors PermsColorsDisabled { get; set; } = new(Glow: 0x5CB027u);
+    public SeStringTextColors PermsColorsEnabled { get; set; } = new(Foreground: 0x00FF00u, Glow: 0x010101u);
+    public SeStringTextColors PermsColorsDisabled { get; set; } = new(Foreground: 0xFF0000u, Glow: 0x010101u);
     public bool ShowNameHighlights { get; set; } = false;
     public bool IncludeFriendHighlights { get; set; } = false;
-    public SeStringTextColors NameHighlightColor { get; set; } = new(Glow: 0x5CB027u);
+    public SeStringTextColors NameHighlightColor { get; set; } = new(Foreground: 0x71D6BDu, Glow: 0x1D5037u);
 }
