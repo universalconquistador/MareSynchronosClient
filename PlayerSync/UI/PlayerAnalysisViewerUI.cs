@@ -14,7 +14,10 @@ using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Numerics;
+using static System.Net.Mime.MediaTypeNames;
+using MyTableHelper;
 
 namespace MareSynchronos.UI;
 
@@ -34,9 +37,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
 
     public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
-        UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService, 
+        UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService,
         ApiController apiController, DalamudUtilService dalamudUtilService) : base(logger, mediator, "Player Analysis Viewer", performanceCollector)
-    { 
+    {
         _uiSharedService = uiSharedService;
         _pairManager = pairManager;
         _playerPerformanceConfig = playerPerformanceConfigService;
@@ -57,6 +60,31 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         Sec30,
         Manual,
     }
+
+    private enum SortByID
+    {
+        None,
+        UID,
+        Alias,
+        FileSize,
+        VRAM,
+        Triangles
+    }
+
+    private SortByID sortBy = SortByID.None;
+    private bool sortAscending = true;
+
+    public static void CenterItemInColumn(System.Action drawAction)
+    {
+        float cellWidth = ImGui.GetColumnWidth();
+        Vector2 itemSize = ImGui.CalcTextSize("A");
+        float cursorX = ImGui.GetCursorPosX();
+        ImGui.SetCursorPosX(cursorX + (cellWidth - itemSize.X) / 2);
+
+        drawAction.Invoke();
+    }
+
+    private bool defaultSortApplied = false;
 
     private static bool PermissionsEqual(UserPermissions a, UserPermissions b) => a == b;
 
@@ -142,11 +170,11 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 {
                     case RefreshMode.Live:
                         _refreshMode = RefreshMode.Live; break;
-                        case RefreshMode.Sec5:
+                    case RefreshMode.Sec5:
                         _refreshMode = RefreshMode.Sec5; break;
-                        case RefreshMode.Sec30:
+                    case RefreshMode.Sec30:
                         _refreshMode = RefreshMode.Sec30; break;
-                        case RefreshMode.Manual:
+                    case RefreshMode.Manual:
                         _refreshMode = RefreshMode.Manual; break;
                 }
             }, RefreshMode.Live);
@@ -173,223 +201,269 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         var min = ImGui.GetWindowContentRegionMin();
         var width = max.X - min.X;
         var height = max.Y - cursorPos;
-        using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding,new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
-        using var table = ImRaii.Table("eventTable", 7, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.ScrollY
-            | ImGuiTableFlags.RowBg | ImGuiTableFlags.Sortable | ImGuiTableFlags.SortMulti, new Vector2(width, height));
+        using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
 
-        void CText(string text) //center regular text function
+
+
+        if (ImGui.BeginTable("AnalysisTable", 7,
+                ImGuiTableFlags.ScrollY |
+                ImGuiTableFlags.RowBg |
+                ImGuiTableFlags.SortMulti,
+                new Vector2(width, height)))
         {
-            float cellWidth = ImGui.GetColumnWidth();
-            float textWidth = ImGui.CalcTextSize(text).X;
-            float indent = (cellWidth - textWidth) * 0.5f;
-            
-            if (indent > 0)
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
-            
-            ImGui.Text(text);
-        }
-
-        void CCText(string text, Vector4 color) //center colored text function
-        {
-            Vector2 textSize = ImGui.CalcTextSize(text);
-            float cellWidth = ImGui.GetColumnWidth();
-            float indent = (cellWidth - textSize.X) * 0.5f;
-
-            if (indent > 0)
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
-
-            UiSharedService.ColorText(text, color);
-        }
-
-        if (table)
-        {
-            ImGui.TableSetupScrollFreeze(0, 1);
-            ImGui.TableSetupColumn(string.Empty, ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoSort, 28f);
-            ImGui.TableSetupColumn("UID", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.TableSetupColumn("Alias", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.TableSetupColumn("File Size", ImGuiTableColumnFlags.WidthStretch, 0.8f);
-            ImGui.TableSetupColumn("Approx. VRAM Usage", ImGuiTableColumnFlags.DefaultSort | ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.TableSetupColumn("Approx. Triangle Count", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 170f);
-            ImGui.TableHeadersRow();
-
-            var sortedPairs = allVisiblePairs.ToList();
-            var sortSpecs = ImGui.TableGetSortSpecs();
-            if (sortSpecs.SpecsCount > 0)
+            try
             {
-                sortedPairs.Sort((a, b) => ComparePairsForSort(a, b, sortSpecs));
-            }
+                ImGui.TableSetupScrollFreeze(0, 1);
 
-            foreach (var pair in sortedPairs)
-            {
-                bool highlightRow = false;
+                ImGui.TableSetupColumn("Target", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 24f * ImGuiHelpers.GlobalScale);
+                ImGui.TableSetupColumn("UID");
+                ImGui.TableSetupColumn("Alias");
+                ImGui.TableSetupColumn("File Size");
+                ImGui.TableSetupColumn("Approx. VRAM Usage");
+                ImGui.TableSetupColumn("Approx. Triangle Count");
+                ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
 
-                var target = 
+                // draw manual heeders clickable for sort
+                ImGui.TableNextRow();
 
-                // Target
-                ImGui.TableNextColumn();
-                _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
-                UiSharedService.AttachToolTip("Target " + pair.PlayerName);
-                if (ImGui.IsItemClicked())
+                void HeaderCell(string label, int colIndex, SortByID sortKey, bool totheleft = false)
                 {
-                    Mediator.Publish(new TargetPairMessage(pair));
+                    ImGui.TableSetColumnIndex(colIndex);
+
+                    Vector2 cellStart = ImGui.GetCursorPos();
+                    float cellWidth = ImGui.GetColumnWidth();
+                    Vector2 textSize = ImGui.CalcTextSize(label);
+
+                    if (ImGui.InvisibleButton(label + "Btn", new Vector2(cellWidth, ImGui.GetTextLineHeight())))
+                    {
+                        if (sortBy == sortKey)
+                            sortAscending = !sortAscending;
+                        else
+                        {
+                            sortBy = sortKey;
+                            sortAscending = true;
+                        }
+                    }
+
+                    float indent = totheleft ? 0.0f : (cellWidth - textSize.X) * 0.5f;
+                    ImGui.SetCursorPos(new Vector2(cellStart.X + indent, cellStart.Y));
+
+                    ImGui.TextUnformatted(label);
+
+                    ImGui.SetCursorPosY(cellStart.Y + ImGui.GetTextLineHeight());
                 }
 
-                // UID
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted(pair.UserData.UID);
-                if (ImGui.IsItemClicked())
+                HeaderCell("", 0, SortByID.None);
+                HeaderCell("UID", 1, SortByID.UID, true);
+                HeaderCell("Alias", 2, SortByID.Alias, true);
+                HeaderCell("File Size", 3, SortByID.FileSize);
+                HeaderCell("Approx. VRAM Usage", 4, SortByID.VRAM);
+                HeaderCell("Approx. Triangle Count", 5, SortByID.Triangles);
+                HeaderCell("Actions", 6, SortByID.None, true);
+
+                // Sort my table
+                var sortedPairs = allVisiblePairs.ToList();
+
+                if (!defaultSortApplied)
                 {
-                    ImGui.SetClipboardText(pair.UserData.UID);
+                    sortBy = SortByID.VRAM;
+                    sortAscending = false; // false = decending / big to small 
+                    defaultSortApplied = true;
                 }
-                UiSharedService.AttachToolTip("Click to copy");
 
-                // Alias
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                if (pair.UserData.Alias != null)
-                    {
-                        ImGui.TextUnformatted(pair.UserData.Alias);
-                    }                
-                
-                // File Size
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();                
-                string FData(long bytes)
-                    {
-                        return bytes >= 0 ? UiSharedService.ByteToString(bytes, true) : "--";
-                    }
-                CText(FData(pair.LastAppliedDataBytes));
-
-                // VRAM
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                string FVram(long bytes)
-                    {
-                        return bytes >= 0 ? UiSharedService.ByteToString(bytes, true) : "--";
-                    }
-                
-                var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
-                var approxVram = pair.LastAppliedApproximateVRAMBytes;
-                if (pair.LastAppliedDataBytes >= 0)
+                if (sortBy != SortByID.None)
                 {
-                    if ((currentVramWarning * 1024 * 1024 < approxVram))
+                    sortedPairs.Sort((a, b) =>
                     {
-                        CCText($"{UiSharedService.ByteToString(pair.LastAppliedApproximateVRAMBytes, true)}", ImGuiColors.DalamudYellow);
-                        UiSharedService.AttachToolTip($"Exceeds your threshold by " + $"{UiSharedService.ByteToString(approxVram - (currentVramWarning * 1024 * 1024))}.");
+                        int cmp = sortBy switch
+                        {
+                            SortByID.UID => string.Compare(a.UserData.UID, b.UserData.UID, StringComparison.OrdinalIgnoreCase),
+                            SortByID.Alias => string.Compare(a.UserData.Alias ?? "", b.UserData.Alias ?? "", StringComparison.OrdinalIgnoreCase),
+                            SortByID.FileSize => a.LastAppliedDataBytes.CompareTo(b.LastAppliedDataBytes),
+                            SortByID.VRAM => a.LastAppliedApproximateVRAMBytes.CompareTo(b.LastAppliedApproximateVRAMBytes),
+                            SortByID.Triangles => a.LastAppliedDataTris.CompareTo(b.LastAppliedDataTris),
+                            _ => 0
+                        };
+                        return sortAscending ? cmp : -cmp;
+                    });
+                }
+
+                // get indent for vram, filesize, and triangles for nubmers right allignment <3
+
+                //triangle numbers
+                int maxTriWidth = 0;
+                Dictionary<Pair, string> formattedTris = new();
+
+                foreach (var p in sortedPairs)
+                {
+                    string t;
+
+                    if (p.LastAppliedDataTris > 0)
+                        t = p.LastAppliedDataTris >= 1000
+                            ? (p.LastAppliedDataTris / 1000d).ToString("0.0'k'")
+                            : p.LastAppliedDataTris.ToString();
+                    else
+                        t = "--";
+
+                    formattedTris[p] = t;
+
+                    int trianglewidth = (int)ImGui.CalcTextSize(t).X;
+                    if (trianglewidth > maxTriWidth)
+                        maxTriWidth = trianglewidth;
+                }
+
+                // fize size
+                int maxFileSizeWidth = 0;
+                Dictionary<Pair, string> formattedFileSizes = new();
+
+                foreach (var p in sortedPairs)
+                {
+                    string s = p.LastAppliedDataBytes >= 0
+                        ? UiSharedService.ByteToString(p.LastAppliedDataBytes, true)
+                        : "--";
+
+                    formattedFileSizes[p] = s;
+
+                    int fswidth = (int)ImGui.CalcTextSize(s).X;
+                    if (fswidth > maxFileSizeWidth)
+                        maxFileSizeWidth = fswidth;
+                }
+
+                // vram numbers
+                int maxVRAMWidth = 0;
+                Dictionary<Pair, string> formattedVRAM = new();
+
+                foreach (var p in sortedPairs)
+                {
+                    string s = p.LastAppliedApproximateVRAMBytes >= 0
+                        ? UiSharedService.ByteToString(p.LastAppliedApproximateVRAMBytes, true)
+                        : "--";
+
+                    formattedVRAM[p] = s;
+
+                    int vrwidth = (int)ImGui.CalcTextSize(s).X;
+                    if (vrwidth > maxVRAMWidth)
+                        maxVRAMWidth = vrwidth;
+                }
+
+                Thelper text = new Thelper();
+
+                // time to draw table data.
+                foreach (var pair in sortedPairs)
+                {
+                    bool highlightRow = false;
+                    ImGui.TableNextRow();
+
+                    // Visible Eyeball Icon
+                    ImGui.TableSetColumnIndex(0);
+                    float cellWidth = ImGui.GetColumnWidth();
+                    Vector2 iconSize = ImGui.CalcTextSize(FontAwesomeIcon.Eye.ToIconString()); // approximate width of icon
+                    float indent = (cellWidth - iconSize.X) * 0.5f;
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
+                    _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
+                    UiSharedService.AttachToolTip("Target " + pair.PlayerName);
+                    if (ImGui.IsItemClicked()) Mediator.Publish(new TargetPairMessage(pair));
+
+                    // UID Column                     
+                    ImGui.TableSetColumnIndex(1);
+                    ImGui.AlignTextToFramePadding();
+                    text.CText(pair.UserData.UID, centerHorizontally: false, leftPadding: 0f);
+
+                    // Alias/vanity Column
+                    ImGui.TableSetColumnIndex(2);
+                    ImGui.AlignTextToFramePadding();
+                    text.CText(pair.UserData.Alias ?? "", centerHorizontally: false, leftPadding: 0f);
+
+                    // file size column
+                    ImGui.TableSetColumnIndex(3);
+                    ImGui.AlignTextToFramePadding();
+                    string FData(long bytes) => bytes >= 0 ? UiSharedService.ByteToString(bytes, true) : "--";
+                    string fileSizeText = FData(pair.LastAppliedDataBytes);
+                    float space3width = ImGui.CalcTextSize(" ").X;  // Width of a single space character
+                    int spaces3 = (int)((maxFileSizeWidth - ImGui.CalcTextSize(fileSizeText).X) / space3width);
+                    string mypaddedfilesize = new string(' ', Math.Max(0, spaces3)) + fileSizeText;
+
+                    if (string.Equals(fileSizeText, "--", StringComparison.Ordinal))
+                    {
+                        text.CText("--");
                     }
                     else
                     {
-                        CText(FVram(pair.LastAppliedApproximateVRAMBytes));
+                        text.CText(mypaddedfilesize, centerHorizontally: true);
                     }
-                }
-                else
-                {
-                    CText("--");
-                }
 
-                // Triangles
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
-                var approxTris = pair.LastAppliedDataTris;
-                // For some reason we get triangles sometimes without data, so only display if we have data applied
-                if (pair.LastAppliedDataTris > 0 && pair.LastAppliedDataBytes >= 0)
-                {
-                    if ((currentTriWarning * 1000 < approxTris))
+                    // VRAM Column 
+                    ImGui.TableSetColumnIndex(4);
+                    ImGui.AlignTextToFramePadding();
+                    string vramText = formattedVRAM[pair];
+                    float space2width = ImGui.CalcTextSize(" ").X;
+                    int spaces2 = (int)((maxVRAMWidth - ImGui.CalcTextSize(vramText).X) / space2width);
+                    string mypaddedVRAM = new string(' ', Math.Max(0, spaces2)) + vramText;
+
+                    var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
+                    var approxVram = pair.LastAppliedApproximateVRAMBytes;
+
+                    if (pair.LastAppliedDataBytes >= 0)
                     {
-                        CCText(pair.LastAppliedDataTris > 1000 ?
-                            (pair.LastAppliedDataTris / 1000d).ToString("0.0'k'") : pair.LastAppliedDataTris.ToString(), ImGuiColors.DalamudYellow);
-                        UiSharedService.AttachToolTip($"Exceeds your threshold by " + $"{approxTris - (currentTriWarning * 1000):N0} triangles.");
+                        if (currentVramWarning * 1024 * 1024 < approxVram)
+                        {
+                            text.CCText(mypaddedVRAM, ImGuiColors.DalamudYellow);
+                            UiSharedService.AttachToolTip($"Exceeds your threshold by {UiSharedService.ByteToString(approxVram - (currentVramWarning * 1024 * 1024))}.");
+                        }
+                        else
+                            text.CText(mypaddedVRAM);
                     }
                     else
+                        text.CText("--");
+
+                    // Triangle Column
+                    ImGui.TableSetColumnIndex(5);
+                    ImGui.AlignTextToFramePadding();
+                    var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
+                    var approxTris = pair.LastAppliedDataTris;
+                    string t = formattedTris[pair];
+                    float space1width = ImGui.CalcTextSize(" ").X;
+                    int spaces1 = (int)((maxTriWidth - ImGui.CalcTextSize(t).X) / space1width);
+                    string mypaddedtriangles = new string(' ', Math.Max(0, spaces1)) + t;
+
+                    if (approxTris > 0)
                     {
-                        CText(pair.LastAppliedDataTris > 1000 ? (pair.LastAppliedDataTris / 1000d).ToString("0.0'k'") : pair.LastAppliedDataTris.ToString());
+                        if (currentTriWarning * 1000 < approxTris)
+                        {
+                            text.CCText(mypaddedtriangles, ImGuiColors.DalamudYellow);
+                            UiSharedService.AttachToolTip($"Exceeds your threshold by {approxTris - currentTriWarning * 1000:N0} triangles.");
+                        }
+                        else
+                            text.CText(mypaddedtriangles);
+                    }
+                    else
+                        text.CText("--");
+
+                    // Button optios Column
+
+                    ImGui.TableSetColumnIndex(6);
+                    ImGui.AlignTextToFramePadding();
+                    if (ImGui.Button($"Pause##{pair.UserData.UID}")) _ = _apiController.PauseAsync(pair.UserData);
+                    if (ImGui.IsItemHovered()) highlightRow = true;
+                    ImGui.SameLine();
+                    if (ImGui.Button($"Refresh##{pair.UserData.UID}")) _ = _apiController.CyclePauseAsync(pair.UserData);
+                    if (ImGui.IsItemHovered()) highlightRow = true;
+
+                    // row highlighting changing the vector4 parameter, you can change the color of the highlighted row. 
+                    // this is what i changed it to for my visibility.  
+                    if (highlightRow)
+                    {
+                        var rowIndex = ImGui.TableGetRowIndex();
+                        uint color = ImGui.ColorConvertFloat4ToU32(new System.Numerics.Vector4(0.4f, 0.6f, 1.0f, 0.5f));
+                        ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
                     }
                 }
-                else
-                {
-                    CText("--");
-                }
-
-                // Actions
-                var uid = pair.UserData.UID;
-                bool isBusy = _pauseClicked.Contains(uid);
-
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                ImGui.BeginDisabled(isBusy);
-                if (ImGui.Button($"Pause##{uid}"))
-                {
-                    // It can take a moment to dispose a large player, so we don't let the user spam the button
-                    _pauseClicked.Add(uid);
-                    _ = _apiController.PauseAsync(pair.UserData).ContinueWith(_ => _pauseClicked.Remove(uid));
-                }
-                ImGui.EndDisabled();
-                if (ImGui.IsItemHovered())
-                {
-                    highlightRow = true;
-                }
-
-                ImGui.SameLine();
-
-                if (ImGui.Button($"Refresh##{pair.UserData.UID}"))
-                {
-                    _ = _apiController.CyclePauseAsync(pair.UserData);
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    highlightRow = true;
-                }
-
-                // Row highlighting
-                if (highlightRow)
-                {
-                    var rowIndex = ImGui.TableGetRowIndex();
-                    var color = ImGui.GetColorU32(ImGuiCol.TableRowBgAlt);
-                    ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
-                }
+            }
+            finally
+            {
+                ImGui.EndTable();
             }
         }
-    }
-
-    private static int ComparePairsForSort(Pair a, Pair b, ImGuiTableSortSpecsPtr sortSpecs)
-    {
-        for (int i = 0; i < sortSpecs.SpecsCount; i++)
-        {
-            var spec = sortSpecs.Specs[i];
-            int cmp = 0;
-            switch (spec.ColumnIndex)
-            {
-                case 1:
-                    cmp = string.Compare(a.UserData.UID, b.UserData.UID, StringComparison.OrdinalIgnoreCase);
-                    break;
-                case 2:
-                    {
-                        var aAlias = a.UserData.Alias ?? string.Empty;
-                        var bAlias = b.UserData.Alias ?? string.Empty;
-                        cmp = string.Compare(aAlias, bAlias, StringComparison.OrdinalIgnoreCase);
-                        break;
-                    }
-                case 3:
-                    cmp = a.LastAppliedDataBytes.CompareTo(b.LastAppliedDataBytes);
-                    break;
-                case 4:
-                    cmp = a.LastAppliedApproximateVRAMBytes.CompareTo(b.LastAppliedApproximateVRAMBytes);
-                    break;
-                case 5:
-                    cmp = a.LastAppliedDataTris.CompareTo(b.LastAppliedDataTris);
-                    break;
-                default:
-                    continue;
-            }
-            if (cmp != 0)
-            {
-                return spec.SortDirection == ImGuiSortDirection.Ascending ? cmp : -cmp;
-            }
-        }
-        return 0;
     }
 
     private void DrawPaused()
@@ -583,7 +657,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     {
                         edit.SetDisableAnimations(ownAnimations);
                         changed = true;
-                    }   
+                    }
                     UiSharedService.AttachToolTip("Disable Animations (yours for this pair)");
 
                     // Own — VFX
