@@ -159,7 +159,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         DrawSettingsContent();
     }
-    private static bool InputColorPicker(string label, ref SeStringTextColors colors)
+    private static bool InputColorPicker(string label, ref SeStringTextColors colors, bool drawDtr = false)
     {
         using var id = ImRaii.PushId(label);
         var innerSpacing = ImGui.GetStyle().ItemInnerSpacing.X;
@@ -167,12 +167,13 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var glowColor = ConvertColor(colors.Glow);
 
         var ret = ImGui.ColorEdit3("###foreground", ref foregroundColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel | ImGuiColorEditFlags.Uint8);
-        if (ImGui.IsItemHovered())
+
+        if (ImGui.IsItemHovered() && drawDtr)
             ImGui.SetTooltip("Foreground Color - Set to pure black (#000000) to use the default color");
 
         ImGui.SameLine(0.0f, innerSpacing);
         ret |= ImGui.ColorEdit3("###glow", ref glowColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel | ImGuiColorEditFlags.Uint8);
-        if (ImGui.IsItemHovered())
+        if (ImGui.IsItemHovered() && drawDtr)
             ImGui.SetTooltip("Glow Color - Set to pure black (#000000) to use the default color");
 
         ImGui.SameLine(0.0f, innerSpacing);
@@ -1068,28 +1069,28 @@ public class SettingsUi : WindowMediatorSubscriberBase
             using (ImRaii.Disabled(!useColorsInDtr))
             {
                 using var indent2 = ImRaii.PushIndent();
-                if (InputColorPicker("Default", ref dtrColorsDefault))
+                if (InputColorPicker("Default", ref dtrColorsDefault, true))
                 {
                     _configService.Current.DtrColorsDefault = dtrColorsDefault;
                     _configService.Save();
                 }
 
                 ImGui.SameLine();
-                if (InputColorPicker("Not Connected", ref dtrColorsNotConnected))
+                if (InputColorPicker("Not Connected", ref dtrColorsNotConnected, true))
                 {
                     _configService.Current.DtrColorsNotConnected = dtrColorsNotConnected;
                     _configService.Save();
                 }
 
                 ImGui.SameLine();
-                if (InputColorPicker("Pairs in Range", ref dtrColorsPairsInRange))
+                if (InputColorPicker("Pairs in Range", ref dtrColorsPairsInRange, true))
                 {
                     _configService.Current.DtrColorsPairsInRange = dtrColorsPairsInRange;
                     _configService.Save();
                 }
 
                 ImGui.SameLine();
-                if (InputColorPicker("Broadcasting", ref dtrColorsBroadcasting))
+                if (InputColorPicker("Broadcasting", ref dtrColorsBroadcasting, true))
                 {
                     _configService.Current.DtrColorsBroadcasting = dtrColorsBroadcasting;
                     _configService.Save();
