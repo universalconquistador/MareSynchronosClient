@@ -228,22 +228,25 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
                 void HeaderCell(string label, int colIndex, SortByID sortKey, bool totheleft = false)
                 {
-                    ImGui.TableSetColumnIndex(colIndex);
+                    // sort only columns 2 to 6
+                    if (colIndex >= 1 && colIndex <= 5)
+                    {
+                        ImGui.TableSetColumnIndex(colIndex);
 
                     Vector2 cellStart = ImGui.GetCursorPos();
                     float cellWidth = ImGui.GetColumnWidth();
                     Vector2 textSize = ImGui.CalcTextSize(label);
 
                     if (ImGui.InvisibleButton(label + "Btn", new Vector2(cellWidth, ImGui.GetTextLineHeight())))
-                    {
-                        if (sortBy == sortKey)
-                            sortAscending = !sortAscending;
-                        else
                         {
-                            sortBy = sortKey;
-                            sortAscending = true;
+                            if (sortBy == sortKey)
+                                sortAscending = !sortAscending;
+                            else
+                            {
+                                sortBy = sortKey;
+                                sortAscending = true;
+                            }
                         }
-                    }
 
                     float indent = totheleft ? 0.0f : (cellWidth - textSize.X) * 0.5f;
                     ImGui.SetCursorPos(new Vector2(cellStart.X + indent, cellStart.Y));
@@ -251,6 +254,13 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     ImGui.TextUnformatted(label);
 
                     ImGui.SetCursorPosY(cellStart.Y + ImGui.GetTextLineHeight());
+                    }
+                    else
+                    {
+                        // If outside of the valid range, just render the header cell without sorting logic
+                        ImGui.TableSetColumnIndex(colIndex);
+                        ImGui.TextUnformatted(label);
+                    }
                 }
 
                 HeaderCell("", 0, SortByID.None);
