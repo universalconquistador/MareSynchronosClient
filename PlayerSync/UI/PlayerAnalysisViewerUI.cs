@@ -14,9 +14,7 @@ using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Numerics;
-using static System.Net.Mime.MediaTypeNames;
 using MyTableHelper;
 
 namespace MareSynchronos.UI;
@@ -74,7 +72,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private SortByID sortBy = SortByID.None;
     private bool sortAscending = true;
 
-    public static void CenterItemInColumn(System.Action drawAction)
+    public static void CenterItemInColumn(Action drawAction)
     {
         float cellWidth = ImGui.GetColumnWidth();
         Vector2 itemSize = ImGui.CalcTextSize("A");
@@ -186,6 +184,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
         UiSharedService.TextWrapped("Players showing -- have no mods or have not been loaded yet.");
         ImGuiHelpers.ScaledDummy(2f);
+        ImGui.Separator();
 
         if (shouldUpdate || _manualRefresh)
         {
@@ -202,8 +201,6 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         var width = max.X - min.X;
         var height = max.Y - cursorPos;
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
-
-
 
         if (ImGui.BeginTable("AnalysisTable", 7,
                 ImGuiTableFlags.ScrollY |
@@ -581,21 +578,21 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         float tableH = MathF.Max(0f, ImGui.GetContentRegionAvail().Y - footerH);
 
         using var pad = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
-        using (var table = ImRaii.Table("permMatrix", 9, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY
-            | ImGuiTableFlags.ScrollX | ImGuiTableFlags.NoHostExtendX, new Vector2(0, tableH)))
+        using (var table = ImRaii.Table("permMatrix", 9, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY
+             | ImGuiTableFlags.NoHostExtendX, new Vector2(0, tableH)))
         {
             if (table)
             {
                 ImGui.TableSetupScrollFreeze(0, 1);
-                ImGui.TableSetupColumn("UID", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 160f);
-                ImGui.TableSetupColumn("Alias", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 160f);
-                ImGui.TableSetupColumn("Preferred", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 80f);
-                ImGui.TableSetupColumn("Disable Sounds", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 160f);
-                ImGui.TableSetupColumn("Disable Animations", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 180f);
-                ImGui.TableSetupColumn("Disable VFX", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 120f);
-                ImGui.TableSetupColumn("Their Sounds", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 120f);
-                ImGui.TableSetupColumn("Their Animations", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 160f);
-                ImGui.TableSetupColumn("Their VFX", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 120f);
+                ImGui.TableSetupColumn("UID", ImGuiTableColumnFlags.WidthStretch, 1.6f);
+                ImGui.TableSetupColumn("Alias", ImGuiTableColumnFlags.WidthStretch, 1.6f);
+                ImGui.TableSetupColumn("Preferred", ImGuiTableColumnFlags.WidthStretch, .8f);
+                ImGui.TableSetupColumn("Disable Sounds", ImGuiTableColumnFlags.WidthStretch, 1.6f);
+                ImGui.TableSetupColumn("Disable Animations", ImGuiTableColumnFlags.WidthStretch, 1.8f);
+                ImGui.TableSetupColumn("Disable VFX", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+                ImGui.TableSetupColumn("Their Sounds", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+                ImGui.TableSetupColumn("Their Animations", ImGuiTableColumnFlags.WidthStretch, 1.6f);
+                ImGui.TableSetupColumn("Their VFX", ImGuiTableColumnFlags.WidthStretch, 1.2f);
                 ImGui.TableHeadersRow();
 
                 foreach (var pair in allVisiblePairs)
@@ -762,21 +759,4 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         CenterInCell(ImGui.GetFrameHeight());
         _uiSharedService.BooleanToColoredIcon(ok, invert);
     }
-
-    //public bool IsTargetPaired()
-    //{
-    //    return _dalamudUtil.RunOnFrameworkThread(() =>
-    //    {
-    //        var pc = _targetManager.Target as Dalamud.Plugin.Services.IPlayerCharacter;
-    //        if (pc == null) return false;
-
-    //        nint addr = pc.Address;
-    //        if (addr == nint.Zero) return false;
-
-    //        // 1) Address match (strongest)
-    //        if (_pairManager.PairsWithGroups.Keys.Any(p => p.Address == addr))
-    //            return true;
-
-    //    }).GetAwaiter().GetResult();
-    //}
 }
