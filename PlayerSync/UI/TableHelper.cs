@@ -1,7 +1,5 @@
 ﻿using Dalamud.Bindings.ImGui;
 using MareSynchronos.UI;
-using System;
-using System.Globalization;
 using System.Numerics;
 
 namespace MyTableHelper
