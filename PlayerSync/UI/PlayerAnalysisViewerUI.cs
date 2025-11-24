@@ -370,16 +370,24 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
                     UiSharedService.AttachToolTip("Target " + pair.PlayerName);
                     if (ImGui.IsItemClicked()) Mediator.Publish(new TargetPairMessage(pair));
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // UID Column                     
                     ImGui.TableSetColumnIndex(1);
                     ImGui.AlignTextToFramePadding();
                     text.CText(pair.UserData.UID, centerHorizontally: false, leftPadding: 0f);
+                    if (ImGui.IsItemClicked())
+                    {
+                        ImGui.SetClipboardText(pair.UserData.UID);
+                    }
+                    UiSharedService.AttachToolTip("Click to copy");
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Alias/vanity Column
                     ImGui.TableSetColumnIndex(2);
                     ImGui.AlignTextToFramePadding();
                     text.CText(pair.UserData.Alias ?? "", centerHorizontally: false, leftPadding: 0f);
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // file size column
                     ImGui.TableSetColumnIndex(3);
@@ -393,10 +401,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     if (string.Equals(fileSizeText, "--", StringComparison.Ordinal))
                     {
                         text.CText("--");
+                        if (ImGui.IsItemHovered()) highlightRow = true;
                     }
                     else
                     {
                         text.CText(mypaddedfilesize, centerHorizontally: true);
+                        if (ImGui.IsItemHovered()) highlightRow = true;
                     }
 
                     // VRAM Column 
@@ -422,6 +432,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     }
                     else
                         text.CText("--");
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Triangle Column
                     ImGui.TableSetColumnIndex(5);
@@ -445,23 +456,38 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     }
                     else
                         text.CText("--");
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
-                    // Button optios Column
+                    // Button options Column
+                    var uid = pair.UserData.UID;
+                    bool isBusy = _pauseClicked.Contains(uid);
 
                     ImGui.TableSetColumnIndex(6);
                     ImGui.AlignTextToFramePadding();
-                    if (ImGui.Button($"Pause##{pair.UserData.UID}")) _ = _apiController.PauseAsync(pair.UserData);
-                    if (ImGui.IsItemHovered()) highlightRow = true;
-                    ImGui.SameLine();
-                    if (ImGui.Button($"Refresh##{pair.UserData.UID}")) _ = _apiController.CyclePauseAsync(pair.UserData);
+                    ImGui.BeginDisabled(isBusy);
+                    if (ImGui.Button($"Pause##{pair.UserData.UID}"))
+                    {
+                        // It can take a moment to dispose a large player, so we don't let the user spam the button
+                        if (_pauseClicked.Add(uid))
+                        {
+                            _ = _apiController.PauseAsync(pair.UserData).ContinueWith(_ => _pauseClicked.Remove(uid));
+                        }
+                    }
+                    ImGui.EndDisabled();
                     if (ImGui.IsItemHovered()) highlightRow = true;
 
-                    // row highlighting changing the vector4 parameter, you can change the color of the highlighted row. 
-                    // this is what i changed it to for my visibility.  
+                    ImGui.SameLine();
+                    if (ImGui.Button($"Refresh##{pair.UserData.UID}"))
+                    {
+                        _ = _apiController.CyclePauseAsync(pair.UserData);
+                    }
+                    if (ImGui.IsItemHovered()) highlightRow = true;
+ 
                     if (highlightRow)
                     {
                         var rowIndex = ImGui.TableGetRowIndex();
-                        uint color = ImGui.ColorConvertFloat4ToU32(new System.Numerics.Vector4(0.4f, 0.6f, 1.0f, 0.5f));
+                        //uint color = ImGui.ColorConvertFloat4ToU32(new Vector4(0.4f, 0.6f, 1.0f, 0.5f));
+                        var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
                         ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
                     }
                 }
@@ -535,7 +561,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
             if (highlightRow)
             {
                 var rowIndex = ImGui.TableGetRowIndex();
-                var color = ImGui.GetColorU32(ImGuiCol.TableRowBgAlt);
+                var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
                 ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
             }
         }
@@ -607,6 +633,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
                 foreach (var pair in allVisiblePairs)
                 {
+                    bool highlightRow = false;
+
                     var uid = pair.UserData.UID;
                     if (!_edited.TryGetValue(uid, out var edit)) continue;
 
@@ -633,12 +661,14 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     {
                         ImGui.SetClipboardText(pair.UserData.UID);
                     }
+                    if (ImGui.IsItemHovered()) highlightRow = true;
                     UiSharedService.AttachToolTip("Click to copy");
 
                     // Alias
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextUnformatted(pair.UserData.Alias ?? "--");
+                    ImGui.TextUnformatted(pair.UserData.Alias ?? "");
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Preferred
                     ImGui.TableNextColumn();
@@ -648,6 +678,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         changed = true;
                     }
                     UiSharedService.AttachToolTip("Set Preferred permissions status");
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Own — Sounds
                     ImGui.TableNextColumn();
@@ -657,6 +688,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         changed = true;
                     }
                     UiSharedService.AttachToolTip("Disable Sounds (yours for this pair)");
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Own — Animations
                     ImGui.TableNextColumn();
@@ -666,6 +698,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         changed = true;
                     }
                     UiSharedService.AttachToolTip("Disable Animations (yours for this pair)");
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Own — VFX
                     ImGui.TableNextColumn();
@@ -675,21 +708,33 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         changed = true;
                     }
                     UiSharedService.AttachToolTip("Disable VFX (yours for this pair)");
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Other - Sounds
                     ImGui.TableNextColumn();
                     CenteredBooleanIcon(!otherSound, false);
                     UiSharedService.AttachToolTip("Other side: sounds are " + (otherSound ? "disabled" : "enabled"));
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Other — Animations
                     ImGui.TableNextColumn();
                     CenteredBooleanIcon(!otherAnimations, false);
                     UiSharedService.AttachToolTip("Other side: animations are " + (otherAnimations ? "disabled" : "enabled"));
+                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Other — VFX
                     ImGui.TableNextColumn();
                     CenteredBooleanIcon(!otherVfx, false);
                     UiSharedService.AttachToolTip("Other side: VFX are " + (otherVfx ? "disabled" : "enabled"));
+                    if (ImGui.IsItemHovered()) highlightRow = true;
+
+                    // Row highlighting
+                    if (highlightRow)
+                    {
+                        var rowIndex = ImGui.TableGetRowIndex();
+                        var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
+                        ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
+                    }
 
                     if (changed)
                         _edited[uid] = edit;
@@ -730,7 +775,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     var payload = new Dictionary<string, UserPermissions>(changed, StringComparer.Ordinal);
 
                     _ = _apiController.SetBulkPermissions(new(payload, new(StringComparer.Ordinal)
-                    ));
+                    )).ContinueWith((_) => Mediator.Publish(new RedrawNameplateMessage()));
                 }
             }
             UiSharedService.AttachToolTip("Apply all edited permissions");
@@ -743,6 +788,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     _edited[p.UserData.UID] = p.UserPair.OwnPermissions.DeepClone();
             }
             UiSharedService.AttachToolTip("Discard all unsaved changes");
+
+            if (hasChanges)
+            {
+                ImGui.SameLine();
+                UiSharedService.ColorText("Changes must be saved before taking effect.", ImGuiColors.DalamudYellow);
+            }
         }
         ImGui.EndChild();
     }
