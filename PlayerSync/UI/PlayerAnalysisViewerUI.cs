@@ -657,7 +657,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     // Alias
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextUnformatted(pair.UserData.Alias ?? "--");
+                    ImGui.TextUnformatted(pair.UserData.Alias ?? "");
                     if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Preferred
