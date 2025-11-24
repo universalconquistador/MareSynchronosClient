@@ -8,6 +8,8 @@ using MareSynchronos.MareConfiguration.Models;
 using Microsoft.AspNetCore.SignalR;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.Utils;
+using MareSynchronos.API.Dto;
 
 namespace PlayerSync.PlayerData.Pairs;
 
@@ -18,6 +20,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly PairManager _pairManager;
+    private DefaultPermissionsDto _ownPermissions = null!;
     private readonly object _zoneSyncLock = new();
     private CancellationTokenSource? _zoneSyncCts;
     private Task? _zoneSyncPendingTask;
@@ -35,6 +38,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         _dalamudUtilService = dalamudUtilService;
         _zoneSyncConfigService = zoneSyncConfigService;
         _pairManager = pairManager;
+        _ownPermissions = _apiController.DefaultPermissions.DeepClone()!;
 
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (__) => ScheduleGroupZoneSync());
         Mediator.Subscribe<WorldChangeMessage>(this, (__) => ScheduleGroupZoneSync());
@@ -154,14 +158,16 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
         ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
-        GroupZonePermissions perms = new();
-        perms.SetDisableSounds(_zoneSyncConfigService.Current.DisableSounds);
-        perms.SetDisableVFX(_zoneSyncConfigService.Current.DisableVFX);
-        perms.SetDisableAnimations(_zoneSyncConfigService.Current.DisableAnimations);
+
+        var defaultPerms = _apiController.DefaultPermissions.DeepClone()!;
+        GroupUserPreferredPermissions joinPermissions = GroupUserPreferredPermissions.NoneSet;
+        joinPermissions.SetDisableSounds(defaultPerms.DisableGroupSounds);
+        joinPermissions.SetDisableAnimations(defaultPerms.DisableGroupAnimations);
+        joinPermissions.SetDisableVFX(defaultPerms.DisableGroupVFX);
 
         try
         {
-            await _apiController.GroupZoneJoin(new(ownLocation, perms)).ConfigureAwait(false);
+            await _apiController.GroupZoneJoin(new(ownLocation, joinPermissions)).ConfigureAwait(false);
         }
         catch (HubException)
         {

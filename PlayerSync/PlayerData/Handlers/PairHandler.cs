@@ -43,6 +43,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private Guid _penumbraCollection;
     private bool _redrawOnNextApplication = false;
 
+    // science
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _actorLocks = new(StringComparer.Ordinal);
+
     public PairHandler(ILogger<PairHandler> logger, Pair pair,
         GameObjectHandlerFactory gameObjectHandlerFactory,
         IpcManager ipcManager, FileDownloadManager transferManager,
@@ -122,6 +125,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             }
         }
     }
+
+    // science
+    private static SemaphoreSlim GetActorLock(string uid) => _actorLocks.GetOrAdd(uid, _ => new SemaphoreSlim(1, 1));
 
     public long LastAppliedDataBytes { get; private set; }
     public Pair Pair { get; private set; }
@@ -463,9 +469,13 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private async Task ApplyCharacterDataAsync(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData, bool updateModdedPaths, bool updateManip,
         Dictionary<(string GamePath, string? Hash), string> moddedPaths, CancellationToken token)
     {
+        _applicationId = Guid.NewGuid();
+        // science
+        var gate = GetActorLock(_applicationId.ToString());
+        await gate.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            _applicationId = Guid.NewGuid();
+            
             Logger.LogDebug("[BASE-{applicationId}] Starting application task for {this}: {appId}", applicationBase, this, _applicationId);
 
             Logger.LogDebug("[{applicationId}] Waiting for initial draw for for {handler}", _applicationId, _charaHandler);
@@ -521,6 +531,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             {
                 Logger.LogWarning(ex, "[{applicationId}] Cancelled", _applicationId);
             }
+        }
+        finally
+        {
+            gate.Release();
         }
     }
 

@@ -31,6 +31,7 @@ public record CutsceneStartMessage : MessageBase;
 public record GposeStartMessage : SameThreadMessage;
 public record GposeEndMessage : MessageBase;
 public record CutsceneEndMessage : MessageBase;
+public record ChangeFilterMessage : MessageBase;
 public record CutsceneFrameworkUpdateMessage : SameThreadMessage;
 public record ConnectedMessage(ConnectionDto Connection) : MessageBase;
 public record DisconnectedMessage : SameThreadMessage;
@@ -109,5 +110,6 @@ public record GroupZoneSetEnableState(bool isEnabled = false) : MessageBase;
 public record GroupZoneSyncUpdateMessage : MessageBase;
 public record WorldChangeMessage : MessageBase;
 public record ToggleThemeEditorMessage : MessageBase;
+public record RedrawNameplateMessage : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name

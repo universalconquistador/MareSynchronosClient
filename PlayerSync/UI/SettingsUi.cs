@@ -1,4 +1,4 @@
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
@@ -159,7 +159,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         DrawSettingsContent();
     }
-    private static bool InputDtrColors(string label, ref SeStringTextColors colors)
+    private static bool InputColorPicker(string label, ref SeStringTextColors colors, bool drawDtr = false)
     {
         using var id = ImRaii.PushId(label);
         var innerSpacing = ImGui.GetStyle().ItemInnerSpacing.X;
@@ -167,12 +167,13 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var glowColor = ConvertColor(colors.Glow);
 
         var ret = ImGui.ColorEdit3("###foreground", ref foregroundColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel | ImGuiColorEditFlags.Uint8);
-        if (ImGui.IsItemHovered())
+
+        if (ImGui.IsItemHovered() && drawDtr)
             ImGui.SetTooltip("Foreground Color - Set to pure black (#000000) to use the default color");
 
         ImGui.SameLine(0.0f, innerSpacing);
         ret |= ImGui.ColorEdit3("###glow", ref glowColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel | ImGuiColorEditFlags.Uint8);
-        if (ImGui.IsItemHovered())
+        if (ImGui.IsItemHovered() && drawDtr)
             ImGui.SetTooltip("Glow Color - Set to pure black (#000000) to use the default color");
 
         ImGui.SameLine(0.0f, innerSpacing);
@@ -507,6 +508,25 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("Artificially slow down your uploads, for testing the upload system.");
+
+        bool overrideCdnTimeOffset = _configService.Current.OverrideCdnTimeZone;
+        if (ImGui.Checkbox($"Override CDN Time Zone (Current: '{(overrideCdnTimeOffset ? _configService.Current.OverrideCdnTimeZoneId : TimeZoneInfo.Local.Id)}', UTC offset: {_fileTransferOrchestrator.TimeZoneUtcOffsetMinutes} mins)", ref overrideCdnTimeOffset))
+        {
+            _configService.Current.OverrideCdnTimeZone = overrideCdnTimeOffset;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Overriding the time zone used to select a file transfer CDN can cause you to download and upload mod files via different servers." + UiSharedService.TooltipSeparator
+            + "Only override if you are testing the CDN or if the automatic selection based on your PC's selected time zone does not result in connecting to the optimal server.\n\n"
+            + "NOTE: Changing your system time zone may not reflect in Player Sync until you restart your game.");
+
+        using (ImRaii.Disabled(!overrideCdnTimeOffset))
+        {
+            _uiShared.DrawCombo("Override Time Zone", TimeZoneInfo.GetSystemTimeZones().Append(null), zone => zone != null ? $"{zone?.Id}: {zone?.DisplayName}" : "(none): +0:00", zone =>
+            {
+                _configService.Current.OverrideCdnTimeZoneId = zone?.Id ?? string.Empty;
+                _configService.Save();
+            }, !string.IsNullOrEmpty(_configService.Current.OverrideCdnTimeZoneId) ? TimeZoneInfo.FindSystemTimeZoneById(_configService.Current.OverrideCdnTimeZoneId) : null);
+        }
     }
 
     private void DrawFileStorageSettings()
@@ -768,7 +788,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.DrawHelpText("This will automatically populate user notes using the first encountered player name if the note was not set prior");
 
         ImGui.Separator();
-        _uiShared.BigText("UI");
+        _uiShared.BigText("PlayerSync UI");
         var showNameInsteadOfNotes = _configService.Current.ShowCharacterNameInsteadOfNotesForVisible;
         var showVisibleSeparate = _configService.Current.ShowVisibleUsersSeparately;
         var showOfflineSeparate = _configService.Current.ShowOfflineUsersSeparately;
@@ -776,15 +796,6 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var showNsfwProfiles = _configService.Current.ProfilesAllowNsfw;
         var profileDelay = _configService.Current.ProfileDelay;
         var profileOnRight = _configService.Current.ProfilePopoutRight;
-        var enableRightClickMenu = _configService.Current.EnableRightClickMenus;
-        var enableDtrEntry = _configService.Current.EnableDtrEntry;
-        var showUidInDtrTooltip = _configService.Current.ShowUidInDtrTooltip;
-        var preferNoteInDtrTooltip = _configService.Current.PreferNoteInDtrTooltip;
-        var useColorsInDtr = _configService.Current.UseColorsInDtr;
-        var dtrColorsDefault = _configService.Current.DtrColorsDefault;
-        var dtrColorsNotConnected = _configService.Current.DtrColorsNotConnected;
-        var dtrColorsPairsInRange = _configService.Current.DtrColorsPairsInRange;
-        var dtrColorsBroadcasting = _configService.Current.DtrColorsBroadcasting;
         var preferNotesInsteadOfName = _configService.Current.PreferNotesOverNamesForVisible;
         var useFocusTarget = _configService.Current.UseFocusTarget;
         var groupUpSyncshells = _configService.Current.GroupUpSyncshells;
@@ -795,6 +806,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var showAnalysisBottom = _configService.Current.ShowAnalysisCompactUiBottom;
         var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
         var showCompactStats = _configService.Current.ShowCompactStats;
+        
 
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
         {
@@ -829,72 +841,6 @@ public class SettingsUi : WindowMediatorSubscriberBase
         }
         if (!showAnalysisOnUi) ImGui.EndDisabled();
         ImGui.Unindent();
-        if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))
-        {
-            _configService.Current.EnableRightClickMenus = enableRightClickMenu;
-            _configService.Save();
-        }
-        _uiShared.DrawHelpText("This will add PlayerSync related right click menu entries in the game UI on paired players.");
-
-        if (ImGui.Checkbox("Display status and visible pair count in Server Info Bar", ref enableDtrEntry))
-        {
-            _configService.Current.EnableDtrEntry = enableDtrEntry;
-            _configService.Save();
-        }
-        _uiShared.DrawHelpText("This will add PlayerSync connection status and visible pair count in the Server Info Bar.\nYou can further configure this through your Dalamud Settings.");
-
-        using (ImRaii.Disabled(!enableDtrEntry))
-        {
-            using var indent = ImRaii.PushIndent();
-            if (ImGui.Checkbox("Show visible character's UID in tooltip", ref showUidInDtrTooltip))
-            {
-                _configService.Current.ShowUidInDtrTooltip = showUidInDtrTooltip;
-                _configService.Save();
-            }
-
-            if (ImGui.Checkbox("Prefer notes over player names in tooltip", ref preferNoteInDtrTooltip))
-            {
-                _configService.Current.PreferNoteInDtrTooltip = preferNoteInDtrTooltip;
-                _configService.Save();
-            }
-
-            if (ImGui.Checkbox("Color-code the Server Info Bar entry according to status", ref useColorsInDtr))
-            {
-                _configService.Current.UseColorsInDtr = useColorsInDtr;
-                _configService.Save();
-            }
-
-            using (ImRaii.Disabled(!useColorsInDtr))
-            {
-                using var indent2 = ImRaii.PushIndent();
-                if (InputDtrColors("Default", ref dtrColorsDefault))
-                {
-                    _configService.Current.DtrColorsDefault = dtrColorsDefault;
-                    _configService.Save();
-                }
-
-                ImGui.SameLine();
-                if (InputDtrColors("Not Connected", ref dtrColorsNotConnected))
-                {
-                    _configService.Current.DtrColorsNotConnected = dtrColorsNotConnected;
-                    _configService.Save();
-                }
-
-                ImGui.SameLine();
-                if (InputDtrColors("Pairs in Range", ref dtrColorsPairsInRange))
-                {
-                    _configService.Current.DtrColorsPairsInRange = dtrColorsPairsInRange;
-                    _configService.Save();
-                }
-
-                ImGui.SameLine();
-                if (InputDtrColors("Broadcasting", ref dtrColorsBroadcasting))
-                {
-                    _configService.Current.DtrColorsBroadcasting = dtrColorsBroadcasting;
-                    _configService.Save();
-                }
-            }
-        }
 
         if (ImGui.Checkbox("Show separate Visible group", ref showVisibleSeparate))
         {
@@ -1002,6 +948,159 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         ImGui.Separator();
 
+        var enableRightClickMenu = _configService.Current.EnableRightClickMenus;
+        var showPairedIndicator = _configService.Current.ShowPairedIndicator;
+        var showSoundIndicator = _configService.Current.ShowSoundSourceIndicator;
+        var showPermsOverFC = _configService.Current.ShowPermsInsteadOfFCTags;
+        var enableDtrEntry = _configService.Current.EnableDtrEntry;
+        var showUidInDtrTooltip = _configService.Current.ShowUidInDtrTooltip;
+        var preferNoteInDtrTooltip = _configService.Current.PreferNoteInDtrTooltip;
+        var useColorsInDtr = _configService.Current.UseColorsInDtr;
+        var dtrColorsDefault = _configService.Current.DtrColorsDefault;
+        var dtrColorsNotConnected = _configService.Current.DtrColorsNotConnected;
+        var dtrColorsPairsInRange = _configService.Current.DtrColorsPairsInRange;
+        var dtrColorsBroadcasting = _configService.Current.DtrColorsBroadcasting;
+        var showNameHighlights = _configService.Current.ShowNameHighlights;
+        var showFriendsHighlights = _configService.Current.IncludeFriendHighlights;
+        var highlightNameColor = _configService.Current.NameHighlightColor;
+        var permColorsEnabled = _configService.Current.PermsColorsEnabled;
+        var permsColorsDisabled = _configService.Current.PermsColorsDisabled;
+
+        _uiShared.BigText("Game UI");
+
+        if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))
+        {
+            _configService.Current.EnableRightClickMenus = enableRightClickMenu;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This will add PlayerSync related right click menu entries in the game UI on paired players.");
+
+        if (ImGui.Checkbox("Show Paired Indicator", ref showPairedIndicator))
+        {
+            _configService.Current.ShowPairedIndicator = showPairedIndicator;
+            _configService.Save();
+            Mediator.Publish(new RedrawNameplateMessage());
+        }
+        _uiShared.DrawHelpText("This will draw a ⇔ icon next to names for visibile pairs.");
+
+        if (ImGui.Checkbox("Color Code Active Pair Names" , ref showNameHighlights))
+        {
+            _configService.Current.ShowNameHighlights = showNameHighlights;
+            _configService.Save();
+            Mediator.Publish(new RedrawNameplateMessage());
+        }
+        _uiShared.DrawHelpText("This will change the name color for active pairs you can see." + Environment.NewLine +
+            "Turning this off may take a moment to reflect in game.");
+
+        using (ImRaii.Disabled(!showNameHighlights))
+        {
+            using var indent = ImRaii.PushIndent();
+            if (InputColorPicker("Name Color", ref highlightNameColor))
+            {
+                _configService.Current.NameHighlightColor = highlightNameColor;
+                _configService.Save();
+                Mediator.Publish(new RedrawNameplateMessage());
+            }
+
+            if (ImGui.Checkbox("Include Friend List Names", ref showFriendsHighlights))
+            {
+                _configService.Current.IncludeFriendHighlights = showFriendsHighlights;
+                _configService.Save();
+                Mediator.Publish(new RedrawNameplateMessage());
+            }
+            _uiShared.DrawHelpText("This will also change the color of players on your Friend List.");
+
+        }
+
+        if (ImGui.Checkbox("Replace FC tags with PlayerSync permissions", ref showPermsOverFC))
+        {
+            _configService.Current.ShowPermsInsteadOfFCTags = showPermsOverFC;
+            _configService.Save();
+            Mediator.Publish(new RedrawNameplateMessage());
+        }
+        _uiShared.DrawHelpText("This will replace FC tags with your visible pairs permissions, color coded based on permission status.");
+
+        using (ImRaii.Disabled(!showPermsOverFC))
+        {
+            using var indent = ImRaii.PushIndent();
+            if (InputColorPicker("Enabled Color", ref permColorsEnabled))
+            {
+                _configService.Current.PermsColorsEnabled = permColorsEnabled;
+                _configService.Save();
+                Mediator.Publish(new RedrawNameplateMessage());
+            }
+            ImGui.SameLine();
+            if (InputColorPicker("Disabled Color", ref permsColorsDisabled))
+            {
+                _configService.Current.PermsColorsDisabled = permsColorsDisabled;
+                _configService.Save();
+                Mediator.Publish(new RedrawNameplateMessage());
+            }
+        }
+
+        if (ImGui.Checkbox("Display status and visible pair count in Server Info Bar", ref enableDtrEntry))
+        {
+            _configService.Current.EnableDtrEntry = enableDtrEntry;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This will add PlayerSync connection status and visible pair count in the Server Info Bar.\nYou can further configure this through your Dalamud Settings.");
+
+        using (ImRaii.Disabled(!enableDtrEntry))
+        {
+            using var indent = ImRaii.PushIndent();
+            if (ImGui.Checkbox("Show visible character's UID in tooltip", ref showUidInDtrTooltip))
+            {
+                _configService.Current.ShowUidInDtrTooltip = showUidInDtrTooltip;
+                _configService.Save();
+            }
+
+            if (ImGui.Checkbox("Prefer notes over player names in tooltip", ref preferNoteInDtrTooltip))
+            {
+                _configService.Current.PreferNoteInDtrTooltip = preferNoteInDtrTooltip;
+                _configService.Save();
+            }
+
+            if (ImGui.Checkbox("Color-code the Server Info Bar entry according to status", ref useColorsInDtr))
+            {
+                _configService.Current.UseColorsInDtr = useColorsInDtr;
+                _configService.Save();
+            }
+
+            using (ImRaii.Disabled(!useColorsInDtr))
+            {
+                using var indent2 = ImRaii.PushIndent();
+                if (InputColorPicker("Default", ref dtrColorsDefault, true))
+                {
+                    _configService.Current.DtrColorsDefault = dtrColorsDefault;
+                    _configService.Save();
+                }
+
+                ImGui.SameLine();
+                if (InputColorPicker("Not Connected", ref dtrColorsNotConnected, true))
+                {
+                    _configService.Current.DtrColorsNotConnected = dtrColorsNotConnected;
+                    _configService.Save();
+                }
+
+                ImGui.SameLine();
+                if (InputColorPicker("Pairs in Range", ref dtrColorsPairsInRange, true))
+                {
+                    _configService.Current.DtrColorsPairsInRange = dtrColorsPairsInRange;
+                    _configService.Save();
+                }
+
+                ImGui.SameLine();
+                if (InputColorPicker("Broadcasting", ref dtrColorsBroadcasting, true))
+                {
+                    _configService.Current.DtrColorsBroadcasting = dtrColorsBroadcasting;
+                    _configService.Save();
+                }
+            }
+        }
+
+
+        ImGui.Separator();
+
         var disableOptionalPluginWarnings = _configService.Current.DisableOptionalPluginWarnings;
         var syncConflictNotifs = _configService.Current.ShowSyncConflictNotifications;
         var pairingRequestNotifs = _configService.Current.ShowPairingRequestNotification;
@@ -1102,7 +1201,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.Separator();
 
         _uiShared.BigText("ZoneSync");
-        ImGui.Dummy(new Vector2(10));
+        ImGui.Dummy(new Vector2(5));
 
         if (!_zoneSyncConfigService.Current.UserHasConfirmedWarning)
         {
@@ -1223,33 +1322,71 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.DrawHelpText("Set the wait time in seconds between entering a zone and joining a ZoneSync. Increase this if you have pairing issues after zoning.");
 
         ImGuiHelpers.ScaledDummy(5f);
-        UiSharedService.TextWrapped("Note: These permissions are applied only to ZoneSync syncshells.");
-        UiSharedService.TextWrapped("Note: The default permissions settings here are not applied retroactively to existing pairs.");
+        UiSharedService.TextWrapped("ZoneSync Synchshell permissions are based on your Default Permission Settings.");
+        UiSharedService.TextWrapped("Permissions can be found under Settings > Service Settings > Permission Settings.");
+        //UiSharedService.TextWrapped("Note: These permissions are applied only to ZoneSync syncshells.");
+        //UiSharedService.TextWrapped("Note: The default permissions settings here are not applied retroactively to existing pairs.");
 
-        bool permSfx = _zoneSyncConfigService.Current.DisableSounds;
-        bool permVfx = _zoneSyncConfigService.Current.DisableVFX;
-        bool permAni = _zoneSyncConfigService.Current.DisableAnimations;
+        //bool permSfx = _zoneSyncConfigService.Current.DisableSounds;
+        //bool permVfx = _zoneSyncConfigService.Current.DisableVFX;
+        //bool permAni = _zoneSyncConfigService.Current.DisableAnimations;
 
-        if (ImGui.Checkbox("Disable ZoneSync sounds", ref permSfx))
-        {
-            _zoneSyncConfigService.Current.DisableSounds = permSfx;
-            _zoneSyncConfigService.Save();
-        }
-        _uiShared.DrawHelpText("This setting will disable sound sync for all new ZoneSync pairs.");
-        if (ImGui.Checkbox("Disable ZoneSync vfx", ref permVfx))
-        {
-            _zoneSyncConfigService.Current.DisableVFX = permVfx;
-            _zoneSyncConfigService.Save();
-        }
-        _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
-        if (ImGui.Checkbox("Disable ZoneSync animations", ref permAni))
-        {
-            _zoneSyncConfigService.Current.DisableAnimations = permAni;
-            _zoneSyncConfigService.Save();
-        }
-        _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
+        //if (ImGui.Checkbox("Disable ZoneSync sounds", ref permSfx))
+        //{
+        //    _zoneSyncConfigService.Current.DisableSounds = permSfx;
+        //    _zoneSyncConfigService.Save();
+        //}
+        //_uiShared.DrawHelpText("This setting will disable sound sync for all new ZoneSync pairs.");
+        //if (ImGui.Checkbox("Disable ZoneSync vfx", ref permVfx))
+        //{
+        //    _zoneSyncConfigService.Current.DisableVFX = permVfx;
+        //    _zoneSyncConfigService.Save();
+        //}
+        //_uiShared.DrawHelpText("This setting will disable vfx sync for all new ZoneSync pairs.");
+        //if (ImGui.Checkbox("Disable ZoneSync animations", ref permAni))
+        //{
+        //    _zoneSyncConfigService.Current.DisableAnimations = permAni;
+        //    _zoneSyncConfigService.Save();
+        //}
+        //_uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
 
         ImGui.EndDisabled();
+
+        ImGui.Dummy(new Vector2(10));
+        ImGui.Separator();
+        //ImGui.Dummy(new Vector2(10));
+
+        bool filterSounds = _configService.Current.FilterSounds;
+        bool filterVfx = _configService.Current.FilterVfx;
+        bool filterAnimations = _configService.Current.FilterAnimations;
+
+        _uiShared.BigText("Filtering");
+        ImGui.Dummy(new Vector2(5));
+        UiSharedService.TextWrapped("These options do NOT change your per-pair permissions. Think of these as global overrides you can toggle on/off.");
+        UiSharedService.TextWrapped("You will not see the filtered sfx/ani/vfx for other players, but they will still be able to see you (if permissions allow).");
+        UiSharedService.ColorTextWrapped("Changing these options will redraw all visible pairs around you.", ImGuiColors.DalamudRed);
+        ImGuiHelpers.ScaledDummy(5f);
+        if (ImGui.Checkbox("Filter out modded sounds", ref filterSounds))
+        {
+            _configService.Current.FilterSounds = filterSounds;
+            _configService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("This setting will prevent modded sounds from being heard.");
+        if (ImGui.Checkbox("Filter out modded vfx", ref filterVfx))
+        {
+            _configService.Current.FilterVfx = filterVfx;
+            _configService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("This setting will prevent modded vfx from being displayed.");
+        if (ImGui.Checkbox("Filter out modded animations", ref filterAnimations))
+        {
+            _configService.Current.FilterAnimations = filterAnimations;
+            _configService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("This setting will prevent modded animations from being displayed.");
     }
 
     private void DrawPerformance()
