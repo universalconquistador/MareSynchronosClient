@@ -358,8 +358,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 // time to draw table data.
                 foreach (var pair in sortedPairs)
                 {
-                    bool highlightRow = false;
+                    //bool highlightRow = false;
+                    bool highlightRow = Thelper.SRowhovered();
+                    float SRowheight = Thelper.SRowheight();
+
                     bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
+                    
                     ImGui.TableNextRow();
 
                     // Visible Eyeball Icon
@@ -526,6 +530,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
         foreach (var pair in allPausedPairs)
         {
+            //bool highlightRow = Thelper.SRowhovered();
+            //float SRowheight = Thelper.SRowheight();
             bool highlightRow = false;
 
             // UID
@@ -636,6 +642,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
                 foreach (var pair in allVisiblePairs)
                 {
+                    //bool highlightRow = Thelper.SRowhovered();
+                    //float SRowheight = Thelper.SRowheight();
                     bool highlightRow = false;
 
                     var uid = pair.UserData.UID;
