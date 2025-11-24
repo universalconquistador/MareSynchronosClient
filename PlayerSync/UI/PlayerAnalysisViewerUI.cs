@@ -25,7 +25,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfig;
     private readonly ApiController _apiController;
-    private readonly DalamudUtilService _dalamudUtil;
+    private readonly DalamudUtilService _dalamudUtilService;
     private RefreshMode _refreshMode = RefreshMode.Live;
     private DateTime _lastUpdate = DateTime.MinValue;
     private ImmutableList<Pair> _cachedVisiblePairs = ImmutableList<Pair>.Empty;
@@ -42,7 +42,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         _pairManager = pairManager;
         _playerPerformanceConfig = playerPerformanceConfigService;
         _apiController = apiController;
-        _dalamudUtil = dalamudUtilService;
+        _dalamudUtilService = dalamudUtilService;
         SizeConstraints = new()
         {
             MinimumSize = new(1000, 500),
@@ -359,6 +359,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 foreach (var pair in sortedPairs)
                 {
                     bool highlightRow = false;
+                    bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
                     ImGui.TableNextRow();
 
                     // Visible Eyeball Icon
@@ -375,6 +376,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     // UID Column                     
                     ImGui.TableSetColumnIndex(1);
                     ImGui.AlignTextToFramePadding();
+                    using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
                     text.CText(pair.UserData.UID, centerHorizontally: false, leftPadding: 0f);
                     if (ImGui.IsItemClicked())
                     {
@@ -388,6 +390,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     ImGui.AlignTextToFramePadding();
                     text.CText(pair.UserData.Alias ?? "", centerHorizontally: false, leftPadding: 0f);
                     if (ImGui.IsItemHovered()) highlightRow = true;
+                    targetColor.Dispose();
 
                     // file size column
                     ImGui.TableSetColumnIndex(3);
@@ -648,6 +651,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     bool ownAnimations = edit.IsDisableAnimations();
                     bool ownVfx = edit.IsDisableVFX();
 
+                    bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
+
                     // Track change for state
                     bool changed = false;
 
@@ -656,6 +661,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     // UID
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
+                    using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
                     ImGui.TextUnformatted(uid);
                     if (ImGui.IsItemClicked())
                     {
@@ -669,6 +675,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextUnformatted(pair.UserData.Alias ?? "");
                     if (ImGui.IsItemHovered()) highlightRow = true;
+                    targetColor.Dispose();
 
                     // Preferred
                     ImGui.TableNextColumn();
