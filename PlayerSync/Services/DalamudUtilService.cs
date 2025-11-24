@@ -38,6 +38,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     private readonly IGameGui _gameGui;
     private readonly ILogger<DalamudUtilService> _logger;
     private readonly IObjectTable _objectTable;
+    private readonly ITargetManager _targetManager;
     private readonly PerformanceCollectorService _performanceCollector;
     private readonly MareConfigService _configService;
     private uint? _classJobId = 0;
@@ -61,6 +62,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         _objectTable = objectTable;
         _framework = framework;
         _gameGui = gameGui;
+        _targetManager = targetManager;
         _condition = condition;
         _gameData = gameData;
         _gameConfig = gameConfig;
@@ -144,6 +146,11 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     {
         get => TargetSystem.Instance()->GPoseTarget;
         set => TargetSystem.Instance()->GPoseTarget = value;
+    }
+
+    public string TargetName
+    {
+        get => _targetManager.Target?.Name.TextValue ?? "";
     }
 
     private unsafe bool HasGposeTarget => GposeTarget != null;

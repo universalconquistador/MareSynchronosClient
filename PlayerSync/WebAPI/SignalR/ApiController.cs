@@ -253,9 +253,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                 if (_connectionDto.CurrentClientVersion > currentClientVer)
                 {
                     Mediator.Publish(new NotificationMessage("Client outdated",
-                        $"Your client is outdated ({currentClientVer.Major}.{currentClientVer.Minor}.{currentClientVer.Build}), current is: " +
-                        $"{_connectionDto.CurrentClientVersion.Major}.{_connectionDto.CurrentClientVersion.Minor}.{_connectionDto.CurrentClientVersion.Build}. " +
-                        $"Please keep your PlayerSync client up-to-date.",
+                        $"There is a new PlayerSync client available: " +
+                        $"{_connectionDto.CurrentClientVersion.Major}.{_connectionDto.CurrentClientVersion.Minor}.{_connectionDto.CurrentClientVersion.Build}.",
                         NotificationType.Warning));
                 }
 
