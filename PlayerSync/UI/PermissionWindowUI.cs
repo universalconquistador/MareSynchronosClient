@@ -143,7 +143,7 @@ public class PermissionWindowUI : WindowMediatorSubscriberBase
                         { Pair.UserData.UID, _ownPermissions }
                     },
                     new(StringComparer.Ordinal)
-                ));
+                )).ContinueWith((_) => Mediator.Publish(new RedrawNameplateMessage()));
             }
         UiSharedService.AttachToolTip("Save and apply all changes");
 
