@@ -637,9 +637,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
                 foreach (var pair in allVisiblePairs)
                 {
-                    //bool highlightRow = Thelper.SRowhovered();
-                    //float SRowheight = Thelper.SRowheight();
-                    bool highlightRow = false;
+                    bool highlightRow = Thelper.SRowhovered();
+                    float SRowheight = Thelper.SRowheight();
+                    //bool highlightRow = false;
 
                     var uid = pair.UserData.UID;
                     if (!_edited.TryGetValue(uid, out var edit)) continue;

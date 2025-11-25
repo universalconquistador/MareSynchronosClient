@@ -57,8 +57,15 @@ namespace MyTableHelper
             rowheight += paddingY * 4;
             rowstart.Y += paddingY * 2;
 
-            Vector2 mousepos = ImGui.GetMousePos();
-            return mousepos.Y >= rowstart.Y && mousepos.Y < rowstart.Y + rowheight;
+            Vector2 Smousepos = ImGui.GetMousePos();
+            Vector2 Swindowpos = ImGui.GetWindowPos();
+            Vector2 Swindowsize = ImGui.GetWindowSize();
+
+            bool Smouseinwindow =
+                Smousepos.X >= Swindowpos.X && Smousepos.X < Swindowpos.X + Swindowsize.X &&
+                Smousepos.Y >= Swindowpos.Y && Smousepos.Y < Swindowpos.Y + Swindowsize.Y;
+
+            return Smouseinwindow && Smousepos.Y >= rowstart.Y && Smousepos.Y < rowstart.Y + rowheight;
         }
         public static float SRowheight()
         {
