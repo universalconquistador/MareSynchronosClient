@@ -41,6 +41,11 @@ namespace MyTableHelper
         }
         public static bool SRowhovered()
         {
+            if (!ImGui.IsWindowFocused(ImGuiFocusedFlags.AnyWindow))
+            {
+                return false;
+            }
+
             Vector2 rowstart = ImGui.GetCursorScreenPos();
             float rowheight = 0f;
 
