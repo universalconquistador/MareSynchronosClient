@@ -15,7 +15,6 @@ using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using System.Collections.Immutable;
 using System.Numerics;
-using MyTableHelper;
 
 namespace MareSynchronos.UI;
 
@@ -25,7 +24,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfig;
     private readonly ApiController _apiController;
-    private readonly DalamudUtilService _dalamudUtil;
+    private readonly DalamudUtilService _dalamudUtilService;
     private RefreshMode _refreshMode = RefreshMode.Live;
     private DateTime _lastUpdate = DateTime.MinValue;
     private ImmutableList<Pair> _cachedVisiblePairs = ImmutableList<Pair>.Empty;
@@ -42,7 +41,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         _pairManager = pairManager;
         _playerPerformanceConfig = playerPerformanceConfigService;
         _apiController = apiController;
-        _dalamudUtil = dalamudUtilService;
+        _dalamudUtilService = dalamudUtilService;
         SizeConstraints = new()
         {
             MinimumSize = new(1000, 500),
@@ -353,12 +352,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         maxVRAMWidth = vrwidth;
                 }
 
-                Thelper text = new Thelper();
-
                 // time to draw table data.
                 foreach (var pair in sortedPairs)
                 {
-                    bool highlightRow = false;
+                    bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
+                    float rowStartHeightStart = ImGui.GetCursorPosY();
+
                     ImGui.TableNextRow();
 
                     // Visible Eyeball Icon
@@ -370,24 +369,23 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
                     UiSharedService.AttachToolTip("Target " + pair.PlayerName);
                     if (ImGui.IsItemClicked()) Mediator.Publish(new TargetPairMessage(pair));
-                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // UID Column                     
                     ImGui.TableSetColumnIndex(1);
                     ImGui.AlignTextToFramePadding();
-                    text.CText(pair.UserData.UID, centerHorizontally: false, leftPadding: 0f);
+                    using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
+                    TableHelper.CText(pair.UserData.UID, centerHorizontally: false, leftPadding: 0f);
                     if (ImGui.IsItemClicked())
                     {
                         ImGui.SetClipboardText(pair.UserData.UID);
                     }
                     UiSharedService.AttachToolTip("Click to copy");
-                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Alias/vanity Column
                     ImGui.TableSetColumnIndex(2);
                     ImGui.AlignTextToFramePadding();
-                    text.CText(pair.UserData.Alias ?? "", centerHorizontally: false, leftPadding: 0f);
-                    if (ImGui.IsItemHovered()) highlightRow = true;
+                    TableHelper.CText(pair.UserData.Alias ?? "", centerHorizontally: false, leftPadding: 0f);
+                    targetColor.Dispose();
 
                     // file size column
                     ImGui.TableSetColumnIndex(3);
@@ -400,13 +398,11 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
                     if (string.Equals(fileSizeText, "--", StringComparison.Ordinal))
                     {
-                        text.CText("--");
-                        if (ImGui.IsItemHovered()) highlightRow = true;
+                        TableHelper.CText("--");
                     }
                     else
                     {
-                        text.CText(mypaddedfilesize, centerHorizontally: true);
-                        if (ImGui.IsItemHovered()) highlightRow = true;
+                        TableHelper.CText(mypaddedfilesize, centerHorizontally: true);
                     }
 
                     // VRAM Column 
@@ -424,15 +420,14 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     {
                         if (currentVramWarning * 1024 * 1024 < approxVram)
                         {
-                            text.CCText(mypaddedVRAM, ImGuiColors.DalamudYellow);
+                            TableHelper.CCText(mypaddedVRAM, ImGuiColors.DalamudYellow);
                             UiSharedService.AttachToolTip($"Exceeds your threshold by {UiSharedService.ByteToString(approxVram - (currentVramWarning * 1024 * 1024))}.");
                         }
                         else
-                            text.CText(mypaddedVRAM);
+                            TableHelper.CText(mypaddedVRAM);
                     }
                     else
-                        text.CText("--");
-                    if (ImGui.IsItemHovered()) highlightRow = true;
+                        TableHelper.CText("--");
 
                     // Triangle Column
                     ImGui.TableSetColumnIndex(5);
@@ -448,15 +443,14 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     {
                         if (currentTriWarning * 1000 < approxTris)
                         {
-                            text.CCText(mypaddedtriangles, ImGuiColors.DalamudYellow);
+                            TableHelper.CCText(mypaddedtriangles, ImGuiColors.DalamudYellow);
                             UiSharedService.AttachToolTip($"Exceeds your threshold by {approxTris - currentTriWarning * 1000:N0} triangles.");
                         }
                         else
-                            text.CText(mypaddedtriangles);
+                            TableHelper.CText(mypaddedtriangles);
                     }
                     else
-                        text.CText("--");
-                    if (ImGui.IsItemHovered()) highlightRow = true;
+                        TableHelper.CText("--");
 
                     // Button options Column
                     var uid = pair.UserData.UID;
@@ -474,16 +468,14 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         }
                     }
                     ImGui.EndDisabled();
-                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     ImGui.SameLine();
                     if (ImGui.Button($"Refresh##{pair.UserData.UID}"))
                     {
                         _ = _apiController.CyclePauseAsync(pair.UserData);
                     }
-                    if (ImGui.IsItemHovered()) highlightRow = true;
  
-                    if (highlightRow)
+                    if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
                     {
                         var rowIndex = ImGui.TableGetRowIndex();
                         //uint color = ImGui.ColorConvertFloat4ToU32(new Vector4(0.4f, 0.6f, 1.0f, 0.5f));
@@ -523,7 +515,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
         foreach (var pair in allPausedPairs)
         {
-            bool highlightRow = false;
+            float rowStartHeightStart = ImGui.GetCursorPosY();
 
             // UID
             ImGui.TableNextColumn();
@@ -552,13 +544,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 perm.SetPaused(paused: false);
                 _ = _apiController.UserSetPairPermissions(new(pair.UserData, perm));
             }
-            if (ImGui.IsItemHovered())
-            {
-                highlightRow = true;
-            }
 
             // Row highlighting
-            if (highlightRow)
+            if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
             {
                 var rowIndex = ImGui.TableGetRowIndex();
                 var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
@@ -633,8 +621,6 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
                 foreach (var pair in allVisiblePairs)
                 {
-                    bool highlightRow = false;
-
                     var uid = pair.UserData.UID;
                     if (!_edited.TryGetValue(uid, out var edit)) continue;
 
@@ -647,28 +633,31 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     bool ownSound = edit.IsDisableSounds();
                     bool ownAnimations = edit.IsDisableAnimations();
                     bool ownVfx = edit.IsDisableVFX();
+                    
+                    bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
 
                     // Track change for state
                     bool changed = false;
 
+                    float rowStartHeightStart = ImGui.GetCursorPosY();
                     ImGui.TableNextRow();
 
                     // UID
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
+                    using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
                     ImGui.TextUnformatted(uid);
                     if (ImGui.IsItemClicked())
                     {
                         ImGui.SetClipboardText(pair.UserData.UID);
                     }
-                    if (ImGui.IsItemHovered()) highlightRow = true;
                     UiSharedService.AttachToolTip("Click to copy");
 
                     // Alias
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextUnformatted(pair.UserData.Alias ?? "");
-                    if (ImGui.IsItemHovered()) highlightRow = true;
+                    targetColor.Dispose();
 
                     // Preferred
                     ImGui.TableNextColumn();
@@ -678,7 +667,6 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         changed = true;
                     }
                     UiSharedService.AttachToolTip("Set Preferred permissions status");
-                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Own — Sounds
                     ImGui.TableNextColumn();
@@ -688,7 +676,6 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         changed = true;
                     }
                     UiSharedService.AttachToolTip("Disable Sounds (yours for this pair)");
-                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Own — Animations
                     ImGui.TableNextColumn();
@@ -698,7 +685,6 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         changed = true;
                     }
                     UiSharedService.AttachToolTip("Disable Animations (yours for this pair)");
-                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Own — VFX
                     ImGui.TableNextColumn();
@@ -708,28 +694,24 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         changed = true;
                     }
                     UiSharedService.AttachToolTip("Disable VFX (yours for this pair)");
-                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Other - Sounds
                     ImGui.TableNextColumn();
                     CenteredBooleanIcon(!otherSound, false);
                     UiSharedService.AttachToolTip("Other side: sounds are " + (otherSound ? "disabled" : "enabled"));
-                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Other — Animations
                     ImGui.TableNextColumn();
                     CenteredBooleanIcon(!otherAnimations, false);
                     UiSharedService.AttachToolTip("Other side: animations are " + (otherAnimations ? "disabled" : "enabled"));
-                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Other — VFX
                     ImGui.TableNextColumn();
                     CenteredBooleanIcon(!otherVfx, false);
                     UiSharedService.AttachToolTip("Other side: VFX are " + (otherVfx ? "disabled" : "enabled"));
-                    if (ImGui.IsItemHovered()) highlightRow = true;
 
                     // Row highlighting
-                    if (highlightRow)
+                    if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
                     {
                         var rowIndex = ImGui.TableGetRowIndex();
                         var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
