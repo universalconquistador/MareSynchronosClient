@@ -1,14 +1,18 @@
 ﻿using Dalamud.Bindings.ImGui;
-using MareSynchronos.UI;
+using Dalamud.Interface.Utility;
 using System.Numerics;
 
-namespace MyTableHelper
+namespace MareSynchronos.UI
 {
-
-    public class Thelper
+    public static class TableHelper
     {
-        //multiple uses,padding, centering or just text
-        public void CText(string text, bool centerHorizontally = true, float leftPadding = 10f)
+        /// <summary>
+        /// multiple uses,padding, centering or just text
+        /// </summary>
+        /// <param name="text"></param>
+        /// <param name="centerHorizontally"></param>
+        /// <param name="leftPadding"></param>
+        public static void CText(string text, bool centerHorizontally = true, float leftPadding = 10f)
         {
             float cellWidth = ImGui.GetColumnWidth();
             Vector2 textSize = ImGui.CalcTextSize(text);
@@ -27,8 +31,12 @@ namespace MyTableHelper
             ImGui.Text(text);
         }
 
-        //table centering text in column with color no padding varient wasnt needed but can be added later
-        public void CCText(string text, Vector4 color)
+        /// <summary>
+        /// table centering text in column with color no padding varient wasnt needed but can be added later
+        /// </summary>
+        /// <param name="text"></param>
+        /// <param name="color"></param>
+        public static void CCText(string text, Vector4 color)
         {
             Vector2 textSize = ImGui.CalcTextSize(text);
             float cellWidth = ImGui.GetColumnWidth();
@@ -39,14 +47,16 @@ namespace MyTableHelper
 
             UiSharedService.ColorText(text, color);
         }
+
+        /// <summary>
+        /// returns true/false if a row is being hovered
+        /// </summary>
+        /// <returns></returns>
         public static bool SRowhovered()
         {
-            if (!ImGui.IsWindowFocused(ImGuiFocusedFlags.AnyWindow))
-            {
-                return false;
-            }
+            if (!IsMouseWithinWindow()) return false;
 
-            Vector2 rowstart = ImGui.GetCursorScreenPos();
+            float rowstart = ImGui.GetCursorPosY();
             float rowheight = 0f;
 
             int ScolumncountMax = ImGui.TableGetColumnCount();
@@ -59,19 +69,18 @@ namespace MyTableHelper
             }
 
             float paddingY = ImGui.GetStyle().FramePadding.Y;
-            rowheight += paddingY * 4;
-            rowstart.Y += paddingY * 2;
+            rowheight += paddingY * ImGuiHelpers.GlobalScale;
+            //rowstart += paddingY * ImGuiHelpers.GlobalScale;
+            float smousepos = GetMousePosInWindow().Y;
 
-            Vector2 Smousepos = ImGui.GetMousePos();
-            Vector2 Swindowpos = ImGui.GetWindowPos();
-            Vector2 Swindowsize = ImGui.GetWindowSize();
 
-            bool Smouseinwindow =
-                Smousepos.X >= Swindowpos.X && Smousepos.X < Swindowpos.X + Swindowsize.X &&
-                Smousepos.Y >= Swindowpos.Y && Smousepos.Y < Swindowpos.Y + Swindowsize.Y;
-
-            return Smouseinwindow && Smousepos.Y >= rowstart.Y && Smousepos.Y < rowstart.Y + rowheight;
+            return rowstart > smousepos && smousepos > (rowstart - rowheight);
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
         public static float SRowheight()
         {
             int ScolumncountMax2 = ImGui.TableGetColumnCount();
@@ -86,5 +95,37 @@ namespace MyTableHelper
             rowheight2 += ImGui.GetStyle().CellPadding.Y * 2;
             return rowheight2;
         }
+
+        public static bool IsMouseWithinWindow()
+        {
+            Vector2 smousepos = ImGui.GetMousePos();
+            Vector2 swindowpos = ImGui.GetWindowPos();
+            Vector2 swindowsize = ImGui.GetWindowSize();
+
+            bool Smouseinwindow =
+                smousepos.X >= swindowpos.X && smousepos.X < swindowpos.X + swindowsize.X &&
+                smousepos.Y >= swindowpos.Y && smousepos.Y < swindowpos.Y + swindowsize.Y;
+
+            return Smouseinwindow;
+        }
+
+        public static Vector2 GetMousePosInWindow()
+        {
+            var mouseScreen = ImGui.GetMousePos();   // screen space
+            var winPos = ImGui.GetWindowPos();  // screen space
+            return mouseScreen - winPos;             // window-local space
+        }
+
+        public static Vector2 GetMousePosInContent()
+        {
+            var mouseScreen = ImGui.GetMousePos();                     // screen space
+            var winPos = ImGui.GetWindowPos();                    // screen space
+            var contentMin = ImGui.GetWindowContentRegionMin();       // window-local
+            var contentTopLeftScreen = winPos + contentMin;            // screen space
+            return (mouseScreen - contentTopLeftScreen)
+                   + new Vector2(ImGui.GetScrollX(), ImGui.GetScrollY());
+        }
+
     }
+ 
 }
