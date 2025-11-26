@@ -356,7 +356,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 foreach (var pair in sortedPairs)
                 {
                     bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
-                    
+                    float rowStartHeightStart = ImGui.GetCursorPosY();
+
                     ImGui.TableNextRow();
 
                     // Visible Eyeball Icon
@@ -474,7 +475,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         _ = _apiController.CyclePauseAsync(pair.UserData);
                     }
  
-                    if (TableHelper.SRowhovered())
+                    if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
                     {
                         var rowIndex = ImGui.TableGetRowIndex();
                         //uint color = ImGui.ColorConvertFloat4ToU32(new Vector4(0.4f, 0.6f, 1.0f, 0.5f));
@@ -514,6 +515,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
         foreach (var pair in allPausedPairs)
         {
+            float rowStartHeightStart = ImGui.GetCursorPosY();
+
             // UID
             ImGui.TableNextColumn();
             ImGui.AlignTextToFramePadding();
@@ -543,7 +546,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
             }
 
             // Row highlighting
-            if (TableHelper.SRowhovered())
+            if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
             {
                 var rowIndex = ImGui.TableGetRowIndex();
                 var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
@@ -630,12 +633,13 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     bool ownSound = edit.IsDisableSounds();
                     bool ownAnimations = edit.IsDisableAnimations();
                     bool ownVfx = edit.IsDisableVFX();
-
+                    
                     bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
 
                     // Track change for state
                     bool changed = false;
 
+                    float rowStartHeightStart = ImGui.GetCursorPosY();
                     ImGui.TableNextRow();
 
                     // UID
@@ -707,7 +711,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     UiSharedService.AttachToolTip("Other side: VFX are " + (otherVfx ? "disabled" : "enabled"));
 
                     // Row highlighting
-                    if (TableHelper.SRowhovered())
+                    if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
                     {
                         var rowIndex = ImGui.TableGetRowIndex();
                         var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);

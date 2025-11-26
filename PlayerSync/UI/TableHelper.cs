@@ -52,29 +52,11 @@ namespace MareSynchronos.UI
         /// returns true/false if a row is being hovered
         /// </summary>
         /// <returns></returns>
-        public static bool SRowhovered()
+        public static bool SRowhovered(float rowHeightStart, float rowHeightEnd)
         {
             if (!IsMouseWithinWindow()) return false;
-
-            float rowstart = ImGui.GetCursorPosY();
-            float rowheight = 0f;
-
-            int ScolumncountMax = ImGui.TableGetColumnCount();
-
-            for (int Scol = 0; Scol < ScolumncountMax; Scol++)
-            {
-                ImGui.TableSetColumnIndex(Scol);
-                float cellheight = ImGui.GetItemRectSize().Y;
-                rowheight = Math.Max(rowheight, cellheight);
-            }
-
-            float paddingY = ImGui.GetStyle().FramePadding.Y;
-            rowheight += paddingY * ImGuiHelpers.GlobalScale;
-            //rowstart += paddingY * ImGuiHelpers.GlobalScale;
             float smousepos = GetMousePosInWindow().Y;
-
-
-            return rowstart > smousepos && smousepos > (rowstart - rowheight);
+            return rowHeightStart < smousepos && rowHeightEnd >= smousepos;
         }
 
         /// <summary>
