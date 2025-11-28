@@ -1166,4 +1166,35 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     }
     public sealed record IconScaleData(Vector2 IconSize, Vector2 NormalizedIconScale, float OffsetX, float IconScaling);
     private record UIDAliasPair(string? UID, string? Alias);
+
+    private static Vector4 HsvToRgb(float h, float s, float v, float a = 1f)
+    {
+        if (s <= 0f)
+            return new Vector4(v, v, v, a);
+
+        h = (h - (float)Math.Floor(h)) * 6f;
+        int i = (int)Math.Floor(h);
+        float f = h - i;
+        float p = v * (1f - s);
+        float q = v * (1f - s * f);
+        float t = v * (1f - s * (1f - f));
+
+        return i switch
+        {
+            0 => new Vector4(v, t, p, a),
+            1 => new Vector4(q, v, p, a),
+            2 => new Vector4(p, v, t, a),
+            3 => new Vector4(p, q, v, a),
+            4 => new Vector4(t, p, v, a),
+            _ => new Vector4(v, p, q, a),
+        };
+    }
+
+    public static Vector4 ColorRGBWave()
+    {
+        float time = (float)ImGui.GetTime();
+        float hue = (time * 0.25f) % 1.0f;
+        var rainbow = HsvToRgb(hue, 1.0f, 1.0f);
+        return rainbow;
+    }
 }

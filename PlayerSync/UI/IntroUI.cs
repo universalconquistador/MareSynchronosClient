@@ -87,7 +87,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 #if !DEBUG
                 _timeoutTask = Task.Run(async () =>
                 {
-                    for (int i = 60; i > 0; i--)
+                    for (int i = 30; i > 0; i--)
                     {
                         _timeoutLabel = $"{Strings.ToS.ButtonWillBeAvailableIn} {i}s";
                         await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
