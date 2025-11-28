@@ -74,7 +74,6 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
     private readonly MareConfigService _mareConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly IServiceScopeFactory _serviceScopeFactory;
-    private readonly ChangelogService _changelogService;
     private readonly GroupZoneSyncManager _groupZoneSyncManager;
     private readonly NamePlateManagerService _namePlateManagerService;
     private IServiceScope? _runtimeServiceScope;
@@ -83,14 +82,13 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
     public MarePlugin(ILogger<MarePlugin> logger, MareConfigService mareConfigService,
         ServerConfigurationManager serverConfigurationManager,
         DalamudUtilService dalamudUtil,
-        IServiceScopeFactory serviceScopeFactory, ChangelogService changelogService, MareMediator mediator,
+        IServiceScopeFactory serviceScopeFactory, MareMediator mediator,
         GroupZoneSyncManager groupZoneSyncManager, NamePlateManagerService namePlateManagerService) : base(logger, mediator)
     {
         _mareConfigService = mareConfigService;
         _serverConfigurationManager = serverConfigurationManager;
         _dalamudUtil = dalamudUtil;
         _serviceScopeFactory = serviceScopeFactory;
-        _changelogService = changelogService;
         _groupZoneSyncManager = groupZoneSyncManager;
         _namePlateManagerService = namePlateManagerService;
     }
@@ -104,12 +102,7 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
 
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (msg) => {
             if (_launchTask == null || _launchTask.IsCompleted) _launchTask = Task.Run(WaitForPlayerAndLaunchCharacterManager);
-            if (_mareConfigService.Current.HasValidSetup())
-            {
-                Logger.LogInformation("Setup is valid, triggering fallback changelog check");
-                _changelogService.CheckForNewVersion();
-            }
-            else
+            if (!_mareConfigService.Current.HasValidSetup())
             {
                 Logger.LogInformation("Setup not valid: AcceptedAgreement={Agreement}, InitialScanComplete={Scan}, CacheFolder='{Cache}'",
                     _mareConfigService.Current.AcceptedAgreement,

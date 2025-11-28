@@ -371,9 +371,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                         + UiSharedService.TooltipSeparator + "Note: this check excludes pinned users and moderators of this Syncshell.");
                     ImGui.SameLine();
                     ImGui.SetNextItemWidth(150);
-                    _uiSharedService.DrawCombo("Days of inactivity", [7, 14, 30, 90], (count) =>
+                    _uiSharedService.DrawCombo("Days of inactivity", [1, 7, 14, 30, 90], (count) =>
                     {
-                        return count + " days";
+                        return count + (count == 1 ? " day" : " days");
                     },
                     (selected) =>
                     {
