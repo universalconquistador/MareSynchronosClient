@@ -30,6 +30,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private bool _guestmode = false;
     private int _globalControlCountdown = 0;
     private bool _timerRunning = false;
+    private bool _fixMe = false;
 
     public JoinSyncshellUI(ILogger<JoinSyncshellUI> logger, MareMediator mediator,
         UiSharedService uiSharedService, ApiController apiController, PerformanceCollectorService performanceCollectorService) 
@@ -139,12 +140,21 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             {
                 if (_uiSharedService.IconTextButton(Dalamud.Interface.FontAwesomeIcon.Plus, "Join Syncshell"))
                 {
-                    _groupJoinInfo = _apiController.GroupJoin(new GroupPasswordDto(new API.Data.GroupData(_desiredSyncshellToJoin), _syncshellPassword)).Result;
-                    _previousPassword = _syncshellPassword;
-                    _syncshellPassword = string.Empty;
+                    try
+                    {
+                        _groupJoinInfo = _apiController.GroupJoin(new GroupPasswordDto(new API.Data.GroupData(_desiredSyncshellToJoin), _syncshellPassword)).Result;
+                        _previousPassword = _syncshellPassword;
+                        _syncshellPassword = string.Empty;
+                    }
+                    catch (Exception ex)
+                    {
+                        // temp until we push server fix
+                        _logger.LogError(ex.ToString());
+                        _fixMe = true;
+                    }
                 }
             }
-            if (_groupJoinInfo != null && !_groupJoinInfo.Success)
+            if ((_groupJoinInfo != null && !_groupJoinInfo.Success) || _fixMe)
             {
                 UiSharedService.ColorTextWrapped("Failed to join the Syncshell. This is due to one of following reasons:" + Environment.NewLine +
                     "- The Syncshell does not exist or the password is incorrect" + Environment.NewLine +
@@ -154,6 +164,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         }
         else
         {
+            _fixMe = false;
             //ImGui.TextUnformatted("You are about to join the Syncshell " + _groupJoinInfo.GroupAliasOrGID + " by " + _groupJoinInfo.OwnerAliasOrUID);
             _uiSharedService.HeaderText("Joining Syncshell: " + _groupJoinInfo.GroupAliasOrGID);
             ImGuiHelpers.ScaledDummy(2f);
