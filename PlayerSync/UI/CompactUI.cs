@@ -337,7 +337,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() - ((userSize.Y + textSize.Y) / 2 + shardTextSize.Y) / 2 - ImGui.GetStyle().ItemSpacing.Y + buttonSize.Y / 2);
         }
 
-        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.ParsedGreen))
+        using (ImRaii.PushColor(ImGuiCol.Text, UiSharedService.ColorRGBWave()))
         {
             if (_uiSharedService.IconButton(FontAwesomeIcon.Eye))
             {
