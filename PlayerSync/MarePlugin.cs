@@ -15,56 +15,66 @@ using System.Reflection;
 namespace MareSynchronos;
 
 #pragma warning disable S125 // Sections of code should not be commented out
-/*
-                                                                    (..,,...,,,,,+/,                ,,.....,,+
-                                                              ..,,+++/((###%%%&&%%#(+,,.,,,+++,,,,//,,#&@@@@%+.
-                                                          ...+//////////(/,,,,++,.,(###((//////////,..  .,#@@%/./
-                                                       ,..+/////////+///,.,. ,&@@@@,,/////////////+,..    ,(##+,.
-                                                    ,,.+//////////++++++..     ./#%#,+/////////////+,....,/((,..,
-                                                  +..////////////+++++++...  .../##(,,////////////////++,,,+/(((+,
-                                                +,.+//////////////+++++++,.,,,/(((+.,////////////////////////((((#/,,
-                                              /+.+//////////++++/++++++++++,,...,++///////////////////////////((((##,
-                                             /,.////////+++++++++++++++++++++////////+++//////++/+++++//////////((((#(+,
-                                           /+.+////////+++++++++++++++++++++++++++++++++++++++++++++++++++++/////((((##+
-                                          +,.///////////////+++++++++++++++++++++++++++++++++++++++++++++++++++///((((%/
-                                         /.,/////////////////+++++++++++++++++++++++++++++++++++++++++++++++++++///+/(#+
-                                        +,./////////////////+++++++++++++++++++++++++++++++++++++++++++++++,,+++++///((,
-                                       ...////////++/++++++++++++++++++++++++,,++++++++++++++++++++++++++++++++++++//(,,
-                                       ..//+,+///++++++++++++++++++,,,,+++,,,,,,,,,,,,++++++++,,+++++++++++++++++++//,,+
-                                      ..,++,.++++++++++++++++++++++,,,,,,,,,,,,,,,,,,,++++++++,,,,,,,,,,++++++++++...
-                                      ..+++,.+++++++++++++++++++,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,++,..,.
-                                     ..,++++,,+++++++++++,+,,,,,,,,,,..,+++++++++,,,,,,.....................,//+,+
-                                 ....,+++++,.,+++++++++++,,,,,,,,.+///(((((((((((((///////////////////////(((+,,,
-                          .....,++++++++++..,+++++++++++,,.,,,.////////(((((((((((((((////////////////////+,,/
-                      .....,++++++++++++,..,,+++++++++,,.,../////////////////((((((((((//////////////////,,+
-                   ...,,+++++++++++++,.,,.,,,+++++++++,.,/////////////////(((//++++++++++++++//+++++++++/,,
-                ....,++++++++++++++,.,++.,++++++++++++.,+////////////////////+++++++++++++++++++++++++///,,..
-              ...,++++++++++++++++..+++..+++++++++++++.,//////////////////////////++++++++++++///////++++......
-            ...++++++++++++++++++..++++.,++,++++++++++.+///////////////////////////////////////////++++++..,,,..
-          ...+++++++++++++++++++..+++++..,+,,+++++++++.+//////////////////////////////////////////+++++++...,,,,..
-         ..++++++++++++++++++++..++++++..,+,,+++++++++.+//////////////////////////////////////++++++++++,....,,,,..
-       ...+++//(//////+++++++++..++++++,.,+++++++++++++,..,....,,,+++///////////////////////++++++++++++..,,,,,,,,...
-      ..,++/(((((//////+++++++,.,++++++,,.,,,+++++++++++++++++++++++,.++////////////////////+++++++++++.....,,,,,,,...
-     ..,//#(((((///////+++++++..++++++++++,...,++,++++++++++++++++,...+++/////////////////////+,,,+++...  ....,,,,,,...
-   ...+//(((((//////////++++++..+++++++++++++++,......,,,,++++++,,,..+++////////////////////////+,....     ...,,,,,,,...
-   ..,//((((////////////++++++..++++++/+++++++++++++,,...,,........,+/+//////////////////////((((/+,..     ....,.,,,,..
-  ...+/////////////////////+++..++++++/+///+++++++++++++++++++++///+/+////////////////////////(((((/+...   .......,,...
-  ..++////+++//////////////++++.+++++++++///////++++++++////////////////////////////////////+++/(((((/+..    .....,,...
-  .,++++++++///////////////++++..++++//////////////////////////////////////////////////////++++++/((((++..    ........
-  .+++++++++////////////////++++,.+++/////////////////////////////////////////////////////+++++++++/((/++..
- .,++++++++//////////////////++++,.+++//////////////////////////////////////////////////+++++++++++++//+++..
- .++++++++//////////////////////+/,.,+++////((((////////////////////////////////////////++++++++++++++++++...
- .++++++++///////////////////////+++..++++//((((((((///////////////////////////////////++++++++++++++++++++ .
- .++++++///////////////////////////++,.,+++++/(((((((((/////////////////////////////+++++++++++++++++++++++,..
- .++++++////////////////////////////+++,.,+++++++/((((((((//////////////////////////++++++++++++++++++++++++..
- .+++++++///////////////////++////////++++,.,+++++++++///////////+////////////////+++++++++++++++++++++++++,..
- ..++++++++++//////////////////////+++++++..+...,+++++++++++++++/++++++++++++++++++++++++++++++++++++++++++,...
-  ..++++++++++++///////////////+++++++,...,,,,,.,....,,,,+++++++++++++++++++++++++++++++++++++++++++++++,,,,...
-  ...++++++++++++++++++++++++++,,,,...,,,,,,,,,..,,++,,,.,,,,,,,,,,,,,,,,,,+++++++++++++++++++++++++,,,,,,,,..
-   ...+++++++++++++++,,,,,,,,....,,,,,,,,,,,,,,,..,,++++++,,,,,,,,,,,,,,,,+++++++++++++++++++++++++,,,,,,,,,..
-     ...++++++++++++,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,...,++++++++++++++++++++++++++++++++++++++++++++,,,,,,,,,,...
-       ,....,++++++++++++++,,,+++++++,,,,,,,,,,,,,,,,,.,++++++++++++++++++++++++++++++++++++++++++++,,,,,,,,..
-
+/*                                                                
+                                                       RRRRRRRRRRRRRRRRRRRRRRRR                                                        
+                                                  RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR                                                   
+                                             RRRRRRRRRRRRTZZZZRRRRRRRRRRRRZZZVRRRRRRRRRR          RR                                   
+                                          RRRRRRRRRZZZRRRRRRRRRRRRRRRRRRRRRRRRRRRRZZRRRRRRR      HRRR                                  
+                                       RRRRRRRRZZRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRTZRRRRRR   RRRRR                                 
+                                     RRRRRRRZZRRRRRRRRRRRRQRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRZRRRRRRRRRRR                                 
+                                   RRRRRRZZRRRRRRRRDHRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRVRRRRZRRRR                                
+                                 RRRRRTZRRRRRRRKMRRRRRR                     RRRRRRRRRRRRRRRRRRRRRRRRRRRR                               
+                               RRRRRRZRRRRRRDQRRRR                               RRRRRRRRRRRRRRRRRRRRRRRH                              
+                             RRRRRRZRRRRRIQRRRR                                     RRRRRRRRRRRRRRRRRRRRR                              
+                            RRRRRZRRRRRDRRRR                                          BRRRRRZRRRRRRRRRRRRR                             
+                          RRRRRZRRRRRFRRRR                                         RRRRRRZZRRRRRRRRRRRRRRRR                            
+                         RRRRRZRRRRFRRRR                                         RRRRRRRRRRRRRRRRRRRRRRRRRR                            
+                        RRRRRTRRRDRRRR                                                     DRRRRRRRRRRRRRRRR                           
+                       RRRRRRHDDRRRRRRRRRRRRRRRRRRRRRRRRRRR                    ORRRRRRRRRRRRRM   RRRRRRRRRRRQ                          
+                      RRRRRRRXZZZZZZZZZZZZZZZZZZZZZZZXVRRRRRRRR            ORRRRRRRRRRRRRRRRRRRRRRO  RRRRRRRR                          
+                     RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRVZZRRRRR         RRRRRZRRRRRRRRRRRRRRRRRRRRR   RRRRRR                         
+                     RRRRZRRRRRRZRRRRRRRRRRRRRRRRRRRRRRRRRRRRXRRRRR     KRRRZRRRRRRRRRRRRRRRRRRRRRRRRRRR   RRRR                        
+                    RRRRZRRRRRRRZZRRRRRRRRRRRRRRRRRRRRRRRRRRRRRTRRRR   RRRRXRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR   RR                        
+                   RRRRZRRRRRRRRZZRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR  RRRZRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR                              
+                   RRRRZRRRRRRRRZZRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR                                
+                   RRRZRRRRR RRRZZRRRRRRRRRRR          RRRRVRRRRRRRRRRRRRZRRRRRRRRRR       RRRRRRRRRR                                  
+                  RRRRZIRRR  RRRZZRRRRRRRRRRR           RRRRRRRRRRRRRRRRRZRRRRRRRRRRR         RRRRRR              RR                   
+                  RRRRRRRR   RRRZZRRRRRRRRRRR            RRRXRRRRRRRRRRRRRRRRRRRRRRRRRR         QR                RR                   
+                  RRRRRRR    RRRZZRRRRRRRRRRR            RRRZRRRRRRRRR RRRRRRRRRRRRXRRRRRRR                       RRR                  
+                  RRRRRRR    RRRZZRRRRRRRRRRR           RRRRRRRRRRRRRR RRRRRRRRRRRRRRRZRRRRRRR                    RRR                  
+                  RRRRRR     RRRZZRRRRRRRRRRR         RRRRRZRRRRRRRRRR   RRRRRRRRRRRRRRRRZVRRRRRRQ                RRR                  
+                  RRRRR      RRRZZRRRRRRRRRRRRRRRRRRRRRRRZZRRRRRRRRRR     RRRRRRRRRRRRRRRRRRRZRRRRRR              RRRR                 
+                  RRRRR      RRRZZRRRRRRRRRRRRRRRRRRRVZZRRRRRRRRRRRRR       RRRRRRRRRRRRRRRRRRRRZRRRRR           RRRRR                 
+                  RRRR       RRRZZRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR          RRRRRRRRRRRRRRRRRRRRZRRRRR         RRRRR                 
+                  RRRR       RRRZZRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR               RRRRRRRRRRRRRRRRRRRZRRRR        RRRRR                 
+                  RRR        RRRZZRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR                   IRRRRRRRRRRRRRRRRRRRRR      RRRRRR                 
+                  RRR        RRRZZRRRRRRRRRRRRRRRRRRRRRRRRRRRR                          RRRRRRRRRRRRRRRRRRR     RRRRRR                 
+                   RR        RRRZZRRRRRRRRRRRRRRRRRRRRRRRRRR              RR               RRRRRRRRRRRRVRRR    RRRRRRR                 
+                   RR        RRRZZRRRRRRRRRRR                           RRRRRR               RRRRRRRRRRRRRR   RRRRRRRR                 
+                   RR        RRRZZRRRRRRRRRRR                         RRRRRRRRRR             RRRRRRRRRRRRRR  RRRRRRRRR                 
+                             RRRZZRRRRRRRRRRR                        RRRRZRRZRRRRR         BRRRRRRRRRRRRRRR KRRRRRRRR                  
+                             RRRZZRRRRRRRRRRR                      RRRRZRRRRRRZRRRRRRRRRRRRRRRRRRRRRRRRRRR RRRRZRRRRR                  
+                             RRRZZRRRRRRRRRRR                     RRRRZRRRRRRRRRRZRRRRRRRRRTRRRRRRRRRRRRR RRRRRRRRRR                   
+                        R    RRRZZRRRRRRRRRRR                      RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRHRRRRRRRRRRR                   
+                        RRRR RRRZZRRRRRRRRRRR                        RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR RRRRRRRRRRR                    
+                         RRRRRRRZZRRRRRRRRRRR                          RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR RRRRRRRRRRR                     
+                          RRRRRRRRRRRRRRRRRRR                             RRRRRRRRRRRRRRRRRRRRRRRRRR  RRRRVRRRRRRR                     
+                          RRRRZRRRRRRRRRRRRR                                   RRRRRRRRRRRRRRRRR    RRRRRZRRRRRRR                      
+                           RRRRRZZTRRRRRRRRRR                                                     RRRRRRZRRRRRRR                       
+                            RRRVRRRRZZZRRRRRRRRRRRRRR                                           QRRRRRZRRRRRRR                         
+                            RRRRRRRRRRRRRRRZZZRRRRRR                                          RRRRRRRZRRRRRRR                          
+                             RRRRRRRRRRRRRRRRIRRR                                           RRRRRRRZRRRRRRRR                           
+                              RRRVRRRRRRRRZRRRRRRR                                       RRRRRRRTVRRRRRRRRR                            
+                              RRRRZRRRRRRRRRZRRRRRRRR                                 RRRRRRORZRRRRRRRRRR                              
+                               RRRRRRRRRRRRRRRRRRRRRRRRRRRR                       RRRRRRRRRZTRRRRRQRRRR                                
+                                RRRVRRRRRRRRRRRRRRZRRRRRRRRRRRRRRRRRD   DRRRRRRRRRRRRRRVZRRRRRRORRRRR                                  
+                                 RRRRRRRRRRRRRRRRRRRRRZRRRRRRRRRRRRRRRRRRRRRRRRRRRRZZRRRRRRRRHRRRRR                                    
+                                 RRRRR  RRRRRRRRRRRRRRRRRRRZZRRRRRRRRRRRRRRRXZZZRRRRRRRRRRHRRRRRR                                      
+                                  RRRR     RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRIRRRRRRR                                        
+                                   RR         RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRQKRRRRRRRR                                           
+                                                  RRRRRRRRRRRQRRRRRRRRRRRRRKHORRRRRRRRRR                                               
+                                                       RRRRRRRRRRRRRRRRRRRRRRRRRRRR                                                    
+                                                                   DDDD                                                                
 */
 #pragma warning restore S125 // Sections of code should not be commented out
 

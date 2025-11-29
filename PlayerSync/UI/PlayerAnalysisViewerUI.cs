@@ -148,6 +148,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 break;
         }
         _uiSharedService.BigText("Visible Players (" + _cachedVisiblePairs.Count.ToString() + ")");
+        var fps = (int)_dalamudUtilService.FPSCounter;
+        var fpsText = $"FPS: {fps}";
+        var fpsWidth = ImGui.GetContentRegionMax().X;
+        var fpsTextSize = ImGui.CalcTextSize("fpsText").X;
+        ImGui.SameLine(fpsWidth - fpsTextSize - 60f * ImGuiHelpers.GlobalScale);
+        _uiSharedService.BigText(fpsText);
         ImGuiHelpers.ScaledDummy(2f);
 
         ImGui.TextUnformatted("Refresh:");
