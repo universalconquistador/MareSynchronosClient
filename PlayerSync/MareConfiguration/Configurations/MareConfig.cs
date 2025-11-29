@@ -86,4 +86,5 @@ public class MareConfig : IMareConfiguration
     public bool ShowNameHighlights { get; set; } = false;
     public bool IncludeFriendHighlights { get; set; } = false;
     public SeStringTextColors NameHighlightColor { get; set; } = new(Foreground: 0xBDD671u, Glow: 0x37501Du);
+    public bool MysterySetting {  get; set; } = false;
 }
