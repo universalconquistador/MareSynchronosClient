@@ -806,6 +806,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var showAnalysisBottom = _configService.Current.ShowAnalysisCompactUiBottom;
         var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
         var showCompactStats = _configService.Current.ShowCompactStats;
+        var mysterySetting = _configService.Current.MysterySetting;
         
 
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
@@ -945,6 +946,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("Will show profiles that have the NSFW tag enabled");
+        if (ImGui.Checkbox("Mystery Setting", ref mysterySetting))
+        {
+            _configService.Current.MysterySetting = mysterySetting;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("???");
 
         ImGui.Separator();
 
