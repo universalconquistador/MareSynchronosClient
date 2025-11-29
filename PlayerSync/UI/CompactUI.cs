@@ -443,7 +443,14 @@ public class CompactUi : WindowMediatorSubscriberBase
         {
             var uidTextSize = ImGui.CalcTextSize(uidText);
             ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) / 2 - (uidTextSize.X / 2));
+            if (_configService.Current.MysterySetting && (!string.Equals(_apiController.DisplayName, _apiController.UID, StringComparison.Ordinal)))
+            {
+                ImGui.TextColored(UiSharedService.ColorRGBWave(), uidText);
+            }
+            else
+            {
             ImGui.TextColored(GetUidColor(), uidText);
+        }
         }
 
         if (_apiController.ServerState is ServerState.Connected)
