@@ -696,7 +696,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 {
                     UiSharedService.TextWrapped($"The storage validation has completed and removed {_validationTask.Result.Count} invalid files from storage.");
                 }
-                else
+                else if (_currentProgress.Item1 != 0 && _currentProgress.Item2 != 0)
                 {
 
                     UiSharedService.TextWrapped($"Storage validation is running: {_currentProgress.Item1}/{_currentProgress.Item2}");
