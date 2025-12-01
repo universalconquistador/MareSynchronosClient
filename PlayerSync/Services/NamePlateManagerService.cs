@@ -42,8 +42,6 @@ namespace PlayerSync.Services
             _logger.LogDebug("NamePlaterManager started.");
         }
 
-        private string Self => _dalamudUtil.GetPlayerName();
-
         private static ImmutableList<Pair> ImmutablePairList(IEnumerable<KeyValuePair<Pair, List<GroupFullInfoDto>>> u) => u.Select(k => k.Key).ToImmutableList();
 
         private void UpdateNamePlate(INamePlateUpdateContext context, IReadOnlyList<INamePlateUpdateHandler> handlers)
@@ -75,7 +73,7 @@ namespace PlayerSync.Services
                 if (handle.NamePlateKind != NamePlateKind.PlayerCharacter) continue;
                 var addr = handle.PlayerCharacter?.Address ?? nint.Zero;
                 if (addr == nint.Zero) continue;
-                if (handle.PlayerCharacter?.Name.TextValue == Self) continue;
+                if (handle.PlayerCharacter?.ObjectIndex is null or 0) continue;
                 if (!_visibleByAddress.TryGetValue(addr, out var pair)) continue;
                 var color = _configService.Current.NameHighlightColor;
                 var fcTagBuilder = new SeStringBuilder();
