@@ -101,7 +101,7 @@ namespace PlayerSync.Services
                 }
                 else
                 {
-                    fcTagBuilder.Append(handle.FreeCompanyTag.TextValue);
+                    fcTagBuilder.Append(handle.FreeCompanyTag);
                 }
 
                 if (_configService.Current.ShowPairedIndicator)
