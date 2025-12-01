@@ -60,11 +60,14 @@ public abstract class DrawFolderBase : IDrawFolder
 
             // draw name
             ImGui.SameLine(leftSideEnd);
-            bool capped = _allPairs.Count == (_uiSharedService.ApiController.ServerInfo.MaxGroupUserCount - 1);
-            var colorFull = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed, capped);
+            bool isFull = _allPairs.Count == (_uiSharedService.ApiController.ServerInfo.MaxGroupUserCount - 1);
             DrawName(rightSideStart - leftSideEnd);
-            colorFull.Dispose();
-            if (capped) UiSharedService.AttachToolTip("Syncshell full");
+            if (isFull)
+            {
+                ImGui.SameLine();
+                _uiSharedService.IconText(FontAwesomeIcon.ExclamationCircle, ImGuiColors.DalamudRed);
+                UiSharedService.AttachToolTip("Syncshell full");
+            }
         }
 
         _wasHovered = ImGui.IsItemHovered();
