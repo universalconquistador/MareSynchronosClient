@@ -233,6 +233,10 @@ public class DrawFolderGroup : DrawFolderBase
                         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Wifi, "Start Broadcasting", menuWidth, true))
                         {
                             _broadcastManager.StartBroadcasting(_groupFullInfoDto.Group.GID);
+                            if (_allPairs.Count == (_apiController.ServerInfo.MaxGroupUserCount-1))
+                            {
+                                _mareMediator.Publish(new NotificationMessage("Group Full", $"Group {_groupFullInfoDto.Group.GID} is being broadcasted but is capped on players who can join.", MareConfiguration.Models.NotificationType.Error));
+                            }
                         }
                     }
                     UiSharedService.AttachToolTip("Begin broadcasting your Syncshell to players around you.");

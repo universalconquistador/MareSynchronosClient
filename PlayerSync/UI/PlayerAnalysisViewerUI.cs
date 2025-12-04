@@ -381,6 +381,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     ImGui.AlignTextToFramePadding();
                     using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
                     TableHelper.CText(pair.UserData.UID, centerHorizontally: false, leftPadding: 0f);
+                    targetColor.Dispose();
                     if (ImGui.IsItemClicked())
                     {
                         ImGui.SetClipboardText(pair.UserData.UID);
@@ -390,8 +391,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     // Alias/vanity Column
                     ImGui.TableSetColumnIndex(2);
                     ImGui.AlignTextToFramePadding();
+                    using var aliasColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
                     TableHelper.CText(pair.UserData.Alias ?? "", centerHorizontally: false, leftPadding: 0f);
-                    targetColor.Dispose();
+                    aliasColor.Dispose();                    
 
                     // file size column
                     ImGui.TableSetColumnIndex(3);
