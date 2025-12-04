@@ -308,6 +308,19 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                                     UiSharedService.AttachToolTip(pair.Value != null && pair.Value.Value.IsPinned() ? "Unpin user" : "Pin user");
                                     ImGui.SameLine();
 
+                                    bool isGuest = pair.Value?.IsGuest() ?? false;
+                                    using (ImRaii.Disabled(!isGuest))
+                                    {
+                                        if (_uiSharedService.IconButton(FontAwesomeIcon.HouseMedicalCircleCheck))
+                                        {
+                                            GroupPairUserInfo userInfo = pair.Value ?? GroupPairUserInfo.None;
+                                            userInfo.SetGuest(true);
+                                            _ = _apiController.GroupSetUserInfo(new GroupPairUserInfoDto(GroupFullInfo.Group, pair.Key.UserData, userInfo));
+                                        }
+                                    }
+                                    UiSharedService.AttachToolTip("Remove Guest status from user");
+                                    ImGui.SameLine();
+
                                     using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
                                     {
                                         if (_uiSharedService.IconButton(FontAwesomeIcon.Trash))
