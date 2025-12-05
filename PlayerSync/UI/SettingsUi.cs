@@ -1542,6 +1542,37 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 _playerPerformanceConfigService.Save();
             }
         }
+
+        ImGui.Dummy(new Vector2(10));
+        _uiShared.BigText("Auto Pause");
+
+        bool autoPauseInCombat = _playerPerformanceConfigService.Current.PauseInCombat;
+        bool autoPauseWhilePerforming = _playerPerformanceConfigService.Current.PauseWhilePerforming;
+        bool autoPauseInDuty = _playerPerformanceConfigService.Current.PauseInInstanceDuty;
+
+        if (ImGui.Checkbox("Auto pause sync while in combat", ref autoPauseInCombat))
+        {
+            _playerPerformanceConfigService.Current.PauseInCombat = autoPauseInCombat;
+            _playerPerformanceConfigService.Save();
+        }
+        _uiShared.DrawHelpText("AUTO-ENABLED: To prevent possible crashes mid fight" + Environment.NewLine
+            + UiSharedService.TooltipSeparator + "WARNING: DISABLE AT YOUR OWN RISK.");
+
+        if (ImGui.Checkbox("Auto pause sync while performing as Bard", ref autoPauseWhilePerforming))
+        {
+            _playerPerformanceConfigService.Current.PauseWhilePerforming = autoPauseWhilePerforming;
+            _playerPerformanceConfigService.Save();
+        }
+        _uiShared.DrawHelpText("AUTO-ENABLED: To Prevent crashes mid performance" + Environment.NewLine
+            + UiSharedService.TooltipSeparator + "WARNING: DISABLE AT YOUR OWN RISK.");
+
+        if (ImGui.Checkbox("Auto pause sync while in instances and duties", ref autoPauseInDuty))
+        {
+            _playerPerformanceConfigService.Current.PauseInInstanceDuty = autoPauseInDuty;
+            _playerPerformanceConfigService.Save();
+        }
+        _uiShared.DrawHelpText("When enabled, it will automatically pause all players while you are in an instance, such as a dungeon or raid." + Environment.NewLine
+            + UiSharedService.TooltipSeparator + "This can help prevent crashes in high-stress environments.");
     }
 
     private void DrawServerConfiguration()
