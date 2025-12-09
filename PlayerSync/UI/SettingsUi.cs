@@ -1561,31 +1561,29 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.Dummy(new Vector2(4));
         UiSharedService.ColorTextWrapped("All values are scaled by race and M/F vanilla defaults.", ImGuiColors.DalamudYellow);
         UiSharedService.ColorTextWrapped("Set both sliders to 100% to pause anyone not vanilla height.", ImGuiColors.DalamudYellow);
-        using (ImRaii.Disabled(!shouldPauseHeight))
-        {
-            ImGui.TextUnformatted("Pause players below");
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(100f);
-            if (ImGui.SliderFloat("##min", ref minHeightMultiplier, 0.0f, 100.0f, "%.0f%%"))
-            {
-                _playerPerformanceConfigService.Current.MinHeightMultiplier = minHeightMultiplier;
-                _playerPerformanceConfigService.Save();
-            }
-            ImGui.SameLine();
-            ImGui.TextUnformatted("the normal min height");
-            ImGui.SameLine();
-            ImGui.TextUnformatted("and above");
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(100f);
-            if (ImGui.SliderFloat("##max", ref maxHeightMultiplier, 100.0f, 500.0f, "%.0f%%"))
-            {
-                _playerPerformanceConfigService.Current.MaxHeightMultiplier = maxHeightMultiplier;
-                _playerPerformanceConfigService.Save();
-            }
-            ImGui.SameLine();
-            ImGui.TextUnformatted("the normal max height.");
 
+        ImGui.TextUnformatted("Pause players below");
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(100f);
+        if (ImGui.SliderFloat("##min", ref minHeightMultiplier, 0.0f, 100.0f, "%.0f%%"))
+        {
+            _playerPerformanceConfigService.Current.MinHeightMultiplier = minHeightMultiplier;
+            _playerPerformanceConfigService.Save();
         }
+        ImGui.SameLine();
+        ImGui.TextUnformatted("the normal min height");
+        ImGui.SameLine();
+        ImGui.TextUnformatted("and above");
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(100f);
+        if (ImGui.SliderFloat("##max", ref maxHeightMultiplier, 100.0f, 500.0f, "%.0f%%"))
+        {
+            _playerPerformanceConfigService.Current.MaxHeightMultiplier = maxHeightMultiplier;
+            _playerPerformanceConfigService.Save();
+        }
+        ImGui.SameLine();
+        ImGui.TextUnformatted("the normal max height.");
+
         UiSharedService.ColorTextWrapped("Toggle this feature off/on again after changing values to refresh pairs immediately.", ImGuiColors.DalamudRed);
         UiSharedService.ColorTextWrapped("Paused pairs must be manually unpaused.", ImGuiColors.DalamudYellow);
         ImGui.Dummy(new Vector2(10));

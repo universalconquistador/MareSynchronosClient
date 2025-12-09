@@ -138,7 +138,7 @@ namespace MareSynchronos.Interop.Meta
                         break;
 
                     default:
-                        valIn = currentValue;
+                        //valIn = currentValue;
                         valOut = currentValue;
                         continue;
                 }
@@ -148,6 +148,7 @@ namespace MareSynchronos.Interop.Meta
 
                 if (!newValue.Equals(currentValue))
                 {
+                    logger.LogTrace("{new} {old}", newValue, currentValue);
                     modified = true;
                     var valueBytes = BitConverter.GetBytes(newValue);
                     Buffer.BlockCopy(valueBytes, 0, decompressed, entryOffset + SizeRspIdentifier, SizeRspEntry);
@@ -205,7 +206,6 @@ namespace MareSynchronos.Interop.Meta
 
         private static float Clamp(float value, float min, float max)
         {
-            if (value >= min && value <= max) return value;
             if (value < min) value = min;
             if (value > max) value = max;
             return value;
