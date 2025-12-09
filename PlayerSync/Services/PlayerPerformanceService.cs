@@ -1,5 +1,6 @@
 using MareSynchronos.API.Data;
 using MareSynchronos.FileCache;
+using MareSynchronos.Interop.Meta;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Events;
@@ -233,4 +234,62 @@ public class PlayerPerformanceService
 
     private static bool CheckForThreshold(bool thresholdEnabled, long threshold, long value, bool checkForPrefPerm, bool isPrefPerm) =>
         thresholdEnabled && threshold > 0 && threshold < value && ((checkForPrefPerm && isPrefPerm) || !isPrefPerm);
+
+    private static Dictionary<RspData.SubRace, RspData.RspHeightBounds> ScaleHeightBounds(IReadOnlyDictionary<RspData.SubRace, RspData.RspHeightBounds> source, float varMin, float varMax)
+    {
+        var result = new Dictionary<RspData.SubRace, RspData.RspHeightBounds>(source.Count);
+
+        foreach (var kvp in source)
+        {
+            var subRace = kvp.Key;
+            var b = kvp.Value;
+
+            result[subRace] = new RspData.RspHeightBounds
+            {
+                MaleMin = b.MaleMin * (varMin / 100f),
+                MaleMax = b.MaleMax * (varMax / 100f),
+                FemaleMin = b.FemaleMin * (varMin / 100f),
+                FemaleMax = b.FemaleMax * (varMax / 100f),
+            };
+        }
+
+        return result;
+    }
+
+    public bool CheckForRspHeight(PairHandler pairHandler, CharacterData charaData)
+    {
+        if (!_playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds)
+            return true;
+
+        if (_playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing
+            .Exists(uid => string.Equals(uid, pairHandler.Pair.UserData.Alias, StringComparison.Ordinal) || string.Equals(uid, pairHandler.Pair.UserData.UID, StringComparison.Ordinal)))
+            return true;
+
+        bool noAutoPauseDirectPairs = _playerPerformanceConfigService.Current.NoAutoPauseDirectPairs;
+        if ((pairHandler.Pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional) && noAutoPauseDirectPairs)
+            return true;
+
+        var pair = pairHandler.Pair;
+        var multiMin = _playerPerformanceConfigService.Current.MinHeightMultiplier;
+        var multiMax = _playerPerformanceConfigService.Current.MaxHeightMultiplier;
+        bool shouldWarn = _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold;
+        var defaultHeights = RspData.CreateDefaultRspHeightBounds();
+        var scaledHeights = ScaleHeightBounds(defaultHeights, multiMin, multiMax);
+        bool pauseRspExceeded = ManipRsp.ClampRspHeights(_logger, charaData.ManipulationData, scaledHeights, out string _, out float inVal, out float outVal);
+        if (pauseRspExceeded)
+        {
+            _logger.LogInformation("Pair {name} exceeds your height min/max threshold and will be paused.", pair.PlayerName);
+            if (shouldWarn)
+            {
+                _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
+                $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured player height threshold and has been automatically paused. " +
+                $"Their height: {inVal}, your threshold: {outVal}",
+                MareConfiguration.Models.NotificationType.Warning));
+            }
+            _mediator.Publish(new PauseMessage(pair.UserData));
+
+            return false;
+        }
+        return true;
+    }
 }

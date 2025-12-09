@@ -444,6 +444,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
             if (!await _playerPerformanceService.CheckBothThresholds(this, charaData).ConfigureAwait(false))
                 return;
+
+            if (!_playerPerformanceService.CheckForRspHeight(this, charaData))
+                return;
         }
 
         downloadToken.ThrowIfCancellationRequested();
@@ -501,7 +504,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
             }
 
-            if (updateManip)
+            if (updateManip && _playerPerformanceService.CheckForRspHeight(this, charaData))
             {
                 await _ipcManager.Penumbra.SetManipulationDataAsync(Logger, _applicationId, _penumbraCollection, charaData.ManipulationData).ConfigureAwait(false);
             }

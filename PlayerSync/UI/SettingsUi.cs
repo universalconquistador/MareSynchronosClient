@@ -61,7 +61,9 @@ public class SettingsUi : WindowMediatorSubscriberBase
     private bool _overwriteExistingLabels = false;
     private bool _readClearCache = false;
     private int _selectedEntry = -1;
+    private int _selectedHeightEntry = -1;
     private string _uidToAddForIgnore = string.Empty;
+    private string _uidToAddForHeightIgnore = string.Empty;
     private CancellationTokenSource? _validationCts;
     private Task<List<FileCacheEntity>>? _validationTask;
     private bool _wasOpen = false;
@@ -143,6 +145,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
     {
         _uiShared.EditTrackerPosition = false;
         _uidToAddForIgnore = string.Empty;
+        _uidToAddForHeightIgnore = string.Empty;
         _secretKeysConversionCts = _secretKeysConversionCts.CancelRecreate();
         //_downloadServersTask = null;
         //_speedTestTask = null;
@@ -1331,37 +1334,11 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGuiHelpers.ScaledDummy(5f);
         UiSharedService.TextWrapped("ZoneSync Synchshell permissions are based on your Default Permission Settings.");
         UiSharedService.TextWrapped("Permissions can be found under Settings > Service Settings > Permission Settings.");
-        //UiSharedService.TextWrapped("Note: These permissions are applied only to ZoneSync syncshells.");
-        //UiSharedService.TextWrapped("Note: The default permissions settings here are not applied retroactively to existing pairs.");
-
-        //bool permSfx = _zoneSyncConfigService.Current.DisableSounds;
-        //bool permVfx = _zoneSyncConfigService.Current.DisableVFX;
-        //bool permAni = _zoneSyncConfigService.Current.DisableAnimations;
-
-        //if (ImGui.Checkbox("Disable ZoneSync sounds", ref permSfx))
-        //{
-        //    _zoneSyncConfigService.Current.DisableSounds = permSfx;
-        //    _zoneSyncConfigService.Save();
-        //}
-        //_uiShared.DrawHelpText("This setting will disable sound sync for all new ZoneSync pairs.");
-        //if (ImGui.Checkbox("Disable ZoneSync vfx", ref permVfx))
-        //{
-        //    _zoneSyncConfigService.Current.DisableVFX = permVfx;
-        //    _zoneSyncConfigService.Save();
-        //}
-        //_uiShared.DrawHelpText("This setting will disable vfx sync for all new ZoneSync pairs.");
-        //if (ImGui.Checkbox("Disable ZoneSync animations", ref permAni))
-        //{
-        //    _zoneSyncConfigService.Current.DisableAnimations = permAni;
-        //    _zoneSyncConfigService.Save();
-        //}
-        //_uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
 
         ImGui.EndDisabled();
 
         ImGui.Dummy(new Vector2(10));
         ImGui.Separator();
-        //ImGui.Dummy(new Vector2(10));
 
         bool filterSounds = _configService.Current.FilterSounds;
         bool filterVfx = _configService.Current.FilterVfx;
@@ -1542,6 +1519,122 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 _playerPerformanceConfigService.Save();
             }
         }
+
+        ImGui.Dummy(new Vector2(10));
+        ImGui.Separator();
+
+        var minHeightMultiplier = _playerPerformanceConfigService.Current.MinHeightMultiplier;
+        var maxHeightMultiplier = _playerPerformanceConfigService.Current.MaxHeightMultiplier;
+        var shouldPauseHeight = _playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds;
+        var shouldNotifyOnHeight = _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold;
+        var noAutoPausePairs = _playerPerformanceConfigService.Current.NoAutoPauseDirectPairs;
+
+        _uiShared.BigText("Auto Height Pausing");
+        UiSharedService.TextWrapped("Configure auto pausing for players based on their scaled height.");
+        ImGui.Dummy(new Vector2(10));
+
+        if (ImGui.Checkbox("Auto pause players exceeding thresholds", ref shouldPauseHeight))
+        {
+            _playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds = shouldPauseHeight;
+            _playerPerformanceConfigService.Save();
+            if (shouldPauseHeight)
+            {
+                Mediator.Publish(new ChangeFilterMessage());
+            }
+        }
+
+        if (ImGui.Checkbox("Don't auto pause direct pairs exceeding thresholds", ref noAutoPausePairs))
+        {
+            _playerPerformanceConfigService.Current.NoAutoPauseDirectPairs = noAutoPausePairs;
+            _playerPerformanceConfigService.Save();
+            if (!noAutoPausePairs && shouldPauseHeight)
+            {
+                Mediator.Publish(new ChangeFilterMessage());
+            }
+        }
+
+        if (ImGui.Checkbox("Warn on loading player who exceed your height thresholds", ref shouldNotifyOnHeight))
+        {
+            _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold = shouldNotifyOnHeight;
+            _playerPerformanceConfigService.Save();
+        }
+        ImGui.Dummy(new Vector2(4));
+        UiSharedService.ColorTextWrapped("All values are scaled by race and M/F vanilla defaults.", ImGuiColors.DalamudYellow);
+        UiSharedService.ColorTextWrapped("Set both sliders to 100% to pause anyone not vanilla height.", ImGuiColors.DalamudYellow);
+        using (ImRaii.Disabled(!shouldPauseHeight))
+        {
+            ImGui.TextUnformatted("Pause players below");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(100f);
+            if (ImGui.SliderFloat("##min", ref minHeightMultiplier, 0.0f, 100.0f, "%.0f%%"))
+            {
+                _playerPerformanceConfigService.Current.MinHeightMultiplier = minHeightMultiplier;
+                _playerPerformanceConfigService.Save();
+            }
+            ImGui.SameLine();
+            ImGui.TextUnformatted("the normal min height");
+            ImGui.SameLine();
+            ImGui.TextUnformatted("and above");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(100f);
+            if (ImGui.SliderFloat("##max", ref maxHeightMultiplier, 100.0f, 500.0f, "%.0f%%"))
+            {
+                _playerPerformanceConfigService.Current.MaxHeightMultiplier = maxHeightMultiplier;
+                _playerPerformanceConfigService.Save();
+            }
+            ImGui.SameLine();
+            ImGui.TextUnformatted("the normal max height.");
+
+        }
+        UiSharedService.ColorTextWrapped("Toggle this feature off/on again after changing values to refresh pairs immediately.", ImGuiColors.DalamudRed);
+        UiSharedService.ColorTextWrapped("Paused pairs must be manually unpaused.", ImGuiColors.DalamudYellow);
+        ImGui.Dummy(new Vector2(10));
+
+        _uiShared.BigText("Whitelisted UIDs");
+        UiSharedService.TextWrapped("The entries in the list below will be ignored for all warnings and auto HEIGHT pause operations.");
+        ImGui.Dummy(new Vector2(10));
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        ImGui.InputText("##ignoreheightuid", ref _uidToAddForHeightIgnore, 20);
+        ImGui.SameLine();
+        using (ImRaii.Disabled(string.IsNullOrEmpty(_uidToAddForHeightIgnore)))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Plus, "Add UID/Vanity ID to Whitelist"))
+            {
+                if (!_playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing.Contains(_uidToAddForHeightIgnore, StringComparer.Ordinal))
+                {
+                    _playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing.Add(_uidToAddForHeightIgnore);
+                    _playerPerformanceConfigService.Save();
+                }
+                _uidToAddForHeightIgnore = string.Empty;
+            }
+        }
+        _uiShared.DrawHelpText("Hint: UIDs are case sensitive.");
+        var playerHeightList = _playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing;
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        using (var lb = ImRaii.ListBox("UID Whitelist"))
+        {
+            if (lb)
+            {
+                for (int i = 0; i < playerHeightList.Count; i++)
+                {
+                    bool shouldBeSelected = _selectedHeightEntry == i;
+                    if (ImGui.Selectable(playerHeightList[i] + "##" + i, shouldBeSelected))
+                    {
+                        _selectedHeightEntry = i;
+                    }
+                }
+            }
+        }
+        using (ImRaii.Disabled(_selectedHeightEntry == -1))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete Selected UID"))
+            {
+                _playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing.RemoveAt(_selectedHeightEntry);
+                _selectedHeightEntry = -1;
+                _playerPerformanceConfigService.Save();
+            }
+        }
+        ImGui.Dummy(new Vector2(10));
     }
 
     private void DrawServerConfiguration()
