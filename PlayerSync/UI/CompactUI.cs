@@ -336,7 +336,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         {
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() - ((userSize.Y + textSize.Y) / 2 + shardTextSize.Y) / 2 - ImGui.GetStyle().ItemSpacing.Y + buttonSize.Y / 2);
         }
-
+        if (_apiController.ServerState is ServerState.Connected)
+        {
         using (ImRaii.PushColor(ImGuiCol.Text, UiSharedService.ColorRGBWave()))
         {
             if (_uiSharedService.IconButton(FontAwesomeIcon.Eye))
@@ -345,6 +346,8 @@ public class CompactUi : WindowMediatorSubscriberBase
             }
         }
         UiSharedService.AttachToolTip("Open Player Analysis Viewer");
+
+        }
 
         ImGui.SameLine(ImGui.GetWindowContentRegionMin().X + UiSharedService.GetWindowContentRegionWidth() - buttonSize.X);
         if (_apiController.ServerState is not (ServerState.Reconnecting or ServerState.Disconnecting))
