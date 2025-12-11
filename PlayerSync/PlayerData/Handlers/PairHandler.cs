@@ -505,7 +505,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
             }
 
-            if (updateManip && _playerPerformanceService.CheckForRspHeight(this, charaData))
+            // do height checking
+            _playerPerformanceService.CheckForRspHeight(this, charaData);
+
+            if (updateManip)
             {
                 await _ipcManager.Penumbra.SetManipulationDataAsync(Logger, _applicationId, _penumbraCollection, charaData.ManipulationData).ConfigureAwait(false);
             }
