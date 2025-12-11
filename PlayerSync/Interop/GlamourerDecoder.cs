@@ -11,7 +11,7 @@ public static class GlamourerDecoder
     /// Decode a Glamourer string to get subrace/gender data
     /// Glamourer credit to Ottermandias https://github.com/Ottermandias/Glamourer
     /// </summary>
-    public static (RspData.SubRace SubRace, RspData.Gender Gender) GetRaceAndGender(string encoded)
+    public static (RspData.SubRace SubRace, RspData.Gender Gender, int Height) GetRaceAndGender(string encoded)
     {
         if (encoded == null)
             throw new ArgumentNullException(nameof(encoded));
@@ -41,6 +41,12 @@ public static class GlamourerDecoder
         if (customizeToken is not JObject customize)
             throw new InvalidOperationException("'Customize' is not a JSON object.");
 
+        var heightContainer = customize["Height"]
+                            ?? throw new InvalidOperationException("JSON does not contain 'Customize.Height'.");
+
+        var heightValueToken = heightContainer["Value"]
+                             ?? throw new InvalidOperationException("JSON does not contain 'Customize.Height.Value'.");
+
         // The subraces are called Clans but we reference them as subrace in the code (or even race, but these are different than subrace)
         var raceContainer = customize["Clan"]
                             ?? throw new InvalidOperationException("JSON does not contain 'Customize.Clan'.");
@@ -54,13 +60,14 @@ public static class GlamourerDecoder
         var genderValueToken = genderContainer["Value"]
                                ?? throw new InvalidOperationException("JSON does not contain 'Customize.Gender.Value'.");
 
+        int heightInt = heightValueToken.Value<int>();
         int raceInt = raceValueToken.Value<int>();
         int genderInt = genderValueToken.Value<int>();
 
         var subRace = (RspData.SubRace)raceInt;
         var gender = (RspData.Gender)genderInt;
 
-        return (subRace, gender);
+        return (subRace, gender, heightInt);
     }
 
     private static int IndexOf(byte[] buffer, byte[] pattern)

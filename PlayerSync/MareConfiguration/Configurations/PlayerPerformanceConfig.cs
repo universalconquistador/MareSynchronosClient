@@ -18,6 +18,6 @@ public class PlayerPerformanceConfig : IMareConfiguration
     public bool WarnOnAutoHeightExceedingThreshold {  get; set; } = false;
     public float MaxHeightMultiplier { get; set; } = 200f;
     public bool MaxHeightManual { get; set; } = false;
-    public int MaxHeightAbsolute { get; set; } = 200;
+    public int MaxHeightAbsolute { get; set; } = 366;
     public List<string> UIDsToIgnoreForHeightPausing { get; set; } = new();
 }
