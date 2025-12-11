@@ -1,5 +1,6 @@
 using MareSynchronos.API.Data;
 using MareSynchronos.FileCache;
+using MareSynchronos.Interop;
 using MareSynchronos.Interop.Meta;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Handlers;
@@ -270,20 +271,47 @@ public class PlayerPerformanceService
             return true;
 
         var pair = pairHandler.Pair;
-        var multiMin = _playerPerformanceConfigService.Current.MinHeightMultiplier;
+        var maxHeight = _playerPerformanceConfigService.Current.MaxHeightAbsolute;
+        var manualHeight = _playerPerformanceConfigService.Current.MaxHeightManual;
         var multiMax = _playerPerformanceConfigService.Current.MaxHeightMultiplier;
-        bool shouldWarn = _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold;
+        var shouldWarn = _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold;
         var defaultHeights = RspData.CreateDefaultRspHeightBounds();
-        var scaledHeights = ScaleHeightBounds(defaultHeights, multiMin, multiMax);
-        bool pauseRspExceeded = ManipRsp.ClampRspHeights(_logger, charaData.ManipulationData, scaledHeights, out string _, out float inVal, out float outVal);
+        var scaledHeights = ScaleHeightBounds(defaultHeights, multiMax, multiMax);
+        var pauseRspExceeded = false;
+        float actualHeight =0f;
+
+        _logger.LogTrace("Glamourer Dictionary: {data}", charaData.GlamourerData[API.Data.Enum.ObjectKind.Player].ToString());
+        var (race, gender) = GlamourerDecoder.GetRaceAndGender(charaData.GlamourerData[API.Data.Enum.ObjectKind.Player].ToString());
+        _logger.LogTrace("Glamourer data: {race} {gender}", race, gender);
+
+        ManipRsp.GetRspHeightValues(_logger, charaData.ManipulationData, race, gender, out bool hasMin, out float minRsp, out bool hasMax, out float maxRsp);
+        _logger.LogTrace("Get RSP Data: {race} {gender} {hasin} {minrsp} {hasmax} {maxrsp}", race, gender, hasMin, minRsp, hasMax, maxRsp);
+
+        if (!manualHeight)
+        {
+            if (hasMin)
+                pauseRspExceeded |= ManipRsp.IsRspValueGreaterThanLimit(minRsp, race, gender, scaledHeights, out actualHeight);
+            if (hasMax)
+                pauseRspExceeded |= ManipRsp.IsRspValueGreaterThanLimit(maxRsp, race, gender, scaledHeights, out actualHeight);
+        }
+        else
+        {
+            if (hasMin)
+                pauseRspExceeded |= HeightConversion.IsTallerThanGlobalMax(race, gender, minRsp, maxHeight, out actualHeight);
+            if (hasMax)
+                pauseRspExceeded |= HeightConversion.IsTallerThanGlobalMax(race, gender, maxRsp, maxHeight, out actualHeight);
+        }
+
         if (pauseRspExceeded)
         {
             _logger.LogInformation("Pair {name} exceeds your height min/max threshold and will be paused.", pair.PlayerName);
             if (shouldWarn)
             {
+                var rspVal = (minRsp >  maxRsp) ? minRsp : maxRsp;
+                var threshold = manualHeight ? maxHeight : rspVal;
                 _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
                 $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured player height threshold and has been automatically paused. " +
-                $"Their height: {inVal}, your threshold: {outVal}",
+                $"Their height: {actualHeight:F2}, your threshold: {threshold:F2}",
                 MareConfiguration.Models.NotificationType.Warning));
             }
             _mediator.Publish(new PauseMessage(pair.UserData));

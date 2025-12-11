@@ -121,6 +121,21 @@ public class SettingsUi : WindowMediatorSubscriberBase
     public CharacterData? LastCreatedCharacterData { private get; set; }
     private ApiController ApiController => _uiShared.ApiController;
 
+    private static int FeetInchesToCm(int feet, int inches)
+    {
+        int totalInches = feet * 12 + inches;
+        return (int)Math.Round(totalInches * 2.54f);
+    }
+
+    private static void CmToFeetInches(int cm, out int feet, out int inches)
+    {
+        int totalInches = (int)Math.Round(cm / 2.54f);
+        if (totalInches < 0) totalInches = 0;
+
+        feet = totalInches / 12;
+        inches = totalInches % 12;
+    }
+
     private async Task GlobalControlCountdown(int countdown)
     {
         _globalControlCountdown = countdown;
@@ -1523,7 +1538,8 @@ public class SettingsUi : WindowMediatorSubscriberBase
         ImGui.Dummy(new Vector2(10));
         ImGui.Separator();
 
-        var minHeightMultiplier = _playerPerformanceConfigService.Current.MinHeightMultiplier;
+        var maxHeightManual = _playerPerformanceConfigService.Current.MaxHeightManual;
+        var maxHeightActual = _playerPerformanceConfigService.Current.MaxHeightAbsolute;
         var maxHeightMultiplier = _playerPerformanceConfigService.Current.MaxHeightMultiplier;
         var shouldPauseHeight = _playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds;
         var shouldNotifyOnHeight = _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold;
@@ -1542,6 +1558,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 Mediator.Publish(new ChangeFilterMessage());
             }
         }
+        UiSharedService.ColorTextWrapped("Toggle this feature off/on again after changing values to refresh pairs immediately.", ImGuiColors.DalamudRed);
 
         if (ImGui.Checkbox("Don't auto pause direct pairs exceeding thresholds", ref noAutoPausePairs))
         {
@@ -1559,32 +1576,88 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _playerPerformanceConfigService.Save();
         }
         ImGui.Dummy(new Vector2(4));
-        UiSharedService.ColorTextWrapped("All values are scaled by race and M/F vanilla defaults.", ImGuiColors.DalamudYellow);
-        UiSharedService.ColorTextWrapped("Set both sliders to 100% to pause anyone not vanilla height.", ImGuiColors.DalamudYellow);
+        UiSharedService.ColorTextWrapped("Values are scaled by race and M/F vanilla defaults.", ImGuiColors.DalamudYellow);
+        UiSharedService.ColorTextWrapped("Set slider to 100% to pause anyone not vanilla height.", ImGuiColors.DalamudYellow);
 
-        ImGui.TextUnformatted("Pause players below");
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(100f);
-        if (ImGui.SliderFloat("##min", ref minHeightMultiplier, 0.0f, 100.0f, "%.0f%%"))
+        using (ImRaii.Disabled(maxHeightManual))
         {
-            _playerPerformanceConfigService.Current.MinHeightMultiplier = minHeightMultiplier;
+            ImGui.TextUnformatted("Pause players above ");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(200f);
+            if (ImGui.SliderFloat("##max", ref maxHeightMultiplier, 100.0f, 500.0f, "%.0f%%"))
+            {
+                _playerPerformanceConfigService.Current.MaxHeightMultiplier = maxHeightMultiplier;
+                _playerPerformanceConfigService.Save();
+            }
+            ImGui.SameLine();
+            ImGui.TextUnformatted("their normal max height.");
+        }
+
+        if (ImGui.Checkbox("Manually set max height threshold applied to all players", ref maxHeightManual))
+        {
+            _playerPerformanceConfigService.Current.MaxHeightManual = maxHeightManual;
             _playerPerformanceConfigService.Save();
         }
-        ImGui.SameLine();
-        ImGui.TextUnformatted("the normal min height");
-        ImGui.SameLine();
-        ImGui.TextUnformatted("and above");
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(100f);
-        if (ImGui.SliderFloat("##max", ref maxHeightMultiplier, 100.0f, 500.0f, "%.0f%%"))
-        {
-            _playerPerformanceConfigService.Current.MaxHeightMultiplier = maxHeightMultiplier;
-            _playerPerformanceConfigService.Save();
-        }
-        ImGui.SameLine();
-        ImGui.TextUnformatted("the normal max height.");
+        _uiShared.DrawHelpText("This will effectivley pause all players beyond a specified height.");
 
-        UiSharedService.ColorTextWrapped("Toggle this feature off/on again after changing values to refresh pairs immediately.", ImGuiColors.DalamudRed);
+        ImGui.Indent();
+        using (ImRaii.Disabled(!maxHeightManual))
+        {
+            bool changedImperial = false;
+            bool changedMetric = false;
+            int _maxHeightCm = _playerPerformanceConfigService.Current.MaxHeightAbsolute;
+            CmToFeetInches(_maxHeightCm, out var _maxHeightFeet, out var _maxHeightInches);
+
+            ImGui.TextUnformatted("Max height:");
+            ImGui.SameLine();
+
+            // Feet
+            ImGui.SetNextItemWidth(40);
+            changedImperial |= ImGui.InputInt("##maxFeet", ref _maxHeightFeet);
+            ImGui.SameLine();
+            ImGui.TextUnformatted("feet");
+
+            ImGui.SameLine();
+
+            // Inches
+            ImGui.SetNextItemWidth(40);
+            changedImperial |= ImGui.InputInt("##maxInches", ref _maxHeightInches);
+            ImGui.SameLine();
+            ImGui.TextUnformatted("inches or");
+
+            ImGui.SameLine();
+
+            // Centimeters
+            ImGui.SetNextItemWidth(60);
+            changedMetric |= ImGui.InputInt("##maxCm", ref _maxHeightCm);
+            ImGui.SameLine();
+            ImGui.TextUnformatted("cm");
+
+            if (changedImperial)
+            {
+                if (_maxHeightFeet < 0) _maxHeightFeet = 0;
+                if (_maxHeightInches < 0) _maxHeightInches = 0;
+
+                int totalInches = _maxHeightFeet * 12 + _maxHeightInches;
+                if (totalInches < 0) totalInches = 0;
+
+                _maxHeightFeet = totalInches / 12;
+                _maxHeightInches = totalInches % 12;
+                _maxHeightCm = FeetInchesToCm(_maxHeightFeet, _maxHeightInches);
+
+                _playerPerformanceConfigService.Current.MaxHeightAbsolute = _maxHeightCm;
+                _playerPerformanceConfigService.Save();
+            }
+            else if (changedMetric)
+            {
+                if (_maxHeightCm < 0) _maxHeightCm = 0;
+
+                _playerPerformanceConfigService.Current.MaxHeightAbsolute = _maxHeightCm;
+                _playerPerformanceConfigService.Save();
+            }
+        }
+        ImGui.Unindent();
+
         UiSharedService.ColorTextWrapped("Paused pairs must be manually unpaused.", ImGuiColors.DalamudYellow);
         ImGui.Dummy(new Vector2(10));
 

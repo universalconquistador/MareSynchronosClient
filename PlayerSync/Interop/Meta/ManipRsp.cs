@@ -3,16 +3,16 @@ using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.Interop.Meta
 {
-    /// <summary>
-    /// RSP manipulation helper for Penumbra V1 ("META0001") meta blobs
+    /// <summary> 
+    /// RSP helper for Penumbra V1 ("META0001") meta blobs
     /// Penumbra credit to Ottermandias https://github.com/xivdev/Penumbra
     /// This is only used to read values, nothing is modified in flight
-    /// - Assumes the base64 string is: GZip version byte + "META0001" + sections
-    /// - Walks IMC, EQP, EQDP, EST to locate the RSP section
+    /// - Assumes the base64 string is: GZip version byte + "META0001" + sections 
+    /// - Walks IMC, EQP, EQDP, EST to locate the RSP section 
     /// </summary>
     public static class ManipRsp
     {
-        // ConvertManipsV1
+        // ConvertManipsV1 constants
         private const int SizeImcIdentifier = 8;
         private const int SizeImcEntry = 6;
 
@@ -29,36 +29,31 @@ namespace MareSynchronos.Interop.Meta
         private const int SizeRspEntry = 4;
 
         /// <summary>
-        /// Used to change for RSP Height changes in a mod manipulation string
+        /// Extract the RSP min/max height values (if present) for a given subrace+gender
+        /// from a META0001 manipulation blob.
+        ///
         /// </summary>
-        /// <param name="logger"></param>
-        /// <param name="base64Input"></param>
-        /// <param name="boundsBySubRace"></param>
-        /// <param name="base64Output"></param>
-        /// <param name="valIn"></param>
-        /// <param name="valOut"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="InvalidDataException"></exception>
-        /// <exception cref="NotSupportedException"></exception>
-        public static bool ClampRspHeights(ILogger logger, string base64Input, IReadOnlyDictionary<RspData.SubRace, RspData.RspHeightBounds> boundsBySubRace, 
-            out string base64Output, out float valIn, out float valOut)
+        /// <param name="logger">Logger for trace output.</param>
+        /// <param name="base64Input">Base64-encoded META0001 blob.</param>
+        /// <param name="targetSubRace">Subrace to inspect.</param>
+        /// <param name="targetGender">Gender to inspect (Male=0, Female=1).</param>
+        /// <param name="hasMin">True if a min-height RSP entry was found.</param>
+        /// <param name="minValue">The min-height RSP value if present.</param>
+        /// <param name="hasMax">True if a max-height RSP entry was found.</param>
+        /// <param name="maxValue">The max-height RSP value if present.</param>
+        public static void GetRspHeightValues(ILogger logger, string base64Input, RspData.SubRace targetSubRace, RspData.Gender targetGender,
+            out bool hasMin, out float minValue, out bool hasMax, out float maxValue)
         {
             if (string.IsNullOrWhiteSpace(base64Input))
                 throw new ArgumentException("Manipulation string is null or empty.", nameof(base64Input));
 
-            if (boundsBySubRace == null)
-                throw new ArgumentNullException(nameof(boundsBySubRace));
+            hasMin = false;
+            hasMax = false;
+            minValue = 0f;
+            maxValue = 0f;
 
-            base64Output = base64Input;
-            valIn = 0f;
-            valOut = 0f;
-
-            // Decode base64 and decompress GZip
             var compressed = Convert.FromBase64String(base64Input);
             byte[] decompressed;
-
             using (var input = new MemoryStream(compressed))
             using (var gzip = new GZipStream(input, CompressionMode.Decompress))
             using (var output = new MemoryStream())
@@ -70,31 +65,24 @@ namespace MareSynchronos.Interop.Meta
             if (decompressed.Length < 1 + 8)
                 throw new InvalidDataException("Decompressed data too short for version + META header.");
 
-            // Version byte
             var version = decompressed[0];
             if (version != 1)
                 throw new NotSupportedException($"Unsupported meta version {version}, expected 1.");
 
-            // Meta section -> "META0001"
             if (!IsMetaHeader(decompressed, 1, "META0001"))
                 throw new InvalidDataException("META0001 header not found at expected position.");
 
-            // Walk sections to reach RSP (IMC -> EQP -> EQDP -> EST -> RSP)
+            // Walk sections to reach RSP
             var offset = 1 + 8; // version + header
-
             int imcCount = ReadInt32(decompressed, ref offset);
             offset += imcCount * (SizeImcIdentifier + SizeImcEntry);
-
             int eqpCount = ReadInt32(decompressed, ref offset);
             offset += eqpCount * (SizeEqpIdentifier + SizeEqpEntry);
-
             int eqdpCount = ReadInt32(decompressed, ref offset);
             offset += eqdpCount * (SizeEqdpIdentifier + SizeEqdpEntry);
-
             int estCount = ReadInt32(decompressed, ref offset);
             offset += estCount * (SizeEstIdentifier + SizeEstEntry);
 
-            // RspCount and start of Rsp records
             int rspCount = ReadInt32(decompressed, ref offset);
             int rspDataStart = offset;
             int rspRecordSize = SizeRspIdentifier + SizeRspEntry;
@@ -103,9 +91,6 @@ namespace MareSynchronos.Interop.Meta
             if (rspDataStart + rspDataLength > decompressed.Length)
                 throw new InvalidDataException("Rsp section exceeds available data.");
 
-            bool modified = false;
-
-            // Walk Rsp entries
             for (int i = 0; i < rspCount; i++)
             {
                 int entryOffset = rspDataStart + i * rspRecordSize;
@@ -113,77 +98,120 @@ namespace MareSynchronos.Interop.Meta
                 var subRace = (RspData.SubRace)decompressed[entryOffset + 0];
                 var attribute = (RspData.RspAttribute)decompressed[entryOffset + 1];
 
-                float currentValue = BitConverter.ToSingle(decompressed, entryOffset + SizeRspIdentifier);
-                valIn = currentValue;
-
-                if (!boundsBySubRace.TryGetValue(subRace, out var bounds) || bounds == null)
+                if (subRace != targetSubRace)
                     continue;
 
-                float newValue = currentValue;
+                float currentValue = BitConverter.ToSingle(decompressed, entryOffset + SizeRspIdentifier);
 
-                switch (attribute)
+                switch (targetGender)
                 {
-                    case RspData.RspAttribute.MaleMinSize:
-                    case RspData.RspAttribute.MaleMaxSize:
-                        logger.LogTrace("RSP: {val} {min} {max}", currentValue, bounds.MaleMin, bounds.MaleMax);
-                        newValue = Clamp(currentValue, bounds.MaleMin, bounds.MaleMax);
-                        valOut = newValue;
+                    case RspData.Gender.Male:
+                        if (attribute == RspData.RspAttribute.MaleMinSize)
+                        {
+                            logger.LogTrace("RSP MaleMinSize: {val}", currentValue);
+                            hasMin = true;
+                            minValue = currentValue;
+                        }
+                        else if (attribute == RspData.RspAttribute.MaleMaxSize)
+                        {
+                            logger.LogTrace("RSP MaleMaxSize: {val}", currentValue);
+                            hasMax = true;
+                            maxValue = currentValue;
+                        }
                         break;
 
-                    case RspData.RspAttribute.FemaleMinSize:
-                    case RspData.RspAttribute.FemaleMaxSize:
-                        logger.LogTrace("RSP: {val} {min} {max}", currentValue, bounds.FemaleMin, bounds.FemaleMax);
-                        newValue = Clamp(currentValue, bounds.FemaleMin, bounds.FemaleMax);
-                        valOut = newValue;
+                    case RspData.Gender.Female:
+                        if (attribute == RspData.RspAttribute.FemaleMinSize)
+                        {
+                            logger.LogTrace("RSP FemaleMinSize: {val}", currentValue);
+                            hasMin = true;
+                            minValue = currentValue;
+                        }
+                        else if (attribute == RspData.RspAttribute.FemaleMaxSize)
+                        {
+                            logger.LogTrace("RSP FemaleMaxSize: {val}", currentValue);
+                            hasMax = true;
+                            maxValue = currentValue;
+                        }
                         break;
 
                     default:
-                        //valIn = currentValue;
-                        valOut = currentValue;
-                        continue;
-                }
-
-                if (float.IsNaN(newValue) || float.IsInfinity(newValue))
-                    continue;
-
-                if (!newValue.Equals(currentValue))
-                {
-                    logger.LogTrace("{new} {old}", newValue, currentValue);
-                    modified = true;
-                    var valueBytes = BitConverter.GetBytes(newValue);
-                    Buffer.BlockCopy(valueBytes, 0, decompressed, entryOffset + SizeRspIdentifier, SizeRspEntry);
+                        break;
                 }
             }
+        }
 
-            // If nothing changed, return original
-            if (!modified)
-            {
-                valIn = 0;
-                valOut = 0;
-                base64Output = base64Input;
+        /// <summary>
+        /// Check a single RSP height value against the configured max bound
+        /// for the given subrace+gender.
+        /// 
+        /// </summary>
+        /// <param name="rspValue">The RSP height value to test.</param>
+        /// <param name="subRace">Subrace whose bounds to use.</param>
+        /// <param name="gender">Gender whose bounds to use.</param>
+        /// <param name="boundsBySubRace">Dictionary of height bounds per subrace.</param>
+        /// <param name="maxAllowed">Out: the max allowed RSP for this subrace+gender.</param>
+        public static bool IsRspValueGreaterThanLimit(float rspValue, RspData.SubRace subRace, RspData.Gender gender,
+            IReadOnlyDictionary<RspData.SubRace, RspData.RspHeightBounds> boundsBySubRace, out float maxAllowed)
+        {
+            if (boundsBySubRace == null)
+                throw new ArgumentNullException(nameof(boundsBySubRace));
+
+            maxAllowed = 0f;
+
+            if (!boundsBySubRace.TryGetValue(subRace, out var bounds) || bounds == null)
                 return false;
-            }
 
-            // Re-compress the modified buffer, return base64
-            byte[] recompressed;
-            using (var output = new MemoryStream())
+            maxAllowed = gender switch
             {
-                using (var gzip = new GZipStream(output, CompressionMode.Compress, leaveOpen: true))
-                {
-                    gzip.Write(decompressed, 0, decompressed.Length);
-                }
+                RspData.Gender.Male => bounds.MaleMax,
+                RspData.Gender.Female => bounds.FemaleMax,
+                _ => 0f
+            };
 
-                recompressed = output.ToArray();
+            if (maxAllowed <= 0f)
+                return false;
+
+            return rspValue > maxAllowed;
+        }
+
+        public static bool CheckIfTallerThanLimits(ILogger logger, string base64Input, RspData.SubRace targetSubRace, RspData.Gender targetGender,
+            IReadOnlyDictionary<RspData.SubRace, RspData.RspHeightBounds> boundsBySubRace, out float valIn, out float valOut)
+        {
+            valIn = 0f;
+            valOut = 0f;
+
+            GetRspHeightValues(logger, base64Input, targetSubRace, targetGender,
+                out var hasMin, out var minValue, out var hasMax, out var maxValue);
+
+            if (!hasMin && !hasMax)
+                return false;
+
+            bool isTallerThanLimit = false;
+
+            if (hasMin && IsRspValueGreaterThanLimit(minValue, targetSubRace, targetGender, boundsBySubRace, out var maxAllowedForMin))
+            {
+                logger.LogTrace("RSP min value {val} exceeds max allowed {max}", minValue, maxAllowedForMin);
+                valIn = minValue;
+                valOut = maxAllowedForMin;
+                isTallerThanLimit = true;
             }
 
-            base64Output = Convert.ToBase64String(recompressed);
-            return true;
+            if (!isTallerThanLimit && hasMax && IsRspValueGreaterThanLimit(maxValue, targetSubRace, targetGender, boundsBySubRace, out var maxAllowedForMax))
+            {
+                logger.LogTrace("RSP max value {val} exceeds max allowed {max}", maxValue, maxAllowedForMax);
+                valIn = maxValue;
+                valOut = maxAllowedForMax;
+                isTallerThanLimit = true;
+            }
+
+            return isTallerThanLimit;
         }
 
         private static int ReadInt32(byte[] buffer, ref int offset)
         {
             if (offset + 4 > buffer.Length)
-                throw new InvalidDataException("Unexpected end of data while reading Int32.");
+                throw new InvalidDataException("Unexpected end of data Int32.");
 
             int value = BitConverter.ToInt32(buffer, offset);
             offset += 4;
@@ -202,13 +230,6 @@ namespace MareSynchronos.Interop.Meta
             }
 
             return true;
-        }
-
-        private static float Clamp(float value, float min, float max)
-        {
-            if (value < min) value = min;
-            if (value > max) value = max;
-            return value;
         }
     }
 }
