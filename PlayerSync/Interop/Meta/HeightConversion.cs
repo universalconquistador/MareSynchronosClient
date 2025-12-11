@@ -64,10 +64,7 @@ public static class HeightConversion
         return factor;
     }
 
-    public static float GetCharacterHeightCm(
-        RspData.SubRace subRace,
-        RspData.Gender gender,
-        float rspHeightValue)
+    public static float GetCharacterHeightCm(RspData.SubRace subRace, RspData.Gender gender, float rspHeightValue)
     {
         if (rspHeightValue <= 0)
             throw new ArgumentOutOfRangeException(nameof(rspHeightValue), "RSP height must be positive.");
@@ -76,10 +73,7 @@ public static class HeightConversion
         return factor * rspHeightValue;
     }
 
-    public static float GetRspFromHeightCm(
-        RspData.SubRace subRace,
-        RspData.Gender gender,
-        float heightCm)
+    public static float GetRspFromHeightCm(RspData.SubRace subRace, RspData.Gender gender, float heightCm)
     {
         if (heightCm <= 0)
             throw new ArgumentOutOfRangeException(nameof(heightCm), "Height must be positive.");
@@ -88,23 +82,7 @@ public static class HeightConversion
         return heightCm / factor;
     }
 
-    /// <summary>
-    /// Check if a character (identified by subrace, gender, and RSP value)
-    /// is taller than a global max height in cm
-    /// </summary>
-    public static bool IsTallerThanGlobalMax(RspData.SubRace subRace, RspData.Gender gender, float rspHeightValue, float globalMaxHeightCm, out float characterHeightCm)
-    {
-        if (globalMaxHeightCm <= 0)
-            throw new ArgumentOutOfRangeException(nameof(globalMaxHeightCm), "Global max must be positive.");
-
-        characterHeightCm = GetCharacterHeightCm(subRace, gender, rspHeightValue);
-        return characterHeightCm > globalMaxHeightCm;
-    }
-
-    public static float GetMaxRspForGlobalHeight(
-        RspData.SubRace subRace,
-        RspData.Gender gender,
-        float globalMaxHeightCm)
+    public static float GetMaxRspForGlobalHeight(RspData.SubRace subRace, RspData.Gender gender, float globalMaxHeightCm)
     {
         if (globalMaxHeightCm <= 0)
             throw new ArgumentOutOfRangeException(nameof(globalMaxHeightCm), "Global max must be positive.");

@@ -141,71 +141,39 @@ namespace MareSynchronos.Interop.Meta
             }
         }
 
-        /// <summary>
-        /// Check a single RSP height value against the configured max bound
-        /// for the given subrace+gender.
-        /// 
-        /// </summary>
-        /// <param name="rspValue">The RSP height value to test.</param>
-        /// <param name="subRace">Subrace whose bounds to use.</param>
-        /// <param name="gender">Gender whose bounds to use.</param>
-        /// <param name="boundsBySubRace">Dictionary of height bounds per subrace.</param>
-        /// <param name="maxAllowed">Out: the max allowed RSP for this subrace+gender.</param>
-        public static bool IsRspValueGreaterThanLimit(float rspValue, RspData.SubRace subRace, RspData.Gender gender,
-            IReadOnlyDictionary<RspData.SubRace, RspData.RspHeightBounds> boundsBySubRace, out float maxAllowed)
+        public static void GetDefaultRspValues(RspData.SubRace subrace, RspData.Gender gender, out float minRsp, out float maxRsp)
         {
-            if (boundsBySubRace == null)
-                throw new ArgumentNullException(nameof(boundsBySubRace));
+            minRsp = 0f;
+            maxRsp = 0f;
 
-            maxAllowed = 0f;
+            if (!RspData.CreateDefaultRspHeightBounds().TryGetValue(subrace, out var bounds) || bounds == null)
+                return;
 
-            if (!boundsBySubRace.TryGetValue(subRace, out var bounds) || bounds == null)
-                return false;
-
-            maxAllowed = gender switch
+            if (gender == RspData.Gender.Male)
             {
-                RspData.Gender.Male => bounds.MaleMax,
-                RspData.Gender.Female => bounds.FemaleMax,
-                _ => 0f
-            };
-
-            if (maxAllowed <= 0f)
-                return false;
-
-            return rspValue > maxAllowed;
+                minRsp = bounds.MaleMin;
+                maxRsp = bounds.MaleMax;
+            }
+            if (gender == RspData.Gender.Female)
+            {
+                minRsp = bounds.FemaleMin;
+                maxRsp = bounds.FemaleMax;
+            }
         }
 
-        public static bool CheckIfTallerThanLimits(ILogger logger, string base64Input, RspData.SubRace targetSubRace, RspData.Gender targetGender,
-            IReadOnlyDictionary<RspData.SubRace, RspData.RspHeightBounds> boundsBySubRace, out float valIn, out float valOut)
+        public static float GetRspFromSlider(float min, float max, int slider)
         {
-            valIn = 0f;
-            valOut = 0f;
+            slider = Math.Clamp(slider, 0, 100);
 
-            GetRspHeightValues(logger, base64Input, targetSubRace, targetGender,
-                out var hasMin, out var minValue, out var hasMax, out var maxValue);
+            float t = slider / 100f;
+            return min + (max - min) * t;
+        }
 
-            if (!hasMin && !hasMax)
-                return false;
-
-            bool isTallerThanLimit = false;
-
-            if (hasMin && IsRspValueGreaterThanLimit(minValue, targetSubRace, targetGender, boundsBySubRace, out var maxAllowedForMin))
-            {
-                logger.LogTrace("RSP min value {val} exceeds max allowed {max}", minValue, maxAllowedForMin);
-                valIn = minValue;
-                valOut = maxAllowedForMin;
-                isTallerThanLimit = true;
-            }
-
-            if (!isTallerThanLimit && hasMax && IsRspValueGreaterThanLimit(maxValue, targetSubRace, targetGender, boundsBySubRace, out var maxAllowedForMax))
-            {
-                logger.LogTrace("RSP max value {val} exceeds max allowed {max}", maxValue, maxAllowedForMax);
-                valIn = maxValue;
-                valOut = maxAllowedForMax;
-                isTallerThanLimit = true;
-            }
-
-            return isTallerThanLimit;
+        public static int GetSliderFromRsp(float min, float max, float rsp)
+        {
+            float t = (rsp - min) / (max - min);
+            t = Math.Clamp(t, 0f, 1f);
+            return (int)MathF.Round(t * 100f);
         }
 
         private static int ReadInt32(byte[] buffer, ref int offset)
