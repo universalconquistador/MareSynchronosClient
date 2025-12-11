@@ -142,42 +142,49 @@ public class DownloadUi : WindowMediatorSubscriberBase
 
             foreach (var transfer in _currentDownloads.ToList())
             {
-                var screenPos = _dalamudUtilService.WorldToScreen(transfer.Key.GetGameObject());
-                if (screenPos == Vector2.Zero) continue;
-
-                var totalBytes = transfer.Value.Sum(c => c.Value.TotalBytes);
-                var transferredBytes = transfer.Value.Sum(c => c.Value.TransferredBytes);
-
-                var maxDlText = $"{UiSharedService.ByteToString(totalBytes, addSuffix: false)}/{UiSharedService.ByteToString(totalBytes)}";
-                var textSize = _configService.Current.TransferBarsShowText ? ImGui.CalcTextSize(maxDlText) : new Vector2(10, 10);
-
-                int dlBarHeight = _configService.Current.TransferBarsHeight > ((int)textSize.Y + 5) ? _configService.Current.TransferBarsHeight : (int)textSize.Y + 5;
-                int dlBarWidth = _configService.Current.TransferBarsWidth > ((int)textSize.X + 10) ? _configService.Current.TransferBarsWidth : (int)textSize.X + 10;
-
-                var dlBarStart = new Vector2(screenPos.X - dlBarWidth / 2f, screenPos.Y - dlBarHeight / 2f);
-                var dlBarEnd = new Vector2(screenPos.X + dlBarWidth / 2f, screenPos.Y + dlBarHeight / 2f);
-                var drawList = ImGui.GetBackgroundDrawList();
-                drawList.AddRectFilled(
-                    dlBarStart with { X = dlBarStart.X - dlBarBorder - 1, Y = dlBarStart.Y - dlBarBorder - 1 },
-                    dlBarEnd with { X = dlBarEnd.X + dlBarBorder + 1, Y = dlBarEnd.Y + dlBarBorder + 1 },
-                    UiSharedService.Color(0, 0, 0, transparency), 1);
-                drawList.AddRectFilled(dlBarStart with { X = dlBarStart.X - dlBarBorder, Y = dlBarStart.Y - dlBarBorder },
-                    dlBarEnd with { X = dlBarEnd.X + dlBarBorder, Y = dlBarEnd.Y + dlBarBorder },
-                    UiSharedService.Color(220, 220, 220, transparency), 1);
-                drawList.AddRectFilled(dlBarStart, dlBarEnd,
-                    UiSharedService.Color(0, 0, 0, transparency), 1);
-                var dlProgressPercent = transferredBytes / (double)totalBytes;
-                drawList.AddRectFilled(dlBarStart,
-                    dlBarEnd with { X = dlBarStart.X + (float)(dlProgressPercent * dlBarWidth) },
-                    UiSharedService.Color(50, 205, 50, transparency), 1);
-
-                if (_configService.Current.TransferBarsShowText)
+                try
                 {
-                    var downloadText = $"{UiSharedService.ByteToString(transferredBytes, addSuffix: false)}/{UiSharedService.ByteToString(totalBytes)}";
-                    UiSharedService.DrawOutlinedFont(drawList, downloadText,
-                        screenPos with { X = screenPos.X - textSize.X / 2f - 1, Y = screenPos.Y - textSize.Y / 2f - 1 },
-                        UiSharedService.Color(255, 255, 255, transparency),
+                    var screenPos = _dalamudUtilService.WorldToScreen(transfer.Key.GetGameObject());
+                    if (screenPos == Vector2.Zero) continue;
+
+                    var totalBytes = transfer.Value.Sum(c => c.Value.TotalBytes);
+                    var transferredBytes = transfer.Value.Sum(c => c.Value.TransferredBytes);
+
+                    var maxDlText = $"{UiSharedService.ByteToString(totalBytes, addSuffix: false)}/{UiSharedService.ByteToString(totalBytes)}";
+                    var textSize = _configService.Current.TransferBarsShowText ? ImGui.CalcTextSize(maxDlText) : new Vector2(10, 10);
+
+                    int dlBarHeight = _configService.Current.TransferBarsHeight > ((int)textSize.Y + 5) ? _configService.Current.TransferBarsHeight : (int)textSize.Y + 5;
+                    int dlBarWidth = _configService.Current.TransferBarsWidth > ((int)textSize.X + 10) ? _configService.Current.TransferBarsWidth : (int)textSize.X + 10;
+
+                    var dlBarStart = new Vector2(screenPos.X - dlBarWidth / 2f, screenPos.Y - dlBarHeight / 2f);
+                    var dlBarEnd = new Vector2(screenPos.X + dlBarWidth / 2f, screenPos.Y + dlBarHeight / 2f);
+                    var drawList = ImGui.GetBackgroundDrawList();
+                    drawList.AddRectFilled(
+                        dlBarStart with { X = dlBarStart.X - dlBarBorder - 1, Y = dlBarStart.Y - dlBarBorder - 1 },
+                        dlBarEnd with { X = dlBarEnd.X + dlBarBorder + 1, Y = dlBarEnd.Y + dlBarBorder + 1 },
                         UiSharedService.Color(0, 0, 0, transparency), 1);
+                    drawList.AddRectFilled(dlBarStart with { X = dlBarStart.X - dlBarBorder, Y = dlBarStart.Y - dlBarBorder },
+                        dlBarEnd with { X = dlBarEnd.X + dlBarBorder, Y = dlBarEnd.Y + dlBarBorder },
+                        UiSharedService.Color(220, 220, 220, transparency), 1);
+                    drawList.AddRectFilled(dlBarStart, dlBarEnd,
+                        UiSharedService.Color(0, 0, 0, transparency), 1);
+                    var dlProgressPercent = transferredBytes / (double)totalBytes;
+                    drawList.AddRectFilled(dlBarStart,
+                        dlBarEnd with { X = dlBarStart.X + (float)(dlProgressPercent * dlBarWidth) },
+                        UiSharedService.Color(50, 205, 50, transparency), 1);
+
+                    if (_configService.Current.TransferBarsShowText)
+                    {
+                        var downloadText = $"{UiSharedService.ByteToString(transferredBytes, addSuffix: false)}/{UiSharedService.ByteToString(totalBytes)}";
+                        UiSharedService.DrawOutlinedFont(drawList, downloadText,
+                            screenPos with { X = screenPos.X - textSize.X / 2f - 1, Y = screenPos.Y - textSize.Y / 2f - 1 },
+                            UiSharedService.Color(255, 255, 255, transparency),
+                            UiSharedService.Color(0, 0, 0, transparency), 1);
+                    }
+                }
+                catch
+                {
+                    // ignore errors thrown from UI
                 }
             }
 
