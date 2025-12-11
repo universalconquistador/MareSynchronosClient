@@ -345,6 +345,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     case PlayerChanges.Glamourer:
                         if (charaData.GlamourerData.TryGetValue(changes.Key, out var glamourerData))
                         {
+                            Logger.LogTrace("[{appId}] Glamourer data: {data}", applicationId, glamourerData);
                             await _ipcManager.Glamourer.ApplyAllAsync(Logger, handler, glamourerData, applicationId, token).ConfigureAwait(false);
                         }
                         break;
