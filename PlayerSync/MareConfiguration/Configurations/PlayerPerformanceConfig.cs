@@ -13,4 +13,11 @@ public class PlayerPerformanceConfig : IMareConfiguration
     public int VRAMSizeAutoPauseThresholdMiB { get; set; } = 550;
     public int TrisAutoPauseThresholdThousands { get; set; } = 250;
     public List<string> UIDsToIgnore { get; set; } = new();
+    public bool AutoPausePlayersExceedingHeightThresholds { get; set; } = false;
+    public bool NoAutoPauseDirectPairs { get; set; } = true;
+    public bool WarnOnAutoHeightExceedingThreshold {  get; set; } = false;
+    public float MaxHeightMultiplier { get; set; } = 200f;
+    public bool MaxHeightManual { get; set; } = false;
+    public int MaxHeightAbsolute { get; set; } = 366;
+    public List<string> UIDsToIgnoreForHeightPausing { get; set; } = new();
 }

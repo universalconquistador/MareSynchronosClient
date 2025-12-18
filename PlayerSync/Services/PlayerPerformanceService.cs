@@ -1,5 +1,7 @@
 using MareSynchronos.API.Data;
 using MareSynchronos.FileCache;
+using MareSynchronos.Interop;
+using MareSynchronos.Interop.Meta;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Events;
@@ -233,4 +235,73 @@ public class PlayerPerformanceService
 
     private static bool CheckForThreshold(bool thresholdEnabled, long threshold, long value, bool checkForPrefPerm, bool isPrefPerm) =>
         thresholdEnabled && threshold > 0 && threshold < value && ((checkForPrefPerm && isPrefPerm) || !isPrefPerm);
+
+    // Height check
+    public bool CheckForRspHeight(PairHandler pairHandler, CharacterData charaData)
+    {
+        // don't check stuff if it's not set to run
+        if (!_playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds)
+            return true;
+
+        // whitelist check
+        if (_playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing
+            .Exists(uid => string.Equals(uid, pairHandler.Pair.UserData.Alias, StringComparison.Ordinal) || string.Equals(uid, pairHandler.Pair.UserData.UID, StringComparison.Ordinal)))
+            return true;
+
+        // Check if we are pausing direct pairs or not
+        bool noAutoPauseDirectPairs = _playerPerformanceConfigService.Current.NoAutoPauseDirectPairs;
+        if ((pairHandler.Pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional) && noAutoPauseDirectPairs)
+            return true;
+
+        var pair = pairHandler.Pair;
+        var maxHeight = _playerPerformanceConfigService.Current.MaxHeightAbsolute;
+        var manualHeight = _playerPerformanceConfigService.Current.MaxHeightManual;
+        var multiMax = _playerPerformanceConfigService.Current.MaxHeightMultiplier;
+        var shouldWarn = _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold;
+        var pauseRspExceeded = false;
+
+        // grab player data from glamourer string
+        _logger.LogTrace("Glamourer Dictionary: {data}", charaData.GlamourerData[API.Data.Enum.ObjectKind.Player].ToString());
+        var (race, gender, height) = GlamourerDecoder.GetRaceAndGender(charaData.GlamourerData[API.Data.Enum.ObjectKind.Player].ToString());
+        _logger.LogTrace("Glamourer data: {race} {gender}", race, gender);
+
+        // grab rsp data from penumbra manip string
+        ManipRsp.GetRspHeightValues(_logger, charaData.ManipulationData, race, gender, out bool hasMin, out float minRsp, out bool hasMax, out float maxRsp);
+        _logger.LogTrace("Get RSP Data: {race} {gender} {hasin} {minrsp} {hasmax} {maxrsp}", race, gender, hasMin, minRsp, hasMax, maxRsp);
+        ManipRsp.GetDefaultRspValues(race, gender, out var defaultRspMin, out var defaultRspMax);
+
+        // check for rsp vals and calc player height in cm
+        var minVal = hasMin ? minRsp : defaultRspMin;
+        var maxVal = hasMax ? maxRsp : defaultRspMax;
+        var actualRsp = ManipRsp.GetRspFromSlider(minVal, maxVal, height);
+        var maxVanillaHeight = HeightConversion.GetCharacterHeightCm(race, gender, defaultRspMax);
+        var actualHeight = HeightConversion.GetCharacterHeightCm(race, gender, actualRsp);
+        var maxThreshold = maxVanillaHeight * (multiMax / 100f);
+
+        if (!manualHeight)
+        {
+            pauseRspExceeded = actualHeight > maxThreshold;
+        }
+        else
+        {
+            pauseRspExceeded = actualHeight > maxHeight;
+        }
+
+        if (pauseRspExceeded)
+        {
+            _logger.LogInformation("Pair {name} exceeds your height min/max threshold and will be paused.", pair.PlayerName);
+            if (shouldWarn)
+            {
+                var threshold = manualHeight ? maxHeight : maxThreshold;
+                _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
+                $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured player height threshold and has been automatically paused. " +
+                $"Their height: {actualHeight:F2}, your threshold: {threshold:F2}",
+                MareConfiguration.Models.NotificationType.Warning));
+            }
+            _mediator.Publish(new PauseMessage(pair.UserData));
+
+            return false;
+        }
+        return true;
+    }
 }

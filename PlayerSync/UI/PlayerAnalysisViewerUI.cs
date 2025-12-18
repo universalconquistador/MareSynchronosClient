@@ -24,7 +24,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfig;
     private readonly ApiController _apiController;
-    private readonly DalamudUtilService _dalamudUtil;
+    private readonly DalamudUtilService _dalamudUtilService;
     private RefreshMode _refreshMode = RefreshMode.Live;
     private DateTime _lastUpdate = DateTime.MinValue;
     private ImmutableList<Pair> _cachedVisiblePairs = ImmutableList<Pair>.Empty;
@@ -34,17 +34,17 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
 
     public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
-        UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService, 
+        UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService,
         ApiController apiController, DalamudUtilService dalamudUtilService) : base(logger, mediator, "Player Analysis Viewer", performanceCollector)
-    { 
+    {
         _uiSharedService = uiSharedService;
         _pairManager = pairManager;
         _playerPerformanceConfig = playerPerformanceConfigService;
         _apiController = apiController;
-        _dalamudUtil = dalamudUtilService;
+        _dalamudUtilService = dalamudUtilService;
         SizeConstraints = new()
         {
-            MinimumSize = new(600, 500),
+            MinimumSize = new(1000, 500),
             MaximumSize = new(1000, 2000)
         };
         Mediator.Subscribe<OpenPlayerAnalysisViewerUIUiMessage>(this, (_) => Toggle());
@@ -57,6 +57,31 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         Sec30,
         Manual,
     }
+
+    private enum SortByID
+    {
+        None,
+        UID,
+        Alias,
+        FileSize,
+        VRAM,
+        Triangles
+    }
+
+    private SortByID sortBy = SortByID.None;
+    private bool sortAscending = true;
+
+    public static void CenterItemInColumn(Action drawAction)
+    {
+        float cellWidth = ImGui.GetColumnWidth();
+        Vector2 itemSize = ImGui.CalcTextSize("A");
+        float cursorX = ImGui.GetCursorPosX();
+        ImGui.SetCursorPosX(cursorX + (cellWidth - itemSize.X) / 2);
+
+        drawAction.Invoke();
+    }
+
+    private bool defaultSortApplied = false;
 
     private static bool PermissionsEqual(UserPermissions a, UserPermissions b) => a == b;
 
@@ -122,7 +147,13 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
             default:
                 break;
         }
-        _uiSharedService.BigText("Visible Players (" + _cachedVisiblePairs.Count().ToString() + ")");
+        _uiSharedService.BigText("Visible Players (" + _cachedVisiblePairs.Count.ToString() + ")");
+        var fps = (int)_dalamudUtilService.FPSCounter;
+        var fpsText = $"FPS: {fps}";
+        var fpsWidth = ImGui.GetContentRegionMax().X;
+        var fpsTextSize = ImGui.CalcTextSize("fpsText").X;
+        ImGui.SameLine(fpsWidth - fpsTextSize - 60f * ImGuiHelpers.GlobalScale);
+        _uiSharedService.BigText(fpsText);
         ImGuiHelpers.ScaledDummy(2f);
 
         ImGui.TextUnformatted("Refresh:");
@@ -142,11 +173,11 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 {
                     case RefreshMode.Live:
                         _refreshMode = RefreshMode.Live; break;
-                        case RefreshMode.Sec5:
+                    case RefreshMode.Sec5:
                         _refreshMode = RefreshMode.Sec5; break;
-                        case RefreshMode.Sec30:
+                    case RefreshMode.Sec30:
                         _refreshMode = RefreshMode.Sec30; break;
-                        case RefreshMode.Manual:
+                    case RefreshMode.Manual:
                         _refreshMode = RefreshMode.Manual; break;
                 }
             }, RefreshMode.Live);
@@ -158,6 +189,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
         UiSharedService.TextWrapped("Players showing -- have no mods or have not been loaded yet.");
         ImGuiHelpers.ScaledDummy(2f);
+        ImGui.Separator();
 
         if (shouldUpdate || _manualRefresh)
         {
@@ -173,223 +205,298 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         var min = ImGui.GetWindowContentRegionMin();
         var width = max.X - min.X;
         var height = max.Y - cursorPos;
-        using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding,new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
-        using var table = ImRaii.Table("eventTable", 7, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY
-            | ImGuiTableFlags.RowBg | ImGuiTableFlags.Sortable | ImGuiTableFlags.SortMulti, new Vector2(width, height));
+        using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
 
-        void CText(string text) //center regular text function
+        if (ImGui.BeginTable("AnalysisTable", 7,
+                ImGuiTableFlags.ScrollY |
+                ImGuiTableFlags.RowBg |
+                ImGuiTableFlags.SortMulti,
+                new Vector2(width, height)))
         {
-            float cellWidth = ImGui.GetColumnWidth();
-            float textWidth = ImGui.CalcTextSize(text).X;
-            float indent = (cellWidth - textWidth) * 0.5f;
-            
-            if (indent > 0)
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
-            
-            ImGui.Text(text);
-        }
-
-        void CCText(string text, Vector4 color) //center colored text function
-        {
-            Vector2 textSize = ImGui.CalcTextSize(text);
-            float cellWidth = ImGui.GetColumnWidth();
-            float indent = (cellWidth - textSize.X) * 0.5f;
-
-            if (indent > 0)
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
-
-            UiSharedService.ColorText(text, color);
-        }
-
-        if (table)
-        {
-            ImGui.TableSetupScrollFreeze(0, 1);
-            ImGui.TableSetupColumn(string.Empty, ImGuiTableColumnFlags.NoSort);
-            ImGui.TableSetupColumn("UID");
-            ImGui.TableSetupColumn("Alias");
-            ImGui.TableSetupColumn("File Size");
-            ImGui.TableSetupColumn("Approx. VRAM Usage", ImGuiTableColumnFlags.DefaultSort);
-            ImGui.TableSetupColumn("Approx. Triangle Count");
-            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
-            ImGui.TableHeadersRow();
-
-            var sortedPairs = allVisiblePairs.ToList();
-            var sortSpecs = ImGui.TableGetSortSpecs();
-            if (sortSpecs.SpecsCount > 0)
+            try
             {
-                sortedPairs.Sort((a, b) => ComparePairsForSort(a, b, sortSpecs));
-            }
+                ImGui.TableSetupScrollFreeze(0, 1);
 
-            foreach (var pair in sortedPairs)
-            {
-                bool highlightRow = false;
+                ImGui.TableSetupColumn("Target", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 24f * ImGuiHelpers.GlobalScale);
+                ImGui.TableSetupColumn("UID");
+                ImGui.TableSetupColumn("Alias");
+                ImGui.TableSetupColumn("File Size");
+                ImGui.TableSetupColumn("Approx. VRAM Usage");
+                ImGui.TableSetupColumn("Approx. Triangle Count");
+                ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
 
-                var target = 
+                // draw manual heeders clickable for sort
+                ImGui.TableNextRow();
 
-                // Target
-                ImGui.TableNextColumn();
-                _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
-                UiSharedService.AttachToolTip("Target " + pair.PlayerName);
-                if (ImGui.IsItemClicked())
+                void HeaderCell(string label, int colIndex, SortByID sortKey, bool totheleft = false)
                 {
-                    Mediator.Publish(new TargetPairMessage(pair));
-                }
+                    // sort only columns 2 to 6
+                    if (colIndex >= 1 && colIndex <= 5)
+                    {
+                        ImGui.TableSetColumnIndex(colIndex);
 
-                // UID
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted(pair.UserData.UID);
-                if (ImGui.IsItemClicked())
-                {
-                    ImGui.SetClipboardText(pair.UserData.UID);
-                }
-                UiSharedService.AttachToolTip("Click to copy");
+                    Vector2 cellStart = ImGui.GetCursorPos();
+                    float cellWidth = ImGui.GetColumnWidth();
+                    Vector2 textSize = ImGui.CalcTextSize(label);
 
-                // Alias
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                if (pair.UserData.Alias != null)
-                    {
-                        ImGui.TextUnformatted(pair.UserData.Alias);
-                    }                
-                
-                // File Size
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();                
-                string FData(long bytes)
-                    {
-                        return bytes >= 0 ? UiSharedService.ByteToString(bytes, true) : "--";
-                    }
-                CText(FData(pair.LastAppliedDataBytes));
+                    if (ImGui.InvisibleButton(label + "Btn", new Vector2(cellWidth, ImGui.GetTextLineHeight())))
+                        {
+                            if (sortBy == sortKey)
+                                sortAscending = !sortAscending;
+                            else
+                            {
+                                sortBy = sortKey;
+                                sortAscending = true;
+                            }
+                        }
 
-                // VRAM
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                string FVram(long bytes)
-                    {
-                        return bytes >= 0 ? UiSharedService.ByteToString(bytes, true) : "--";
-                    }
-                
-                var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
-                var approxVram = pair.LastAppliedApproximateVRAMBytes;
-                if (pair.LastAppliedDataBytes >= 0)
-                {
-                    if ((currentVramWarning * 1024 * 1024 < approxVram))
-                    {
-                        CCText($"{UiSharedService.ByteToString(pair.LastAppliedApproximateVRAMBytes, true)}", ImGuiColors.DalamudYellow);
-                        UiSharedService.AttachToolTip($"Exceeds your threshold by " + $"{UiSharedService.ByteToString(approxVram - (currentVramWarning * 1024 * 1024))}.");
+                    float indent = totheleft ? 0.0f : (cellWidth - textSize.X) * 0.5f;
+                    ImGui.SetCursorPos(new Vector2(cellStart.X + indent, cellStart.Y));
+
+                    ImGui.TextUnformatted(label);
+
+                    ImGui.SetCursorPosY(cellStart.Y + ImGui.GetTextLineHeight());
                     }
                     else
                     {
-                        CText(FVram(pair.LastAppliedApproximateVRAMBytes));
+                        // If outside of the valid range, just render the header cell without sorting logic
+                        ImGui.TableSetColumnIndex(colIndex);
+                        ImGui.TextUnformatted(label);
                     }
                 }
-                else
+
+                HeaderCell("", 0, SortByID.None);
+                HeaderCell("UID", 1, SortByID.UID, true);
+                HeaderCell("Alias", 2, SortByID.Alias, true);
+                HeaderCell("File Size", 3, SortByID.FileSize);
+                HeaderCell("Approx. VRAM Usage", 4, SortByID.VRAM);
+                HeaderCell("Approx. Triangle Count", 5, SortByID.Triangles);
+                HeaderCell("Actions", 6, SortByID.None, true);
+
+                // Sort my table
+                var sortedPairs = allVisiblePairs.ToList();
+
+                if (!defaultSortApplied)
                 {
-                    CText("--");
+                    sortBy = SortByID.VRAM;
+                    sortAscending = false; // false = decending / big to small 
+                    defaultSortApplied = true;
                 }
 
-                // Triangles
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
-                var approxTris = pair.LastAppliedDataTris;
-                // For some reason we get triangles sometimes without data, so only display if we have data applied
-                if (pair.LastAppliedDataTris > 0 && pair.LastAppliedDataBytes >= 0)
+                if (sortBy != SortByID.None)
                 {
-                    if ((currentTriWarning * 1000 < approxTris))
+                    sortedPairs.Sort((a, b) =>
                     {
-                        CCText(pair.LastAppliedDataTris > 1000 ?
-                            (pair.LastAppliedDataTris / 1000d).ToString("0.0'k'") : pair.LastAppliedDataTris.ToString(), ImGuiColors.DalamudYellow);
-                        UiSharedService.AttachToolTip($"Exceeds your threshold by " + $"{approxTris - (currentTriWarning * 1000):N0} triangles.");
+                        int cmp = sortBy switch
+                        {
+                            SortByID.UID => string.Compare(a.UserData.UID, b.UserData.UID, StringComparison.OrdinalIgnoreCase),
+                            SortByID.Alias => string.Compare(a.UserData.Alias ?? "", b.UserData.Alias ?? "", StringComparison.OrdinalIgnoreCase),
+                            SortByID.FileSize => a.LastAppliedDataBytes.CompareTo(b.LastAppliedDataBytes),
+                            SortByID.VRAM => a.LastAppliedApproximateVRAMBytes.CompareTo(b.LastAppliedApproximateVRAMBytes),
+                            SortByID.Triangles => a.LastAppliedDataTris.CompareTo(b.LastAppliedDataTris),
+                            _ => 0
+                        };
+                        return sortAscending ? cmp : -cmp;
+                    });
+                }
+
+                // get indent for vram, filesize, and triangles for nubmers right allignment <3
+
+                //triangle numbers
+                int maxTriWidth = 0;
+                Dictionary<Pair, string> formattedTris = new();
+
+                foreach (var p in sortedPairs)
+                {
+                    string t;
+
+                    if (p.LastAppliedDataTris > 0)
+                        t = p.LastAppliedDataTris >= 1000
+                            ? (p.LastAppliedDataTris / 1000d).ToString("0.0'k'")
+                            : p.LastAppliedDataTris.ToString();
+                    else
+                        t = "--";
+
+                    formattedTris[p] = t;
+
+                    int trianglewidth = (int)ImGui.CalcTextSize(t).X;
+                    if (trianglewidth > maxTriWidth)
+                        maxTriWidth = trianglewidth;
+                }
+
+                // fize size
+                int maxFileSizeWidth = 0;
+                Dictionary<Pair, string> formattedFileSizes = new();
+
+                foreach (var p in sortedPairs)
+                {
+                    string s = p.LastAppliedDataBytes >= 0
+                        ? UiSharedService.ByteToString(p.LastAppliedDataBytes, true)
+                        : "--";
+
+                    formattedFileSizes[p] = s;
+
+                    int fswidth = (int)ImGui.CalcTextSize(s).X;
+                    if (fswidth > maxFileSizeWidth)
+                        maxFileSizeWidth = fswidth;
+                }
+
+                // vram numbers
+                int maxVRAMWidth = 0;
+                Dictionary<Pair, string> formattedVRAM = new();
+
+                foreach (var p in sortedPairs)
+                {
+                    string s = p.LastAppliedApproximateVRAMBytes >= 0
+                        ? UiSharedService.ByteToString(p.LastAppliedApproximateVRAMBytes, true)
+                        : "--";
+
+                    formattedVRAM[p] = s;
+
+                    int vrwidth = (int)ImGui.CalcTextSize(s).X;
+                    if (vrwidth > maxVRAMWidth)
+                        maxVRAMWidth = vrwidth;
+                }
+
+                // time to draw table data.
+                foreach (var pair in sortedPairs)
+                {
+                    bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
+                    float rowStartHeightStart = ImGui.GetCursorPosY();
+
+                    ImGui.TableNextRow();
+
+                    // Visible Eyeball Icon
+                    ImGui.TableSetColumnIndex(0);
+                    float cellWidth = ImGui.GetColumnWidth();
+                    Vector2 iconSize = ImGui.CalcTextSize(FontAwesomeIcon.Eye.ToIconString()); // approximate width of icon
+                    float indent = (cellWidth - iconSize.X) * 0.5f;
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
+                    _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
+                    UiSharedService.AttachToolTip("Target " + pair.PlayerName);
+                    if (ImGui.IsItemClicked()) Mediator.Publish(new TargetPairMessage(pair));
+
+                    // UID Column                     
+                    ImGui.TableSetColumnIndex(1);
+                    ImGui.AlignTextToFramePadding();
+                    using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
+                    TableHelper.CText(pair.UserData.UID, centerHorizontally: false, leftPadding: 0f);
+                    targetColor.Dispose();
+                    if (ImGui.IsItemClicked())
+                    {
+                        ImGui.SetClipboardText(pair.UserData.UID);
+                    }
+                    UiSharedService.AttachToolTip("Click to copy");
+
+                    // Alias/vanity Column
+                    ImGui.TableSetColumnIndex(2);
+                    ImGui.AlignTextToFramePadding();
+                    using var aliasColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
+                    TableHelper.CText(pair.UserData.Alias ?? "", centerHorizontally: false, leftPadding: 0f);
+                    aliasColor.Dispose();                    
+
+                    // file size column
+                    ImGui.TableSetColumnIndex(3);
+                    ImGui.AlignTextToFramePadding();
+                    string FData(long bytes) => bytes >= 0 ? UiSharedService.ByteToString(bytes, true) : "--";
+                    string fileSizeText = FData(pair.LastAppliedDataBytes);
+                    float space3width = ImGui.CalcTextSize(" ").X;  // Width of a single space character
+                    int spaces3 = (int)((maxFileSizeWidth - ImGui.CalcTextSize(fileSizeText).X) / space3width);
+                    string mypaddedfilesize = new string(' ', Math.Max(0, spaces3)) + fileSizeText;
+
+                    if (string.Equals(fileSizeText, "--", StringComparison.Ordinal))
+                    {
+                        TableHelper.CText("--");
                     }
                     else
                     {
-                        CText(pair.LastAppliedDataTris > 1000 ? (pair.LastAppliedDataTris / 1000d).ToString("0.0'k'") : pair.LastAppliedDataTris.ToString());
+                        TableHelper.CText(mypaddedfilesize, centerHorizontally: true);
                     }
-                }
-                else
-                {
-                    CText("--");
-                }
 
-                // Actions
-                var uid = pair.UserData.UID;
-                bool isBusy = _pauseClicked.Contains(uid);
+                    // VRAM Column 
+                    ImGui.TableSetColumnIndex(4);
+                    ImGui.AlignTextToFramePadding();
+                    string vramText = formattedVRAM[pair];
+                    float space2width = ImGui.CalcTextSize(" ").X;
+                    int spaces2 = (int)((maxVRAMWidth - ImGui.CalcTextSize(vramText).X) / space2width);
+                    string mypaddedVRAM = new string(' ', Math.Max(0, spaces2)) + vramText;
 
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                ImGui.BeginDisabled(isBusy);
-                if (ImGui.Button($"Pause##{uid}"))
-                {
-                    // It can take a moment to dispose a large player, so we don't let the user spam the button
-                    _pauseClicked.Add(uid);
-                    _ = _apiController.PauseAsync(pair.UserData).ContinueWith(_ => _pauseClicked.Remove(uid));
-                }
-                ImGui.EndDisabled();
-                if (ImGui.IsItemHovered())
-                {
-                    highlightRow = true;
-                }
+                    var currentVramWarning = _playerPerformanceConfig.Current.VRAMSizeWarningThresholdMiB;
+                    var approxVram = pair.LastAppliedApproximateVRAMBytes;
 
-                ImGui.SameLine();
-
-                if (ImGui.Button($"Refresh##{pair.UserData.UID}"))
-                {
-                    _ = _apiController.CyclePauseAsync(pair.UserData);
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    highlightRow = true;
-                }
-
-                // Row highlighting
-                if (highlightRow)
-                {
-                    var rowIndex = ImGui.TableGetRowIndex();
-                    var color = ImGui.GetColorU32(ImGuiCol.TableRowBgAlt);
-                    ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
-                }
-            }
-        }
-    }
-
-    private static int ComparePairsForSort(Pair a, Pair b, ImGuiTableSortSpecsPtr sortSpecs)
-    {
-        for (int i = 0; i < sortSpecs.SpecsCount; i++)
-        {
-            var spec = sortSpecs.Specs[i];
-            int cmp = 0;
-            switch (spec.ColumnIndex)
-            {
-                case 1:
-                    cmp = string.Compare(a.UserData.UID, b.UserData.UID, StringComparison.OrdinalIgnoreCase);
-                    break;
-                case 2:
+                    if (pair.LastAppliedDataBytes >= 0)
                     {
-                        var aAlias = a.UserData.Alias ?? string.Empty;
-                        var bAlias = b.UserData.Alias ?? string.Empty;
-                        cmp = string.Compare(aAlias, bAlias, StringComparison.OrdinalIgnoreCase);
-                        break;
+                        if (currentVramWarning * 1024 * 1024 < approxVram)
+                        {
+                            TableHelper.CCText(mypaddedVRAM, ImGuiColors.DalamudYellow);
+                            UiSharedService.AttachToolTip($"Exceeds your threshold by {UiSharedService.ByteToString(approxVram - (currentVramWarning * 1024 * 1024))}.");
+                        }
+                        else
+                            TableHelper.CText(mypaddedVRAM);
                     }
-                case 3:
-                    cmp = a.LastAppliedDataBytes.CompareTo(b.LastAppliedDataBytes);
-                    break;
-                case 4:
-                    cmp = a.LastAppliedApproximateVRAMBytes.CompareTo(b.LastAppliedApproximateVRAMBytes);
-                    break;
-                case 5:
-                    cmp = a.LastAppliedDataTris.CompareTo(b.LastAppliedDataTris);
-                    break;
-                default:
-                    continue;
+                    else
+                        TableHelper.CText("--");
+
+                    // Triangle Column
+                    ImGui.TableSetColumnIndex(5);
+                    ImGui.AlignTextToFramePadding();
+                    var currentTriWarning = _playerPerformanceConfig.Current.TrisWarningThresholdThousands;
+                    var approxTris = pair.LastAppliedDataTris;
+                    string t = formattedTris[pair];
+                    float space1width = ImGui.CalcTextSize(" ").X;
+                    int spaces1 = (int)((maxTriWidth - ImGui.CalcTextSize(t).X) / space1width);
+                    string mypaddedtriangles = new string(' ', Math.Max(0, spaces1)) + t;
+
+                    if (approxTris > 0)
+                    {
+                        if (currentTriWarning * 1000 < approxTris)
+                        {
+                            TableHelper.CCText(mypaddedtriangles, ImGuiColors.DalamudYellow);
+                            UiSharedService.AttachToolTip($"Exceeds your threshold by {approxTris - currentTriWarning * 1000:N0} triangles.");
+                        }
+                        else
+                            TableHelper.CText(mypaddedtriangles);
+                    }
+                    else
+                        TableHelper.CText("--");
+
+                    // Button options Column
+                    var uid = pair.UserData.UID;
+                    bool isBusy = _pauseClicked.Contains(uid);
+
+                    ImGui.TableSetColumnIndex(6);
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.BeginDisabled(isBusy);
+                    if (ImGui.Button($"Pause##{pair.UserData.UID}"))
+                    {
+                        // It can take a moment to dispose a large player, so we don't let the user spam the button
+                        if (_pauseClicked.Add(uid))
+                        {
+                            _ = _apiController.PauseAsync(pair.UserData).ContinueWith(_ => _pauseClicked.Remove(uid));
+                        }
+                    }
+                    ImGui.EndDisabled();
+
+                    ImGui.SameLine();
+                    if (ImGui.Button($"Refresh##{pair.UserData.UID}"))
+                    {
+                        _ = _apiController.CyclePauseAsync(pair.UserData);
+                    }
+ 
+                    if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
+                    {
+                        var rowIndex = ImGui.TableGetRowIndex();
+                        //uint color = ImGui.ColorConvertFloat4ToU32(new Vector4(0.4f, 0.6f, 1.0f, 0.5f));
+                        var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
+                        ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
+                    }
+                }
             }
-            if (cmp != 0)
+            finally
             {
-                return spec.SortDirection == ImGuiSortDirection.Ascending ? cmp : -cmp;
+                ImGui.EndTable();
             }
         }
-        return 0;
     }
 
     private void DrawPaused()
@@ -406,17 +513,17 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         ImGuiHelpers.ScaledDummy(2f);
 
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
-        using var table = ImRaii.Table("pauseTable", 3, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg);
+        using var table = ImRaii.Table("pauseTable", 3, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg, new Vector2(0, 0));
 
         ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableSetupColumn("UID");
-        ImGui.TableSetupColumn("Alias");
-        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
+        ImGui.TableSetupColumn("UID", ImGuiTableColumnFlags.WidthFixed, 240f);
+        ImGui.TableSetupColumn("Alias", ImGuiTableColumnFlags.WidthFixed, 240f);
+        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 200f);
         ImGui.TableHeadersRow();
 
         foreach (var pair in allPausedPairs)
         {
-            bool highlightRow = false;
+            float rowStartHeightStart = ImGui.GetCursorPosY();
 
             // UID
             ImGui.TableNextColumn();
@@ -445,16 +552,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 perm.SetPaused(paused: false);
                 _ = _apiController.UserSetPairPermissions(new(pair.UserData, perm));
             }
-            if (ImGui.IsItemHovered())
-            {
-                highlightRow = true;
-            }
 
             // Row highlighting
-            if (highlightRow)
+            if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
             {
                 var rowIndex = ImGui.TableGetRowIndex();
-                var color = ImGui.GetColorU32(ImGuiCol.TableRowBgAlt);
+                var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
                 ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
             }
         }
@@ -507,21 +610,21 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         float tableH = MathF.Max(0f, ImGui.GetContentRegionAvail().Y - footerH);
 
         using var pad = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
-        using (var table = ImRaii.Table("permMatrix", 9, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY
-            | ImGuiTableFlags.ScrollX | ImGuiTableFlags.NoHostExtendX, new Vector2(0, tableH)))
+        using (var table = ImRaii.Table("permMatrix", 9, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY
+             | ImGuiTableFlags.NoHostExtendX, new Vector2(0, tableH)))
         {
             if (table)
             {
                 ImGui.TableSetupScrollFreeze(0, 1);
-                ImGui.TableSetupColumn("UID", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 160f);
-                ImGui.TableSetupColumn("Alias", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 160f);
-                ImGui.TableSetupColumn("Preferred", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 80f);
-                ImGui.TableSetupColumn("Disable Sounds", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 160f);
-                ImGui.TableSetupColumn("Disable Animations", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 180f);
-                ImGui.TableSetupColumn("Disable VFX", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 120f);
-                ImGui.TableSetupColumn("Their Sounds", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 120f);
-                ImGui.TableSetupColumn("Their Animations", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 160f);
-                ImGui.TableSetupColumn("Their VFX", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 120f);
+                ImGui.TableSetupColumn("UID", ImGuiTableColumnFlags.WidthStretch, 1.6f);
+                ImGui.TableSetupColumn("Alias", ImGuiTableColumnFlags.WidthStretch, 1.6f);
+                ImGui.TableSetupColumn("Preferred", ImGuiTableColumnFlags.WidthStretch, .8f);
+                ImGui.TableSetupColumn("Disable Sounds", ImGuiTableColumnFlags.WidthStretch, 1.6f);
+                ImGui.TableSetupColumn("Disable Animations", ImGuiTableColumnFlags.WidthStretch, 1.8f);
+                ImGui.TableSetupColumn("Disable VFX", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+                ImGui.TableSetupColumn("Their Sounds", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+                ImGui.TableSetupColumn("Their Animations", ImGuiTableColumnFlags.WidthStretch, 1.6f);
+                ImGui.TableSetupColumn("Their VFX", ImGuiTableColumnFlags.WidthStretch, 1.2f);
                 ImGui.TableHeadersRow();
 
                 foreach (var pair in allVisiblePairs)
@@ -538,21 +641,31 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     bool ownSound = edit.IsDisableSounds();
                     bool ownAnimations = edit.IsDisableAnimations();
                     bool ownVfx = edit.IsDisableVFX();
+                    
+                    bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
 
                     // Track change for state
                     bool changed = false;
 
+                    float rowStartHeightStart = ImGui.GetCursorPosY();
                     ImGui.TableNextRow();
 
                     // UID
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
+                    using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
                     ImGui.TextUnformatted(uid);
+                    if (ImGui.IsItemClicked())
+                    {
+                        ImGui.SetClipboardText(pair.UserData.UID);
+                    }
+                    UiSharedService.AttachToolTip("Click to copy");
 
                     // Alias
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextUnformatted(pair.UserData.Alias ?? "--");
+                    ImGui.TextUnformatted(pair.UserData.Alias ?? "");
+                    targetColor.Dispose();
 
                     // Preferred
                     ImGui.TableNextColumn();
@@ -578,7 +691,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     {
                         edit.SetDisableAnimations(ownAnimations);
                         changed = true;
-                    }   
+                    }
                     UiSharedService.AttachToolTip("Disable Animations (yours for this pair)");
 
                     // Own — VFX
@@ -604,6 +717,14 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     ImGui.TableNextColumn();
                     CenteredBooleanIcon(!otherVfx, false);
                     UiSharedService.AttachToolTip("Other side: VFX are " + (otherVfx ? "disabled" : "enabled"));
+
+                    // Row highlighting
+                    if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
+                    {
+                        var rowIndex = ImGui.TableGetRowIndex();
+                        var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
+                        ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
+                    }
 
                     if (changed)
                         _edited[uid] = edit;
@@ -644,7 +765,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     var payload = new Dictionary<string, UserPermissions>(changed, StringComparer.Ordinal);
 
                     _ = _apiController.SetBulkPermissions(new(payload, new(StringComparer.Ordinal)
-                    ));
+                    )).ContinueWith((_) => Mediator.Publish(new RedrawNameplateMessage()));
                 }
             }
             UiSharedService.AttachToolTip("Apply all edited permissions");
@@ -657,6 +778,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     _edited[p.UserData.UID] = p.UserPair.OwnPermissions.DeepClone();
             }
             UiSharedService.AttachToolTip("Discard all unsaved changes");
+
+            if (hasChanges)
+            {
+                ImGui.SameLine();
+                UiSharedService.ColorText("Changes must be saved before taking effect.", ImGuiColors.DalamudYellow);
+            }
         }
         ImGui.EndChild();
     }
@@ -683,21 +810,4 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         CenterInCell(ImGui.GetFrameHeight());
         _uiSharedService.BooleanToColoredIcon(ok, invert);
     }
-
-    //public bool IsTargetPaired()
-    //{
-    //    return _dalamudUtil.RunOnFrameworkThread(() =>
-    //    {
-    //        var pc = _targetManager.Target as Dalamud.Plugin.Services.IPlayerCharacter;
-    //        if (pc == null) return false;
-
-    //        nint addr = pc.Address;
-    //        if (addr == nint.Zero) return false;
-
-    //        // 1) Address match (strongest)
-    //        if (_pairManager.PairsWithGroups.Keys.Any(p => p.Address == addr))
-    //            return true;
-
-    //    }).GetAwaiter().GetResult();
-    //}
 }

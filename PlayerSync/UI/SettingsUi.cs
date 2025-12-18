@@ -61,7 +61,9 @@ public class SettingsUi : WindowMediatorSubscriberBase
     private bool _overwriteExistingLabels = false;
     private bool _readClearCache = false;
     private int _selectedEntry = -1;
+    private int _selectedHeightEntry = -1;
     private string _uidToAddForIgnore = string.Empty;
+    private string _uidToAddForHeightIgnore = string.Empty;
     private CancellationTokenSource? _validationCts;
     private Task<List<FileCacheEntity>>? _validationTask;
     private bool _wasOpen = false;
@@ -119,6 +121,21 @@ public class SettingsUi : WindowMediatorSubscriberBase
     public CharacterData? LastCreatedCharacterData { private get; set; }
     private ApiController ApiController => _uiShared.ApiController;
 
+    private static int FeetInchesToCm(int feet, int inches)
+    {
+        int totalInches = feet * 12 + inches;
+        return (int)Math.Round(totalInches * 2.54f);
+    }
+
+    private static void CmToFeetInches(int cm, out int feet, out int inches)
+    {
+        int totalInches = (int)Math.Round(cm / 2.54f);
+        if (totalInches < 0) totalInches = 0;
+
+        feet = totalInches / 12;
+        inches = totalInches % 12;
+    }
+
     private async Task GlobalControlCountdown(int countdown)
     {
         _globalControlCountdown = countdown;
@@ -143,6 +160,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
     {
         _uiShared.EditTrackerPosition = false;
         _uidToAddForIgnore = string.Empty;
+        _uidToAddForHeightIgnore = string.Empty;
         _secretKeysConversionCts = _secretKeysConversionCts.CancelRecreate();
         //_downloadServersTask = null;
         //_speedTestTask = null;
@@ -159,7 +177,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         DrawSettingsContent();
     }
-    private static bool InputColorPicker(string label, ref SeStringTextColors colors)
+    private static bool InputColorPicker(string label, ref SeStringTextColors colors, bool drawDtr = false)
     {
         using var id = ImRaii.PushId(label);
         var innerSpacing = ImGui.GetStyle().ItemInnerSpacing.X;
@@ -167,12 +185,13 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var glowColor = ConvertColor(colors.Glow);
 
         var ret = ImGui.ColorEdit3("###foreground", ref foregroundColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel | ImGuiColorEditFlags.Uint8);
-        if (ImGui.IsItemHovered())
+
+        if (ImGui.IsItemHovered() && drawDtr)
             ImGui.SetTooltip("Foreground Color - Set to pure black (#000000) to use the default color");
 
         ImGui.SameLine(0.0f, innerSpacing);
         ret |= ImGui.ColorEdit3("###glow", ref glowColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel | ImGuiColorEditFlags.Uint8);
-        if (ImGui.IsItemHovered())
+        if (ImGui.IsItemHovered() && drawDtr)
             ImGui.SetTooltip("Glow Color - Set to pure black (#000000) to use the default color");
 
         ImGui.SameLine(0.0f, innerSpacing);
@@ -695,7 +714,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 {
                     UiSharedService.TextWrapped($"The storage validation has completed and removed {_validationTask.Result.Count} invalid files from storage.");
                 }
-                else
+                else if (_currentProgress.Item1 != 0 && _currentProgress.Item2 != 0)
                 {
 
                     UiSharedService.TextWrapped($"Storage validation is running: {_currentProgress.Item1}/{_currentProgress.Item2}");
@@ -805,6 +824,7 @@ public class SettingsUi : WindowMediatorSubscriberBase
         var showAnalysisBottom = _configService.Current.ShowAnalysisCompactUiBottom;
         var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
         var showCompactStats = _configService.Current.ShowCompactStats;
+        var mysterySetting = _configService.Current.MysterySetting;
         
 
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
@@ -944,6 +964,12 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
         }
         _uiShared.DrawHelpText("Will show profiles that have the NSFW tag enabled");
+        if (ImGui.Checkbox("Mystery Setting", ref mysterySetting))
+        {
+            _configService.Current.MysterySetting = mysterySetting;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("???");
 
         ImGui.Separator();
 
@@ -988,7 +1014,8 @@ public class SettingsUi : WindowMediatorSubscriberBase
             _configService.Save();
             Mediator.Publish(new RedrawNameplateMessage());
         }
-        _uiShared.DrawHelpText("This will change the name color for active pairs you can see.");
+        _uiShared.DrawHelpText("This will change the name color for active pairs you can see." + Environment.NewLine +
+            "Turning this off may take a moment to reflect in game.");
 
         using (ImRaii.Disabled(!showNameHighlights))
         {
@@ -1067,28 +1094,28 @@ public class SettingsUi : WindowMediatorSubscriberBase
             using (ImRaii.Disabled(!useColorsInDtr))
             {
                 using var indent2 = ImRaii.PushIndent();
-                if (InputColorPicker("Default", ref dtrColorsDefault))
+                if (InputColorPicker("Default", ref dtrColorsDefault, true))
                 {
                     _configService.Current.DtrColorsDefault = dtrColorsDefault;
                     _configService.Save();
                 }
 
                 ImGui.SameLine();
-                if (InputColorPicker("Not Connected", ref dtrColorsNotConnected))
+                if (InputColorPicker("Not Connected", ref dtrColorsNotConnected, true))
                 {
                     _configService.Current.DtrColorsNotConnected = dtrColorsNotConnected;
                     _configService.Save();
                 }
 
                 ImGui.SameLine();
-                if (InputColorPicker("Pairs in Range", ref dtrColorsPairsInRange))
+                if (InputColorPicker("Pairs in Range", ref dtrColorsPairsInRange, true))
                 {
                     _configService.Current.DtrColorsPairsInRange = dtrColorsPairsInRange;
                     _configService.Save();
                 }
 
                 ImGui.SameLine();
-                if (InputColorPicker("Broadcasting", ref dtrColorsBroadcasting))
+                if (InputColorPicker("Broadcasting", ref dtrColorsBroadcasting, true))
                 {
                     _configService.Current.DtrColorsBroadcasting = dtrColorsBroadcasting;
                     _configService.Save();
@@ -1320,37 +1347,13 @@ public class SettingsUi : WindowMediatorSubscriberBase
         _uiShared.DrawHelpText("Set the wait time in seconds between entering a zone and joining a ZoneSync. Increase this if you have pairing issues after zoning.");
 
         ImGuiHelpers.ScaledDummy(5f);
-        UiSharedService.TextWrapped("Note: These permissions are applied only to ZoneSync syncshells.");
-        UiSharedService.TextWrapped("Note: The default permissions settings here are not applied retroactively to existing pairs.");
-
-        bool permSfx = _zoneSyncConfigService.Current.DisableSounds;
-        bool permVfx = _zoneSyncConfigService.Current.DisableVFX;
-        bool permAni = _zoneSyncConfigService.Current.DisableAnimations;
-
-        if (ImGui.Checkbox("Disable ZoneSync sounds", ref permSfx))
-        {
-            _zoneSyncConfigService.Current.DisableSounds = permSfx;
-            _zoneSyncConfigService.Save();
-        }
-        _uiShared.DrawHelpText("This setting will disable sound sync for all new ZoneSync pairs.");
-        if (ImGui.Checkbox("Disable ZoneSync vfx", ref permVfx))
-        {
-            _zoneSyncConfigService.Current.DisableVFX = permVfx;
-            _zoneSyncConfigService.Save();
-        }
-        _uiShared.DrawHelpText("This setting will disable vfx sync for all new ZoneSync pairs.");
-        if (ImGui.Checkbox("Disable ZoneSync animations", ref permAni))
-        {
-            _zoneSyncConfigService.Current.DisableAnimations = permAni;
-            _zoneSyncConfigService.Save();
-        }
-        _uiShared.DrawHelpText("This setting will disable animation sync for all new ZoneSync pairs.");
+        UiSharedService.TextWrapped("ZoneSync Synchshell permissions are based on your Default Permission Settings.");
+        UiSharedService.TextWrapped("Permissions can be found under Settings > Service Settings > Permission Settings.");
 
         ImGui.EndDisabled();
 
         ImGui.Dummy(new Vector2(10));
         ImGui.Separator();
-        ImGui.Dummy(new Vector2(10));
 
         bool filterSounds = _configService.Current.FilterSounds;
         bool filterVfx = _configService.Current.FilterVfx;
@@ -1531,6 +1534,178 @@ public class SettingsUi : WindowMediatorSubscriberBase
                 _playerPerformanceConfigService.Save();
             }
         }
+
+        ImGui.Dummy(new Vector2(10));
+        ImGui.Separator();
+
+        var maxHeightManual = _playerPerformanceConfigService.Current.MaxHeightManual;
+        var maxHeightActual = _playerPerformanceConfigService.Current.MaxHeightAbsolute;
+        var maxHeightMultiplier = _playerPerformanceConfigService.Current.MaxHeightMultiplier;
+        var shouldPauseHeight = _playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds;
+        var shouldNotifyOnHeight = _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold;
+        var noAutoPausePairs = _playerPerformanceConfigService.Current.NoAutoPauseDirectPairs;
+
+        _uiShared.BigText("Auto Height Pausing");
+        UiSharedService.TextWrapped("Configure auto pausing for players based on their scaled height.");
+        ImGui.Dummy(new Vector2(10));
+
+        if (ImGui.Checkbox("Auto pause players exceeding thresholds", ref shouldPauseHeight))
+        {
+            _playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds = shouldPauseHeight;
+            _playerPerformanceConfigService.Save();
+            if (shouldPauseHeight)
+            {
+                Mediator.Publish(new ChangeFilterMessage());
+            }
+        }
+        UiSharedService.ColorTextWrapped("Toggle this feature off/on again after changing values to refresh pairs immediately.", ImGuiColors.DalamudRed);
+
+        if (ImGui.Checkbox("Don't auto pause direct pairs exceeding thresholds", ref noAutoPausePairs))
+        {
+            _playerPerformanceConfigService.Current.NoAutoPauseDirectPairs = noAutoPausePairs;
+            _playerPerformanceConfigService.Save();
+            if (!noAutoPausePairs && shouldPauseHeight)
+            {
+                Mediator.Publish(new ChangeFilterMessage());
+            }
+        }
+
+        if (ImGui.Checkbox("Warn on loading player who exceed your height thresholds", ref shouldNotifyOnHeight))
+        {
+            _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold = shouldNotifyOnHeight;
+            _playerPerformanceConfigService.Save();
+        }
+        ImGui.Dummy(new Vector2(4));
+        UiSharedService.ColorTextWrapped("Values are scaled by race and M/F vanilla defaults.", ImGuiColors.DalamudYellow);
+        UiSharedService.ColorTextWrapped("Set slider to 100% to pause anyone not vanilla height.", ImGuiColors.DalamudYellow);
+
+        using (ImRaii.Disabled(maxHeightManual))
+        {
+            ImGui.TextUnformatted("Pause players above ");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(200f);
+            if (ImGui.SliderFloat("##max", ref maxHeightMultiplier, 100.0f, 500.0f, "%.0f%%"))
+            {
+                _playerPerformanceConfigService.Current.MaxHeightMultiplier = maxHeightMultiplier;
+                _playerPerformanceConfigService.Save();
+            }
+            ImGui.SameLine();
+            ImGui.TextUnformatted("their normal max height.");
+        }
+
+        if (ImGui.Checkbox("Manually set max height threshold applied to all players", ref maxHeightManual))
+        {
+            _playerPerformanceConfigService.Current.MaxHeightManual = maxHeightManual;
+            _playerPerformanceConfigService.Save();
+        }
+        _uiShared.DrawHelpText("This will effectivley pause all players beyond a specified height.");
+
+        ImGui.Indent();
+        using (ImRaii.Disabled(!maxHeightManual))
+        {
+            bool changedImperial = false;
+            bool changedMetric = false;
+            int _maxHeightCm = _playerPerformanceConfigService.Current.MaxHeightAbsolute;
+            CmToFeetInches(_maxHeightCm, out var _maxHeightFeet, out var _maxHeightInches);
+
+            ImGui.TextUnformatted("Max height:");
+            ImGui.SameLine();
+
+            // Feet
+            ImGui.SetNextItemWidth(40);
+            changedImperial |= ImGui.InputInt("##maxFeet", ref _maxHeightFeet);
+            ImGui.SameLine();
+            ImGui.TextUnformatted("feet");
+
+            ImGui.SameLine();
+
+            // Inches
+            ImGui.SetNextItemWidth(40);
+            changedImperial |= ImGui.InputInt("##maxInches", ref _maxHeightInches);
+            ImGui.SameLine();
+            ImGui.TextUnformatted("inches or");
+
+            ImGui.SameLine();
+
+            // Centimeters
+            ImGui.SetNextItemWidth(60);
+            changedMetric |= ImGui.InputInt("##maxCm", ref _maxHeightCm);
+            ImGui.SameLine();
+            ImGui.TextUnformatted("cm");
+
+            if (changedImperial)
+            {
+                if (_maxHeightFeet < 0) _maxHeightFeet = 0;
+                if (_maxHeightInches < 0) _maxHeightInches = 0;
+
+                int totalInches = _maxHeightFeet * 12 + _maxHeightInches;
+                if (totalInches < 0) totalInches = 0;
+
+                _maxHeightFeet = totalInches / 12;
+                _maxHeightInches = totalInches % 12;
+                _maxHeightCm = FeetInchesToCm(_maxHeightFeet, _maxHeightInches);
+
+                _playerPerformanceConfigService.Current.MaxHeightAbsolute = _maxHeightCm;
+                _playerPerformanceConfigService.Save();
+            }
+            else if (changedMetric)
+            {
+                if (_maxHeightCm < 0) _maxHeightCm = 0;
+
+                _playerPerformanceConfigService.Current.MaxHeightAbsolute = _maxHeightCm;
+                _playerPerformanceConfigService.Save();
+            }
+        }
+        ImGui.Unindent();
+
+        UiSharedService.ColorTextWrapped("Paused pairs must be manually unpaused.", ImGuiColors.DalamudYellow);
+        ImGui.Dummy(new Vector2(10));
+
+        _uiShared.BigText("Whitelisted UIDs");
+        UiSharedService.TextWrapped("The entries in the list below will be ignored for all warnings and auto HEIGHT pause operations.");
+        ImGui.Dummy(new Vector2(10));
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        ImGui.InputText("##ignoreheightuid", ref _uidToAddForHeightIgnore, 20);
+        ImGui.SameLine();
+        using (ImRaii.Disabled(string.IsNullOrEmpty(_uidToAddForHeightIgnore)))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Plus, "Add UID/Vanity ID to Whitelist"))
+            {
+                if (!_playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing.Contains(_uidToAddForHeightIgnore, StringComparer.Ordinal))
+                {
+                    _playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing.Add(_uidToAddForHeightIgnore);
+                    _playerPerformanceConfigService.Save();
+                }
+                _uidToAddForHeightIgnore = string.Empty;
+            }
+        }
+        _uiShared.DrawHelpText("Hint: UIDs are case sensitive.");
+        var playerHeightList = _playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing;
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        using (var lb = ImRaii.ListBox("UID Whitelist"))
+        {
+            if (lb)
+            {
+                for (int i = 0; i < playerHeightList.Count; i++)
+                {
+                    bool shouldBeSelected = _selectedHeightEntry == i;
+                    if (ImGui.Selectable(playerHeightList[i] + "##" + i, shouldBeSelected))
+                    {
+                        _selectedHeightEntry = i;
+                    }
+                }
+            }
+        }
+        using (ImRaii.Disabled(_selectedHeightEntry == -1))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete Selected UID"))
+            {
+                _playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing.RemoveAt(_selectedHeightEntry);
+                _selectedHeightEntry = -1;
+                _playerPerformanceConfigService.Save();
+            }
+        }
+        ImGui.Dummy(new Vector2(10));
     }
 
     private void DrawServerConfiguration()

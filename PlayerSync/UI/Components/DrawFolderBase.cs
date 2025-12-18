@@ -1,5 +1,6 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.UI.Handlers;
@@ -60,6 +61,12 @@ public abstract class DrawFolderBase : IDrawFolder
             // draw name
             ImGui.SameLine(leftSideEnd);
             DrawName(rightSideStart - leftSideEnd);
+            if (_allPairs.Count == (_uiSharedService.ApiController.ServerInfo.MaxGroupUserCount - 1))
+            {
+                ImGui.SameLine();
+                _uiSharedService.IconText(FontAwesomeIcon.ExclamationCircle, ImGuiColors.DalamudRed);
+                UiSharedService.AttachToolTip("Syncshell full");
+            }
         }
 
         _wasHovered = ImGui.IsItemHovered();
