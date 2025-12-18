@@ -7,6 +7,7 @@ using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
@@ -531,7 +532,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         const int tick = 250;
         int curWaitTime = 0;
         _logger.LogTrace("RenderFlags: {flags}", obj->RenderFlags.ToString("X"));
-        while (obj->RenderFlags != 0x00 && curWaitTime < timeOut)
+        while (obj->RenderFlags != VisibilityFlags.None && curWaitTime < timeOut)
         {
             _logger.LogTrace($"Waiting for gpose actor to finish drawing");
             curWaitTime += tick;
@@ -566,7 +567,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         bool isDrawingChanged = false;
         if ((nint)drawObj != IntPtr.Zero)
         {
-            isDrawing = gameObj->RenderFlags == 0b100000000000;
+            isDrawing = gameObj->RenderFlags == VisibilityFlags.Nameplate;
             if (!isDrawing)
             {
                 isDrawing = ((CharacterBase*)drawObj)->HasModelInSlotLoaded != 0;
