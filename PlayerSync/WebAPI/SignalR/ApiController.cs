@@ -23,7 +23,7 @@ namespace MareSynchronos.WebAPI;
 public sealed partial class ApiController : DisposableMediatorSubscriberBase, IMareHubClient
 {
     public const string MainServer      = "Player Sync.io (Central Server NA)";
-    public const string MainServiceUri  = "wss://playersync.io";
+    public const string MainServiceUri  = "wss://sync.playersync.io";
 
     private readonly DalamudUtilService _dalamudUtil;
     private readonly HubFactory _hubFactory;

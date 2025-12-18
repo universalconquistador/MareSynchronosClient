@@ -70,6 +70,24 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             serverConfigService.Current.Version = 3;
             serverConfigService.Save();
         }
+        if (serverConfigService.Current.Version == 3)
+        {
+            _logger.LogInformation("Migrating Server Config V3 => V4");
+            var centralServer = serverConfigService.Current.ServerStorage.Find(f => f.ServerUri.Equals("wss://playersync.io", StringComparison.Ordinal));
+            
+            // Migrate the main entry server
+            if (centralServer != null)
+                centralServer.ServerUri = ApiController.MainServiceUri;
+
+            if (serverConfigService.Current.ServerStorage.Count > 1)
+                serverConfigService.Current.ServerStorage.RemoveAll(f => f.SecretKeys == null || !f.SecretKeys.Any());
+
+            serverConfigService.Current.CurrentServer = 0;
+
+            // Bump server.json for migration code flow
+            serverConfigService.Current.Version = 4;
+            serverConfigService.Save();
+        }
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
