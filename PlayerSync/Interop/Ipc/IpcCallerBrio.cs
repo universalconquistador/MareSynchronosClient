@@ -1,6 +1,6 @@
 ﻿using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin;
-using Dalamud.Plugin.Ipc;
+using Brio.API;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.Services;
 using Microsoft.Extensions.Logging;
@@ -13,35 +13,39 @@ public sealed class IpcCallerBrio : IIpcCaller
 {
     private readonly ILogger<IpcCallerBrio> _logger;
     private readonly DalamudUtilService _dalamudUtilService;
-    private readonly ICallGateSubscriber<(int, int)> _brioApiVersion;
 
-    private readonly ICallGateSubscriber<bool, bool, bool, Task<IGameObject>> _brioSpawnActorAsync;
-    private readonly ICallGateSubscriber<IGameObject, bool> _brioDespawnActor;
-    private readonly ICallGateSubscriber<IGameObject, Vector3?, Quaternion?, Vector3?, bool, bool> _brioSetModelTransform;
-    private readonly ICallGateSubscriber<IGameObject, (Vector3?, Quaternion?, Vector3?)> _brioGetModelTransform;
-    private readonly ICallGateSubscriber<IGameObject, string> _brioGetPoseAsJson;
-    private readonly ICallGateSubscriber<IGameObject, string, bool, bool> _brioSetPoseFromJson;
-    private readonly ICallGateSubscriber<IGameObject, bool> _brioFreezeActor;
-    private readonly ICallGateSubscriber<bool> _brioFreezePhysics;
+    private readonly ApiVersion _apiVersion;
 
+    private readonly SpawnActor _spawnActor;
+    private readonly DespawnActor _despawnActor;
+    private readonly SetModelTransform _setModelTransform;
+    private readonly GetModelTransform _getModelTransform;
+
+    private readonly GetPoseAsJson _getPoseAsJson;
+    private readonly LoadPoseFromJson _setPoseFromJson;
+
+    private readonly FreezeActor _freezeActor;
+    private readonly FreezePhysics _freezePhysics;
 
     public bool APIAvailable { get; private set; }
 
-    public IpcCallerBrio(ILogger<IpcCallerBrio> logger, IDalamudPluginInterface dalamudPluginInterface,
-        DalamudUtilService dalamudUtilService)
+    public IpcCallerBrio(ILogger<IpcCallerBrio> logger, IDalamudPluginInterface dalamudPluginInterface, DalamudUtilService dalamudUtilService)
     {
         _logger = logger;
         _dalamudUtilService = dalamudUtilService;
 
-        _brioApiVersion = dalamudPluginInterface.GetIpcSubscriber<(int, int)>("Brio.ApiVersion");
-        _brioSpawnActorAsync = dalamudPluginInterface.GetIpcSubscriber<bool, bool, bool, Task<IGameObject>>("Brio.Actor.SpawnExAsync");
-        _brioDespawnActor = dalamudPluginInterface.GetIpcSubscriber<IGameObject, bool>("Brio.Actor.Despawn");
-        _brioSetModelTransform = dalamudPluginInterface.GetIpcSubscriber<IGameObject, Vector3?, Quaternion?, Vector3?, bool, bool>("Brio.Actor.SetModelTransform");
-        _brioGetModelTransform = dalamudPluginInterface.GetIpcSubscriber<IGameObject, (Vector3?, Quaternion?, Vector3?)>("Brio.Actor.GetModelTransform");
-        _brioGetPoseAsJson = dalamudPluginInterface.GetIpcSubscriber<IGameObject, string>("Brio.Actor.Pose.GetPoseAsJson");
-        _brioSetPoseFromJson = dalamudPluginInterface.GetIpcSubscriber<IGameObject, string, bool, bool>("Brio.Actor.Pose.LoadFromJson");
-        _brioFreezeActor = dalamudPluginInterface.GetIpcSubscriber<IGameObject, bool>("Brio.Actor.Freeze");
-        _brioFreezePhysics = dalamudPluginInterface.GetIpcSubscriber<bool>("Brio.FreezePhysics");
+        _apiVersion = new ApiVersion(dalamudPluginInterface);
+        _spawnActor = new SpawnActor(dalamudPluginInterface);
+        _despawnActor = new DespawnActor(dalamudPluginInterface);
+
+        _setModelTransform = new SetModelTransform(dalamudPluginInterface);
+        _getModelTransform = new GetModelTransform(dalamudPluginInterface);
+
+        _getPoseAsJson = new GetPoseAsJson(dalamudPluginInterface);
+        _setPoseFromJson = new LoadPoseFromJson(dalamudPluginInterface);
+
+        _freezeActor = new FreezeActor(dalamudPluginInterface);
+        _freezePhysics = new FreezePhysics(dalamudPluginInterface);
 
         CheckAPI();
     }
@@ -50,8 +54,8 @@ public sealed class IpcCallerBrio : IIpcCaller
     {
         try
         {
-            var version = _brioApiVersion.InvokeFunc();
-            APIAvailable = (version.Item1 == 2 && version.Item2 >= 0);
+            var version = _apiVersion.Invoke();
+            APIAvailable = (version.Item1 == 3 && version.Item2 >= 0);
         }
         catch
         {
@@ -63,7 +67,7 @@ public sealed class IpcCallerBrio : IIpcCaller
     {
         if (!APIAvailable) return null;
         _logger.LogDebug("Spawning Brio Actor");
-        return await _brioSpawnActorAsync.InvokeFunc(false, false, true).ConfigureAwait(false);
+        return await _dalamudUtilService.RunOnFrameworkThread(() => _spawnActor.Invoke(Brio.API.Enums.SpawnFlags.Default, true)).ConfigureAwait(false);
     }
 
     public async Task<bool> DespawnActorAsync(nint address)
@@ -72,7 +76,7 @@ public sealed class IpcCallerBrio : IIpcCaller
         var gameObject = await _dalamudUtilService.CreateGameObjectAsync(address).ConfigureAwait(false);
         if (gameObject == null) return false;
         _logger.LogDebug("Despawning Brio Actor {actor}", gameObject.Name.TextValue);
-        return await _dalamudUtilService.RunOnFrameworkThread(() => _brioDespawnActor.InvokeFunc(gameObject)).ConfigureAwait(false);
+        return await _dalamudUtilService.RunOnFrameworkThread(() => _despawnActor.Invoke(gameObject)).ConfigureAwait(false);
     }
 
     public async Task<bool> ApplyTransformAsync(nint address, WorldData data)
@@ -82,7 +86,7 @@ public sealed class IpcCallerBrio : IIpcCaller
         if (gameObject == null) return false;
         _logger.LogDebug("Applying Transform to Actor {actor}", gameObject.Name.TextValue);
 
-        return await _dalamudUtilService.RunOnFrameworkThread(() => _brioSetModelTransform.InvokeFunc(gameObject,
+        return await _dalamudUtilService.RunOnFrameworkThread(() => _setModelTransform.Invoke(gameObject,
             new Vector3(data.PositionX, data.PositionY, data.PositionZ),
             new Quaternion(data.RotationX, data.RotationY, data.RotationZ, data.RotationW),
             new Vector3(data.ScaleX, data.ScaleY, data.ScaleZ), false)).ConfigureAwait(false);
@@ -93,8 +97,7 @@ public sealed class IpcCallerBrio : IIpcCaller
         if (!APIAvailable) return default;
         var gameObject = await _dalamudUtilService.CreateGameObjectAsync(address).ConfigureAwait(false);
         if (gameObject == null) return default;
-        var data = await _dalamudUtilService.RunOnFrameworkThread(() => _brioGetModelTransform.InvokeFunc(gameObject)).ConfigureAwait(false);
-        //_logger.LogDebug("Getting Transform from Actor {actor}", gameObject.Name.TextValue);
+        var data = await _dalamudUtilService.RunOnFrameworkThread(() => _getModelTransform.Invoke(gameObject)).ConfigureAwait(false);
 
         return new WorldData()
         {
@@ -118,7 +121,7 @@ public sealed class IpcCallerBrio : IIpcCaller
         if (gameObject == null) return null;
         _logger.LogDebug("Getting Pose from Actor {actor}", gameObject.Name.TextValue);
 
-        return await _dalamudUtilService.RunOnFrameworkThread(() => _brioGetPoseAsJson.InvokeFunc(gameObject)).ConfigureAwait(false);
+        return await _dalamudUtilService.RunOnFrameworkThread(() => _getPoseAsJson.Invoke(gameObject)).ConfigureAwait(false);
     }
 
     public async Task<bool> SetPoseAsync(nint address, string pose)
@@ -129,15 +132,15 @@ public sealed class IpcCallerBrio : IIpcCaller
         _logger.LogDebug("Setting Pose to Actor {actor}", gameObject.Name.TextValue);
 
         var applicablePose = JsonNode.Parse(pose)!;
-        var currentPose = await _dalamudUtilService.RunOnFrameworkThread(() => _brioGetPoseAsJson.InvokeFunc(gameObject)).ConfigureAwait(false);
+        var currentPose = await _dalamudUtilService.RunOnFrameworkThread(() => _getPoseAsJson.Invoke(gameObject)).ConfigureAwait(false);
         applicablePose["ModelDifference"] = JsonNode.Parse(JsonNode.Parse(currentPose)!["ModelDifference"]!.ToJsonString());
 
         await _dalamudUtilService.RunOnFrameworkThread(() =>
         {
-            _brioFreezeActor.InvokeFunc(gameObject);
-            _brioFreezePhysics.InvokeFunc();
+            _freezeActor.Invoke(gameObject);
+            _freezePhysics.Invoke();
         }).ConfigureAwait(false);
-        return await _dalamudUtilService.RunOnFrameworkThread(() => _brioSetPoseFromJson.InvokeFunc(gameObject, applicablePose.ToJsonString(), false)).ConfigureAwait(false);
+        return await _dalamudUtilService.RunOnFrameworkThread(() => _setPoseFromJson.Invoke(gameObject, applicablePose.ToJsonString(), false)).ConfigureAwait(false);
     }
 
     public void Dispose()
