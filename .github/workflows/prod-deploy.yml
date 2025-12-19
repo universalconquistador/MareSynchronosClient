@@ -20,7 +20,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 10.0.x
       - name: Restore dependencies
         run: dotnet restore
       - name: Build
@@ -30,6 +30,6 @@ jobs:
 
       - name: Deploy plugin to dev environment
         run: >
-          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@PlayerSync/bin/x64/Release/MareSempiterne/MareSempiterne.json" https://playersync.io/redux/deploy/client-manifest &&
-          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@PlayerSync/bin/x64/Release/MareSempiterne/latest.zip" https://playersync.io/redux/deploy/client-package/install
+          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@PlayerSync/bin/x64/Release/MareSempiterne/MareSempiterne.json" https://sync.playersync.io/redux/deploy/client-manifest &&
+          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@PlayerSync/bin/x64/Release/MareSempiterne/latest.zip" https://sync.playersync.io/redux/deploy/client-package/install
 
