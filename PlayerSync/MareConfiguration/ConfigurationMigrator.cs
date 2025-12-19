@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace MareSynchronos.MareConfiguration;
 
 public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, TransientConfigService transientConfigService,
-    ServerConfigService serverConfigService) : IHostedService
+    ServerConfigService serverConfigService, NotesConfigService notesConfigService, ServerTagConfigService serverTagConfigService) : IHostedService
 {
     private readonly ILogger<ConfigurationMigrator> _logger = logger;
 
@@ -74,7 +74,7 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
         {
             _logger.LogInformation("Migrating Server Config V3 => V4");
             var centralServer = serverConfigService.Current.ServerStorage.Find(f => f.ServerUri.Equals("wss://playersync.io", StringComparison.Ordinal));
-            
+
             // Migrate the main entry server
             if (centralServer != null)
                 centralServer.ServerUri = ApiController.MainServiceUri;
@@ -87,6 +87,35 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             // Bump server.json for migration code flow
             serverConfigService.Current.Version = 4;
             serverConfigService.Save();
+        }
+
+        // notes migrations
+        if (notesConfigService.Current.Version == 0)
+        {
+            var oldKey = "wss://playersync.io";
+            var newKey = "wss://sync.playersync.io";
+            if (notesConfigService.Current.ServerNotes.TryGetValue(oldKey, out var notes))
+            {
+                notesConfigService.Current.ServerNotes[newKey] = notes;
+                notesConfigService.Current.ServerNotes.Remove(oldKey);
+                notesConfigService.Current.Version = 1;
+                notesConfigService.Save();
+            }
+
+        }
+
+        // server tags migration
+        if (serverTagConfigService.Current.Version == 0)
+        {
+            var oldKey = "wss://playersync.io";
+            var newKey = "wss://sync.playersync.io";
+            if (serverTagConfigService.Current.ServerTagStorage.TryGetValue(oldKey, out var tags))
+            {
+                serverTagConfigService.Current.ServerTagStorage[newKey] = tags;
+                serverTagConfigService.Current.ServerTagStorage.Remove(oldKey);
+                serverTagConfigService.Current.Version = 1;
+                serverTagConfigService.Save();
+            }
         }
     }
 

@@ -12,7 +12,7 @@ jobs:
           submodules: 'true'
           token: ${{ secrets.CI_TOKEN }}
       - name: Download Dalamud binaries
-        run: curl --output /home/runner/dalamud-distrib.zip -L "https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/latest.zip"
+        run: curl --output /home/runner/dalamud-distrib.zip -L "https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/stg/latest.zip"
       - name: Extract Dalamud binaries
         run: unzip /home/runner/dalamud-distrib.zip -d /home/runner/dalamud-distrib
       - name: List dalamud files
