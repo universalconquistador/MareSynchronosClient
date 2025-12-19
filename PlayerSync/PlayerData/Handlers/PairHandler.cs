@@ -345,6 +345,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     case PlayerChanges.Glamourer:
                         if (charaData.GlamourerData.TryGetValue(changes.Key, out var glamourerData))
                         {
+                            Logger.LogTrace("[{appId}] Glamourer data: {data}", applicationId, glamourerData);
                             await _ipcManager.Glamourer.ApplyAllAsync(Logger, handler, glamourerData, applicationId, token).ConfigureAwait(false);
                         }
                         break;
@@ -444,6 +445,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
             if (!await _playerPerformanceService.CheckBothThresholds(this, charaData).ConfigureAwait(false))
                 return;
+
+            if (!_playerPerformanceService.CheckForRspHeight(this, charaData))
+                return;
         }
 
         downloadToken.ThrowIfCancellationRequested();
@@ -500,6 +504,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     LastAppliedDataBytes += path.Length;
                 }
             }
+
+            // do height checking
+            _playerPerformanceService.CheckForRspHeight(this, charaData);
 
             if (updateManip)
             {
