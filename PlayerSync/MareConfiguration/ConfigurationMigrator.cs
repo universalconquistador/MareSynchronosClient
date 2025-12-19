@@ -1,4 +1,4 @@
-﻿using MareSynchronos.WebAPI;
+using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -98,9 +98,9 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             {
                 notesConfigService.Current.ServerNotes[newKey] = notes;
                 notesConfigService.Current.ServerNotes.Remove(oldKey);
-                notesConfigService.Current.Version = 1;
-                notesConfigService.Save();
             }
+            notesConfigService.Current.Version = 1;
+            notesConfigService.Save();
 
         }
 
@@ -113,9 +113,9 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             {
                 serverTagConfigService.Current.ServerTagStorage[newKey] = tags;
                 serverTagConfigService.Current.ServerTagStorage.Remove(oldKey);
-                serverTagConfigService.Current.Version = 1;
-                serverTagConfigService.Save();
             }
+            serverTagConfigService.Current.Version = 1;
+            serverTagConfigService.Save();
         }
     }
 
