@@ -24,6 +24,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly UiSharedService _uiShared;
+    private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private int _currentLanguage;
     private bool _readFirstPage;
 
@@ -35,13 +36,14 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 
     public IntroUi(ILogger<IntroUi> logger, UiSharedService uiShared, MareConfigService configService,
         CacheMonitor fileCacheManager, ServerConfigurationManager serverConfigurationManager, MareMediator mareMediator,
-        PerformanceCollectorService performanceCollectorService, DalamudUtilService dalamudUtilService) : base(logger, mareMediator, "PlayerSync Setup", performanceCollectorService)
+        PerformanceCollectorService performanceCollectorService, DalamudUtilService dalamudUtilService, ZoneSyncConfigService zoneSyncConfigService) : base(logger, mareMediator, "PlayerSync Setup", performanceCollectorService)
     {
         _uiShared = uiShared;
         _configService = configService;
         _cacheMonitor = fileCacheManager;
         _serverConfigurationManager = serverConfigurationManager;
         _dalamudUtilService = dalamudUtilService;
+        _zoneSyncConfigService = zoneSyncConfigService;
         IsOpen = false;
         ShowCloseButton = false;
         RespectCloseHotkey = false;
@@ -350,6 +352,99 @@ public partial class IntroUi : WindowMediatorSubscriberBase
                     if (string.IsNullOrEmpty(auth.UID))
                         UiSharedService.AttachToolTip("Select a UID to be able to connect to the service");
                 }
+            }
+        }
+
+        else if (!_configService.Current.InitialSetupOptions)
+        {
+            using (_uiShared.UidFont.Push())
+                ImGui.TextUnformatted("Additional Settings");
+            ImGui.Separator();
+            UiSharedService.TextWrapped("You can later change these settings within the PlayerSync Settings menu.");
+            ImGuiHelpers.ScaledDummy(5);
+
+            var showNameHighlights = _configService.Current.ShowNameHighlights;
+            if (ImGui.Checkbox("Color Code Active Pair Names", ref showNameHighlights))
+            {
+                _configService.Current.ShowNameHighlights = showNameHighlights;
+                _configService.Save();
+                Mediator.Publish(new RedrawNameplateMessage());
+            }
+            _uiShared.DrawHelpText("This will change the name color for active pairs you can see." + Environment.NewLine +
+                "Turning this off may take a moment to reflect in game.");
+            UiSharedService.TextWrapped("Highlight color can later be changed in the PlayerSync Settings menu.");
+
+            ImGuiHelpers.ScaledDummy(5);
+            var enableGroupZoneSyncJoining = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+            if (ImGui.Checkbox("Enable ZoneSync", ref enableGroupZoneSyncJoining))
+            {
+                Mediator.Publish(new GroupZoneSetEnableState(enableGroupZoneSyncJoining));
+                _zoneSyncConfigService.Current.UserHasConfirmedWarning = true;
+                _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = enableGroupZoneSyncJoining;
+                _zoneSyncConfigService.Save();
+            }
+            UiSharedService.AttachToolTip("Auto join zone-based Syncshells to see people automatically.");
+            UiSharedService.ColorTextWrapped("Enabling ZoneSync will allow you to automatically see others around you in public spaces.", ImGuiColors.DalamudYellow);
+            UiSharedService.TextWrapped("Check the Settings -> Pairing Settings for ZoneSync feature details.");
+            UiSharedService.TextWrapped("ZoneSync can be toggled off/on at any time.");
+
+            ImGuiHelpers.ScaledDummy(5);
+
+            UiSharedService.ColorTextWrapped("If your PC or Internet are popotos, you may need to limit these settings.", ImGuiColors.DalamudYellow);
+            UiSharedService.TextWrapped("Set the sliders to the max if you have a good PC and Internet connection. If you find your game struggling or crashing loading players, you may need to tune these values.");
+            UiSharedService.TextWrapped("PlayerSync Settings -> Transfers -> Transfer Settings.");
+
+            int maxParallelDownloads = _configService.Current.ParallelDownloads;
+            int maxParallelUploads = _configService.Current.ParallelUploads;
+            int downloadSpeedLimit = _configService.Current.DownloadSpeedLimitInBytes;
+            ImGuiHelpers.ScaledDummy(5);
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Global Download Speed Limit");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(100 * ImGuiHelpers.GlobalScale);
+            if (ImGui.InputInt("###speedlimit", ref downloadSpeedLimit))
+            {
+                _configService.Current.DownloadSpeedLimitInBytes = downloadSpeedLimit;
+                _configService.Save();
+                Mediator.Publish(new DownloadLimitChangedMessage());
+            }
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(100 * ImGuiHelpers.GlobalScale);
+            _uiShared.DrawCombo("###speed", [DownloadSpeeds.Bps, DownloadSpeeds.KBps, DownloadSpeeds.MBps],
+                (s) => s switch
+                {
+                    DownloadSpeeds.Bps => "Byte/s",
+                    DownloadSpeeds.KBps => "KB/s",
+                    DownloadSpeeds.MBps => "MB/s",
+                    _ => throw new NotSupportedException()
+                }, (s) =>
+                {
+                    _configService.Current.DownloadSpeedType = s;
+                    _configService.Save();
+                    Mediator.Publish(new DownloadLimitChangedMessage());
+                }, _configService.Current.DownloadSpeedType);
+            ImGui.SameLine();
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("0 = No limit/infinite");
+
+            if (ImGui.SliderInt("Maximum Parallel Downloads", ref maxParallelDownloads, 1, 30))
+            {
+                _configService.Current.ParallelDownloads = maxParallelDownloads;
+                _configService.Save();
+            }
+
+            if (ImGui.SliderInt("Maximum Parallel Uploads", ref maxParallelUploads, 1, 10))
+            {
+                _configService.Current.ParallelUploads = maxParallelUploads;
+                _configService.Save();
+            }
+            UiSharedService.ColorTextWrapped("PlayerSync has near infinite bandwidth available to serve files, the download speed will be subject only to your system and setup.", ImGuiColors.ParsedPurple);
+            ImGui.Separator();
+            ImGuiHelpers.ScaledDummy(5);
+            if (ImGui.Button("Finish"))
+            {
+                _configService.Current.InitialSetupOptions = true;
+                _configService.Save();
             }
         }
         else
