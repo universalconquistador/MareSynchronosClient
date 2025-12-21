@@ -89,9 +89,7 @@ public sealed class IpcCallerMoodles : IIpcCaller
 
         try
         {
-            return await _dalamudUtil
-                .RunOnFrameworkThread(() => _moodlesGetStatus.InvokeFunc(address))
-                .ConfigureAwait(false);
+            return await _dalamudUtil.RunOnFrameworkThread(() => _moodlesGetStatus.InvokeFunc(address)).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -106,9 +104,7 @@ public sealed class IpcCallerMoodles : IIpcCaller
 
         try
         {
-            await _dalamudUtil
-                .RunOnFrameworkThread(() => _moodlesSetStatus.InvokeAction(pointer, status))
-                .ConfigureAwait(false);
+            await _dalamudUtil.RunOnFrameworkThread(() => _moodlesSetStatus.InvokeAction(pointer, status)).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -122,9 +118,7 @@ public sealed class IpcCallerMoodles : IIpcCaller
 
         try
         {
-            await _dalamudUtil
-                .RunOnFrameworkThread(() => _moodlesRevertStatus.InvokeAction(pointer))
-                .ConfigureAwait(false);
+            await _dalamudUtil.RunOnFrameworkThread(() => _moodlesRevertStatus.InvokeAction(pointer)).ConfigureAwait(false);
         }
         catch (Exception e)
         {
