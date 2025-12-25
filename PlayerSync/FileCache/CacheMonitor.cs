@@ -1,4 +1,4 @@
-﻿using MareSynchronos.Interop.Ipc;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -624,7 +624,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
                 _fileDbManager.RemoveHashedFile(entity.Hash, entity.PrefixedFilePath);
             }
 
-            _fileDbManager.WriteOutFullCsv();
+            _fileDbManager.WriteOutFullCsvImmediate();
         }
 
         Logger.LogTrace("Scanner validated existing db files");
