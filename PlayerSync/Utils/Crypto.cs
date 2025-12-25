@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace MareSynchronos.Utils;
@@ -13,8 +13,12 @@ public static class Crypto
 
     public static string GetFileHash(this string filePath)
     {
-        using SHA1CryptoServiceProvider cryptoProvider = new();
-        return BitConverter.ToString(cryptoProvider.ComputeHash(File.ReadAllBytes(filePath))).Replace("-", "", StringComparison.Ordinal);
+        // Streaming hash to avoid allocating an entire file buffer
+        using var sha1 = SHA1.Create();
+        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 1024 * 1024, options: FileOptions.SequentialScan);
+        var hashBytes = sha1.ComputeHash(fs);
+
+        return Convert.ToHexString(hashBytes);
     }
 
     public static string GetHash256(this (string, ushort) playerToHash)

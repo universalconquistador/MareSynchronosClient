@@ -1,4 +1,4 @@
-﻿using Lumina.Data.Files;
+using Lumina.Data.Files;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.FileCache;
@@ -68,7 +68,7 @@ public sealed class CharacterAnalyzer : MediatorSubscriberBase, IDisposable
                     CurrentFile++;
                 }
 
-                _fileCacheManager.WriteOutFullCsv();
+                _fileCacheManager.WriteOutFullCsvImmediate();
 
             }
             catch (Exception ex)
