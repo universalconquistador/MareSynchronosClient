@@ -1,402 +1,621 @@
-using MareSynchronos.API.Data;
-using MareSynchronos.API.Dto.Files;
-using MareSynchronos.API.Routes;
-using MareSynchronos.FileCache;
+using K4os.Compression.LZ4.Legacy;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services.Mediator;
-using MareSynchronos.Services.ServerConfiguration;
-using MareSynchronos.UI;
 using MareSynchronos.Utils;
-using MareSynchronos.WebAPI.Files.Models;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using System.Globalization;
+using System.Text;
 
-namespace MareSynchronos.WebAPI.Files;
+namespace MareSynchronos.FileCache;
 
-public sealed class FileUploadManager : DisposableMediatorSubscriberBase
+public sealed class FileCacheManager : IHostedService
 {
-    private readonly FileCacheManager _fileDbManager;
-    private readonly MareConfigService _mareConfigService;
-    private readonly FileTransferOrchestrator _orchestrator;
-    private readonly ServerConfigurationManager _serverManager;
-    private readonly Dictionary<string, DateTime> _verifiedUploadedHashes = new(StringComparer.Ordinal);
-    private CancellationTokenSource? _uploadCancellationTokenSource = new();
+    public const string CachePrefix = "{cache}";
+    public const string CsvSplit = "|";
+    public const string PenumbraPrefix = "{penumbra}";
+    private readonly MareConfigService _configService;
+    private readonly MareMediator _mareMediator;
+    private readonly string _csvPath;
+    //private readonly ConcurrentDictionary<string, List<FileCacheEntity>> _fileCaches = new(StringComparer.Ordinal); // Key: mod file hash, value: locations of that file on disk
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, FileCacheEntity>> _fileCaches = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, FileCacheEntity> _byPrefixedPath = new(StringComparer.OrdinalIgnoreCase);
+    private readonly TimeSpan _csvDebounceDelay = TimeSpan.FromSeconds(2);
+    private Timer? _csvDebounceTimer;
+    private int _csvDirty;
+    private volatile bool _suppressCsvWrites;
 
-    private readonly ConcurrentDictionary<string, UploadFileTransfer> _pendingUploads = new(StringComparer.Ordinal);
+    private readonly SemaphoreSlim _getCachesByPathsSemaphore = new(1, 1);
+    private readonly object _fileWriteLock = new();
+    private readonly IpcManager _ipcManager;
+    private readonly ILogger<FileCacheManager> _logger;
+    public string CacheFolder => _configService.Current.CacheFolder;
 
-    public FileUploadManager(ILogger<FileUploadManager> logger, MareMediator mediator,
-        MareConfigService mareConfigService,
-        FileTransferOrchestrator orchestrator,
-        FileCacheManager fileDbManager,
-        ServerConfigurationManager serverManager) : base(logger, mediator)
+    public FileCacheManager(ILogger<FileCacheManager> logger, IpcManager ipcManager, MareConfigService configService, MareMediator mareMediator)
     {
-        _mareConfigService = mareConfigService;
-        _orchestrator = orchestrator;
-        _fileDbManager = fileDbManager;
-        _serverManager = serverManager;
-
-        Mediator.Subscribe<DisconnectedMessage>(this, (msg) =>
-        {
-            Logger.LogDebug("Disconnected from service - cancelling any uploads.");
-            Reset();
-        });
-        Mediator.Subscribe<ZoneSwitchStartMessage>(this, (msg) =>
-        {
-            Logger.LogDebug("Changing zones - cancelling any uploads.");
-            CancelUpload();
-        });
+        _logger = logger;
+        _ipcManager = ipcManager;
+        _configService = configService;
+        _mareMediator = mareMediator;
+        _csvPath = Path.Combine(configService.ConfigurationDirectory, "FileCache.csv");
     }
 
-    public bool IsUploading => CurrentUploadCount > 0;
-    public List<FileTransfer> CurrentUploadList
+    private string CsvBakPath => _csvPath + ".bak";
+
+    public FileCacheEntity? CreateCacheEntry(string path)
     {
-        get
-        {
-            return new List<FileTransfer>(_pendingUploads.Values);
-        }
+        FileInfo fi = new(path);
+        if (!fi.Exists) return null;
+        _logger.LogTrace("Creating cache entry for {path}", path);
+        var fullName = fi.FullName.ToLowerInvariant();
+        if (!fullName.Contains(_configService.Current.CacheFolder.ToLowerInvariant(), StringComparison.Ordinal)) return null;
+        string prefixedPath = fullName.Replace(_configService.Current.CacheFolder.ToLowerInvariant(), CachePrefix + "\\", StringComparison.Ordinal).Replace("\\\\", "\\", StringComparison.Ordinal);
+        return CreateFileCacheEntity(fi, prefixedPath);
     }
 
-    public int CurrentUploadCount
+    public FileCacheEntity? CreateFileEntry(string path)
     {
-        get
-        {
-            return _pendingUploads.Count;
-        }
+        FileInfo fi = new(path);
+        if (!fi.Exists) return null;
+        _logger.LogTrace("Creating file entry for {path}", path);
+        var fullName = fi.FullName.ToLowerInvariant();
+        if (!fullName.Contains(_ipcManager.Penumbra.ModDirectory!.ToLowerInvariant(), StringComparison.Ordinal)) return null;
+        string prefixedPath = fullName.Replace(_ipcManager.Penumbra.ModDirectory!.ToLowerInvariant(), PenumbraPrefix + "\\", StringComparison.Ordinal).Replace("\\\\", "\\", StringComparison.Ordinal);
+        return CreateFileCacheEntity(fi, prefixedPath);
     }
 
-    public bool CancelUpload()
-    {
-        foreach (var upload in _pendingUploads.Values)
-        {
-            upload.Cancel();
-            _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(upload.Hash, upload));
-        }
+    public List<FileCacheEntity> GetAllFileCaches() => _fileCaches.Values.SelectMany(v => v.Values).ToList();
 
-        return false;
-    }
-
-    public void SkipUnstartedFiles()
+    public List<FileCacheEntity> GetAllFileCachesByHash(string hash, bool ignoreCacheEntries = false, bool validate = true)
     {
-        foreach (var upload in _pendingUploads.Values)
+        List<FileCacheEntity> output = [];
+        if (_fileCaches.TryGetValue(hash, out var dict))
         {
-            upload.Skip = true;
-            if (!upload.Started)
+            foreach (var fileCache in dict.Values.Where(c => ignoreCacheEntries ? !c.IsCacheEntry : true).ToList())
             {
-                _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(upload.Hash, upload));
-            }
-        }
-    }
-
-    public async Task DeleteAllFiles()
-    {
-        if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
-
-        await _orchestrator.SendRequestAsync(HttpMethod.Post, MareFiles.ServerFilesDeleteAllFullPath(_orchestrator.FilesCdnUri!)).ConfigureAwait(false);
-    }
-
-    // Returns the hashes of any files that could not be uploaded (e.g. forbidden or somehow not on the client)
-    public async Task<List<string>> UploadFiles(List<string> hashesToUpload, IProgress<string> progress, CancellationToken? ct = null)
-    {
-        Logger.LogDebug("Trying to upload files");
-        var hashesToExtensions = hashesToUpload
-            .Select(h => _fileDbManager.GetFileCacheByHash(h))
-            .Where(cache => cache != null)
-            .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.PrefixedFilePath));
-
-        var filesPresentLocally = hashesToExtensions.Keys.ToHashSet(StringComparer.Ordinal);
-        var locallyMissingFiles = hashesToUpload.Except(filesPresentLocally, StringComparer.Ordinal).ToList();
-        if (locallyMissingFiles.Any())
-        {
-            return locallyMissingFiles;
-        }
-
-        progress.Report($"Starting parallel upload for {filesPresentLocally.Count} files");
-
-        using (ProfiledScope.BeginLoggedScope(Logger, "UploadFiles() parallel upload"))
-        {
-            var filesToUpload = await FilesSend([.. filesPresentLocally], [], hashesToExtensions, ct ?? CancellationToken.None).ConfigureAwait(false);
-
-            if (filesToUpload.Exists(f => f.IsForbidden))
-            {
-                return [.. filesToUpload.Where(f => f.IsForbidden).Select(f => f.Hash)];
-            }
-
-            if (filesToUpload.Count > 0)
-            {
-                var uploadTask = Parallel.ForEachAsync(filesToUpload, new ParallelOptions()
+                if (!validate) output.Add(fileCache);
+                else
                 {
-                    MaxDegreeOfParallelism = filesToUpload.Count,
-                    CancellationToken = ct ?? CancellationToken.None,
-                },
-                async (fileToUpload, token) =>
-                {
-                    using (ProfiledScope.BeginLoggedScope(Logger, "UploadFiles() waiting for slot for " + fileToUpload.Hash))
-                    {
-                        await _orchestrator.WaitForUploadSlotAsync(token).ConfigureAwait(false);
-                    }
-
-                    // We could compress all at once before waiting for the parallel upload slot, but might as well stagger compression
-                    // just to avoid any possible CPU hitch from trying to compress too many files at once.
-                    Logger.LogDebug("[{hash}] Compressing", fileToUpload.Hash);
-                    (string, byte[]) compressedData;
-                    using (ProfiledScope.BeginLoggedScope(Logger, "UploadFiles() compressing " + fileToUpload.Hash))
-                    {
-                        compressedData = await _fileDbManager.GetCompressedFileData(fileToUpload.Hash, token).ConfigureAwait(false);
-                    }
-
-                    var filename = _fileDbManager.GetFileCacheByHash(compressedData.Item1)!.ResolvedFilepath;
-                    Logger.LogDebug("[{hash}] Starting upload for {filePath}", compressedData.Item1, filename);
-                    using (ProfiledScope.BeginLoggedScope(Logger, "UploadFiles() uploading " + fileToUpload.Hash))
-                    {
-                        await UploadFile(compressedData.Item2, fileToUpload.Hash, Path.GetExtension(filename), false, token).ConfigureAwait(false);
-                    }
-                    _orchestrator.ReleaseUploadSlot();
-                });
-
-                await uploadTask.ConfigureAwait(false);
+                    var validated = GetValidatedFileCache(fileCache);
+                    if (validated != null) output.Add(validated);
+                }
             }
         }
 
-        return [];
+        return output;
     }
 
-    public async Task<CharacterData> UploadFiles(CharacterData data, List<UserData> visiblePlayers)
+    public Task<List<FileCacheEntity>> ValidateLocalIntegrity(IProgress<(int, int, FileCacheEntity)> progress, CancellationToken cancellationToken)
     {
-        SkipUnstartedFiles();
-
-        _uploadCancellationTokenSource = new CancellationTokenSource();
-        var uploadToken = _uploadCancellationTokenSource.Token;
-        Logger.LogDebug("Sending Character data {hash} to service {url}", data.DataHash.Value, _serverManager.CurrentApiUrl);
-
-        HashSet<string> unverifiedUploads = GetUnverifiedFiles(data);
-        if (unverifiedUploads.Any())
-        {
-            await UploadUnverifiedFiles(unverifiedUploads, visiblePlayers, uploadToken).ConfigureAwait(false);
-            Logger.LogInformation("Upload complete for {hash}", data.DataHash.Value);
-        }
-
-        foreach (var kvp in data.FileReplacements)
-        {
-            data.FileReplacements[kvp.Key].RemoveAll(i => _orchestrator.ForbiddenTransfers.Exists(f => string.Equals(f.Hash, i.Hash, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        return data;
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-        Reset();
-    }
-
-    private async Task<List<UploadFileDto>> FilesSend(List<string> hashes, List<string> uids, Dictionary<string, string> extensions, CancellationToken ct)
-    {
-        if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
-        FilesSendDto filesSendDto = new()
-        {
-            FileHashes = hashes,
-            UIDs = uids,
-            FilenameExtensions = extensions,
-        };
-        Logger.LogInformation("FilesSend with hashes: \n{hashes}\n, extensions: \n{extensions}", string.Join(',', hashes), System.Text.Json.JsonSerializer.Serialize(extensions, System.Text.Json.JsonSerializerOptions.Web));
-        var response = await _orchestrator.SendRequestAsync(HttpMethod.Post, MareFiles.ServerFilesFilesSendFullPath(_orchestrator.FilesCdnUri!), filesSendDto, ct).ConfigureAwait(false);
-        return await response.Content.ReadFromJsonAsync<List<UploadFileDto>>(cancellationToken: ct).ConfigureAwait(false) ?? [];
-    }
-
-    private HashSet<string> GetUnverifiedFiles(CharacterData data)
-    {
-        HashSet<string> unverifiedUploadHashes = new(StringComparer.Ordinal);
-        foreach (var item in data.FileReplacements.SelectMany(c => c.Value.Where(f => string.IsNullOrEmpty(f.FileSwapPath)).Select(v => v.Hash).Distinct(StringComparer.Ordinal)).Distinct(StringComparer.Ordinal).ToList())
-        {
-            if (!_verifiedUploadedHashes.TryGetValue(item, out var verifiedTime))
-            {
-                verifiedTime = DateTime.MinValue;
-            }
-
-            if (verifiedTime < DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(10)))
-            {
-                Logger.LogTrace("Verifying {item}, last verified: {date}", item, verifiedTime);
-                unverifiedUploadHashes.Add(item);
-            }
-        }
-
-        return unverifiedUploadHashes;
-    }
-
-    private void Reset()
-    {
-        _uploadCancellationTokenSource?.Cancel();
-        _uploadCancellationTokenSource?.Dispose();
-        _uploadCancellationTokenSource = null;
-
-        foreach (var transfer in _pendingUploads.Values)
-        {
-            transfer.Cancel();
-            _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(transfer.Hash, transfer));
-        }
-
-        _verifiedUploadedHashes.Clear();
-    }
-
-    private async Task UploadFile(byte[] compressedFile, string fileHash, string filenameExtension, bool postProgress, CancellationToken uploadToken)
-    {
-        if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
-
-        Logger.LogInformation("[{hash}] Uploading {size}", fileHash, UiSharedService.ByteToString(compressedFile.Length));
-
-        if (uploadToken.IsCancellationRequested) return;
+        _mareMediator.Publish(new HaltScanMessage(nameof(ValidateLocalIntegrity)));
+        List<FileCacheEntity> brokenEntities = [];
 
         try
         {
-            await UploadFileStream(compressedFile, fileHash, filenameExtension, postProgress, uploadToken).ConfigureAwait(false);
-            _verifiedUploadedHashes[fileHash] = DateTime.UtcNow;
+            _logger.LogInformation("Validating local storage");
+
+            // Snapshot current cache entries (only cache files)
+            var cacheEntries = _fileCaches.SelectMany(v => v.Value.Values).Where(v => v.IsCacheEntry).ToList();
+
+            int i = 0;
+            foreach (var fileCache in cacheEntries)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogInformation("ValidateLocalIntegrity cancelled");
+                    break;
+                }
+
+                _logger.LogInformation("Validating {file}", fileCache.ResolvedFilepath);
+                progress.Report((i, cacheEntries.Count, fileCache));
+                i++;
+
+                if (!File.Exists(fileCache.ResolvedFilepath))
+                {
+                    brokenEntities.Add(fileCache);
+                    continue;
+                }
+
+                try
+                {
+                    var computedHash = Crypto.GetFileHash(fileCache.ResolvedFilepath);
+                    if (!string.Equals(computedHash, fileCache.Hash, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogInformation(
+                            "Failed to validate {file}, got hash {got}, expected hash {expected}",
+                            fileCache.ResolvedFilepath, computedHash, fileCache.Hash);
+                        brokenEntities.Add(fileCache);
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.LogWarning(e, "Error during validation of {file}", fileCache.ResolvedFilepath);
+                    brokenEntities.Add(fileCache);
+                }
+            }
+
+            // Remove & delete broken files
+            foreach (var brokenEntity in brokenEntities)
+            {
+                try
+                {
+                    RemoveHashedFile(brokenEntity.Hash, brokenEntity.PrefixedFilePath);
+
+                    try
+                    {
+                        File.Delete(brokenEntity.ResolvedFilepath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not delete {file}", brokenEntity.ResolvedFilepath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Failed to remove file cache entry for {hash} {path}",
+                        brokenEntity.Hash, brokenEntity.PrefixedFilePath);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("ValidateLocalIntegrity cancelled via OperationCanceledException");
         }
         catch (Exception ex)
         {
-            if (ex is not OperationCanceledException)
+            _logger.LogError(ex, "ValidateLocalIntegrity failed unexpectedly");
+        }
+        finally
+        {
+            _mareMediator.Publish(new ResumeScanMessage(nameof(ValidateLocalIntegrity)));
+        }
+
+        return Task.FromResult(brokenEntities);
+    }
+
+    public string GetCacheFilePath(string hash, string extension)
+    {
+        // Local storage uses lowercase file names, while server DTOs use uppercase hashes.
+        return Path.Combine(_configService.Current.CacheFolder, hash.ToLowerInvariant() + "." + extension);
+    }
+
+    public async Task<(string, byte[])> GetCompressedFileData(string fileHash, CancellationToken uploadToken)
+    {
+        var fileCache = GetFileCacheByHash(fileHash)!.ResolvedFilepath;
+        return (fileHash, LZ4Wrapper.WrapHC(await File.ReadAllBytesAsync(fileCache, uploadToken).ConfigureAwait(false), 0,
+            (int)new FileInfo(fileCache).Length));
+    }
+
+    public FileCacheEntity? GetFileCacheByHash(string hash)
+    {
+        if (_fileCaches.TryGetValue(hash, out var dict))
+        {
+            var item = dict.Values.OrderBy(p => p.PrefixedFilePath.Contains(PenumbraPrefix) ? 0 : 1).FirstOrDefault();
+            if (item != null) return GetValidatedFileCache(item);
+        }
+        return null;
+    }
+
+    private static string NormalizePath(string path)
+    => path.Replace("/", "\\", StringComparison.OrdinalIgnoreCase)
+           .Replace("\\\\", "\\", StringComparison.Ordinal)
+           .ToLowerInvariant();
+
+    private string? TryToPrefixedPath(string normalizedPath)
+    {
+        var modDir = _ipcManager.Penumbra.ModDirectory;
+        if (!string.IsNullOrEmpty(modDir))
+        {
+            var modNorm = NormalizePath(modDir);
+            if (!modNorm.EndsWith("\\", StringComparison.Ordinal)) modNorm += "\\";
+            if (normalizedPath.StartsWith(modNorm, StringComparison.Ordinal))
+                return PenumbraPrefix + "\\" + normalizedPath.Substring(modNorm.Length);
+        }
+
+        var cacheNorm = NormalizePath(_configService.Current.CacheFolder);
+        if (!cacheNorm.EndsWith("\\", StringComparison.Ordinal)) cacheNorm += "\\";
+        if (normalizedPath.StartsWith(cacheNorm, StringComparison.Ordinal))
+            return CachePrefix + "\\" + normalizedPath.Substring(cacheNorm.Length);
+
+        return null;
+    }
+
+    private FileCacheEntity? GetFileCacheByPath(string path)
+    {
+        var normalized = NormalizePath(path);
+        var prefixed = TryToPrefixedPath(normalized);
+
+        if (prefixed != null && _byPrefixedPath.TryGetValue(prefixed, out var entry))
+            return GetValidatedFileCache(entry);
+
+        // Not found: create entry if the file exists and is in a known folder.
+        if (prefixed != null && prefixed.StartsWith(CachePrefix, StringComparison.OrdinalIgnoreCase))
+            return CreateCacheEntry(path);
+
+        return CreateFileEntry(path);
+    }
+
+
+
+    public Dictionary<string, FileCacheEntity?> GetFileCachesByPaths(string[] paths)
+    {
+        _getCachesByPathsSemaphore.Wait();
+
+        try
+        {
+            Dictionary<string, FileCacheEntity?> result = new(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var originalPath in paths.Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                Logger.LogWarning(ex, "[{hash}] Error during file upload", fileHash);
+                var normalized = NormalizePath(originalPath);
+                var prefixed = TryToPrefixedPath(normalized);
+
+                if (prefixed != null && _byPrefixedPath.TryGetValue(prefixed, out var entity))
+                {
+                    result[originalPath] = GetValidatedFileCache(entity);
+                    continue;
+                }
+
+                // Cache entry or mod directory entry
+                if (prefixed != null && prefixed.StartsWith(CachePrefix, StringComparison.OrdinalIgnoreCase))
+                    result[originalPath] = CreateCacheEntry(originalPath);
+                else
+                    result[originalPath] = CreateFileEntry(originalPath);
             }
-            else
+
+            return result;
+        }
+        finally
+        {
+            _getCachesByPathsSemaphore.Release();
+        }
+    }
+
+
+    public void RemoveHashedFile(string hash, string prefixedFilePath)
+    {
+        // Remove from path index if it matches this hash.
+        if (_byPrefixedPath.TryGetValue(prefixedFilePath, out var existing)
+            && string.Equals(existing.Hash, hash, StringComparison.OrdinalIgnoreCase))
+        {
+            _byPrefixedPath.TryRemove(prefixedFilePath, out _);
+        }
+
+        if (_fileCaches.TryGetValue(hash, out var dict))
+        {
+            dict.TryRemove(prefixedFilePath, out _);
+            _logger.LogTrace("Removed from DB: 1 file (if present) with hash {hash} and path {path}", hash, prefixedFilePath);
+            if (dict.IsEmpty)
+                _fileCaches.TryRemove(hash, out _);
+        }
+
+        MarkCsvDirty();
+    }
+
+    public void UpdateHashedFile(FileCacheEntity fileCache, bool computeProperties = true)
+    {
+        _logger.LogTrace("Updating hash for {path}", fileCache.ResolvedFilepath);
+        var oldHash = fileCache.Hash;
+        var prefixedPath = fileCache.PrefixedFilePath;
+        if (computeProperties)
+        {
+            var fi = new FileInfo(fileCache.ResolvedFilepath);
+            fileCache.Size = fi.Length;
+            fileCache.CompressedSize = null;
+            fileCache.Hash = Crypto.GetFileHash(fileCache.ResolvedFilepath);
+            fileCache.LastModifiedDateTicks = fi.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture);
+        }
+        RemoveHashedFile(oldHash, prefixedPath);
+        AddHashedFile(fileCache);
+    }
+
+    public (FileState State, FileCacheEntity FileCache) ValidateFileCacheEntity(FileCacheEntity fileCache)
+    {
+        fileCache = ReplacePathPrefixes(fileCache);
+        FileInfo fi = new(fileCache.ResolvedFilepath);
+        if (!fi.Exists)
+        {
+            return (FileState.RequireDeletion, fileCache);
+        }
+        if (!string.Equals(fi.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture), fileCache.LastModifiedDateTicks, StringComparison.Ordinal))
+        {
+            return (FileState.RequireUpdate, fileCache);
+        }
+
+        return (FileState.Valid, fileCache);
+    }
+
+    public void WriteOutFullCsv()
+    {
+        MarkCsvDirty();
+    }
+
+    public void WriteOutFullCsvImmediate()
+    {
+        WriteOutFullCsvNow(force: true);
+    }
+
+    private void MarkCsvDirty()
+    {
+        if (_suppressCsvWrites) return;
+
+        System.Threading.Interlocked.Exchange(ref _csvDirty, 1);
+
+        _csvDebounceTimer ??= new Timer(_ =>
+        {
+            try { WriteOutFullCsvNow(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to write FileCache.csv"); }
+        }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+
+        _csvDebounceTimer.Change(_csvDebounceDelay, Timeout.InfiniteTimeSpan);
+    }
+
+    private void WriteOutFullCsvNow(bool force = false)
+    {
+        var wasDirty = System.Threading.Interlocked.Exchange(ref _csvDirty, 0);
+        if (!force && wasDirty == 0)
+            return;
+
+        lock (_fileWriteLock)
+        {
+            var entries = _byPrefixedPath.Values
+                .OrderBy(f => f.PrefixedFilePath, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            StringBuilder sb = new();
+            foreach (var entry in entries)
             {
-                Logger.LogWarning(ex, "[{hash}] File upload cancelled", fileHash);
+                sb.Append(entry.Hash.ToLowerInvariant())
+                  .Append(CsvSplit).Append(entry.PrefixedFilePath)
+                  .Append(CsvSplit).Append(entry.LastModifiedDateTicks)
+                  .Append(CsvSplit).Append(entry.Size ?? -1)
+                  .Append(CsvSplit).Append(entry.CompressedSize ?? -1)
+                  .AppendLine();
+            }
+
+            if (File.Exists(_csvPath))
+            {
+                File.Copy(_csvPath, CsvBakPath, overwrite: true);
+            }
+
+            try
+            {
+                File.WriteAllText(_csvPath, sb.ToString());
+                if (File.Exists(CsvBakPath)) File.Delete(CsvBakPath);
+            }
+            catch
+            {
+                File.WriteAllText(CsvBakPath, sb.ToString());
             }
         }
     }
 
-    private async Task UploadFileStream(byte[] compressedFile, string fileHash, string filenameExtension, bool postProgress, CancellationToken uploadToken)
+    internal FileCacheEntity MigrateFileHashToExtension(FileCacheEntity fileCache, string ext)
     {
-        using var ms = new MemoryStream(compressedFile);
+        try
+        {
+            RemoveHashedFile(fileCache.Hash, fileCache.PrefixedFilePath);
+            var extensionPath = fileCache.ResolvedFilepath.ToUpper(CultureInfo.InvariantCulture) + "." + ext;
+            File.Move(fileCache.ResolvedFilepath, extensionPath, overwrite: true);
+            var newHashedEntity = new FileCacheEntity(fileCache.Hash, fileCache.PrefixedFilePath + "." + ext, DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture));
+            newHashedEntity.SetResolvedFilePath(extensionPath);
+            AddHashedFile(newHashedEntity);
+            _logger.LogTrace("Migrated from {oldPath} to {newPath}", fileCache.ResolvedFilepath, newHashedEntity.ResolvedFilepath);
+            return newHashedEntity;
+        }
+        catch (Exception ex)
+        {
+            AddHashedFile(fileCache);
+            _logger.LogWarning(ex, "Failed to migrate entity {entity}", fileCache.PrefixedFilePath);
+            return fileCache;
+        }
+    }
 
-        Progress<UploadProgress>? prog = !postProgress ? null : new((prog) =>
+
+    private void AddHashedFile(FileCacheEntity fileCache)
+    {
+        // Ensure path index stays authoritative (prefixed path uniquely identifies a file location).
+        if (_byPrefixedPath.TryGetValue(fileCache.PrefixedFilePath, out var existing)
+            && !string.Equals(existing.Hash, fileCache.Hash, StringComparison.OrdinalIgnoreCase))
+        {
+            // Remove stale mapping from the old hash dictionary.
+            if (_fileCaches.TryGetValue(existing.Hash, out var existingDict))
+            {
+                existingDict.TryRemove(existing.PrefixedFilePath, out _);
+                if (existingDict.IsEmpty)
+                    _fileCaches.TryRemove(existing.Hash, out _);
+            }
+        }
+
+        _byPrefixedPath[fileCache.PrefixedFilePath] = fileCache;
+
+        var dict = _fileCaches.GetOrAdd(fileCache.Hash, _ => new ConcurrentDictionary<string, FileCacheEntity>(StringComparer.OrdinalIgnoreCase));
+        dict[fileCache.PrefixedFilePath] = fileCache;
+
+        MarkCsvDirty();
+    }
+
+    private FileCacheEntity? CreateFileCacheEntity(FileInfo fileInfo, string prefixedPath, string? hash = null)
+    {
+        hash ??= Crypto.GetFileHash(fileInfo.FullName);
+        var entity = new FileCacheEntity(hash, prefixedPath, fileInfo.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture), fileInfo.Length);
+        entity = ReplacePathPrefixes(entity);
+        AddHashedFile(entity);
+
+        var result = GetFileCacheByPath(fileInfo.FullName);
+        _logger.LogTrace("Creating cache entity for {name} success: {success}", fileInfo.FullName, (result != null));
+        return result;
+    }
+
+    private FileCacheEntity? GetValidatedFileCache(FileCacheEntity fileCache)
+    {
+        var resultingFileCache = ReplacePathPrefixes(fileCache);
+        resultingFileCache = Validate(resultingFileCache);
+        return resultingFileCache;
+    }
+
+    private FileCacheEntity ReplacePathPrefixes(FileCacheEntity fileCache)
+    {
+        if (fileCache.PrefixedFilePath.StartsWith(PenumbraPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            fileCache.SetResolvedFilePath(fileCache.PrefixedFilePath.Replace(PenumbraPrefix, _ipcManager.Penumbra.ModDirectory, StringComparison.Ordinal));
+        }
+        else if (fileCache.PrefixedFilePath.StartsWith(CachePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            fileCache.SetResolvedFilePath(fileCache.PrefixedFilePath.Replace(CachePrefix, _configService.Current.CacheFolder, StringComparison.Ordinal));
+        }
+
+        return fileCache;
+    }
+
+    private FileCacheEntity? Validate(FileCacheEntity fileCache)
+    {
+        var file = new FileInfo(fileCache.ResolvedFilepath);
+        if (!file.Exists)
+        {
+            RemoveHashedFile(fileCache.Hash, fileCache.PrefixedFilePath);
+            return null;
+        }
+
+        if (!string.Equals(file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture), fileCache.LastModifiedDateTicks, StringComparison.Ordinal))
+        {
+            UpdateHashedFile(fileCache);
+        }
+
+        return fileCache;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Starting FileCacheManager");
+
+        lock (_fileWriteLock)
         {
             try
             {
-                if (_pendingUploads.TryGetValue(fileHash, out var upload))
+                _logger.LogInformation("Checking for {bakPath}", CsvBakPath);
+
+                if (File.Exists(CsvBakPath))
                 {
-                    upload.Transferred = prog.Uploaded;
+                    _logger.LogInformation("{bakPath} found, moving to {csvPath}", CsvBakPath, _csvPath);
+
+                    File.Move(CsvBakPath, _csvPath, overwrite: true);
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogWarning(ex, "[{hash}] Could not set upload progress", fileHash);
-            }
-        });
-
-        var streamContent = new ProgressableStreamContent(ms, _mareConfigService, prog);
-        streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-        HttpResponseMessage response;
-        response = await _orchestrator.SendRequestStreamAsync(HttpMethod.Post, MareFiles.ServerFilesUploadFullPath(_orchestrator.FilesCdnUri!, fileHash, _orchestrator.TimeZoneUtcOffsetMinutes, filenameExtension), streamContent, uploadToken).ConfigureAwait(false);
-        Logger.LogDebug("[{hash}] Upload Status: {status}", fileHash, response.StatusCode);
-    }
-
-    private async Task PerformUpload(UploadFileTransfer transfer, CancellationToken token)
-    {
-        using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() waiting for slot for " + transfer.Hash))
-        {
-            try
-            {
-                await _orchestrator.WaitForUploadSlotAsync(token).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "UploadUnverifiedFiles() wait for slot encountered exception for {hash}", transfer.Hash);
-                _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(transfer.Hash, transfer));
-                throw;
-            }
-        }
-
-        try
-        {
-            if (transfer.Skip)
-            {
-                Logger.LogDebug("[{hash}] Skipping compression and upload", transfer.Hash);
-                return;
-            }
-
-            transfer.Started = true;
-
-            // We could compress all at once before waiting for the parallel upload slot, but might as well stagger compression
-            // just to avoid any possible CPU hitch from trying to compress too many files at once.
-            (string, byte[]) compressedData;
-            using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() compressing " + transfer.Hash))
-            {
-                compressedData = await _fileDbManager.GetCompressedFileData(transfer.Hash, token).ConfigureAwait(false);
-            }
-
-            transfer.Total = compressedData.Item2.Length;
-            var filename = _fileDbManager.GetFileCacheByHash(compressedData.Item1)!.ResolvedFilepath;
-            Logger.LogDebug("[{hash}] Starting upload for {filePath}", compressedData.Item1, filename);
-            using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() uploading " + transfer.Hash))
-            {
-                await UploadFile(compressedData.Item2, transfer.Hash, Path.GetExtension(filename), true, token).ConfigureAwait(false);
-            }
-        }
-        finally
-        {
-            _orchestrator.ReleaseUploadSlot();
-
-            _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(transfer.Hash, transfer));
-        }
-    }
-
-    private async Task UploadUnverifiedFiles(HashSet<string> unverifiedUploadHashes, List<UserData> visiblePlayers, CancellationToken uploadToken)
-    {
-        var hashesToExtensions = unverifiedUploadHashes
-            .Select(h => _fileDbManager.GetFileCacheByHash(h))
-            .Where(cache => cache != null)
-            .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.PrefixedFilePath));
-
-        Logger.LogDebug("Verifying {count} files sequentially", hashesToExtensions.Count);
-        var filesToUpload = await FilesSend([.. hashesToExtensions.Keys.ToHashSet()], visiblePlayers.Select(p => p.UID).ToList(), hashesToExtensions, uploadToken).ConfigureAwait(false);
-
-        if (filesToUpload.Count > 0)
-        {
-            using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() parallel v2 upload"))
-            {
-                var task = Parallel.ForEachAsync(filesToUpload.Where(f => !f.IsForbidden).DistinctBy(f => f.Hash), new ParallelOptions()
+                _logger.LogWarning(ex, "Failed to move BAK to ORG, deleting BAK");
+                try
                 {
-                    MaxDegreeOfParallelism = filesToUpload.Count,
-                    CancellationToken = uploadToken,
-                }, async (file, token) =>
+                    if (File.Exists(CsvBakPath))
+                        File.Delete(CsvBakPath);
+                }
+                catch (Exception ex1)
                 {
-                    var upload = _pendingUploads.GetOrAdd(file.Hash, hash =>
+                    _logger.LogWarning(ex1, "Could not delete bak file");
+                }
+            }
+        }
+
+        if (File.Exists(_csvPath))
+        {
+            if (!_ipcManager.Penumbra.APIAvailable || string.IsNullOrEmpty(_ipcManager.Penumbra.ModDirectory))
+            {
+                _mareMediator.Publish(new NotificationMessage("Penumbra not connected",
+                    "Could not load local file cache data. Penumbra is not connected or not properly set up. Please enable and/or configure Penumbra properly to use PlayerSync. After, reload PlayerSync in the Plugin installer.",
+                    MareConfiguration.Models.NotificationType.Error));
+            }
+
+            _logger.LogInformation("{csvPath} found, parsing", _csvPath);
+
+            _suppressCsvWrites = true;
+            bool success = false;
+            string[] entries = [];
+            int attempts = 0;
+            while (!success && attempts < 10)
+            {
+                try
+                {
+                    _logger.LogInformation("Attempting to read {csvPath}", _csvPath);
+                    entries = File.ReadAllLines(_csvPath);
+                    success = true;
+                }
+                catch (Exception ex)
+                {
+                    attempts++;
+                    _logger.LogWarning(ex, "Could not open {file}, trying again", _csvPath);
+                    Thread.Sleep(100);
+                }
+            }
+
+            if (!entries.Any())
+            {
+                _logger.LogWarning("Could not load entries from {path}, continuing with empty file cache", _csvPath);
+            }
+
+            _logger.LogInformation("Found {amount} files in {path}", entries.Length, _csvPath);
+
+            Dictionary<string, bool> processedFiles = new(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in entries)
+            {
+                var splittedEntry = entry.Split(CsvSplit, StringSplitOptions.None);
+                try
+                {
+                    var hash = splittedEntry[0].ToUpperInvariant();
+                    if (hash.Length != 40) throw new InvalidOperationException("Expected Hash length of 40, received " + hash.Length);
+                    var path = splittedEntry[1];
+                    var time = splittedEntry[2];
+
+                    if (processedFiles.ContainsKey(path))
                     {
-                        var transfer = new UploadFileTransfer(file, token)
-                        {
-                            Total = new FileInfo(_fileDbManager.GetFileCacheByHash(file.Hash)!.ResolvedFilepath).Length
-                        };
+                        _logger.LogWarning("Already processed {file}, ignoring", path);
+                        continue;
+                    }
 
-                        if (file.IsForbidden)
-                        {
-                            // If there isn't an entry in the forbidden transfers list for this hash, add this one
-                            if (_orchestrator.ForbiddenTransfers.TrueForAll(f => !string.Equals(f.Hash, file.Hash, StringComparison.Ordinal)))
-                            {
-                                _orchestrator.ForbiddenTransfers.Add(transfer);
-                            }
+                    processedFiles.Add(path, value: true);
 
-                            _verifiedUploadedHashes[file.Hash] = DateTime.UtcNow;
-                            transfer.CompletionTask = Task.CompletedTask;
+                    long size = -1;
+                    long compressed = -1;
+                    if (splittedEntry.Length > 3)
+                    {
+                        if (long.TryParse(splittedEntry[3], CultureInfo.InvariantCulture, out long result))
+                        {
+                            size = result;
                         }
-                        else if (transfer.CanBeTransferred && !transfer.IsTransferred)
+                        if (long.TryParse(splittedEntry[4], CultureInfo.InvariantCulture, out long resultCompressed))
                         {
-                            transfer.CompletionTask = PerformUpload(transfer, transfer.CancellationToken);
+                            compressed = resultCompressed;
                         }
+                    }
+                    AddHashedFile(ReplacePathPrefixes(new FileCacheEntity(hash, path, time, size, compressed)));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to initialize entry {entry}, ignoring", entry);
+                }
+            }
 
-                        return transfer;
-                    });
+            _suppressCsvWrites = false;
 
-                    await upload.CompletionTask.ConfigureAwait(false);
-                });
-
-                await task.ConfigureAwait(false);
+            if (processedFiles.Count != entries.Length)
+            {
+                WriteOutFullCsvImmediate();
             }
         }
-        else
-        {
-            Logger.LogDebug("All files were already on the server.");
-        }
+
+        _logger.LogInformation("Started FileCacheManager");
+
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        _suppressCsvWrites = false;
+        WriteOutFullCsvImmediate();
+        _csvDebounceTimer?.Dispose();
+        return Task.CompletedTask;
     }
 }
