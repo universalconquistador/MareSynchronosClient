@@ -1,4 +1,4 @@
-﻿using MareSynchronos.API.Data;
+using MareSynchronos.API.Data;
 using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.PlayerData.Factories;
@@ -128,7 +128,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
     // science
     private static SemaphoreSlim GetActorLock(string uid) => _actorLocks.GetOrAdd(uid, _ => new SemaphoreSlim(1, 1));
-
     public long LastAppliedDataBytes { get; private set; }
     public Pair Pair { get; private set; }
     public nint PlayerCharacter => _charaHandler?.Address ?? nint.Zero;
@@ -479,7 +478,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         await gate.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            
+
             Logger.LogDebug("[BASE-{applicationId}] Starting application task for {this}: {appId}", applicationBase, this, _applicationId);
 
             Logger.LogDebug("[{applicationId}] Waiting for initial draw for for {handler}", _applicationId, _charaHandler);
@@ -732,7 +731,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         {
             Logger.LogError(ex, "[BASE-{appBase}] Something went wrong during calculation replacements", applicationBase);
         }
-        if (hasMigrationChanges) _fileDbManager.WriteOutFullCsv();
+        if (hasMigrationChanges) _fileDbManager.WriteOutFullCsvImmediate();
         st.Stop();
         Logger.LogDebug("[BASE-{appBase}] ModdedPaths calculated in {time}ms, missing files: {count}, total files: {total}", applicationBase, st.ElapsedMilliseconds, missingFiles.Count, moddedDictionary.Keys.Count);
         return [.. missingFiles];

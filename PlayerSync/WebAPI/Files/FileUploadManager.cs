@@ -99,11 +99,27 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
     // Returns the hashes of any files that could not be uploaded (e.g. forbidden or somehow not on the client)
     public async Task<List<string>> UploadFiles(List<string> hashesToUpload, IProgress<string> progress, CancellationToken? ct = null)
     {
-        Logger.LogDebug("Trying to upload files");
+        var dups = hashesToUpload
+            .GroupBy(h => h, StringComparer.Ordinal)
+            .Where(g => g.Count() > 1)
+            .Select(g => $"{g.Key} x{g.Count()}")
+            .ToList();
+
+        if (dups.Count > 0)
+            Logger.LogDebug("UploadFiles received duplicate hashes: {dups}", string.Join(", ", dups));
+
+        //Logger.LogDebug("Trying to upload files");
+        //var hashesToExtensions = hashesToUpload
+        //    .Select(h => _fileDbManager.GetFileCacheByHash(h))
+        //    .Where(cache => cache != null)
+        //    .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.PrefixedFilePath));
+
+        // deal with duplicate hashes for .ToDictionary()
         var hashesToExtensions = hashesToUpload
+            .Distinct(StringComparer.Ordinal)
             .Select(h => _fileDbManager.GetFileCacheByHash(h))
             .Where(cache => cache != null)
-            .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.PrefixedFilePath));
+            .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.PrefixedFilePath), StringComparer.Ordinal);
 
         var filesPresentLocally = hashesToExtensions.Keys.ToHashSet(StringComparer.Ordinal);
         var locallyMissingFiles = hashesToUpload.Except(filesPresentLocally, StringComparer.Ordinal).ToList();
