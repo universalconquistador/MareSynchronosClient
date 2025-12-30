@@ -55,7 +55,7 @@ namespace MareSynchronos.UI
         public static bool SRowhovered(float rowHeightStart, float rowHeightEnd)
         {
             if (!IsMouseWithinWindow()) return false;
-            float smousepos = GetMousePosInWindow().Y;
+            float smousepos = GetMousePosInContent().Y;
             return rowHeightStart < smousepos && rowHeightEnd >= smousepos;
         }
 
@@ -100,12 +100,11 @@ namespace MareSynchronos.UI
 
         public static Vector2 GetMousePosInContent()
         {
-            var mouseScreen = ImGui.GetMousePos();                     // screen space
-            var winPos = ImGui.GetWindowPos();                    // screen space
-            var contentMin = ImGui.GetWindowContentRegionMin();       // window-local
-            var contentTopLeftScreen = winPos + contentMin;            // screen space
-            return (mouseScreen - contentTopLeftScreen)
-                   + new Vector2(ImGui.GetScrollX(), ImGui.GetScrollY());
+            var mouseScreen = ImGui.GetMousePos();
+            var winPos = ImGui.GetWindowPos();
+            var contentMin = ImGui.GetWindowContentRegionMin();
+            var contentTopLeftScreen = winPos + contentMin;
+            return (mouseScreen - contentTopLeftScreen);
         }
 
     }
