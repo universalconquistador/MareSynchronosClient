@@ -50,6 +50,7 @@ public class Pair
     public long LastAppliedDataBytes => CachedPlayer?.LastAppliedDataBytes ?? -1;
     public long LastAppliedDataTris { get; set; } = -1;
     public long LastAppliedApproximateVRAMBytes { get; set; } = -1;
+    public int LastAppliedCompressedAlternates { get; set; } = -1;
     public string Ident => _onlineUserIdentDto?.Ident ?? string.Empty;
     public nint Address => CachedPlayer?.PlayerCharacter ?? nint.Zero;
     

@@ -32,6 +32,7 @@ using MareSynchronos.Services.CharaData;
 using Dalamud.Game;
 using PlayerSync.PlayerData.Pairs;
 using PlayerSync.Services;
+using PlayerSync.FileCache;
 
 namespace MareSynchronos;
 
@@ -117,6 +118,9 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<IdDisplayHandler>();
             collection.AddSingleton<PlayerPerformanceService>();
             collection.AddSingleton<TransientResourceManager>();
+            collection.AddSingleton<CompressedAlternateManager>();
+            collection.AddSingleton<ICompressedAlternateManager, CompressedAlternateManager>(services => services.GetRequiredService<CompressedAlternateManager>());
+            collection.AddHostedService(services => services.GetRequiredService<CompressedAlternateManager>());
 
             collection.AddSingleton<CharaDataManager>();
             collection.AddSingleton<CharaDataFileHandler>();
