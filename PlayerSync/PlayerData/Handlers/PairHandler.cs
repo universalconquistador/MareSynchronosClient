@@ -49,7 +49,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private bool _redrawOnNextApplication = false;
 
     // science
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _actorLocks = new(StringComparer.Ordinal);
+    //private static readonly ConcurrentDictionary<string, SemaphoreSlim> _actorLocks = new(StringComparer.Ordinal);
 
     public PairHandler(ILogger<PairHandler> logger, Pair pair,
         GameObjectHandlerFactory gameObjectHandlerFactory,
@@ -136,7 +136,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     }
 
     // science
-    private static SemaphoreSlim GetActorLock(string uid) => _actorLocks.GetOrAdd(uid, _ => new SemaphoreSlim(1, 1));
+    //private static SemaphoreSlim GetActorLock(string uid) => _actorLocks.GetOrAdd(uid, _ => new SemaphoreSlim(1, 1));
     public long LastAppliedDataBytes { get; private set; }
     public Pair Pair { get; private set; }
     public nint PlayerCharacter => _charaHandler?.Address ?? nint.Zero;
@@ -501,8 +501,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     {
         _applicationId = Guid.NewGuid();
         // science
-        var gate = GetActorLock(applicationBase.ToString());
-        await gate.WaitAsync(token).ConfigureAwait(false);
+        //var gate = GetActorLock(applicationBase.ToString());
+        //await gate.WaitAsync(token).ConfigureAwait(false);
         try
         {
 
@@ -567,7 +567,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
         finally
         {
-            gate.Release();
+            //gate.Release();
         }
     }
 
