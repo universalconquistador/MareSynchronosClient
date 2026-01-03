@@ -161,6 +161,7 @@ public class PlayerPerformanceService
     {
         var config = _playerPerformanceConfigService.Current;
         var pair = pairHandler.Pair;
+        var compressionRedirects = pairHandler.ActiveCompressionRedirects;
 
         long vramUsage = 0;
 
@@ -171,7 +172,7 @@ public class PlayerPerformanceService
         }
 
         var moddedTextureHashes = playerReplacements.Where(p => string.IsNullOrEmpty(p.FileSwapPath) && p.GamePaths.Any(g => g.EndsWith(".tex", StringComparison.OrdinalIgnoreCase)))
-            .Select(p => p.Hash)
+            .Select(p => compressionRedirects.GetValueOrDefault(p.Hash, p.Hash))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -204,6 +205,8 @@ public class PlayerPerformanceService
         pair.LastAppliedApproximateVRAMBytes = vramUsage;
 
         _logger.LogDebug("Calculated VRAM usage for {p}", pairHandler);
+
+        pair.LastAppliedCompressedAlternates = compressionRedirects.Count;
 
         // no warning of any kind on ignored pairs
         if (config.UIDsToIgnore

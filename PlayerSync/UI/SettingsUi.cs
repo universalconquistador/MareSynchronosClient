@@ -10,6 +10,7 @@ using MareSynchronos.API.Routes;
 using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
@@ -1390,6 +1391,40 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
     private void DrawPerformance()
     {
+        _uiShared.BigText("Auto Texture Compression");
+        UiSharedService.TextWrapped("Options for using the PlayerSync servers' automatically-compressed versions of players' uncompressed textures.");
+        ImGui.Dummy(new Vector2(10));
+        ImGui.Separator();
+        ImGui.Dummy(new Vector2(10));
+        ImGui.Text("Automatic Compression Mode");
+        using (ImRaii.PushIndent())
+        {
+            var textureCompressionMode = _playerPerformanceConfigService.Current.TextureCompressionModeOrDefault;
+            _uiShared.DrawHelpText("The PlayerSync server automatically compresses uncompressed textures from other players. Here you can opt to use these compressed textures when available.");
+
+            if (ImGui.RadioButton("Always use source quality", ref textureCompressionMode, MareConfiguration.Configurations.CompressedAlternateUsage.AlwaysSourceQuality))
+            {
+                _playerPerformanceConfigService.Current.TextureCompressionMode = textureCompressionMode;
+                _playerPerformanceConfigService.Save();
+            }
+            _uiShared.DrawHelpText("Downloads and applies the exact textures uploaded by other players, even if uncompressed.\nThis is the the same behavior as before server compression was introduced.\n\nThis choice uses more bandwidth, storage, and VRAM.");
+
+            if (ImGui.RadioButton("Use automatically compressed textures for new downloads", ref textureCompressionMode, MareConfiguration.Configurations.CompressedAlternateUsage.CompressedNewDownloads))
+            {
+                _playerPerformanceConfigService.Current.TextureCompressionMode = textureCompressionMode;
+                _playerPerformanceConfigService.Save();
+            }
+            _uiShared.DrawHelpText("Downloads and applies automatically-compressed versions of other players' uncompressed textures, unless the original texture has already been downloaded.\n\nThis choice saves bandwidth, storage, and VRAM, but only with new downloads.");
+
+            if (ImGui.RadioButton("Always use automatically compressed textures", ref textureCompressionMode, MareConfiguration.Configurations.CompressedAlternateUsage.AlwaysCompressed))
+            {
+                _playerPerformanceConfigService.Current.TextureCompressionMode = textureCompressionMode;
+                _playerPerformanceConfigService.Save();
+            }
+            _uiShared.DrawHelpText("Downloads and applies automatically-compressed versions of other players' uncompressed textures.\n\nThis choice saves the most bandwidth, storage, and VRAM, but it does not clear out any uncompressed textures that have been already downloaded.");
+        }
+        ImGui.Dummy(new Vector2(10));
+        ImGui.Separator();
         _uiShared.BigText("Performance Settings");
         UiSharedService.TextWrapped("The configuration options here are to give you more informed warnings and automation when it comes to other performance-intensive synced players.");
         ImGui.Dummy(new Vector2(10));

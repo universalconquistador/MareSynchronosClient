@@ -4,6 +4,7 @@ using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.PlayerData.Factories;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
@@ -122,7 +123,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
                 UpdatedDate = dataDownloadDto.UpdatedDate,
             };
 
-            await DownloadAndAplyDataAsync(charaName, dataDownloadDto, metaInfo, false).ConfigureAwait(false);
+            await DownloadAndAplyDataAsync(charaName, dataDownloadDto, metaInfo, _gposeCompressedAlternateUsage, false).ConfigureAwait(false);
         });
     }
 
@@ -139,9 +140,11 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
                 return;
             }
 
-            await DownloadAndAplyDataAsync(charaName, download, dataMetaInfoDto, false).ConfigureAwait(false);
+            await DownloadAndAplyDataAsync(charaName, download, dataMetaInfoDto, _gposeCompressedAlternateUsage, false).ConfigureAwait(false);
         });
     }
+
+    private const CompressedAlternateUsage _gposeCompressedAlternateUsage = CompressedAlternateUsage.AlwaysSourceQuality;
 
     public Task ApplyCharaDataToGposeTarget(CharaDataMetaInfoDto dataMetaInfoDto)
     {
@@ -178,7 +181,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             UpdatedDate = dataDto.UpdatedDate,
         };
 
-        UiBlockingComputation = DataApplicationTask = DownloadAndAplyDataAsync(charaName, downloadDto, metaInfoDto, false);
+        UiBlockingComputation = DataApplicationTask = DownloadAndAplyDataAsync(charaName, downloadDto, metaInfoDto, _gposeCompressedAlternateUsage, false);
     }
 
     public Task ApplyPoseData(PoseEntry pose, string targetName)
@@ -706,7 +709,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             UpdatedDate = dataDto.UpdatedDate,
         };
 
-        UiBlockingComputation = DataApplicationTask = DownloadAndAplyDataAsync(chara, downloadDto, metaInfoDto);
+        UiBlockingComputation = DataApplicationTask = DownloadAndAplyDataAsync(chara, downloadDto, metaInfoDto, _gposeCompressedAlternateUsage);
     }
 
     internal void AttachPoseData(PoseEntry pose, CharaDataExtendedUpdateDto updateDto)
@@ -926,7 +929,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
         await AddOrUpdateDto(res).ConfigureAwait(false);
     }
 
-    private async Task DownloadAndAplyDataAsync(string charaName, CharaDataDownloadDto charaDataDownloadDto, CharaDataMetaInfoDto metaInfo, bool autoRevert = true)
+    private async Task DownloadAndAplyDataAsync(string charaName, CharaDataDownloadDto charaDataDownloadDto, CharaDataMetaInfoDto metaInfo, CompressedAlternateUsage compressedAlternateUsage, bool autoRevert = true)
     {
         _applicationCts = _applicationCts.CancelRecreate();
         var token = _applicationCts.Token;
@@ -946,7 +949,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
 
         Dictionary<string, string> modPaths;
         List<FileReplacementData> missingFiles;
-        _fileHandler.ComputeMissingFiles(charaDataDownloadDto, out modPaths, out missingFiles);
+        _fileHandler.ComputeMissingFiles(charaDataDownloadDto, compressedAlternateUsage, out modPaths, out missingFiles);
 
         Logger.LogTrace("[{appId}] Computing local missing files", applicationId);
 
@@ -958,7 +961,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             try
             {
                 DataApplicationProgress = "Downloading Missing Files. Please be patient.";
-                await _fileHandler.DownloadFilesAsync(tempHandler, missingFiles, modPaths, token).ConfigureAwait(false);
+                await _fileHandler.DownloadFilesAsync(tempHandler, missingFiles, modPaths, compressedAlternateUsage, token).ConfigureAwait(false);
             }
             catch (FileNotFoundException)
             {
