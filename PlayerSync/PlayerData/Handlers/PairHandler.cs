@@ -501,7 +501,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     {
         _applicationId = Guid.NewGuid();
         // science
-        var gate = GetActorLock(_applicationId.ToString());
+        var gate = GetActorLock(applicationBase.ToString());
         await gate.WaitAsync(token).ConfigureAwait(false);
         try
         {
