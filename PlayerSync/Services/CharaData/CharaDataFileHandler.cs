@@ -4,6 +4,7 @@ using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.FileCache;
+using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.PlayerData.Factories;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.CharaData;
@@ -39,8 +40,9 @@ public sealed class CharaDataFileHandler : IDisposable
         _mareCharaFileDataFactory = new(fileCacheManager);
     }
 
-    public void ComputeMissingFiles(CharaDataDownloadDto charaDataDownloadDto, out Dictionary<string, string> modPaths, out List<FileReplacementData> missingFiles)
+    public void ComputeMissingFiles(CharaDataDownloadDto charaDataDownloadDto, CompressedAlternateUsage compressedAlternateUsage, out Dictionary<string, string> modPaths, out List<FileReplacementData> missingFiles)
     {
+        // TODO: Implement compressed alternate support!
         modPaths = [];
         missingFiles = [];
         foreach (var file in charaDataDownloadDto.FileGamePaths)
@@ -116,12 +118,15 @@ public sealed class CharaDataFileHandler : IDisposable
         _fileDownloadManager.Dispose();
     }
 
-    public async Task DownloadFilesAsync(GameObjectHandler tempHandler, List<FileReplacementData> missingFiles, Dictionary<string, string> modPaths, CancellationToken token)
+    public async Task DownloadFilesAsync(GameObjectHandler tempHandler, List<FileReplacementData> missingFiles, Dictionary<string, string> modPaths, CompressedAlternateUsage compressedAlternateUsage, CancellationToken token)
     {
-        await _fileDownloadManager.InitiateDownloadList(tempHandler, missingFiles, token).ConfigureAwait(false);
-        await _fileDownloadManager.DownloadFiles(tempHandler, missingFiles, token).ConfigureAwait(false);
+        // TODO: Get these from _fileHandler.ComputeMissingFiles
+        Dictionary<string, string> compressedSubstitutions = new Dictionary<string, string>();
+        HashSet<string> locallyPresentFiles = new HashSet<string>();
+        await _fileDownloadManager.InitiateDownloadList(tempHandler, missingFiles, compressedAlternateUsage, compressedSubstitutions, locallyPresentFiles, token).ConfigureAwait(false);
+        await _fileDownloadManager.DownloadFiles(tempHandler, missingFiles, compressedSubstitutions, token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
-        foreach (var file in missingFiles.SelectMany(m => m.GamePaths, (FileEntry, GamePath) => (FileEntry.Hash, GamePath)))
+        foreach (var file in missingFiles.SelectMany(m => m.GamePaths, (FileEntry, GamePath) => (Hash: compressedSubstitutions.GetValueOrDefault(FileEntry.Hash, FileEntry.Hash), GamePath)))
         {
             var localFile = _fileCacheManager.GetFileCacheByHash(file.Hash)?.ResolvedFilepath;
             if (localFile == null)

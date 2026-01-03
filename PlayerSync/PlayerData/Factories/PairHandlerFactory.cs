@@ -1,5 +1,6 @@
 ﻿using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
@@ -7,6 +8,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using PlayerSync.FileCache;
 
 namespace MareSynchronos.PlayerData.Factories;
 
@@ -23,12 +25,15 @@ public class PairHandlerFactory
     private readonly PlayerPerformanceService _playerPerformanceService;
     private readonly ServerConfigurationManager _serverConfigManager;
     private readonly PluginWarningNotificationService _pluginWarningNotificationManager;
+    private readonly ICompressedAlternateManager _compressedAlternateManager;
+    private readonly PlayerPerformanceConfigService _performanceConfig;
 
     public PairHandlerFactory(ILoggerFactory loggerFactory, GameObjectHandlerFactory gameObjectHandlerFactory, IpcManager ipcManager,
         FileDownloadManagerFactory fileDownloadManagerFactory, DalamudUtilService dalamudUtilService,
         PluginWarningNotificationService pluginWarningNotificationManager, IHostApplicationLifetime hostApplicationLifetime,
         FileCacheManager fileCacheManager, MareMediator mareMediator, PlayerPerformanceService playerPerformanceService,
-        ServerConfigurationManager serverConfigManager)
+        ServerConfigurationManager serverConfigManager, ICompressedAlternateManager compressedAlternateManager,
+        PlayerPerformanceConfigService performanceConfig)
     {
         _loggerFactory = loggerFactory;
         _gameObjectHandlerFactory = gameObjectHandlerFactory;
@@ -41,12 +46,14 @@ public class PairHandlerFactory
         _mareMediator = mareMediator;
         _playerPerformanceService = playerPerformanceService;
         _serverConfigManager = serverConfigManager;
+        _compressedAlternateManager = compressedAlternateManager;
+        _performanceConfig = performanceConfig;
     }
 
     public PairHandler Create(Pair pair)
     {
         return new PairHandler(_loggerFactory.CreateLogger<PairHandler>(), pair, _gameObjectHandlerFactory,
             _ipcManager, _fileDownloadManagerFactory.Create(), _pluginWarningNotificationManager, _dalamudUtilService, _hostApplicationLifetime,
-            _fileCacheManager, _mareMediator, _playerPerformanceService, _serverConfigManager);
+            _fileCacheManager, _mareMediator, _playerPerformanceService, _serverConfigManager, _compressedAlternateManager, _performanceConfig);
     }
 }

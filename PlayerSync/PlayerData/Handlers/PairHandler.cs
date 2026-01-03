@@ -1,6 +1,8 @@
 using MareSynchronos.API.Data;
 using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
+using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.PlayerData.Factories;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
@@ -11,6 +13,7 @@ using MareSynchronos.Utils;
 using MareSynchronos.WebAPI.Files;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using PlayerSync.FileCache;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using ObjectKind = MareSynchronos.API.Data.Enum.ObjectKind;
@@ -30,6 +33,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private readonly PlayerPerformanceService _playerPerformanceService;
     private readonly ServerConfigurationManager _serverConfigManager;
     private readonly PluginWarningNotificationService _pluginWarningNotificationManager;
+    private readonly ICompressedAlternateManager _compressedAlternateManager;
+    private readonly PlayerPerformanceConfigService _performanceConfig;
     private CancellationTokenSource? _applicationCancellationTokenSource = new();
     private Guid _applicationId;
     private Task? _applicationTask;
@@ -53,7 +58,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         DalamudUtilService dalamudUtil, IHostApplicationLifetime lifetime,
         FileCacheManager fileDbManager, MareMediator mediator,
         PlayerPerformanceService playerPerformanceService,
-        ServerConfigurationManager serverConfigManager) : base(logger, mediator)
+        ServerConfigurationManager serverConfigManager,
+        ICompressedAlternateManager compressedAlternateManager,
+        PlayerPerformanceConfigService performanceConfig) : base(logger, mediator)
     {
         Pair = pair;
         _gameObjectHandlerFactory = gameObjectHandlerFactory;
@@ -65,6 +72,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _fileDbManager = fileDbManager;
         _playerPerformanceService = playerPerformanceService;
         _serverConfigManager = serverConfigManager;
+        _compressedAlternateManager = compressedAlternateManager;
+        _performanceConfig = performanceConfig;
         _penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
 
         Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => FrameworkUpdate());
@@ -136,6 +145,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         : ((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)_charaHandler!.Address)->EntityId;
     public string? PlayerName { get; private set; }
     public string PlayerNameHash => Pair.Ident;
+
+    // Maps from hash in the last applied data to compressed hash
+    public ConcurrentDictionary<string, string> ActiveCompressionRedirects { get; private set; } = new ConcurrentDictionary<string, string>();
 
     public void ApplyCharacterData(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
     {
@@ -269,6 +281,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     {
                         try
                         {
+                            // NOTE: THIS CAN FREEZE THE GAME
                             RevertCustomizationDataAsync(item.Key, name, applicationId, cts.Token).GetAwaiter().GetResult();
                         }
                         catch (InvalidOperationException ex)
@@ -390,17 +403,30 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _ = DownloadAndApplyCharacterAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, downloadToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Determines whether to use compressed alternate files for this pair.
+    /// </summary>
+    /// <returns></returns>
+    private CompressedAlternateUsage ComputeCompressedAlternateUsage()
+    {
+        // TODO: Implement finer-grained rules around whether this pair should use compressed alternate files
+        return _performanceConfig.Current.TextureCompressionModeOrDefault;
+    }
+
     private Task? _pairDownloadTask;
 
     private async Task DownloadAndApplyCharacterAsync(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData,
         bool updateModdedPaths, bool updateManip, CancellationToken downloadToken)
     {
         Dictionary<(string GamePath, string? Hash), string> moddedPaths = [];
+        HashSet<string> locallyPresentFiles;
+        var compressedAlternateUsage = ComputeCompressedAlternateUsage();
 
         if (updateModdedPaths)
         {
             int attempts = 0;
-            List<FileReplacementData> toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, out moddedPaths, downloadToken);
+            ActiveCompressionRedirects.Clear();
+            List<FileReplacementData> toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, downloadToken);
 
             while (toDownloadReplacements.Count > 0 && attempts++ <= 10 && !downloadToken.IsCancellationRequested)
             {
@@ -414,7 +440,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
                 Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
                     $"Starting download for {toDownloadReplacements.Count} files")));
-                var toDownloadFiles = await _downloadManager.InitiateDownloadList(_charaHandler!, toDownloadReplacements, downloadToken).ConfigureAwait(false);
+                Dictionary<string, string> compressionSubstitutions = new Dictionary<string, string>();
+                var toDownloadFiles = await _downloadManager.InitiateDownloadList(_charaHandler!, toDownloadReplacements, compressedAlternateUsage, compressionSubstitutions, locallyPresentFiles, downloadToken).ConfigureAwait(false);
 
                 if (!_playerPerformanceService.ComputeAndAutoPauseOnVRAMUsageThresholds(this, charaData, toDownloadFiles))
                 {
@@ -422,7 +449,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     return;
                 }
 
-                _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(_charaHandler!, toDownloadReplacements, downloadToken).ConfigureAwait(false));
+                _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(_charaHandler!, toDownloadReplacements, compressionSubstitutions, downloadToken).ConfigureAwait(false));
 
                 await _pairDownloadTask.ConfigureAwait(false);
 
@@ -432,7 +459,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     return;
                 }
 
-                toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, out moddedPaths, downloadToken);
+                toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, downloadToken);
 
                 if (toDownloadReplacements.TrueForAll(c => _downloadManager.ForbiddenTransfers.Exists(f => string.Equals(f.Hash, c.Hash, StringComparison.Ordinal))))
                 {
@@ -676,13 +703,14 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
     }
 
-    private List<FileReplacementData> TryCalculateModdedDictionary(Guid applicationBase, CharacterData charaData, out Dictionary<(string GamePath, string? Hash), string> moddedDictionary, CancellationToken token)
+    private List<FileReplacementData> TryCalculateModdedDictionary(Guid applicationBase, CharacterData charaData, CompressedAlternateUsage compressedAlternateUsage, ConcurrentDictionary<string, string> compressionSubstitutions, out HashSet<string> locallyPresentFiles, out Dictionary<(string GamePath, string? Hash), string> moddedDictionary, CancellationToken token)
     {
         Stopwatch st = Stopwatch.StartNew();
         ConcurrentBag<FileReplacementData> missingFiles = [];
         moddedDictionary = [];
         ConcurrentDictionary<(string GamePath, string? Hash), string> outputDict = new();
         bool hasMigrationChanges = false;
+        var locallyPresentFileSet = new ConcurrentDictionary<string, object?>();
 
         try
         {
@@ -695,28 +723,91 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             (item) =>
             {
                 token.ThrowIfCancellationRequested();
-                var fileCache = _fileDbManager.GetFileCacheByHash(item.Hash);
+
+                FileReplacementData replacementItem = item;
+
+                var fileCache = _fileDbManager.GetFileCacheByHash(replacementItem.Hash);
+
+                string? compressedAlternateHash = null;
+                bool compressedAlternateConfirmed = _compressedAlternateManager.TryGetCachedCompressedAlternate(replacementItem.Hash, out compressedAlternateHash);
+
+                // Adjust replacementItem and fileCache according to the given policy for compressed alternates
+                if (compressedAlternateUsage == CompressedAlternateUsage.AlwaysSourceQuality)
+                {
+                    // Nothing to do here--carry on as usual.
+                }
+                else if (compressedAlternateUsage == CompressedAlternateUsage.CompressedNewDownloads)
+                {
+                    // Only use compressed alternates if the original file is not present in the cache.
+                    if (fileCache == null && compressedAlternateConfirmed && compressedAlternateHash != null)
+                    {
+                        Logger.LogTrace("CompressSubstitution[{character}]: {path} is [{new}] instead of source [{old}] (TryCalculateModdedDictionary)", PlayerName, string.Join(',', replacementItem.GamePaths), compressedAlternateHash, replacementItem.Hash);
+                        compressionSubstitutions[replacementItem.Hash] = compressedAlternateHash;
+                        fileCache = _fileDbManager.GetFileCacheByHash(compressedAlternateHash);
+                        replacementItem = new FileReplacementData()
+                        {
+                            GamePaths = replacementItem.GamePaths,
+                            Hash = compressedAlternateHash,
+                        };
+
+                    }
+                }
+                else if (compressedAlternateUsage == CompressedAlternateUsage.AlwaysCompressed)
+                {
+                    if (compressedAlternateConfirmed)
+                    {
+                        // We are certain about the existence of any compressed alternates. If there are, use it. If there aren't, carry on as usual.
+                        if (compressedAlternateHash != null)
+                        {
+                            Logger.LogTrace("CompressSubstitution[{character}]: {path} is [{new}] instead of source [{old}] (TryCalculateModdedDictionary)", PlayerName, string.Join(',', replacementItem.GamePaths), compressedAlternateHash, replacementItem.Hash);
+                            compressionSubstitutions[replacementItem.Hash] = compressedAlternateHash;
+                            fileCache = _fileDbManager.GetFileCacheByHash(compressedAlternateHash);
+                            replacementItem = new FileReplacementData()
+                            {
+                                GamePaths = replacementItem.GamePaths,
+                                Hash = compressedAlternateHash,
+                            };
+                        }
+                    }
+                    else
+                    {
+                        Logger.LogTrace("CompressSubstitution[{character}]: sending {path} source [{old}] for re-download to check for alternates (TryCalculateModdedDictionary)", PlayerName, string.Join(',', replacementItem.GamePaths), replacementItem.Hash);
+                        // Record this hash to send to the download function as 'locally present', so that when it checks for alternates,
+                        // it won't re-download this original file if none exist.
+                        locallyPresentFileSet[replacementItem.Hash] = null;
+
+                        // We don't know whether there are any compressed alternates, so mark this file as needing downloading.
+                        // Once the download starts, if there aren't any, the actual download will be skipped.
+                        fileCache = null;
+                    }
+                }
+                else
+                {
+                    throw new ArgumentException("Invalid compressed alternate usage specified!", nameof(compressedAlternateUsage));
+                }
+
                 if (fileCache != null)
                 {
                     if (string.IsNullOrEmpty(new FileInfo(fileCache.ResolvedFilepath).Extension))
                     {
                         hasMigrationChanges = true;
-                        fileCache = _fileDbManager.MigrateFileHashToExtension(fileCache, item.GamePaths[0].Split(".")[^1]);
+                        fileCache = _fileDbManager.MigrateFileHashToExtension(fileCache, replacementItem.GamePaths[0].Split(".")[^1]);
                     }
 
-                    foreach (var gamePath in item.GamePaths)
+                    foreach (var gamePath in replacementItem.GamePaths)
                     {
-                        outputDict[(gamePath, item.Hash)] = fileCache.ResolvedFilepath;
+                        outputDict[(gamePath, replacementItem.Hash)] = fileCache.ResolvedFilepath;
                     }
                 }
                 else
                 {
-                    Logger.LogTrace("Missing file: {hash}", item.Hash);
-                    missingFiles.Add(item);
+                    Logger.LogTrace("Missing file: {hash}", replacementItem.Hash);
+                    missingFiles.Add(replacementItem);
                 }
             });
 
             moddedDictionary = outputDict.ToDictionary(k => k.Key, k => k.Value);
+            locallyPresentFiles = locallyPresentFileSet.Keys.ToHashSet();
 
             foreach (var item in charaData.FileReplacements.SelectMany(k => k.Value.Where(v => !string.IsNullOrEmpty(v.FileSwapPath))).ToList())
             {
@@ -729,6 +820,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
         catch (Exception ex)
         {
+            locallyPresentFiles = new HashSet<string>();
             Logger.LogError(ex, "[BASE-{appBase}] Something went wrong during calculation replacements", applicationBase);
         }
         if (hasMigrationChanges) _fileDbManager.WriteOutFullCsvImmediate();
