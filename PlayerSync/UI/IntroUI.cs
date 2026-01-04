@@ -439,6 +439,8 @@ public partial class IntroUi : WindowMediatorSubscriberBase
                 _configService.Save();
             }
             UiSharedService.ColorTextWrapped("PlayerSync has near infinite bandwidth available to serve files, the download speed will be subject only to your system and setup.", ImGuiColors.ParsedPurple);
+            ImGuiHelpers.ScaledDummy(5);
+            UiSharedService.ColorTextWrapped("PlayerSync serves BC7 compressed textures when available by default. To change this behavior, go to Settings -> Performance.", ImGuiColors.DalamudYellow);
             ImGui.Separator();
             ImGuiHelpers.ScaledDummy(5);
             if (ImGui.Button("Finish"))

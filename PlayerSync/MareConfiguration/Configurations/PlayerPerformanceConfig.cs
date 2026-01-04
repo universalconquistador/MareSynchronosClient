@@ -55,6 +55,7 @@ public class PlayerPerformanceConfig : IMareConfiguration
     public bool MaxHeightManual { get; set; } = false;
     public int MaxHeightAbsolute { get; set; } = 366;
     public List<string> UIDsToIgnoreForHeightPausing { get; set; } = new();
+    public List<string> UIDsToOverride { get; set; } = new();
 }
 
 public static class PlayerPerformanceConfigExtensions
