@@ -194,7 +194,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
             "Applying Character Data")));
 
-        _forceApplyMods |= forceApplyCustomization;
+        //_forceApplyMods |= forceApplyCustomization;
+        _forceApplyMods = true;
 
         var charaDataToUpdate = characterData.CheckUpdatedData(applicationBase, _cachedData?.DeepClone() ?? new(), Logger, this, forceApplyCustomization, _forceApplyMods);
 
