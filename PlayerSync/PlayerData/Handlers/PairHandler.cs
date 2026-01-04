@@ -410,6 +410,11 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     /// <returns></returns>
     private CompressedAlternateUsage ComputeCompressedAlternateUsage()
     {
+        // whitelist check
+        if (_performanceConfig.Current.UIDsToOverride
+            .Exists(uid => string.Equals(uid, Pair.UserData.Alias, StringComparison.Ordinal) || string.Equals(uid, Pair.UserData.UID, StringComparison.Ordinal)))
+            return CompressedAlternateUsage.AlwaysSourceQuality;
+
         // TODO: Implement finer-grained rules around whether this pair should use compressed alternate files
         return _performanceConfig.Current.TextureCompressionModeOrDefault;
     }
