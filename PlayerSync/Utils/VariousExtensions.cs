@@ -55,6 +55,43 @@ public static class VariousExtensions
         return new CancellationTokenSource();
     }
 
+    private static bool TryGetMtrlTexHashChanges(IReadOnlyList<FileReplacementData> oldRepls, IReadOnlyList<FileReplacementData> newRepls, out List<(string Path, string OldHash, string NewHash)> changed)
+    {
+        static Dictionary<string, string> BuildMap(IReadOnlyList<FileReplacementData> repls)
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in repls)
+            {
+                var hash = r.Hash ?? string.Empty;
+                foreach (var p in r.GamePaths)
+                {
+                    if (p.EndsWith(".mtrl", StringComparison.OrdinalIgnoreCase) || p.EndsWith(".tex", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // we don't care if there are multiple of the same path
+                        map[p] = hash;
+                    }
+                }
+            }
+
+            return map;
+        }
+
+        var oldMap = BuildMap(oldRepls);
+        var newMap = BuildMap(newRepls);
+        changed = new List<(string, string, string)>();
+
+        foreach (var (path, oldHash) in oldMap)
+        {
+            if (!newMap.TryGetValue(path, out var newHash))
+                continue;
+
+            if (!string.Equals(oldHash, newHash, StringComparison.OrdinalIgnoreCase))
+                changed.Add((path, oldHash, newHash));
+        }
+
+        return changed.Count > 0;
+    }
+
     public static Dictionary<ObjectKind, HashSet<PlayerChanges>> CheckUpdatedData(this CharacterData newData, Guid applicationBase,
         CharacterData? oldData, ILogger logger, PairHandler cachedPlayer, bool forceApplyCustomization, bool forceApplyMods)
     {
@@ -132,6 +169,24 @@ public static class VariousExtensions
                                     differentFace, differentHair, differentTail, differenTransients, PlayerChanges.ForcedRedraw);
                                 charaDataToUpdate[objectKind].Add(PlayerChanges.ForcedRedraw);
                             }
+                        }
+
+                        try
+                        {
+                            if (TryGetMtrlTexHashChanges(existingFileReplacements, newFileReplacements, out var changed))
+                            {
+                                logger.LogDebug("[BASE-{appBase}] {object}/{kind} .mtrl/.tex hash changes={Count}. Changes: {Changes}", applicationBase,
+                                    cachedPlayer, objectKind, changed.Count, string.Join(", ", changed.Select(c => $"{c.Path} {c.OldHash} -> {c.NewHash}"))
+                                );
+                                if (changed.Count > 0)
+                                {
+                                    charaDataToUpdate[objectKind].Add(PlayerChanges.ForcedRedraw);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogDebug("[BASE-{appBase}] {object}/{kind} .mtrl/.tex failed to calculate changes", applicationBase, cachedPlayer, objectKind);
                         }
                     }
                 }
