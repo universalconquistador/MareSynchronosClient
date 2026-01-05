@@ -4,7 +4,6 @@ using MareSynchronos.API.Data.Enum;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Text.Json;
 
 namespace MareSynchronos.Utils;
