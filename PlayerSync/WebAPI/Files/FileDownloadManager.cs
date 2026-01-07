@@ -296,12 +296,12 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         {
             var file = downloadFileInfoFromService[i];
 
-            _compressedAlternateManager.SetCompressedAlternate(file.Hash, file.CompressedAlternateFileDownload?.Hash);
+            _compressedAlternateManager.SetCompressedAlternate(file.Hash, file.CompressedAlternateFileDownload?.Hash, file.WillNotBeCompressed);
             bool usingAlternate = false;
             if (file.CompressedAlternateFileDownload != null)
             {
                 // Assume that compressed alternates do not themselves have a compressed alternate
-                _compressedAlternateManager.SetCompressedAlternate(file.CompressedAlternateFileDownload.Hash, null);
+                _compressedAlternateManager.SetCompressedAlternate(file.CompressedAlternateFileDownload.Hash, compressedAlternateHash: null, neverWillHaveAlternate: true);
 
                 // If the compressed alternate usage requests it, download the alternate instead.
                 if (compressedAlternateUsage == CompressedAlternateUsage.CompressedNewDownloads || compressedAlternateUsage == CompressedAlternateUsage.AlwaysCompressed)
