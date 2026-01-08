@@ -52,7 +52,7 @@ namespace PlayerSync.FileCache
         public bool TryGetCachedCompressedAlternate(string sourceFileHash, out string? compressedAlternateHash)
         {
             if (_entryDictionary.TryGetValue(sourceFileHash, out var entry)
-                && (entry.AlternateHash != null || DateTimeOffset.UtcNow >= entry.NextCheck))
+                && (entry.AlternateHash != null || DateTimeOffset.UtcNow < entry.NextCheck))
             {
                 compressedAlternateHash = entry.AlternateHash;
                 return true;
