@@ -793,7 +793,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
         float mySpace = ImGui.GetStyle().ItemSpacing.X;
         float sglobal = ImGui.GetIO().FontGlobalScale;
-        float spacey = 2;
+        float spacey = 1.25f;
 
         ImGui.TextUnformatted("Mandatory Plugins:");
         ImGui.SameLine(0, mySpace * spacey * sglobal);
@@ -821,10 +821,10 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
         ColorText("Moodles", GetBoolColor(_moodlesExists));
         AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
-        //ImGui.SameLine(0, mySpace * spacey * sglobal);
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
 
-        ImGui.TextUnformatted("");
-        ImGui.SameLine(PosiX1);
+        //ImGui.TextUnformatted("");
+        //ImGui.SameLine(PosiX1);
         ColorText("PetNicknames", GetBoolColor(_petNamesExists));
         AttachToolTip($"PetNicknames is " + (_petNamesExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine(0, mySpace * spacey * sglobal);
