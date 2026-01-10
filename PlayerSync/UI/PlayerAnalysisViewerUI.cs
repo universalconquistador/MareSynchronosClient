@@ -344,6 +344,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 // vram numbers
                 int maxVRAMWidth = 0;
                 Dictionary<Pair, string> formattedVRAM = new();
+                Dictionary<Pair, string> compressionRedirects = new();
 
                 foreach (var p in sortedPairs)
                 {
@@ -352,6 +353,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         : "--";
 
                     formattedVRAM[p] = s;
+                    compressionRedirects[p] = p.LastAppliedCompressedAlternates >= 0 ? p.LastAppliedCompressedAlternates.ToString() : "--";
 
                     int vrwidth = (int)ImGui.CalcTextSize(s).X;
                     if (vrwidth > maxVRAMWidth)
@@ -411,6 +413,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     else
                     {
                         TableHelper.CText(mypaddedfilesize, centerHorizontally: true);
+                        UiSharedService.AttachToolTip($"Compression redirects: {compressionRedirects[pair]} (Go to Settings > Performance to manage automatic compression)");
                     }
 
                     // VRAM Column 

@@ -4,10 +4,12 @@ using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto.Files;
 using MareSynchronos.API.Routes;
 using MareSynchronos.FileCache;
+using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI.Files.Models;
 using Microsoft.Extensions.Logging;
+using PlayerSync.FileCache;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
@@ -21,6 +23,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
     private readonly FileCompactor _fileCompactor;
     private readonly FileCacheManager _fileDbManager;
     private readonly FileTransferOrchestrator _orchestrator;
+    private readonly ICompressedAlternateManager _compressedAlternateManager;
 
     private readonly object _downloadInfoLock = new object();
     private readonly List<ThrottledStream> _activeDownloadStreams;
@@ -28,12 +31,13 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
     public FileDownloadManager(ILogger<FileDownloadManager> logger, MareMediator mediator,
         FileTransferOrchestrator orchestrator,
-        FileCacheManager fileCacheManager, FileCompactor fileCompactor) : base(logger, mediator)
+        FileCacheManager fileCacheManager, FileCompactor fileCompactor, ICompressedAlternateManager compressedAlternateManager) : base(logger, mediator)
     {
         _downloadStatus = new ConcurrentDictionary<string, FileDownloadStatus>(StringComparer.Ordinal);
         _orchestrator = orchestrator;
         _fileDbManager = fileCacheManager;
         _fileCompactor = fileCompactor;
+        _compressedAlternateManager = compressedAlternateManager;
         _activeDownloadStreams = [];
 
         Mediator.Subscribe<DownloadLimitChangedMessage>(this, (msg) =>
@@ -71,7 +75,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         _downloadStatus.Clear();
     }
 
-    public async Task DownloadFiles(GameObjectHandler gameObject, List<FileReplacementData> fileReplacementDto, CancellationToken ct)
+    public async Task DownloadFiles(GameObjectHandler gameObject, List<FileReplacementData> fileReplacementDto, Dictionary<string, string> compressionSubstitutions, CancellationToken ct)
     {
         var shouldPublishHalt = Interlocked.Increment(ref _downloadHaltRefCount) == 1;
         if (shouldPublishHalt)
@@ -80,7 +84,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
         try
         {
-            await DownloadFilesInternal(gameObject, fileReplacementDto, ct).ConfigureAwait(false);
+            await DownloadFilesInternal(gameObject, fileReplacementDto, compressionSubstitutions, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -269,7 +273,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         }
     }
 
-    public async Task<List<DownloadFileTransfer>> InitiateDownloadList(GameObjectHandler gameObjectHandler, List<FileReplacementData> fileReplacement, CancellationToken ct)
+    public async Task<List<DownloadFileTransfer>> InitiateDownloadList(GameObjectHandler gameObjectHandler, List<FileReplacementData> fileReplacement, CompressedAlternateUsage compressedAlternateUsage, Dictionary<string, string> compressedSubstitutions, HashSet<string> locallyPresentFiles, CancellationToken ct)
     {
         Logger.LogDebug("Download start: {id}", gameObjectHandler.Name);
 
@@ -288,13 +292,42 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             }
         }
 
+        for (int i = 0; i < downloadFileInfoFromService.Count; i++)
+        {
+            var file = downloadFileInfoFromService[i];
+
+            _compressedAlternateManager.SetCompressedAlternate(file.Hash, file.CompressedAlternateFileDownload?.Hash, file.WillNotBeCompressed);
+            bool usingAlternate = false;
+            if (file.CompressedAlternateFileDownload != null)
+            {
+                // Assume that compressed alternates do not themselves have a compressed alternate
+                _compressedAlternateManager.SetCompressedAlternate(file.CompressedAlternateFileDownload.Hash, compressedAlternateHash: null, neverWillHaveAlternate: true);
+
+                // If the compressed alternate usage requests it, download the alternate instead.
+                if (compressedAlternateUsage == CompressedAlternateUsage.CompressedNewDownloads || compressedAlternateUsage == CompressedAlternateUsage.AlwaysCompressed)
+                {
+                    usingAlternate = true;
+                    Logger.LogDebug("Preparing to download compressed file {compressed} instead of original file {original}.", file.CompressedAlternateFileDownload.Hash, file.Hash);
+                    downloadFileInfoFromService[i] = file.CompressedAlternateFileDownload;
+                    compressedSubstitutions[file.Hash] = file.CompressedAlternateFileDownload.Hash;
+                }
+            }
+
+            // If we were asked to download a locally present file, we were just checking if it has an alternate; no need to redownload it.
+            if (locallyPresentFiles.Contains(file.Hash) && !usingAlternate)
+            {
+                downloadFileInfoFromService.RemoveAt(i);
+                i--;
+            }
+        }
+
         CurrentDownloads = downloadFileInfoFromService.Distinct().Select(d => new DownloadFileTransfer(d))
             .Where(d => d.CanBeTransferred).ToList();
 
         return CurrentDownloads;
     }
 
-    private async Task DownloadFilesInternal(GameObjectHandler gameObjectHandler, List<FileReplacementData> fileReplacement, CancellationToken ct)
+    private async Task DownloadFilesInternal(GameObjectHandler gameObjectHandler, List<FileReplacementData> fileReplacement, Dictionary<string, string> compressionSubstitutions, CancellationToken ct)
     {
         // Separate out the files with direct download URLs
         var directDownloads = CurrentDownloads.Where(download => !string.IsNullOrEmpty(download.DirectDownloadUrl)).ToList();
@@ -389,7 +422,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
             try
             {
-                var fileExtension = fileReplacement.First(f => string.Equals(f.Hash, directDownload.Hash, StringComparison.OrdinalIgnoreCase)).GamePaths[0].Split(".")[^1];
+                var fileExtension = fileReplacement.First(f => string.Equals(compressionSubstitutions.GetValueOrDefault(f.Hash, f.Hash), directDownload.Hash, StringComparison.OrdinalIgnoreCase)).GamePaths[0].Split(".")[^1];
                 var finalFilename = _fileDbManager.GetCacheFilePath(directDownload.Hash, fileExtension);
                 Logger.LogDebug("Decompressing direct download {hash} from {compressedFile} to {finalFile}", directDownload.Hash, tempFilename, finalFilename);
                 byte[] compressedBytes = await File.ReadAllBytesAsync(tempFilename).ConfigureAwait(false);

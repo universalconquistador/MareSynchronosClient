@@ -10,6 +10,7 @@ using MareSynchronos.API.Routes;
 using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
@@ -62,8 +63,10 @@ public class SettingsUi : WindowMediatorSubscriberBase
     private bool _readClearCache = false;
     private int _selectedEntry = -1;
     private int _selectedHeightEntry = -1;
+    private int _selectedOverrideEntry = -1;
     private string _uidToAddForIgnore = string.Empty;
     private string _uidToAddForHeightIgnore = string.Empty;
+    private string _uidToAddForOverride = string.Empty;
     private CancellationTokenSource? _validationCts;
     private Task<List<FileCacheEntity>>? _validationTask;
     private bool _wasOpen = false;
@@ -1390,10 +1393,94 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
     private void DrawPerformance()
     {
-        _uiShared.BigText("Performance Settings");
-        UiSharedService.TextWrapped("The configuration options here are to give you more informed warnings and automation when it comes to other performance-intensive synced players.");
+        _uiShared.BigText("Auto Texture Compression");
+        UiSharedService.TextWrapped("Options for using the PlayerSync servers' automatically-compressed versions of players' uncompressed textures.");
+        UiSharedService.ColorTextWrapped("Conversion to BC7 does not happen on your PC. There is no negative performance impact in using this feature.", ImGuiColors.DalamudYellow);
+        UiSharedService.TextWrapped("This option applies to texture downloads for other players, you should still compress your own mods as well.");
+        //ImGui.Dummy(new Vector2(10));
+        //ImGui.Separator();
+        ImGui.Dummy(new Vector2(10));
+        ImGui.Text("Automatic Compression Mode");
+        using (ImRaii.PushIndent())
+        {
+            var textureCompressionMode = _playerPerformanceConfigService.Current.TextureCompressionModeOrDefault;
+            _uiShared.DrawHelpText("The PlayerSync server automatically compresses uncompressed textures from other players. Here you can opt to use these compressed textures when available.");
+
+            if (ImGui.RadioButton("Always use source quality", ref textureCompressionMode, MareConfiguration.Configurations.CompressedAlternateUsage.AlwaysSourceQuality))
+            {
+                _playerPerformanceConfigService.Current.TextureCompressionMode = textureCompressionMode;
+                _playerPerformanceConfigService.Save();
+            }
+            _uiShared.DrawHelpText("Downloads and applies the exact textures uploaded by other players, even if uncompressed.\nThis is the the same behavior as before server compression was introduced.\n\nThis choice uses more bandwidth, storage, and VRAM.");
+
+            if (ImGui.RadioButton("Use automatically compressed textures for new downloads", ref textureCompressionMode, MareConfiguration.Configurations.CompressedAlternateUsage.CompressedNewDownloads))
+            {
+                _playerPerformanceConfigService.Current.TextureCompressionMode = textureCompressionMode;
+                _playerPerformanceConfigService.Save();
+            }
+            _uiShared.DrawHelpText("Downloads and applies automatically-compressed versions of other players' uncompressed textures, unless the original texture has already been downloaded.\n\nThis choice saves bandwidth, storage, and VRAM, but only with new downloads.");
+
+            if (ImGui.RadioButton("Always use automatically compressed textures", ref textureCompressionMode, MareConfiguration.Configurations.CompressedAlternateUsage.AlwaysCompressed))
+            {
+                _playerPerformanceConfigService.Current.TextureCompressionMode = textureCompressionMode;
+                _playerPerformanceConfigService.Save();
+            }
+            _uiShared.DrawHelpText("Downloads and applies automatically-compressed versions of other players' uncompressed textures.\n\nThis choice saves the most bandwidth, storage, and VRAM, but it does not clear out any uncompressed textures that have been already downloaded.");
+        }
+
+        //ImGui.Dummy(new Vector2(10));
+        _uiShared.BigText("Override UIDs");
+        UiSharedService.TextWrapped("The entries in the list below will always use source quality.");
+        ImGui.Dummy(new Vector2(10));
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        ImGui.InputText("##overrideuids", ref _uidToAddForOverride, 20);
+        ImGui.SameLine();
+        using (ImRaii.Disabled(string.IsNullOrEmpty(_uidToAddForOverride)))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Plus, "Add UID/Vanity ID to overrides"))
+            {
+                if (!_playerPerformanceConfigService.Current.UIDsToOverride.Contains(_uidToAddForOverride, StringComparer.Ordinal))
+                {
+                    _playerPerformanceConfigService.Current.UIDsToOverride.Add(_uidToAddForOverride);
+                    _playerPerformanceConfigService.Save();
+                }
+                _uidToAddForOverride = string.Empty;
+            }
+        }
+        _uiShared.DrawHelpText("Hint: UIDs are case sensitive.");
+        var overrideList = _playerPerformanceConfigService.Current.UIDsToOverride;
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        using (var lb = ImRaii.ListBox("UID overrides"))
+        {
+            if (lb)
+            {
+                for (int i = 0; i < overrideList.Count; i++)
+                {
+                    bool shouldBeSelected = _selectedOverrideEntry == i;
+                    if (ImGui.Selectable(overrideList[i] + "##" + i, shouldBeSelected))
+                    {
+                        _selectedOverrideEntry = i;
+                    }
+                }
+            }
+        }
+        using (ImRaii.Disabled(_selectedOverrideEntry == -1))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete selected UID"))
+            {
+                _playerPerformanceConfigService.Current.UIDsToOverride.RemoveAt(_selectedOverrideEntry);
+                _selectedOverrideEntry = -1;
+                _playerPerformanceConfigService.Save();
+            }
+        }
+
         ImGui.Dummy(new Vector2(10));
         ImGui.Separator();
+
+        _uiShared.BigText("Auto Threshold Pausing");
+        UiSharedService.TextWrapped("Configure options to warn and/or pause players exceeding your performance thresholds.");
+        //ImGui.Dummy(new Vector2(10));
+        //ImGui.Separator();
         ImGui.Dummy(new Vector2(10));
         bool showPerformanceIndicator = _playerPerformanceConfigService.Current.ShowPerformanceIndicator;
         if (ImGui.Checkbox("Show performance indicator", ref showPerformanceIndicator))
