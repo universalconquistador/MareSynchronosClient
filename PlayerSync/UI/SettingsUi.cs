@@ -1040,31 +1040,31 @@ public class SettingsUi : WindowMediatorSubscriberBase
 
         }
 
-        if (ImGui.Checkbox("Replace FC tags with PlayerSync permissions", ref showPermsOverFC))
-        {
-            _configService.Current.ShowPermsInsteadOfFCTags = showPermsOverFC;
-            _configService.Save();
-            Mediator.Publish(new RedrawNameplateMessage());
-        }
-        _uiShared.DrawHelpText("This will replace FC tags with your visible pairs permissions, color coded based on permission status.");
+        // if (ImGui.Checkbox("Replace FC tags with PlayerSync permissions", ref showPermsOverFC))
+        // {
+        //     _configService.Current.ShowPermsInsteadOfFCTags = showPermsOverFC;
+        //     _configService.Save();
+        //     Mediator.Publish(new RedrawNameplateMessage());
+        // }
+        // _uiShared.DrawHelpText("This will replace FC tags with your visible pairs permissions, color coded based on permission status.");
 
-        using (ImRaii.Disabled(!showPermsOverFC))
-        {
-            using var indent = ImRaii.PushIndent();
-            if (InputColorPicker("Enabled Color", ref permColorsEnabled))
-            {
-                _configService.Current.PermsColorsEnabled = permColorsEnabled;
-                _configService.Save();
-                Mediator.Publish(new RedrawNameplateMessage());
-            }
-            ImGui.SameLine();
-            if (InputColorPicker("Disabled Color", ref permsColorsDisabled))
-            {
-                _configService.Current.PermsColorsDisabled = permsColorsDisabled;
-                _configService.Save();
-                Mediator.Publish(new RedrawNameplateMessage());
-            }
-        }
+        // using (ImRaii.Disabled(!showPermsOverFC))
+        // {
+        //     using var indent = ImRaii.PushIndent();
+        //     if (InputColorPicker("Enabled Color", ref permColorsEnabled))
+        //     {
+        //         _configService.Current.PermsColorsEnabled = permColorsEnabled;
+        //         _configService.Save();
+        //         Mediator.Publish(new RedrawNameplateMessage());
+        //     }
+        //     ImGui.SameLine();
+        //     if (InputColorPicker("Disabled Color", ref permsColorsDisabled))
+        //     {
+        //        _configService.Current.PermsColorsDisabled = permsColorsDisabled;
+        //         _configService.Save();
+        //         Mediator.Publish(new RedrawNameplateMessage());
+        //     }
+        // }
 
         if (ImGui.Checkbox("Display status and visible pair count in Server Info Bar", ref enableDtrEntry))
         {
