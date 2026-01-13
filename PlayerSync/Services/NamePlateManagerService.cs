@@ -78,7 +78,7 @@ namespace PlayerSync.Services
                 var color = _configService.Current.NameHighlightColor;
                 var fcTagBuilder = new SeStringBuilder();
 
-                if (_configService.Current.ShowPermsInsteadOfFCTags)
+                if (_configService.Current.ShowPermsInsteadOfFCTags && false)
                 {
                     var permsSelf = pair.UserPair.OwnPermissions;
                     var permsOther = pair.UserPair.OtherPermissions;
