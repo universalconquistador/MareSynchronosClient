@@ -201,17 +201,10 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         }
 
         var t = UiTheme.Default;
-        var style = ImGui.GetStyle();
-        var padFooter = UiScale.S(10f);
-        var padRight = UiScale.S(26f);
-        var padBottom = UiScale.S(10f);
-        var footerExtra = UiScale.S(8f);
-        var footerH = padFooter + padBottom + ImGui.GetFrameHeight() + footerExtra + padFooter;
-        var avail = ImGui.GetContentRegionAvail();
-        var contentH = Math.Max(0, avail.Y - footerH);
 
-        _uiShared.BigText("PlayerSync Setup Wizard");
-        Ui.Hr(t);
+        //_uiShared.BigText("PlayerSync Setup Wizard");
+        //Ui.Hr(t);
+        //ImGuiHelpers.ScaledDummy(5f);
 
         _selectedNavItem = UiNav.DrawSidebar(t, "", _navItems, _selectedNavItem, widthPx: 180f, iconFont: _uiShared.IconFont);
 
@@ -224,6 +217,15 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
 
         Ui.VSpace(2);
+
+        var style = ImGui.GetStyle();
+        var padFooter = UiScale.S(10f);
+        var padRight = UiScale.S(26f);
+        var padBottom = UiScale.S(10f);
+        var footerExtra = UiScale.S(8f);
+        var footerH = padFooter + padBottom + ImGui.GetFrameHeight() + footerExtra + padFooter;
+        var avail = ImGui.GetContentRegionAvail();
+        var contentH = Math.Max(0, avail.Y - footerH);
 
         using (var content = ImRaii.Child("##setup-content", new Vector2(0, contentH), false))
         {
