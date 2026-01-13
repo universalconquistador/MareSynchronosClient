@@ -13,6 +13,7 @@ using MareSynchronos.Services.CharaData;
 using MareSynchronos.Services.CharaData.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.UI.ModernUi;
 using MareSynchronos.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -151,6 +152,8 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
+        using var _ = UiTheme.Default.PushWindowStyle();
+
         if (!_comboHybridUsedLastFrame)
         {
             _openComboHybridId = null;

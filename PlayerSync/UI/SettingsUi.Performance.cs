@@ -12,7 +12,14 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
-    private UiNav.Tab? _selectedTabPerformance;
+    private UiNav.Tab<PerformanceTabs>? _selectedTabPerformance;
+
+    private enum PerformanceTabs
+    {
+        Texture,
+        Threshold,
+        Height
+    }
 
     private void DrawPerformanceSettings()
     {
@@ -21,15 +28,15 @@ public partial class SettingsUi
         var t = UiTheme.Default;
         _selectedTabPerformance = UiNav.DrawTabsUnderline(t,
             [
-            new("tex", "Auto Texture Compression", (Action)DrawPerformanceTextureCompression),
-            new("thresh", "Auto Threshold Pausing", (Action)DrawPerformanceThresholdPausing),
-            new("height", "Auto Height Pausing", (Action)DrawPerformanceHeightPausing),
+            new(PerformanceTabs.Texture, "Auto Texture Compression", DrawPerformanceTextureCompression),
+            new(PerformanceTabs.Threshold, "Auto Threshold Pausing", DrawPerformanceThresholdPausing),
+            new(PerformanceTabs.Height, "Auto Height Pausing", DrawPerformanceHeightPausing),
             ],
             _selectedTabPerformance,
             _uiShared.IconFont
             );
 
-        using var child = ImRaii.Child("##panel", new Vector2(0, 0), true);
+        using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 
         _selectedTabPerformance.TabAction.Invoke();
     }

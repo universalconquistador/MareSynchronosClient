@@ -5,6 +5,7 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.ModernUi;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using System.Numerics;
@@ -20,14 +21,14 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
 
     public CreateSyncshellUI(ILogger<CreateSyncshellUI> logger, MareMediator mareMediator, ApiController apiController, UiSharedService uiSharedService,
         PerformanceCollectorService performanceCollectorService)
-        : base(logger, mareMediator, "Create new Syncshell###PlayerSyncCreateSyncshell", performanceCollectorService)
+        : base(logger, mareMediator, "Create New Syncshell###PlayerSyncCreateSyncshell", performanceCollectorService)
     {
         _apiController = apiController;
         _uiSharedService = uiSharedService;
         SizeConstraints = new()
         {
-            MinimumSize = new(550, 330),
-            MaximumSize = new(550, 330)
+            MinimumSize = new(550, 350),
+            MaximumSize = new(550, 350)
         };
 
         Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse;
@@ -37,8 +38,10 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
+        using var _ = UiTheme.Default.PushWindowStyle();
+
         using (_uiSharedService.UidFont.Push())
-            ImGui.TextUnformatted("Create new Syncshell");
+            ImGui.TextUnformatted("Create New Syncshell");
 
         if (_lastCreatedGroup == null)
         {
@@ -56,7 +59,7 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
             }
             ImGui.SameLine();
         }
-
+        ImGuiHelpers.ScaledDummy(5f);
         ImGui.Separator();
 
         if (_lastCreatedGroup == null)

@@ -131,8 +131,8 @@ internal sealed partial class CharaDataHubUi
 	{
 		SizeConstraints = new()
 		{
-			MinimumSize = new((inGposeTab ?? false) ? 400 : 1000, 500),
-			MaximumSize = new((inGposeTab ?? false) ? 400 : 1000, 2000)
+			MinimumSize = new((inGposeTab ?? false) ? 450 : 1100, 500),
+			MaximumSize = new((inGposeTab ?? false) ? 450 : 1100, 2000)
 		};
 	}
 

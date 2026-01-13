@@ -21,7 +21,14 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
-    private UiNav.Tab? _selectedTabService;
+    private UiNav.Tab<ServiceTabs>? _selectedTabService;
+
+    private enum ServiceTabs
+    {
+        Service,
+        Permissions,
+        Account
+    }
 
     private void DrawServiceSettings()
     {
@@ -30,14 +37,14 @@ public partial class SettingsUi
         var t = UiTheme.Default;
         _selectedTabService = UiNav.DrawTabsUnderline(t,
             [
-            new("service", "Service", (Action)DrawService),
-            new("permissions", "Permissions", (Action)DrawServicePermissions),
-            new("account", "Account", (Action)DrawServiceAccount),
+            new(ServiceTabs.Service, "Service", DrawService),
+            new(ServiceTabs.Permissions, "Permissions", DrawServicePermissions),
+            new(ServiceTabs.Account, "Account", DrawServiceAccount),
             ],
             _selectedTabService, 
             _uiShared.IconFont);
 
-        using var child = ImRaii.Child("##panel", new Vector2(0, 0), true);
+        using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 
         _selectedTabService.TabAction.Invoke();
     }
@@ -671,6 +678,8 @@ public partial class SettingsUi
                 {
                     _ = Task.Run(ApiController.UserDelete);
                     _deleteAccountPopupModalShown = false;
+                    _configService.Current.FirstTimeSetupComplete = false;
+                    _configService.Save();
                     Mediator.Publish(new SwitchToIntroUiMessage());
                 }
 

@@ -17,16 +17,18 @@ public static class UiNav
     /// <summary>
     /// NavItem contains everything to display and control actions for sidebars
     /// </summary>
+    /// <typeparam name="TId"></typeparam>
     /// <param name="Id"></param>
     /// <param name="Label"></param>
     /// <param name="NavAction"></param>
     /// <param name="Icon"></param>
     /// <param name="Enabled"></param>
-    public sealed record NavItem(string Id, string Label, Action NavAction, FontAwesomeIcon? Icon = null, bool Enabled = true);
+    public sealed record NavItem<TId>(TId Id, string Label, Action NavAction, FontAwesomeIcon? Icon = null, bool Enabled = true) where TId : struct, Enum;
 
     /// <summary>
     /// Returns a navitem which can be used for logic/display and passed in next draw
     /// </summary>
+    /// <typeparam name="TId"></typeparam>
     /// <param name="t"></param>
     /// <param name="title"></param>
     /// <param name="groups"></param>
@@ -34,7 +36,8 @@ public static class UiNav
     /// <param name="widthPx"></param>
     /// <param name="iconFont"></param>
     /// <returns></returns>
-    public static NavItem DrawSidebar(UiTheme t, string title, IReadOnlyList<(string GroupLabel, IReadOnlyList<NavItem> Items)> groups, NavItem? selectedNavItem, float widthPx = 210f, IFontHandle? iconFont = null)
+    public static NavItem<TId> DrawSidebar<TId>(UiTheme t, string title, IReadOnlyList<(string GroupLabel, IReadOnlyList<NavItem<TId>> Items)> groups,
+        NavItem<TId>? selectedNavItem, float widthPx = 210f, IFontHandle? iconFont = null) where TId : struct, Enum
     {
         var width = UiScale.S(widthPx);
         var pad = UiScale.S(10f);
@@ -51,11 +54,11 @@ public static class UiNav
 
         using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(pad, pad)))
         {
-            using (ImRaii.PushColor(ImGuiCol.Text, t.Text))
-                ImGui.TextUnformatted(title);
+            //using (ImRaii.PushColor(ImGuiCol.Text, t.Text))
+            //    ImGui.TextUnformatted(title);
 
-            Ui.VSpace(6);
-            Ui.Hr(t);
+            //Ui.VSpace(6);
+            //Ui.Hr(t);
 
             // layout constants
             var rowH = UiScale.S(34f);
@@ -70,10 +73,10 @@ public static class UiNav
 
                 foreach (var item in items)
                 {
-                    var isSelected = item.Id == selectedNavItem.Id;
+                    var isSelected = Convert.ToInt32(item.Id) == Convert.ToInt32(selectedNavItem.Id);
 
                     using var disabled = ImRaii.Disabled(!item.Enabled);
-                    using var id = ImRaii.PushId(item.Id);
+                    using var id = ImRaii.PushId(Convert.ToInt32(item.Id));
 
                     var bg = isSelected ? new Vector4(t.Primary.X, t.Primary.Y, t.Primary.Z, 0.20f) : new Vector4(1, 1, 1, 0.00f);
                     var hov = isSelected ? new Vector4(t.Primary.X, t.Primary.Y, t.Primary.Z, 0.28f) : t.HoverOverlay;
@@ -139,22 +142,24 @@ public static class UiNav
     /// <summary>
     /// Tabs contain everything to control a horizontal tab navbar
     /// </summary>
+    /// <typeparam name="TId"></typeparam>
     /// <param name="Id"></param>
     /// <param name="Label"></param>
     /// <param name="TabAction"></param>
     /// <param name="Icon"></param>
     /// <param name="Enabled"></param>
-    public sealed record Tab(string Id, string Label, Action TabAction, FontAwesomeIcon? Icon = null, bool Enabled = true);
+    public sealed record Tab<TId>(TId Id, string Label, Action TabAction, FontAwesomeIcon? Icon = null, bool Enabled = true) where TId : struct, Enum;
 
     /// <summary>
     /// Returns a tab item which can be used for logic/display or passed in next draw
     /// </summary>
+    /// <typeparam name="TId"></typeparam>
     /// <param name="t"></param>
     /// <param name="tabs"></param>
     /// <param name="selectedTab"></param>
     /// <param name="iconFont"></param>
     /// <returns></returns>
-    public static Tab DrawTabsUnderline(UiTheme t, IReadOnlyList<Tab> tabs, Tab? selectedTab, IFontHandle? iconFont = null)
+    public static Tab<TId> DrawTabsUnderline<TId>(UiTheme t, IReadOnlyList<Tab<TId>> tabs, Tab<TId>? selectedTab, IFontHandle? iconFont = null) where TId : struct, Enum
     {
         if (selectedTab == null)
         {
@@ -172,7 +177,7 @@ public static class UiNav
             var isSel = tab == selectedTab;
 
             using var disabled = ImRaii.Disabled(!tab.Enabled);
-            using var id = ImRaii.PushId(tab.Id);
+            using var id = ImRaii.PushId(Convert.ToInt32(tab.Id));
 
             using var c = ImRaii.PushColor(ImGuiCol.Button, new Vector4(1, 1, 1, 0));
             using var ch = ImRaii.PushColor(ImGuiCol.ButtonHovered, t.HoverOverlay);

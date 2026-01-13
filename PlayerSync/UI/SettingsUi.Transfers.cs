@@ -14,7 +14,14 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
-    private UiNav.Tab? _selectedTabTransfers;
+    private UiNav.Tab<TransfersTabs>? _selectedTabTransfers;
+
+    private enum TransfersTabs
+    {
+        Bandwidth,
+        Overlay,
+        Current
+    }
 
     private void DrawTransferSettings()
     {
@@ -23,14 +30,14 @@ public partial class SettingsUi
         var t = UiTheme.Default;
         _selectedTabTransfers = UiNav.DrawTabsUnderline(t,
             [
-                new("bandwidth", "Bandwidth", (Action)DrawTransfersBandwidth),
-                new("overlay", "Overlay", (Action)DrawTransfersOverlay),
-                new("current", "Current", (Action)DrawTransfersCurrent),
+                new(TransfersTabs.Bandwidth, "Bandwidth", DrawTransfersBandwidth),
+                new(TransfersTabs.Overlay, "Overlay", DrawTransfersOverlay),
+                new(TransfersTabs.Current, "Current", DrawTransfersCurrent),
             ],
             _selectedTabTransfers,
             _uiShared.IconFont);
 
-        using var child = ImRaii.Child("##panel", new Vector2(0, 0), true);
+        using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 
         _selectedTabTransfers.TabAction.Invoke();
     }

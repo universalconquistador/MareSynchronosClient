@@ -8,6 +8,7 @@ using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.ModernUi;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
@@ -83,6 +84,8 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
+        using var theme = UiTheme.Default.PushWindowStyle();
+
         using (_uiSharedService.UidFont.Push())
             //ImGui.TextUnformatted(_groupJoinInfo == null || !_groupJoinInfo.Success ? "Join Syncshell" : "Finalize join Syncshell " + _groupJoinInfo.GroupAliasOrGID);
             if (_groupJoinInfo == null || !_groupJoinInfo.Success)

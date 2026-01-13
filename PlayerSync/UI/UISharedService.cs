@@ -466,6 +466,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
     public void DrawCacheDirectorySetting()
     {
+        ImGuiHelpers.ScaledDummy(5);
         ColorTextWrapped("Note: The storage folder should be somewhere close to root (i.e. C:\\SyncStorage) in a new empty folder. DO NOT point this to your game folder. DO NOT point this to your Penumbra folder.", ImGuiColors.DalamudYellow);
         ColorTextWrapped("Do NOT share this folder with other syncs, it will conflict and cause issues.", ImGuiColors.DalamudRed);
         var cacheDirectory = _configService.Current.CacheFolder;
@@ -588,7 +589,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public void DrawFileScanState()
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("File Scanner Status");
+        ImGui.TextUnformatted("File Scanner Status:");
         ImGui.SameLine();
         if (_cacheMonitor.IsScanRunning)
         {

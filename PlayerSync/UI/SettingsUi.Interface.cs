@@ -15,22 +15,30 @@ public partial class SettingsUi
     private bool? _notesSuccessfullyApplied = null;
     private bool _overwriteExistingLabels = false;
 
-    private UiNav.Tab? _selectedTabInterface;
+    private UiNav.Tab<InterfaceTabs>? _selectedTabInterface;
+
+    private enum InterfaceTabs
+    {
+        Ui,
+        Game,
+        Notes,
+        Notifications
+    }
 
     private void DrawInterfaceSettings()
     {
         var t = UiTheme.Default;
         _selectedTabInterface = UiNav.DrawTabsUnderline(t,
             [
-            new("psui", "PlayerSync UI", (Action)DrawInterfacePlayerSyncUi),
-            new("game", "Game UI", (Action)DrawInterfaceGameUi),
-            new("notes", "Notes", (Action)DrawInterfaceNotes),
-            new("notifs", "Notifications", (Action)DrawInterfaceNotifications),
+            new(InterfaceTabs.Ui, "PlayerSync UI", DrawInterfacePlayerSyncUi),
+            new(InterfaceTabs.Game, "Game UI", DrawInterfaceGameUi),
+            new(InterfaceTabs.Notes, "Notes", DrawInterfaceNotes),
+            new(InterfaceTabs.Notifications, "Notifications", DrawInterfaceNotifications),
             ],
             _selectedTabInterface, 
             _uiShared.IconFont);
 
-        using var child = ImRaii.Child("##panel", new Vector2(0, 0), true);
+        using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 
         _selectedTabInterface.TabAction.Invoke();
     }

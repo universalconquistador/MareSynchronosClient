@@ -39,6 +39,9 @@ public sealed class UiTheme
     public float PanelPadding { get; init; } = 10f;
     public float Gutter { get; init; } = 8f;
 
+    public float PanelPad { get; init; } = 20f;
+    public float PanelGap { get; init; } = 12f;
+
     public static UiTheme Default { get; } = new();
 
     /// <summary>

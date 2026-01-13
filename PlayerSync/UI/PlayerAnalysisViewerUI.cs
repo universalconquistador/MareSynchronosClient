@@ -32,7 +32,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private bool _manualRefresh = false;
     private readonly HashSet<string> _pauseClicked = new();
     private readonly Dictionary<string, UserPermissions> _edited = new(StringComparer.Ordinal);
-    private UiNav.Tab? _selectedTab;
+    private UiNav.Tab<AnalysisTabs>? _selectedTab;
 
     public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
         UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService,
@@ -88,6 +88,13 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
     private static ImmutableList<Pair> ImmutablePairList(IEnumerable<KeyValuePair<Pair, List<GroupFullInfoDto>>> u) => u.Select(k => k.Key).ToImmutableList();
 
+    private enum AnalysisTabs
+    {
+        Visible,
+        Paused,
+        Permissions
+    }
+
     protected override void DrawInternal()
     {
         var t = UiTheme.Default;
@@ -96,9 +103,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         _selectedTab = UiNav.DrawTabsUnderline(
             t,
             [
-                new UiNav.Tab("visible", "Visible Players", (Action)DrawVisible, FontAwesomeIcon.Eye),
-                new UiNav.Tab("paused", "Paused Pairs", (Action)DrawPaused, FontAwesomeIcon.Pause),
-                new UiNav.Tab("permissions", "Permissions", (Action)DrawPermissions, FontAwesomeIcon.Key),
+                new(AnalysisTabs.Visible, "Visible Players", DrawVisible, FontAwesomeIcon.Eye),
+                new(AnalysisTabs.Paused, "Paused Pairs", DrawPaused, FontAwesomeIcon.Pause),
+                new(AnalysisTabs.Permissions, "Permissions", DrawPermissions, FontAwesomeIcon.Key),
             ],
             _selectedTab,
             iconFont: _uiSharedService.IconFont);

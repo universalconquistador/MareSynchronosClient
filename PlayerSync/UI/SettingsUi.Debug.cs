@@ -11,21 +11,27 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
-    private UiNav.Tab? _selectedTabDebug;
+    private UiNav.Tab<DebugTabs>? _selectedTabDebug;
+
+    private enum DebugTabs
+    {
+        Debug,
+        Data
+    }
 
     private void DrawDebugSettings()
     {
         var t = UiTheme.Default;
         _selectedTabDebug = UiNav.DrawTabsUnderline(t,
             [
-                new("debug", "Debug", (Action)DrawDebug),
-                new("data", "Data", (Action)DrawDebugData),
+                new(DebugTabs.Debug, "Debug", DrawDebug),
+                new(DebugTabs.Data, "Data", DrawDebugData),
             ],
             _selectedTabDebug, 
             _uiShared.IconFont
             );
 
-        using var child = ImRaii.Child("##panel", new Vector2(0, 0), true);
+        using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 
         _selectedTabDebug.TabAction.Invoke();
     }

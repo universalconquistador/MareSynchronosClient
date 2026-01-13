@@ -12,7 +12,15 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
-    private UiNav.Tab? _selectedTabSync;
+    private UiNav.Tab<SyncTabs>? _selectedTabSync;
+
+    private enum SyncTabs
+    {
+        Zone,
+        Broadcast,
+        Filter,
+        Permissions
+    }
 
     private void DrawSyncSettings()
     {
@@ -21,15 +29,15 @@ public partial class SettingsUi
         var t = UiTheme.Default;
         _selectedTabSync = UiNav.DrawTabsUnderline(t,
             [
-                new("zone", "ZoneSync", (Action)DrawSyncZone),
-                new("broadcast", "Broadcasts", (Action)DrawSyncBroadcast),
-                new("filter", "Filtering", (Action)DrawSyncFilter),
-                new("permissions", "Permissions", (Action)GoToPermissions),
+                new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
+                new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),
+                new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
+                new(SyncTabs.Permissions, "Permissions", GoToPermissions),
             ],
             _selectedTabSync, 
             _uiShared.IconFont);
             
-        using var child = ImRaii.Child("##panel", new Vector2(0, 0), true);
+        using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 
         _selectedTabSync.TabAction.Invoke();
     }
@@ -208,8 +216,8 @@ public partial class SettingsUi
     private void GoToPermissions()
     {
         _selectedTabSync = null;
-        _selectedNavItem = new("service", "Service Settings", (Action)DrawServiceSettings, FontAwesomeIcon.Server);
+        _selectedNavItem = new(SettingsNav.Service, "Service Settings", DrawServiceSettings, FontAwesomeIcon.Server);
         DrawService();
-        _selectedTabService = new("permissions", "Permissions", (Action)DrawServicePermissions);
+        _selectedTabService = new(ServiceTabs.Permissions, "Permissions", DrawServicePermissions);
     }
 }

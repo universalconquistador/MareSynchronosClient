@@ -10,7 +10,13 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
-    private UiNav.Tab? _selectedTabStorage;
+    private UiNav.Tab<StorageTabs>? _selectedTabStorage;
+
+    private enum StorageTabs
+    {
+        Storage,
+        Clear
+    }
 
     private void DrawStorageSettings()
     {
@@ -19,13 +25,13 @@ public partial class SettingsUi
         var t = UiTheme.Default;
         _selectedTabStorage = UiNav.DrawTabsUnderline(t,
             [
-            new("storage", "Storage", (Action)DrawStorage),
-            new("clear", "Clear", (Action)DrawStorageClear),
+            new(StorageTabs.Storage, "Storage", DrawStorage),
+            new(StorageTabs.Clear, "Clear", DrawStorageClear),
             ],
             _selectedTabStorage,
             _uiShared.IconFont);
 
-        using var child = ImRaii.Child("##panel", new Vector2(0, 0), true);
+        using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 
         _selectedTabStorage.TabAction.Invoke();
     }
@@ -208,6 +214,7 @@ public partial class SettingsUi
                 }
             }
         }
+        ImGuiHelpers.ScaledDummy(5f);
         ImGui.Separator();
 
         ImGuiHelpers.ScaledDummy(new Vector2(10, 10));

@@ -39,8 +39,8 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private Memory<byte> _rulesBuffer = new byte[2000];
     private Memory<byte> _descriptionBuffer = new byte[2000];
     private bool _isProfileSaved;
-    private UiNav.NavItem? _selectedNavItem;
-    private UiNav.Tab? _selectedTab;
+    private UiNav.NavItem<SyncshellAdminNav>? _selectedNavItem;
+    private UiNav.Tab<SyncshellAdminTabs>? _selectedTab;
 
     private string _selectedUserManagementTabId = "userlist";
 
@@ -75,6 +75,20 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
     public GroupFullInfoDto GroupFullInfo { get; private set; }
 
+    private enum SyncshellAdminNav
+    {
+        Profile,
+        Invites,
+        UserManagement,
+        Permissions,
+        Owner
+    }
+    private enum SyncshellAdminTabs
+    {
+        UserList,
+        Cleanup,
+        Bans
+    }
     protected override void DrawInternal()
     {
         var t = UiTheme.Default;
@@ -115,26 +129,29 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         ImGui.Separator();
         Ui.VSpace(6);
 
-        var groupItems = new List<UiNav.NavItem>
+        var groupItems = new List<UiNav.NavItem<SyncshellAdminNav>>
         {
-            new("profile", "Profile", (Action)DrawProfile, FontAwesomeIcon.User),
-            new("invites", "Invites", (Action)DrawInvites, FontAwesomeIcon.Envelope),
-            new("usermgmt", "User Management", (Action)DrawUserManagement, FontAwesomeIcon.Users),
-            new("permissions", "Permissions", (Action)DrawPermissions, FontAwesomeIcon.Key),
+            new(SyncshellAdminNav.Profile, "Profile", DrawProfile, FontAwesomeIcon.User),
+            new(SyncshellAdminNav.Invites, "Invites", DrawInvites, FontAwesomeIcon.Envelope),
+            new(SyncshellAdminNav.UserManagement, "User Management", DrawUserManagement, FontAwesomeIcon.Users),
+            new(SyncshellAdminNav.Permissions, "Permissions", DrawPermissions, FontAwesomeIcon.Key),
         };
 
         if (_isOwner)
-            groupItems.Add(new("owner", "Owner Settings", (Action)DrawOwnerSettings, FontAwesomeIcon.Crown));
+            groupItems.Add(new(SyncshellAdminNav.Owner, "Owner Settings", DrawOwnerSettings, FontAwesomeIcon.Crown));
 
-        var navGroups = new List<(string GroupLabel, IReadOnlyList<UiNav.NavItem> Items)>
+        var navGroups = new List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SyncshellAdminNav>> Items)>
         {
             ("", groupItems),
         };
 
         _selectedNavItem = UiNav.DrawSidebar(t, "Syncshell Admin", navGroups, _selectedNavItem, widthPx: 220f, iconFont: _uiSharedService.IconFont);
 
-        ImGui.SameLine();
+        var panePad = UiScale.S(t.PanelPad);
+        var paneGap = UiScale.S(t.PanelGap);
 
+        ImGui.SameLine(0, paneGap);
+        using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));
         using var content = ImRaii.Child("##content", new Vector2(0, 0), false, ImGuiWindowFlags.None);
 
         _selectedNavItem.NavAction.Invoke();
@@ -249,9 +266,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
         _selectedTab = UiNav.DrawTabsUnderline(t,
             [
-                new("userlist", "User List & Administration", (Action)DrawUserList, FontAwesomeIcon.Users),
-                new("cleanup", "Mass Cleanup", (Action)DrawCleanup, FontAwesomeIcon.Broom),
-                new("bans", "User Bans", (Action)DrawBans, FontAwesomeIcon.Ban),
+                new(SyncshellAdminTabs.UserList, "User List & Administration", DrawUserList, FontAwesomeIcon.Users),
+                new(SyncshellAdminTabs.Cleanup, "Mass Cleanup", DrawCleanup, FontAwesomeIcon.Broom),
+                new(SyncshellAdminTabs.Bans, "User Bans", DrawBans, FontAwesomeIcon.Ban),
             ],
             _selectedTab,
             iconFont: _uiSharedService.IconFont);

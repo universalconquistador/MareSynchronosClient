@@ -8,6 +8,7 @@ using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.ModernUi;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
@@ -61,6 +62,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
+        using var theme = UiTheme.Default.PushWindowStyle();
+
         _uiSharedService.BigText("Current Profile (as saved on server)");
 
         var profile = _mareProfileManager.GetMareProfile(new UserData(_apiController.UID));

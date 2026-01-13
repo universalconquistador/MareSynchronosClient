@@ -1,6 +1,7 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
 using MareSynchronos.API.Data;
@@ -50,8 +51,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private bool _deleteAccountPopupModalShown = false;
     private bool _deleteFilesPopupModalShown = false;
     private string _lastTab = string.Empty;
-    private UiNav.NavItem? _selectedNavItem;
-    //private UiNav.Tab? _selectedTab;
+    private UiNav.NavItem<SettingsNav>? _selectedNavItem;
 
     private bool _readClearCache = false;
     private int _selectedEntry = -1;
@@ -169,6 +169,48 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         base.OnClose();
     }
 
+    private enum SettingsNav
+    {
+        General,
+        Pairing,
+        Performance,
+        Analysis,
+        Hub,
+        Profile,
+        Storage,
+        Transfers,
+        Service,
+        Debug
+    }
+
+    private List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SettingsNav>> Items)>? _navItems;
+
+    private List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SettingsNav>> Items)> NavItems => _navItems ??= new()
+    {
+        ("General", new List<UiNav.NavItem<SettingsNav>>
+        {
+            new(SettingsNav.General, "Interface", DrawInterfaceSettings, FontAwesomeIcon.Display),
+            new(SettingsNav.Pairing, "Sync Settings", DrawSyncSettings, FontAwesomeIcon.Link),
+            new(SettingsNav.Performance, "Performance", DrawPerformanceSettings, FontAwesomeIcon.TachometerAlt),
+        }),
+        ("Character", new List<UiNav.NavItem<SettingsNav>>
+        {
+            new(SettingsNav.Analysis, "Analysis (Compress Mods)", OpenCharaDataAnalysisUi, FontAwesomeIcon.PersonCircleQuestion),
+            new(SettingsNav.Hub, "Hub (MCDF/MCDO)", OpenCharaDataHubUi, FontAwesomeIcon.Running),
+            new(SettingsNav.Profile, "Profile", OpenCharaProfileUi, FontAwesomeIcon.UserCircle),
+        }),
+        ("Data", new List<UiNav.NavItem<SettingsNav>>
+        {
+            new(SettingsNav.Storage, "Storage", DrawStorageSettings, FontAwesomeIcon.Hdd),
+            new(SettingsNav.Transfers, "Transfers", DrawTransferSettings, FontAwesomeIcon.ExchangeAlt),
+        }),
+        ("Service", new List<UiNav.NavItem<SettingsNav>>
+        {
+            new(SettingsNav.Service, "Service Settings", DrawServiceSettings, FontAwesomeIcon.Server),
+            new(SettingsNav.Debug, "Debug", DrawDebugSettings, FontAwesomeIcon.Bug),
+        }),
+    };
+
     private void DrawSettingsContent()
     {
         var t = UiTheme.Default;
@@ -203,39 +245,17 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
             Util.OpenLink("https://discord.gg/BzaqbfFFmn");
         }
 
-        Ui.Hr(t);
-
-        var groups = new List<(string GroupLabel, IReadOnlyList<UiNav.NavItem> Items)>
-        {
-            ("General", new List<UiNav.NavItem>
-            {
-                new("general", "Interface", (Action)DrawInterfaceSettings, FontAwesomeIcon.Display),
-                new("pairing", "Sync Settings", (Action)DrawSyncSettings, FontAwesomeIcon.Link),
-                new("performance", "Performance", (Action)DrawPerformanceSettings, FontAwesomeIcon.TachometerAlt),
-            }),
-            ("Character", new List<UiNav.NavItem>
-            {
-                new("analysis", "Analysis (Compress Mods)", (Action)OpenCharaDataAnalysisUi),
-                new("hub", "Hub (MCDF/MCDO)", (Action)OpenCharaDataHubUi),
-                new("profile", "Profile", (Action)OpenCharaProfileUi),
-            }),
-            ("Data", new List<UiNav.NavItem>
-            {
-                new("storage", "Storage", (Action)DrawStorageSettings, FontAwesomeIcon.Hdd),
-                new("transfers", "Transfers", (Action)DrawTransferSettings, FontAwesomeIcon.ExchangeAlt),
-            }),
-            ("Service", new List<UiNav.NavItem>
-            {
-                new("service", "Service Settings", (Action)DrawServiceSettings, FontAwesomeIcon.Server),
-                new("debug", "Debug", (Action)DrawDebugSettings, FontAwesomeIcon.Bug),
-            }),
-        };
+        //Ui.Hr(t);
+        ImGuiHelpers.ScaledDummy(5);
 
         // we could have 'out' the selected item, but it was messy to keep state in ImGui when we wanted to be able to "link" to other windows
-        _selectedNavItem = UiNav.DrawSidebar(t, "Settings", groups, _selectedNavItem, widthPx: 260f, iconFont: _uiShared.IconFont);
+        _selectedNavItem = UiNav.DrawSidebar(t, "Settings", NavItems, _selectedNavItem, widthPx: 240f, iconFont: _uiShared.IconFont);
 
-        // we create another "div" along side the sidebar
-        ImGui.SameLine();
+        var panePad = UiScale.S(t.PanelPad);
+        var paneGap = UiScale.S(t.PanelGap);
+
+        ImGui.SameLine(0, paneGap);
+        using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));
         using var pane = ImRaii.Child("##settings-pane", new Vector2(0, 0), false);
         Ui.VSpace(2);
 
