@@ -2,6 +2,7 @@
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Utility;
 using MareSynchronos.API.Dto.User;
 using MareSynchronosq.UI.ModernUi;
 using System.Numerics;
@@ -349,7 +350,7 @@ public static class UiProfile
 
         ImGui.SetCursorScreenPos(new Vector2(nameMin.X, line3Y));
 
-        var statusLabel = GetEnumMemberLabel(profile.Status);
+        var statusLabel = profile.Status.GetAttribute<EnumMemberAttribute>()?.Value ?? profile.Status.ToString();
         if (!string.IsNullOrWhiteSpace(statusLabel))
         {
             using (ImRaii.PushColor(ImGuiCol.Text, UiTheme.ToVec4(profile.Theme.TextPrimary)))
@@ -615,17 +616,6 @@ public static class UiProfile
 
             first = false;
         }
-    }
-
-    private static string? GetEnumMemberLabel<TEnum>(TEnum value) where TEnum : struct, Enum
-    {
-        var name = value.ToString();
-        var mi = typeof(TEnum).GetMember(name).FirstOrDefault();
-        if (mi == null)
-            return name;
-
-        var attr = mi.GetCustomAttribute<EnumMemberAttribute>();
-        return string.IsNullOrWhiteSpace(attr?.Value) ? name : attr.Value;
     }
 
     private readonly struct Scope : IDisposable
