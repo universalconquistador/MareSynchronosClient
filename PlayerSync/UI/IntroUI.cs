@@ -213,8 +213,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 
         ImGui.SameLine();
 
-        using var pane = ImRaii.Child("##setup-pane", new Vector2(0, 0), false,
-            ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+        using var pane = ImRaii.Child("##setup-pane", new Vector2(0, 0), false, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
 
         Ui.VSpace(2);
 

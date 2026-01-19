@@ -19,6 +19,7 @@ using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.UI.ModernUi;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 using MareSynchronos.WebAPI.SignalR;
@@ -146,10 +147,16 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
     public static void AttachToolTip(string text)
     {
-        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        if (!ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            return;
+
+        using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(UiScale.S(8f), UiScale.S(6f))))
+        //using (ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, UiScale.S(6f)))
         {
             ImGui.BeginTooltip();
-            ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35f);
+
+            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + ImGui.GetFontSize() * 35f);
+
             if (text.Contains(TooltipSeparator, StringComparison.Ordinal))
             {
                 var splitText = text.Split(TooltipSeparator, StringSplitOptions.RemoveEmptyEntries);
@@ -163,10 +170,12 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             {
                 ImGui.TextUnformatted(text);
             }
+
             ImGui.PopTextWrapPos();
             ImGui.EndTooltip();
         }
     }
+
 
     public static string ByteToString(long bytes, bool addSuffix = true)
     {

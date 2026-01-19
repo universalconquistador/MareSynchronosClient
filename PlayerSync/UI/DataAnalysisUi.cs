@@ -580,7 +580,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
         ImGui.SameLine();
         ImGui.TextUnformatted(_cachedAnalysis!.Values.Sum(c => c.Values.Count).ToString());
         ImGui.SameLine();
-        using (var font = ImRaii.PushFont(UiBuilder.IconFont))
+        using (_uiSharedService.IconFont.Push())
         {
             ImGui.TextUnformatted(FontAwesomeIcon.InfoCircle.ToIconString());
         }
@@ -618,7 +618,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
                 ImGui.TextUnformatted(kvp.Value.Count.ToString());
                 ImGui.SameLine();
 
-                using (var font = ImRaii.PushFont(UiBuilder.IconFont))
+                using (_uiSharedService.IconFont.Push())
                 {
                     ImGui.TextUnformatted(FontAwesomeIcon.InfoCircle.ToIconString());
                 }

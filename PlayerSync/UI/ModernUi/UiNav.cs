@@ -54,12 +54,6 @@ public static class UiNav
 
         using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(pad, pad)))
         {
-            //using (ImRaii.PushColor(ImGuiCol.Text, t.Text))
-            //    ImGui.TextUnformatted(title);
-
-            //Ui.VSpace(6);
-            //Ui.Hr(t);
-
             // layout constants
             var rowH = UiScale.S(34f);
             var iconPadL = UiScale.S(12f);

@@ -409,6 +409,16 @@ public class ServerConfigurationManager
         return null;
     }
 
+    internal string? GetProfileNoteForUid(string uid)
+    {
+        if (CurrentNotesStorage().UidServerProfileNotes.TryGetValue(uid, out var note))
+        {
+            if (string.IsNullOrEmpty(note)) return null;
+            return note;
+        }
+        return null;
+    }
+
     internal HashSet<string> GetServerAvailablePairTags()
     {
         return CurrentServerTagStorage().ServerAvailablePairTags;
@@ -502,6 +512,15 @@ public class ServerConfigurationManager
         if (string.IsNullOrEmpty(uid)) return;
 
         CurrentNotesStorage().UidServerComments[uid] = note;
+        if (save)
+            _notesConfig.Save();
+    }
+
+    internal void SetProfileNoteForUid(string uid, string note, bool save = true)
+    {
+        if (string.IsNullOrEmpty(uid)) return;
+
+        CurrentNotesStorage().UidServerProfileNotes[uid] = note;
         if (save)
             _notesConfig.Save();
     }

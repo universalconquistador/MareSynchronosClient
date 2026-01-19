@@ -1,7 +1,8 @@
-﻿using System.Numerics;
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Colors;
+using Dalamud.Interface.ManagedFontAtlas;
 using Dalamud.Interface.Utility.Raii;
+using System.Numerics;
 
 namespace MareSynchronos.UI.ModernUi;
 
@@ -11,6 +12,10 @@ namespace MareSynchronos.UI.ModernUi;
 /// </summary>
 public sealed class UiTheme
 {
+    public IFontHandle? FontBody { get; init; }
+    public IFontHandle? FontHeading { get; init; }
+    public IFontHandle? FontSmall { get; init; }
+
     public Vector4 WindowBg { get; init; } = new(0.08f, 0.08f, 0.09f, 0.95f);
     public Vector4 PanelBg { get; init; } = new(0.12f, 0.12f, 0.13f, 0.80f);
     public Vector4 CardBg { get; init; } = new(0.14f, 0.14f, 0.16f, 0.85f);
@@ -29,6 +34,12 @@ public sealed class UiTheme
 
     public Vector4 HoverOverlay { get; init; } = new(1f, 1f, 1f, 0.06f);
     public Vector4 ActiveOverlay { get; init; } = new(1f, 1f, 1f, 0.10f);
+
+    // Profile theme
+    public Vector4 ProfileTextColor { get; set; } = new(0.9569f, 0.9804f, 1.0000f, 1.0f);
+    public Vector4 ProfilePrimaryColor { get; set; } = new(0.2588f, 0.6000f, 0.7373f, 1.0f);
+    public Vector4 ProfileSecondaryColor { get; set; } = new(0.0745f, 0.2353f, 0.3373f, 1.0f);
+    public Vector4 ProfileAccentColor { get; set; } = new(0.6510f, 0.8549f, 0.9216f, 1.0f);
 
     // sizing
     public float RadiusSm { get; init; } = 6f;
@@ -50,10 +61,7 @@ public sealed class UiTheme
     /// <returns></returns>
     public IDisposable PushWindowStyle()
     {
-        // frame rounding
-        var s = ImGui.GetStyle();
-        var d1 = ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, UiScale.S(RadiusMd));
-        var d2 = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, UiScale.S(RadiusSm));
+        // window and frame rounding must go in the PreDraw
         var d3 = ImRaii.PushStyle(ImGuiStyleVar.PopupRounding, UiScale.S(RadiusSm));
         var d4 = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarRounding, UiScale.S(RadiusSm));
         var d5 = ImRaii.PushStyle(ImGuiStyleVar.GrabRounding, UiScale.S(RadiusSm));
@@ -67,7 +75,7 @@ public sealed class UiTheme
         var c2 = ImRaii.PushColor(ImGuiCol.Border, Border);
         var c3 = ImRaii.PushColor(ImGuiCol.Text, Text);
 
-        return new CompositeDisposable(d1, d2, d3, d4, d5, d6, d7, c1, c2, c3);
+        return new CompositeDisposable(d3, d4, d5, d6, d7, c1, c2, c3);
     }
 
     private sealed class CompositeDisposable : IDisposable
@@ -80,4 +88,52 @@ public sealed class UiTheme
                 _items[i].Dispose();
         }
     }
+
+    /// <summary>
+    /// Allows for setting font handlers for different sized pre generated fonts
+    /// </summary>
+    /// <param name="body"></param>
+    /// <param name="heading"></param>
+    /// <param name="small"></param>
+    /// <returns></returns>
+    public UiTheme WithFonts(IFontHandle? body = null, IFontHandle? heading = null, IFontHandle? small = null) => new UiTheme
+    {
+        WindowBg = WindowBg,
+        PanelBg = PanelBg,
+        CardBg = CardBg,
+
+        Border = Border,
+        Separator = Separator,
+
+        Text = Text,
+        TextMuted = TextMuted,
+
+        Primary = Primary,
+        Success = Success,
+        Warning = Warning,
+        Danger = Danger,
+        Info = Info,
+
+        HoverOverlay = HoverOverlay,
+        ActiveOverlay = ActiveOverlay,
+
+        RadiusSm = RadiusSm,
+        RadiusMd = RadiusMd,
+        RadiusLg = RadiusLg,
+
+        CardPadding = CardPadding,
+        PanelPadding = PanelPadding,
+        Gutter = Gutter,
+
+        PanelPad = PanelPad,
+        PanelGap = PanelGap,
+
+        FontBody = body ?? FontBody,
+        FontHeading = heading ?? FontHeading,
+        FontSmall = small ?? FontSmall,
+    };
+
+    public static Vector4 ToVec4(float[] v) => new Vector4(v[0], v[1], v[2], v[3]);
+
+    public static float[] FromVec4(Vector4 c) => [c.X, c.Y, c.Z, c.W];
 }

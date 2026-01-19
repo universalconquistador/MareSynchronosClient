@@ -1,9 +1,12 @@
 ﻿using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Comparer;
+using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using System.Collections.Concurrent;
 
 namespace MareSynchronos.Services;
@@ -19,7 +22,7 @@ public class MareProfileManager : MediatorSubscriberBase
     private const string _mareLogoLoading = _pearLogo;
     private const string _mareLogoNsfw = _pearLogo;
     private const string _noDescription = "-- User has no description set --";
-    private const string _nsfw = "Profile not displayed - NSFW";
+    private const string _nsfw = "Profile is marked NSFW. Enable NSFW profiles in the settings to view.";
     private readonly ApiController _apiController;
     private readonly MareConfigService _mareConfigService;
     private readonly ConcurrentDictionary<UserData, MareProfileData> _mareProfiles = new(UserDataComparer.Instance);
@@ -55,6 +58,11 @@ public class MareProfileManager : MediatorSubscriberBase
         return (profile);
     }
 
+    public void RemoveMareProfile(UserData data)
+    {
+        _mareProfiles.Remove(data, out _);
+    }
+
     private async Task GetMareProfileFromService(UserData data)
     {
         try
@@ -80,5 +88,108 @@ public class MareProfileManager : MediatorSubscriberBase
             Logger.LogWarning(ex, "Failed to get Profile from service for user {user}", data);
             _mareProfiles[data] = _defaultProfileData;
         }
+    }
+
+    public static class ProfileHandler
+    {
+        private static readonly JsonSerializerSettings Settings = new()
+        {
+            MissingMemberHandling = MissingMemberHandling.Ignore,
+            NullValueHandling = NullValueHandling.Ignore,
+            DefaultValueHandling = DefaultValueHandling.Ignore,
+            ContractResolver = new DefaultContractResolver
+            {
+                NamingStrategy = new CamelCaseNamingStrategy
+                {
+                    ProcessDictionaryKeys = true,
+                    OverrideSpecifiedNames = false,
+                }
+            }
+        };
+
+        public static ProfileV1 Read(string? raw)
+        {
+            raw = (raw ?? string.Empty).Trim();
+
+            if (raw.StartsWith("{", StringComparison.Ordinal))
+            {
+                try
+                {
+                    return JsonConvert.DeserializeObject<ProfileV1>(raw, Settings) ?? new ProfileV1();
+                }
+                catch { }
+            }
+            return new ProfileV1{Version = 1, AboutMe = raw, Theme = new ProfileTheme() };
+        }
+
+        public static string WriteJson(ProfileV1 doc, Formatting formatting = Formatting.None)
+        {
+            doc ??= new ProfileV1();
+            return JsonConvert.SerializeObject(doc, formatting, Settings);
+        }
+    }
+
+    public static class ProfileValidator
+    {
+        public const int MaxPronounsLen = 40;
+        public const int MaxAboutMeLen = 200;
+        public const int MaxSocialLen = 64;
+
+        public static bool TryValidate(ProfileV1 doc, out List<string> errors)
+        {
+            errors = new List<string>();
+
+            if (doc == null)
+            {
+                errors.Add("Profile is empty.");
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(doc.Pronouns) && doc.Pronouns.Length > MaxPronounsLen)
+                errors.Add($"Pronouns must be {MaxPronounsLen} characters or fewer.");
+
+            if (!string.IsNullOrEmpty(doc.AboutMe) && doc.AboutMe.Length > MaxAboutMeLen)
+                errors.Add($"About Me must be {MaxAboutMeLen} characters or fewer.");
+
+            //var socials = doc.Socials;
+            //if (socials != null)
+            //{
+            //    ValidateSocial(errors, "Discord", socials.Discord, MaxSocialLen);
+            //    ValidateSocial(errors, "Twitter/X", socials.TwitterX, MaxSocialLen);
+            //    ValidateSocial(errors, "Bluesky", socials.Bluesky, MaxSocialLen);
+            //    ValidateSocial(errors, "Instagram", socials.Instagram, MaxSocialLen);
+            //    ValidateSocial(errors, "Facebook", socials.Facebook, MaxSocialLen);
+            //    ValidateSocial(errors, "Twitch", socials.Twitch, MaxSocialLen);
+            //}
+
+            // Keep alpha > 0.15 so the profile doesn't become unreadable.
+            //var theme = doc.Theme;
+            //if (theme != null)
+            //{
+            //    if (UiTheme.ToVec4(theme.Primary).W < 0.15f)
+            //        errors.Add("Theme: Profile background alpha is too low (min 0.15).");
+            //    if (UiTheme.ToVec4(theme.Accent).W < 0.15f)
+            //        errors.Add("Theme: Accent alpha is too low (min 0.15).");
+            //    if (UiTheme.ToVec4(theme.Secondary).W < 0.15f)
+            //        errors.Add("Theme: Text outline alpha is too low (min 0.15).");
+            //    if (UiTheme.ToVec4(theme.TextPrimary).W < 0.15f)
+            //        errors.Add("Theme: Text primary alpha is too low (min 0.15).");
+            //}
+
+            return errors.Count == 0;
+        }
+
+        //private static void ValidateSocial(List<string> errors, string label, string? value, int maxLen)
+        //{
+        //    if (string.IsNullOrWhiteSpace(value))
+        //        return;
+
+        //    if (value.Length > maxLen)
+        //        errors.Add($"{label} must be {maxLen} characters or fewer.");
+
+        //    // Keep socials single-line.
+        //    if (value.Contains('\n') || value.Contains('\r'))
+        //        errors.Add($"{label} must be a single line (no newlines).");
+        //}
     }
 }
