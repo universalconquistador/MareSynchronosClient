@@ -410,8 +410,6 @@ public static class UiProfile
     {
         ImGui.Dummy(new Vector2(1f, UiScale.S(Spacing)));
 
-        static Vector4 WithAlpha(Vector4 c, float a) => new(c.X, c.Y, c.Z, a);
-
         var dl = ImGui.GetWindowDrawList();
         var style = ImGui.GetStyle();
 

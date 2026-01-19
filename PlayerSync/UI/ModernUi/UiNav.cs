@@ -12,8 +12,6 @@ namespace MareSynchronos.UI.ModernUi;
 /// </summary>
 public static class UiNav
 {
-    private static Vector4 WithAlpha(Vector4 v, float a) => new(v.X, v.Y, v.Z, a);
-
     /// <summary>
     /// NavItem contains everything to display and control actions for sidebars
     /// </summary>
@@ -94,7 +92,9 @@ public static class UiNav
                     if (isSelected)
                     {
                         var barW = UiScale.S(3f);
-                        dl.AddRectFilled(new Vector2(min.X, min.Y), new Vector2(min.X + barW, max.Y), ImGui.GetColorU32(WithAlpha(t.Primary, 0.90f)));
+                        var colorFill = t.Primary;
+                        colorFill.W = 0.90f;
+                        dl.AddRectFilled(new Vector2(min.X, min.Y), new Vector2(min.X + barW, max.Y), ImGui.GetColorU32(colorFill));
                     }
 
                     var col = ImGui.GetColorU32(t.Text);
