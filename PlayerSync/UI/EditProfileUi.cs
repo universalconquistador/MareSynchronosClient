@@ -13,6 +13,7 @@ using MareSynchronos.UI.ModernUi;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using MareSynchronos.UI.Components;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
@@ -507,22 +508,22 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         var bannerH = UiScale.S(bannerHeightPx);
         var width = Math.Max(1f, ImGui.GetContentRegionAvail().X);
 
-        UiProfile.DrawBackGroundWindow(UiTheme.ToVec4(profile.Theme.Primary), 24f, 0.5f);
+        ProfileBuilder.DrawBackGroundWindow(UiTheme.ToVec4(profile.Theme.Primary), 24f, 0.5f);
 
         using var _ = t.PushWindowStyle();
 
         var displayName = !string.IsNullOrWhiteSpace(_liveProfile.PreferredName) ? _liveProfile.PreferredName : _apiController.DisplayName;
-        UiProfile.DrawGradientWindow(UiTheme.ToVec4(_liveProfile.Theme.Secondary), UiTheme.ToVec4(_liveProfile.Theme.Primary), 
+        ProfileBuilder.DrawGradientWindow(UiTheme.ToVec4(_liveProfile.Theme.Secondary), UiTheme.ToVec4(_liveProfile.Theme.Primary), 
             headerFillPx, radiusPx, UiTheme.ToVec4(_liveProfile.Theme.Accent), 3.0f, 0.0f);
 
-        UiProfile.DrawAvatar(t, _pfpTextureWrap, _supporterTextureWrap, UiTheme.ToVec4(_liveProfile.Theme.Accent), UiTheme.ToVec4(_liveProfile.Theme.Primary),
+        ProfileBuilder.DrawAvatar(t, _pfpTextureWrap, _supporterTextureWrap, UiTheme.ToVec4(_liveProfile.Theme.Accent), UiTheme.ToVec4(_liveProfile.Theme.Primary),
             out var nameMin, out var nameMax, bannerHeightPx);
 
-        UiProfile.DrawNameInfo(t, displayName, _apiController.UID, profile, true, nameMin, nameMax);
+        ProfileBuilder.DrawNameInfo(t, displayName, _apiController.UID, profile, true, nameMin, nameMax);
         ImGui.Dummy(new Vector2(width, bannerH));
 
-        UiProfile.DrawInterests(t, profile);
-        UiProfile.DrawAboutMe(t, profile);
+        ProfileBuilder.DrawInterests(t, profile);
+        ProfileBuilder.DrawAboutMe(t, profile);
     }
 
     private void UpdateSelfImages(MareProfileData psProfile)

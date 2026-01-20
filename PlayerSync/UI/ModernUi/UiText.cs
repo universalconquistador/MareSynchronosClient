@@ -2,10 +2,9 @@
 using Dalamud.Interface.ManagedFontAtlas;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using MareSynchronos.UI.ModernUi;
 using System.Numerics;
 
-namespace MareSynchronosq.UI.ModernUi;
+namespace MareSynchronos.UI.ModernUi;
 
 public static class UiText
 {

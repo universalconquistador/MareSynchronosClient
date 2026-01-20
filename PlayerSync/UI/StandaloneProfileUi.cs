@@ -10,6 +10,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.ModernUi;
 using Microsoft.Extensions.Logging;
+using MareSynchronos.UI.Components;
 using System.Numerics;
 
 namespace MareSynchronos.UI;
@@ -130,18 +131,18 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         try
         {
             var profileName = profile.PreferredName != "" ? profile.PreferredName : Pair.UserData.AliasOrUID;
-            UiProfile.DrawBackGroundWindow(UiTheme.ToVec4(profile.Theme.Primary), 24f, 0.5f);
-            UiProfile.DrawGradientWindow(headerColor: UiTheme.ToVec4(profile.Theme.Secondary), bodyColor: UiTheme.ToVec4(profile.Theme.Primary),
+            ProfileBuilder.DrawBackGroundWindow(UiTheme.ToVec4(profile.Theme.Primary), 24f, 0.5f);
+            ProfileBuilder.DrawGradientWindow(headerColor: UiTheme.ToVec4(profile.Theme.Secondary), bodyColor: UiTheme.ToVec4(profile.Theme.Primary),
                 headerHeightPx: headerFillPx, radiusPx: radiusPx, UiTheme.ToVec4(profile.Theme.Accent), 3.0f, insetPx: 0.0f);
-            UiProfile.DrawAvatar(t, _textureWrap, _supporterTextureWrap, UiTheme.ToVec4(profile.Theme.Accent), UiTheme.ToVec4(profile.Theme.Primary), 
+            ProfileBuilder.DrawAvatar(t, _textureWrap, _supporterTextureWrap, UiTheme.ToVec4(profile.Theme.Accent), UiTheme.ToVec4(profile.Theme.Primary), 
                 out var nameMin, out var nameMax, bannerHeightPx);
-            UiProfile.DrawNameInfo(t, profileName, Pair.UserData.UID, profile, true, nameMin, nameMax);
+            ProfileBuilder.DrawNameInfo(t, profileName, Pair.UserData.UID, profile, true, nameMin, nameMax);
 
             // force spacing for ImGui
             ImGui.Dummy(new Vector2(width, bannerH));
 
-            UiProfile.DrawInterests(t, profile);
-            UiProfile.DrawAboutMe(t, profile);
+            ProfileBuilder.DrawInterests(t, profile);
+            ProfileBuilder.DrawAboutMe(t, profile);
 
             var oldNotes = _serverManager.GetNoteForUid(Pair.UserData.UID);
             var newNotes = _serverManager.GetProfileNoteForUid(Pair.UserData.UID);
@@ -151,7 +152,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
                 _serverManager.SetProfileNoteForUid(Pair.UserData.UID, notesDraft, save: true);
             }
 
-            var changed = UiProfile.DrawNotes(t, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{Pair.UserData.UID}",
+            var changed = ProfileBuilder.DrawNotes(t, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{Pair.UserData.UID}",
                 heading: "Note (only visible to you)", placeholder: "Click to add a note", maxLen: 200, lines: 4);
 
             if (changed)

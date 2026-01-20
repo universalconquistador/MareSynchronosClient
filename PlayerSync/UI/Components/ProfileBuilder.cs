@@ -2,52 +2,14 @@
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Utility;
 using MareSynchronos.API.Dto.User;
-using MareSynchronosq.UI.ModernUi;
+using MareSynchronos.UI.ModernUi;
 using System.Numerics;
-using System.Reflection;
-using System.Runtime.Serialization;
 
-namespace MareSynchronos.UI.ModernUi;
+namespace MareSynchronos.UI.Components;
 
-/// <summary>
-/// This was modified to use profiles from the API, thus not generic in nature
-/// </summary>
-public static class UiProfile
+public static class ProfileBuilder
 {
-    private const float Spacing = 15;
-
-    private static void CalcUvCropToAspect(IDalamudTextureWrap tex, float destAspect, out Vector2 uv0, out Vector2 uv1)
-    {
-        float u0 = 0f, v0 = 0f, u1 = 1f, v1 = 1f;
-
-        if (tex.Width > 0 && tex.Height > 0 && destAspect > 0)
-        {
-            var srcAspect = tex.Width / (float)tex.Height;
-
-            // crop left/right
-            if (srcAspect > destAspect)
-            {
-                var keep = destAspect / srcAspect;
-                var excess = 1f - keep;
-                u0 = excess * 0.5f;
-                u1 = 1f - excess * 0.5f;
-            }
-            // crop top/bottom
-            else if (srcAspect < destAspect)
-            {
-                var keep = srcAspect / destAspect;
-                var excess = 1f - keep;
-                v0 = excess * 0.5f;
-                v1 = 1f - excess * 0.5f;
-            }
-        }
-
-        uv0 = new Vector2(u0, v0);
-        uv1 = new Vector2(u1, v1);
-    }
-
     public static void DrawProfileWindow(Vector4 headerColor, Vector4 bodyColor, float headerHeightPx, float radiusPx, float insetPx = 0.0f)
     {
         var s = ImGuiHelpers.GlobalScale;
@@ -116,25 +78,15 @@ public static class UiProfile
     /// <param name="borderColor"></param>
     /// <param name="borderThicknessPx"></param>
     /// <param name="insetPx"></param>
-    public static void DrawGradientWindow(
-    Vector4 headerColor,
-    Vector4 bodyColor,
-    float headerHeightPx,
-    float radiusPx,
-    Vector4 borderColor,
-    float borderThicknessPx = 1.0f,
-    float insetPx = 0.0f)
+    public static void DrawGradientWindow(Vector4 headerColor, Vector4 bodyColor, float headerHeightPx, 
+        float radiusPx, Vector4 borderColor, float borderThicknessPx = 1.0f, float insetPx = 0.0f)
     {
         var s = ImGuiHelpers.GlobalScale;
         var dl = ImGui.GetWindowDrawList();
-
         var winMin = ImGui.GetWindowPos();
         var winMax = winMin + ImGui.GetWindowSize();
-
         var headerH = MathF.Max(0f, headerHeightPx * s);
         var inset = insetPx * s;
-
-        // Outer rect (used for border)
         var minX = winMin.X + inset;
         var maxX = winMax.X - inset;
         var minY = winMin.Y + inset;
@@ -145,19 +97,11 @@ public static class UiProfile
 
         headerH = MathF.Min(headerH, maxY - winMin.Y);
 
-        // Border radius (outer)
         var r = MathF.Max(0f, radiusPx * s - inset);
-
-        // --- NEW: pull fills inward so they can't AA-bleed past the border ---
         var thickness = MathF.Max(0f, borderThicknessPx * s);
         var half = thickness * 0.5f;
-
-        // Extra inset that stays WITHIN the border stroke so we don't create a gap.
-        // (For 1px borders this becomes ~1px; for thicker borders ~half+0.5px.)
         var aaPad = MathF.Min(0.5f * s, half);
         var fillInset = (thickness > 0f && borderColor.W > 0f) ? (half + aaPad) : 0f;
-
-        // Inner rect (used for fills)
         var fMinX = minX + fillInset;
         var fMaxX = maxX - fillInset;
         var fMinY = minY + fillInset;
@@ -167,23 +111,16 @@ public static class UiProfile
             return;
 
         var rFill = MathF.Max(0f, r - fillInset);
-
-        // --- Header (fill, inner rect) ---
         var topMin = new Vector2(fMinX, fMinY);
         var topMax = new Vector2(fMaxX, winMin.Y + headerH);
         topMax.Y = MathF.Min(topMax.Y, fMaxY);
 
         if (topMax.Y > topMin.Y)
         {
-            dl.AddRectFilled(
-                topMin,
-                topMax,
-                ImGui.GetColorU32(headerColor),
-                rFill,
+            dl.AddRectFilled(topMin, topMax, ImGui.GetColorU32(headerColor), rFill, 
                 ImDrawFlags.RoundCornersTopLeft | ImDrawFlags.RoundCornersTopRight);
         }
 
-        // --- Body (fill, inner rect) ---
         var bodyMin = new Vector2(fMinX, winMin.Y + headerH);
         var bodyMax = new Vector2(fMaxX, fMaxY);
 
@@ -193,11 +130,7 @@ public static class UiProfile
 
             if (rFill <= 0f || bodyH <= rFill + 0.5f)
             {
-                dl.AddRectFilled(
-                    bodyMin,
-                    bodyMax,
-                    ImGui.GetColorU32(bodyColor),
-                    rFill,
+                dl.AddRectFilled(bodyMin, bodyMax, ImGui.GetColorU32(bodyColor), rFill, 
                     ImDrawFlags.RoundCornersBottomLeft | ImDrawFlags.RoundCornersBottomRight);
             }
             else
@@ -217,27 +150,17 @@ public static class UiProfile
                     float tMid = ((y0 + y1) * 0.5f - bodyMin.Y) / gradH;
                     var c = Lerp(headerColor, bodyColor, Math.Clamp(tMid, 0f, 1f));
 
-                    dl.AddRectFilled(
-                        new Vector2(bodyMin.X, y0),
-                        new Vector2(bodyMax.X, y1),
-                        ImGui.GetColorU32(c));
+                    dl.AddRectFilled(new Vector2(bodyMin.X, y0), new Vector2(bodyMax.X, y1), ImGui.GetColorU32(c));
                 }
 
-                // Rounded bottom cap
                 var seam = 1f;
-                dl.AddRectFilled(
-                    new Vector2(bodyMin.X, gradBottomY - seam),
-                    bodyMax,
-                    ImGui.GetColorU32(bodyColor),
-                    rFill,
-                    ImDrawFlags.RoundCornersBottomLeft | ImDrawFlags.RoundCornersBottomRight);
+                dl.AddRectFilled(new Vector2(bodyMin.X, gradBottomY - seam), bodyMax, ImGui.GetColorU32(bodyColor), 
+                    rFill, ImDrawFlags.RoundCornersBottomLeft | ImDrawFlags.RoundCornersBottomRight);
             }
         }
 
-        // --- Border (outer rect) ---
         if (thickness > 0f && borderColor.W > 0f)
         {
-            // Keep border fully inside the outer rect
             var bMin = new Vector2(minX + half, minY + half);
             var bMax = new Vector2(maxX - half, maxY - half);
 
@@ -248,9 +171,6 @@ public static class UiProfile
             }
         }
     }
-
-
-
 
     public static void DrawAvatar(UiTheme t, IDalamudTextureWrap? avatar, IDalamudTextureWrap? badge, Vector4 borderColor, Vector4 backgroundColor,
         out Vector2 nameMin, out Vector2 nameMax, float bannerHeightPx = 250f, float portraitAspectW = 9f, float portraitAspectH = 16f)
@@ -350,7 +270,17 @@ public static class UiProfile
 
         ImGui.SetCursorScreenPos(new Vector2(nameMin.X, line3Y));
 
-        var statusLabel = profile.Status.GetAttribute<EnumMemberAttribute>()?.Value ?? profile.Status.ToString();
+        var statusLabel = profile.Status switch
+        {
+            ProfileStatus.NotShared => "Not Shared",
+            ProfileStatus.NotInterested => "Not Interested",
+            ProfileStatus.Taken => "Taken",
+            ProfileStatus.Open => "Open",
+            ProfileStatus.Looking => "Looking",
+            ProfileStatus.ItsComplicated => "It's Complicated",
+            ProfileStatus.AskMe => "Ask Me",
+            _ => "Not Shared",
+        };
         if (!string.IsNullOrWhiteSpace(statusLabel))
         {
             using (ImRaii.PushColor(ImGuiCol.Text, UiTheme.ToVec4(profile.Theme.TextPrimary)))
@@ -509,6 +439,38 @@ public static class UiProfile
             ImGui.Dummy(new Vector2(1f, UiScale.S(8f)));
             return changed;
         }
+    }
+
+    private const float Spacing = 15;
+
+    private static void CalcUvCropToAspect(IDalamudTextureWrap tex, float destAspect, out Vector2 uv0, out Vector2 uv1)
+    {
+        float u0 = 0f, v0 = 0f, u1 = 1f, v1 = 1f;
+
+        if (tex.Width > 0 && tex.Height > 0 && destAspect > 0)
+        {
+            var srcAspect = tex.Width / (float)tex.Height;
+
+            // crop left/right
+            if (srcAspect > destAspect)
+            {
+                var keep = destAspect / srcAspect;
+                var excess = 1f - keep;
+                u0 = excess * 0.5f;
+                u1 = 1f - excess * 0.5f;
+            }
+            // crop top/bottom
+            else if (srcAspect < destAspect)
+            {
+                var keep = srcAspect / destAspect;
+                var excess = 1f - keep;
+                v0 = excess * 0.5f;
+                v1 = 1f - excess * 0.5f;
+            }
+        }
+
+        uv0 = new Vector2(u0, v0);
+        uv1 = new Vector2(u1, v1);
     }
 
     private static void DrawPortraitAvatar(ImDrawListPtr dl, UiTheme t, IDalamudTextureWrap? avatar, 
