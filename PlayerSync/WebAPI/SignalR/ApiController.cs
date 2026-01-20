@@ -61,7 +61,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
         Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
-        Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData));
+        Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData, msg.Reason));
         Mediator.Subscribe<UserPairStickyPauseAndRemoveMessage>(this, (msg) => _ = UserPairStickyPauseAndRemove(msg.UserData));
 
         ServerState = ServerState.Offline;
@@ -355,12 +355,13 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         return Task.CompletedTask;
     }
 
-    public async Task PauseAsync(UserData userData)
+    public async Task PauseAsync(UserData userData, PauseReason reason)
     {
         var pair = _pairManager.GetOnlineUserPairs().Single(p => p.UserPair != null && p.UserData == userData);
         var perm = pair.UserPair!.OwnPermissions;
         perm.SetPaused(paused: true);
         await UserSetPairPermissions(new UserPermissionsDto(userData, perm)).ConfigureAwait(false);
+        _serverManager.SetPauseReasonForUid(userData.UID, reason);
     }
 
     // Perma pause is basically like blacklisting a user on sync
@@ -383,6 +384,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         perm.SetSticky(sticky: true);
         await UserSetPairPermissions(new UserPermissionsDto(userData, perm)).ConfigureAwait(false);
         await UserRemovePair(new(userData)).ConfigureAwait(false);
+        _serverManager.SetPauseReasonForUid(userData.UID, PauseReason.Permanent);
     }
 
     public Task<ConnectionDto> GetConnectionDto() => GetConnectionDtoAsync(true);

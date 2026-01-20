@@ -10,6 +10,7 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.ModernUi;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
@@ -24,6 +25,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private readonly UiSharedService _uiSharedService;
     private readonly PairManager _pairManager;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfig;
+    private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly ApiController _apiController;
     private readonly DalamudUtilService _dalamudUtilService;
     private RefreshMode _refreshMode = RefreshMode.Live;
@@ -35,12 +37,13 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private UiNav.Tab<AnalysisTabs>? _selectedTab;
 
     public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
-        UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService,
+        UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService, ServerConfigurationManager serverConfigurationManager,
         ApiController apiController, DalamudUtilService dalamudUtilService) : base(logger, mediator, "Player Analysis Viewer", performanceCollector)
     {
         _uiSharedService = uiSharedService;
         _pairManager = pairManager;
         _playerPerformanceConfig = playerPerformanceConfigService;
+        _serverConfigurationManager = serverConfigurationManager;
         _apiController = apiController;
         _dalamudUtilService = dalamudUtilService;
         SizeConstraints = new()
@@ -485,7 +488,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         // It can take a moment to dispose a large player, so we don't let the user spam the button
                         if (_pauseClicked.Add(uid))
                         {
-                            _ = _apiController.PauseAsync(pair.UserData).ContinueWith(_ => _pauseClicked.Remove(uid));
+                            // This should be reworked and use the mediator to publish a pause message
+                            _ = _apiController.PauseAsync(pair.UserData, MareConfiguration.Models.PauseReason.Manual).ContinueWith(_ => _pauseClicked.Remove(uid));
                         }
                     }
                     ImGui.EndDisabled();
@@ -528,11 +532,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         ImGuiHelpers.ScaledDummy(2f);
 
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
-        using var table = ImRaii.Table("pauseTable", 3, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg, new Vector2(0, 0));
+        using var table = ImRaii.Table("pauseTable", 4, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg, new Vector2(0, 0));
 
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableSetupColumn("UID", ImGuiTableColumnFlags.WidthFixed, 240f);
         ImGui.TableSetupColumn("Alias", ImGuiTableColumnFlags.WidthFixed, 240f);
+        ImGui.TableSetupColumn("Reason", ImGuiTableColumnFlags.WidthFixed, 320f);
         ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 200f);
         ImGui.TableHeadersRow();
 
@@ -557,6 +562,11 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
             {
                 ImGui.TextUnformatted(pair.UserData.Alias);
             }
+
+            // Reason
+            ImGui.TableNextColumn();
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(pair.GetPauseReason());
 
             // Actions
             ImGui.TableNextColumn();

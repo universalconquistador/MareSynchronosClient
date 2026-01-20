@@ -1,5 +1,4 @@
-﻿using Dalamud.Game.ClientState.Objects;
-using Dalamud.Interface.ImGuiFileDialog;
+﻿using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -29,7 +28,6 @@ using NReco.Logging.File;
 using System.Net.Http.Headers;
 using System.Reflection;
 using MareSynchronos.Services.CharaData;
-using Dalamud.Game;
 using PlayerSync.PlayerData.Pairs;
 using PlayerSync.Services;
 using PlayerSync.FileCache;
@@ -143,7 +141,7 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<BlockedCharacterHandler>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<PerformanceCollectorService>(),
                 s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton(s => new PairManager(s.GetRequiredService<ILogger<PairManager>>(), s.GetRequiredService<PairFactory>(),
-                s.GetRequiredService<MareConfigService>(), s.GetRequiredService<MareMediator>(), contextMenu));
+                s.GetRequiredService<MareConfigService>(), s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<MareMediator>(), contextMenu));
             collection.AddSingleton<RedrawManager>();
             collection.AddSingleton(s => new NamePlateManagerService(s.GetRequiredService<ILogger<NamePlateManagerService>>(), s.GetRequiredService<MareMediator>(), 
                 namePlateGui, s.GetRequiredService<PairManager>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<MareConfigService>()));

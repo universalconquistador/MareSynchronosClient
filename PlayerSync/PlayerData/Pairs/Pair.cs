@@ -5,6 +5,7 @@ using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Factories;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
@@ -206,6 +207,24 @@ public class Pair
     public string? GetNote()
     {
         return _serverConfigurationManager.GetNoteForUid(UserData.UID);
+    }
+
+    public string GetPauseReason()
+    {
+        var reasonCode = _serverConfigurationManager.GetPauseReasonForUid(UserData.UID);
+        return reasonCode switch
+        {
+            PauseReason.None => "Unknown",
+            PauseReason.Manual => "Manually paused by user",
+            PauseReason.Permanent => "Permanently paused by user",
+            PauseReason.ThresholdVram => "Exceeded VRAM threshold",
+            PauseReason.ThresholdTriangles => "Exceeded triangles threshold",
+            PauseReason.ThresholdHeight => "Exceeded height threshold",
+            PauseReason.PauseSyncshell => "In a paused syncshell",
+            PauseReason.PauseAllPairs => "User paused all pairs",
+            PauseReason.PauseAllSyncs => "User paused all syncshells",
+            _ => string.Empty
+        };
     }
 
     public string GetPlayerNameHash()

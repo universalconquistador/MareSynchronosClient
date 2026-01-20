@@ -10,6 +10,7 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.WebAPI;
 using System.Numerics;
 
@@ -25,6 +26,7 @@ public class TopTabMenu : IMediatorSubscriber
     private readonly IBroadcastManager _broadcastManager;
     private readonly UiSharedService _uiSharedService;
     private readonly MareConfigService _mareConfigService;
+    private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private string _filter = string.Empty;
     private int _globalControlCountdown = 0;
@@ -33,7 +35,8 @@ public class TopTabMenu : IMediatorSubscriber
     MareMediator IMediatorSubscriber.Mediator => _mareMediator;
 
     private SelectedTab _selectedTab = SelectedTab.None;
-    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, MareConfigService mareConfigService, ZoneSyncConfigService zoneSyncConfigService)
+    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, 
+        UiSharedService uiSharedService, MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService)
     {
         _mareMediator = mareMediator;
         _apiController = apiController;
@@ -41,6 +44,7 @@ public class TopTabMenu : IMediatorSubscriber
         _broadcastManager = broadcastManager;
         _uiSharedService = uiSharedService;
         _mareConfigService = mareConfigService;
+        _serverConfigurationManager = serverConfigurationManager;
         _zoneSyncConfigService = zoneSyncConfigService;
     }
 
@@ -672,7 +676,6 @@ public class TopTabMenu : IMediatorSubscriber
                     {
                         return actEnable(g.UserPair.OwnPermissions);
                     }, StringComparer.Ordinal);
-
                 _ = _apiController.SetBulkPermissions(new(bulkIndividualPairs, new(StringComparer.Ordinal))).ConfigureAwait(false);
                 ImGui.CloseCurrentPopup();
             }
@@ -686,7 +689,7 @@ public class TopTabMenu : IMediatorSubscriber
                     {
                         return actDisable(g.UserPair.OwnPermissions);
                     }, StringComparer.Ordinal);
-
+                _serverConfigurationManager.SetPauseReasonForUid(bulkIndividualPairs.Keys.ToList(), MareConfiguration.Models.PauseReason.PauseAllPairs);
                 _ = _apiController.SetBulkPermissions(new(bulkIndividualPairs, new(StringComparer.Ordinal))).ConfigureAwait(false);
                 ImGui.CloseCurrentPopup();
             }
@@ -710,7 +713,6 @@ public class TopTabMenu : IMediatorSubscriber
                     {
                         return actEnable(g.GroupUserPermissions);
                     }, StringComparer.Ordinal);
-
                 _ = _apiController.SetBulkPermissions(new(new(StringComparer.Ordinal), bulkSyncshells)).ConfigureAwait(false);
                 ImGui.CloseCurrentPopup();
             }
@@ -724,7 +726,8 @@ public class TopTabMenu : IMediatorSubscriber
                     {
                         return actDisable(g.GroupUserPermissions);
                     }, StringComparer.Ordinal);
-
+                var uidsToPause = _pairManager.GroupPairs.Values.SelectMany(list => list).Select(u => u.UserData.UID).Distinct().ToList();
+                _serverConfigurationManager.SetPauseReasonForUid(uidsToPause, MareConfiguration.Models.PauseReason.PauseAllSyncs);
                 _ = _apiController.SetBulkPermissions(new(new(StringComparer.Ordinal), bulkSyncshells)).ConfigureAwait(false);
                 ImGui.CloseCurrentPopup();
             }
