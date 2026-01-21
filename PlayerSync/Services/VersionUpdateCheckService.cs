@@ -9,10 +9,12 @@ namespace MareSynchronos.Services;
 
 public class VersionUpdateCheckService : DisposableMediatorSubscriberBase, IHostedService
 {
+    private static readonly TimeSpan UpdateInterval = TimeSpan.FromMinutes(5);
+    private const string RepositoryUrl = "https://playersync.io/download/plugin/repo.json";
+
     private readonly ILogger<VersionUpdateCheckService> _logger;
     private readonly HttpClient _httpClient;
     private Version _latestVersion = new();
-
     private readonly CancellationTokenSource _periodicVersionUpdateCheckCts = new();
 
     public VersionUpdateCheckService(ILogger<VersionUpdateCheckService> logger, HttpClient httpClient, MareMediator mediator) : base(logger, mediator)
@@ -20,9 +22,6 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase, IHost
         _logger = logger;
         _httpClient = httpClient;
     }
-
-    private static readonly TimeSpan UpdateInterval = TimeSpan.FromMinutes(5);
-    private const string RepositoryUrl = "https://playersync.io/download/plugin/repo.json";
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -49,15 +48,15 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase, IHost
         {
             using var req = new HttpRequestMessage(HttpMethod.Get, RepositoryUrl);
             req.Headers.Accept.ParseAdd("application/json");
-
             using var resp = await _httpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, _periodicVersionUpdateCheckCts.Token).ConfigureAwait(false);
-            var json = await resp.Content.ReadAsStringAsync(_periodicVersionUpdateCheckCts.Token).ConfigureAwait(false);
 
             if (!resp.IsSuccessStatusCode)
             {
                 _logger.LogWarning("PlayerSync was unable to check for version update from {url}", RepositoryUrl);
                 continue;
             }
+
+            var json = await resp.Content.ReadAsStringAsync(_periodicVersionUpdateCheckCts.Token).ConfigureAwait(false);
 
             try
             {
