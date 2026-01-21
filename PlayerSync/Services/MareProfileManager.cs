@@ -151,17 +151,6 @@ public class MareProfileManager : MediatorSubscriberBase
             if (!string.IsNullOrEmpty(doc.AboutMe) && doc.AboutMe.Length > MaxAboutMeLen)
                 errors.Add($"About Me must be {MaxAboutMeLen} characters or fewer.");
 
-            //var socials = doc.Socials;
-            //if (socials != null)
-            //{
-            //    ValidateSocial(errors, "Discord", socials.Discord, MaxSocialLen);
-            //    ValidateSocial(errors, "Twitter/X", socials.TwitterX, MaxSocialLen);
-            //    ValidateSocial(errors, "Bluesky", socials.Bluesky, MaxSocialLen);
-            //    ValidateSocial(errors, "Instagram", socials.Instagram, MaxSocialLen);
-            //    ValidateSocial(errors, "Facebook", socials.Facebook, MaxSocialLen);
-            //    ValidateSocial(errors, "Twitch", socials.Twitch, MaxSocialLen);
-            //}
-
             // Keep alpha > 0.15 so the profile doesn't become unreadable.
             //var theme = doc.Theme;
             //if (theme != null)
@@ -178,18 +167,5 @@ public class MareProfileManager : MediatorSubscriberBase
 
             return errors.Count == 0;
         }
-
-        //private static void ValidateSocial(List<string> errors, string label, string? value, int maxLen)
-        //{
-        //    if (string.IsNullOrWhiteSpace(value))
-        //        return;
-
-        //    if (value.Length > maxLen)
-        //        errors.Add($"{label} must be {maxLen} characters or fewer.");
-
-        //    // Keep socials single-line.
-        //    if (value.Contains('\n') || value.Contains('\r'))
-        //        errors.Add($"{label} must be a single line (no newlines).");
-        //}
     }
 }
