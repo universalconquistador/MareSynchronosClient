@@ -19,9 +19,7 @@ namespace MareSynchronos.UI;
 public class TopTabMenu : IMediatorSubscriber
 {
     private readonly ApiController _apiController;
-
     private readonly MareMediator _mareMediator;
-
     private readonly PairManager _pairManager;
     private readonly IBroadcastManager _broadcastManager;
     private readonly UiSharedService _uiSharedService;

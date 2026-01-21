@@ -619,6 +619,7 @@ public partial class SettingsUi
 
         if (ApiController.ServerAlive)
         {
+            ImGuiHelpers.ScaledDummy(5);
             if (ImGui.Button("Delete all my files"))
             {
                 _deleteFilesPopupModalShown = true;
@@ -654,6 +655,8 @@ public partial class SettingsUi
                 UiSharedService.SetScaledWindowSize(325);
                 ImGui.EndPopup();
             }
+
+            ImGuiHelpers.ScaledDummy(5);
             if (ImGui.Button("Delete account"))
             {
                 _deleteAccountPopupModalShown = true;

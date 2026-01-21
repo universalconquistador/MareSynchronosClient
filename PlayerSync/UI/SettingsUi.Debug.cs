@@ -1,5 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.UI.ModernUi;
@@ -48,6 +49,7 @@ public partial class SettingsUi
             _configService.Save();
         }, _configService.Current.LogLevel);
 
+        ImGuiHelpers.ScaledDummy(5);
         bool logPerformance = _configService.Current.LogPerformance;
         if (ImGui.Checkbox("Log Performance Counters", ref logPerformance))
         {
@@ -69,6 +71,7 @@ public partial class SettingsUi
             }
         }
 
+        ImGuiHelpers.ScaledDummy(5);
         bool stopWhining = _configService.Current.DebugStopWhining;
         if (ImGui.Checkbox("Do not notify for modified game files or enabled LOD", ref stopWhining))
         {
@@ -78,6 +81,7 @@ public partial class SettingsUi
         _uiShared.DrawHelpText("Having modified game files will still mark your logs with UNSUPPORTED and you will not receive support, message shown or not." + UiSharedService.TooltipSeparator
             + "Keeping LOD enabled can lead to more crashes. Use at your own risk.");
 
+        ImGuiHelpers.ScaledDummy(5);
         bool throttleUploads = _configService.Current.DebugThrottleUploads;
         if (ImGui.Checkbox("Throttle uploads to be very very slow", ref throttleUploads))
         {
@@ -86,6 +90,7 @@ public partial class SettingsUi
         }
         _uiShared.DrawHelpText("Artificially slow down your uploads, for testing the upload system.");
 
+        ImGuiHelpers.ScaledDummy(5);
         bool overrideCdnTimeOffset = _configService.Current.OverrideCdnTimeZone;
         if (ImGui.Checkbox($"Override CDN Time Zone (Current: '{(overrideCdnTimeOffset ? _configService.Current.OverrideCdnTimeZoneId : TimeZoneInfo.Local.Id)}', UTC offset: {_fileTransferOrchestrator.TimeZoneUtcOffsetMinutes} mins)", ref overrideCdnTimeOffset))
         {

@@ -77,10 +77,10 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
     private enum SyncshellAdminNav
     {
-        Profile,
-        Invites,
+        Access,
         UserManagement,
         Permissions,
+        Profile,
         Owner
     }
     private enum SyncshellAdminTabs
@@ -131,10 +131,10 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
         var groupItems = new List<UiNav.NavItem<SyncshellAdminNav>>
         {
-            new(SyncshellAdminNav.Profile, "Profile", DrawProfile, FontAwesomeIcon.User),
-            new(SyncshellAdminNav.Invites, "Invites", DrawInvites, FontAwesomeIcon.Envelope),
+            new(SyncshellAdminNav.Access, "Access", DrawAccess, FontAwesomeIcon.DoorOpen),
             new(SyncshellAdminNav.UserManagement, "User Management", DrawUserManagement, FontAwesomeIcon.Users),
             new(SyncshellAdminNav.Permissions, "Permissions", DrawPermissions, FontAwesomeIcon.Key),
+            new(SyncshellAdminNav.Profile, "Profile", DrawProfile, FontAwesomeIcon.User),
         };
 
         if (_isOwner)
@@ -188,7 +188,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             
     }
 
-    private void DrawInvites()
+    private void DrawAccess()
     {
         _uiSharedService.BigText("Invites");
         ImGuiHelpers.ScaledDummy(2);

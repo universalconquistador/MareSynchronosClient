@@ -3,6 +3,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.ModernUi;
@@ -175,9 +176,25 @@ public partial class SettingsUi
     private void DrawSyncBroadcast()
     {
         _uiShared.BigText("Broadcasts");
-        UiSharedService.TextWrapped("These config options control systems used for pairing with other players.");
-        ImGui.Dummy(new Vector2(10));
-        ImGui.Separator();
+        UiSharedService.TextWrapped("Viewing Broadcast Syncshells is on by default. You can find active broadcasts in the Nearby Broadcast section of the Main UI.");
+        UiSharedService.TextWrapped("To enable broadcasting of a Syncshell, use the Syncshell menu next to the Syncshell name in the main UI list of Syncshells.");
+        ImGuiHelpers.ScaledDummy(5f);
+        var showBroadcastingSyncshells = _configService.Current.ListenForBroadcasts;
+        if (ImGui.Checkbox("Enable Broadcast Feature", ref showBroadcastingSyncshells))
+        {
+            if (showBroadcastingSyncshells) _broadcastManager.StartListening();
+            else _broadcastManager.StopListening();
+
+            _configService.Current.ListenForBroadcasts = showBroadcastingSyncshells;
+            _configService.Save();
+        }
+        UiSharedService.AttachToolTip(
+            showBroadcastingSyncshells
+                ? "Click to turn OFF broadcast features." + UiSharedService.TooltipSeparator + "Stops showing nearby Syncshell broadcasts."
+                : "Click to turn ON broadcast features." + UiSharedService.TooltipSeparator + "Shows Syncshells broadcasting in your location for easy joining."
+        );
+        //ImGui.Dummy(new Vector2(10));
+        //ImGui.Separator();
     }
     private void DrawSyncFilter()
     {
