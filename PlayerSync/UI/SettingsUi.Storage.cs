@@ -59,6 +59,7 @@ public partial class SettingsUi
         //ImGui.Separator();
 
         _uiShared.BigText("Storage");
+        ImGuiHelpers.ScaledDummy(2);
 
         UiSharedService.TextWrapped("PlayerSync stores downloaded files from paired people permanently. This is to improve loading performance and requiring less downloads. " +
             "The storage governs itself by clearing data beyond the set storage size. Please set the storage size accordingly. It is not necessary to manually clear the storage.");
@@ -174,6 +175,7 @@ public partial class SettingsUi
     private void DrawStorageClear()
     {
         _uiShared.BigText("Clear Local Storage");
+        ImGuiHelpers.ScaledDummy(2);
 
         UiSharedService.TextWrapped("File Storage validation can make sure that all files in your local PlayerSync Storage are valid. " +
             "Run the validation before you clear the Storage for no reason. " + Environment.NewLine +

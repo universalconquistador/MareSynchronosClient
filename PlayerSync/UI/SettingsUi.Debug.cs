@@ -42,6 +42,7 @@ public partial class SettingsUi
         _lastTab = "Debug";
 
         _uiShared.BigText("Debug");
+        ImGuiHelpers.ScaledDummy(2);
         ImGui.SetNextItemWidth(300);
         _uiShared.DrawCombo("Log Level", Enum.GetValues<LogLevel>(), (l) => l.ToString(), (l) =>
         {
@@ -116,6 +117,7 @@ public partial class SettingsUi
         _lastTab = "Debug";
 
         _uiShared.BigText("Data");
+        ImGuiHelpers.ScaledDummy(2);
 
 #if DEBUG
         if (LastCreatedCharacterData != null && ImGui.TreeNode("Last created character data"))

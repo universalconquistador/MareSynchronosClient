@@ -44,6 +44,8 @@ public partial class SettingsUi
     private void DrawPerformanceTextureCompression()
     {
         _uiShared.BigText("Auto Texture Compression");
+        ImGuiHelpers.ScaledDummy(2);
+
         UiSharedService.TextWrapped("Options for using the PlayerSync servers' automatically-compressed versions of players' uncompressed textures.");
         UiSharedService.ColorTextWrapped("Conversion to BC7 does not happen on your PC. There is no negative performance impact in using this feature.", ImGuiColors.DalamudYellow);
         UiSharedService.TextWrapped("This option applies to texture downloads for other players, you should still compress your own mods as well.");
@@ -77,6 +79,8 @@ public partial class SettingsUi
         }
 
         _uiShared.BigText("Override UIDs");
+        ImGuiHelpers.ScaledDummy(2);
+
         UiSharedService.TextWrapped("The entries in the list below will always use source quality.");
         ImGui.Dummy(new Vector2(10));
         ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
@@ -127,6 +131,8 @@ public partial class SettingsUi
     private void DrawPerformanceThresholdPausing()
     {
         _uiShared.BigText("Auto Threshold Pausing");
+        ImGuiHelpers.ScaledDummy(2);
+
         UiSharedService.TextWrapped("Configure options to warn and/or pause players exceeding your performance thresholds.");
         ImGui.Dummy(new Vector2(10));
         bool showPerformanceIndicator = _playerPerformanceConfigService.Current.ShowPerformanceIndicator;

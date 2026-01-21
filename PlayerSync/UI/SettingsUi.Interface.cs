@@ -1,12 +1,13 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using MareSynchronos.MareConfiguration.Models;
-using MareSynchronos.UI.ModernUi;
-using MareSynchronos.Services.Mediator;
-using System.Numerics;
 using MareSynchronos.API.Data.Comparer;
+using MareSynchronos.MareConfiguration.Models;
+using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.ModernUi;
+using System.Numerics;
 
 namespace MareSynchronos.UI;
 
@@ -65,7 +66,7 @@ public partial class SettingsUi
         var mysterySetting = _configService.Current.MysterySetting;
 
         _uiShared.BigText("PlayerSync UI");
-
+        ImGuiHelpers.ScaledDummy(2);
         if (ImGui.Checkbox("Show the plugin UI automatically", ref showWindowOnPluginLoad))
         {
             _configService.Current.ShowUIOnPluginLoad = showWindowOnPluginLoad;
@@ -238,7 +239,7 @@ public partial class SettingsUi
         var permsColorsDisabled = _configService.Current.PermsColorsDisabled;
 
         _uiShared.BigText("Game UI");
-
+        ImGuiHelpers.ScaledDummy(2);
         if (ImGui.Checkbox("Enable Game Right Click Menu Entries", ref enableRightClickMenu))
         {
             _configService.Current.EnableRightClickMenus = enableRightClickMenu;
@@ -378,8 +379,9 @@ public partial class SettingsUi
         }
 
         _lastTab = "General";
-
+        
         _uiShared.BigText("Notes");
+        ImGuiHelpers.ScaledDummy(2);
         if (_uiShared.IconTextButton(FontAwesomeIcon.StickyNote, "Export all your user notes to clipboard"))
         {
             ImGui.SetClipboardText(UiSharedService.GetNotes(_pairManager.DirectPairs.UnionBy(_pairManager.GroupPairs.SelectMany(p => p.Value), p => p.UserData, UserDataComparer.Instance).ToList()));
@@ -432,7 +434,7 @@ public partial class SettingsUi
         var onlineNotifsNamedOnly = _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs;
 
         _uiShared.BigText("Notifications");
-
+        ImGuiHelpers.ScaledDummy(2);
         ImGui.SetNextItemWidth(400);
         _uiShared.DrawCombo("Info Notification Display##settingsUi", (NotificationLocation[])Enum.GetValues(typeof(NotificationLocation)), (i) => i.ToString(),
         (i) =>
@@ -472,6 +474,7 @@ public partial class SettingsUi
                               + Environment.NewLine + "'Toast' will show Error toast notifications in the bottom right corner"
                               + Environment.NewLine + "'Both' will show chat as well as the toast notification");
 
+        ImGuiHelpers.ScaledDummy(5);
         if (ImGui.Checkbox("Disable optional plugin warnings", ref disableOptionalPluginWarnings))
         {
             _configService.Current.DisableOptionalPluginWarnings = disableOptionalPluginWarnings;

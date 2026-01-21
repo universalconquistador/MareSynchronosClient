@@ -50,6 +50,7 @@ public partial class SettingsUi
         int downloadSpeedLimit = _configService.Current.DownloadSpeedLimitInBytes;
 
         _uiShared.BigText("Bandwidth");
+        ImGuiHelpers.ScaledDummy(2);
         ImGui.TextUnformatted("Global Download Speed Limit");
         ImGui.SetNextItemWidth(100 * ImGuiHelpers.GlobalScale);
         if (ImGui.InputInt("###speedlimit", ref downloadSpeedLimit))
@@ -97,7 +98,7 @@ public partial class SettingsUi
     private void DrawTransfersOverlay()
     {
         _uiShared.BigText("Overlay");
-
+        ImGuiHelpers.ScaledDummy(2);
         bool showTransferWindow = _configService.Current.ShowTransferWindow;
         if (ImGui.Checkbox("Show separate transfer window", ref showTransferWindow))
         {
@@ -179,7 +180,7 @@ public partial class SettingsUi
     private void DrawTransfersCurrent()
     {
         _uiShared.BigText("Current Transfers");
-
+        ImGuiHelpers.ScaledDummy(2);
         if (ImGui.BeginTabBar("TransfersTabBar"))
         {
             if (ApiController.ServerState is ServerState.Connected && ImGui.BeginTabItem("Transfers"))

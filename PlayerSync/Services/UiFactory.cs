@@ -19,10 +19,11 @@ public class UiFactory
     private readonly ServerConfigurationManager _serverConfigManager;
     private readonly MareProfileManager _mareProfileManager;
     private readonly PerformanceCollectorService _performanceCollectorService;
+    private readonly IBroadcastManager _broadcastManager;
 
     public UiFactory(ILoggerFactory loggerFactory, MareMediator mareMediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, ServerConfigurationManager serverConfigManager,
-        MareProfileManager mareProfileManager, PerformanceCollectorService performanceCollectorService)
+        MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService)
     {
         _loggerFactory = loggerFactory;
         _mareMediator = mareMediator;
@@ -31,13 +32,14 @@ public class UiFactory
         _pairManager = pairManager;
         _serverConfigManager = serverConfigManager;
         _mareProfileManager = mareProfileManager;
+        _broadcastManager = broadcastManager;
         _performanceCollectorService = performanceCollectorService;
     }
 
     public SyncshellAdminUI CreateSyncshellAdminUi(GroupFullInfoDto dto)
     {
         return new SyncshellAdminUI(_loggerFactory.CreateLogger<SyncshellAdminUI>(), _mareMediator,
-            _apiController, _uiSharedService, _pairManager, dto, _performanceCollectorService);
+            _apiController, _uiSharedService, _broadcastManager, _pairManager, dto, _performanceCollectorService);
     }
 
     public SyncshellProfileUi CreateSyncshellProfileUi(GroupFullInfoDto dto)

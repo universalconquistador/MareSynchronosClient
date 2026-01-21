@@ -3,7 +3,6 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
@@ -13,8 +12,6 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.ModernUi;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Numerics;
 using System.Text;
@@ -29,6 +26,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private readonly List<string> _oneTimeInvites = [];
     private readonly PairManager _pairManager;
     private readonly UiSharedService _uiSharedService;
+    private readonly IBroadcastManager _broadcastManager;
     private List<BannedGroupUserDto> _bannedUsers = [];
     private int _multiInvites;
     private string _newPassword;
@@ -42,15 +40,14 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private UiNav.NavItem<SyncshellAdminNav>? _selectedNavItem;
     private UiNav.Tab<SyncshellAdminTabs>? _selectedTab;
 
-    private string _selectedUserManagementTabId = "userlist";
-
     public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController,
-        UiSharedService uiSharedService, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService)
+        UiSharedService uiSharedService, IBroadcastManager broadcastManager, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService)
         : base(logger, mediator, "Syncshell Admin Panel (" + groupFullInfo.GroupAliasOrGID + ")", performanceCollectorService)
     {
         GroupFullInfo = groupFullInfo;
         _apiController = apiController;
         _uiSharedService = uiSharedService;
+        _broadcastManager = broadcastManager;
         _pairManager = pairManager;
         _isOwner = string.Equals(GroupFullInfo.OwnerUID, _apiController.UID, System.StringComparison.Ordinal);
         _isModerator = GroupFullInfo.GroupUserInfo.IsModerator();
@@ -125,8 +122,8 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             }
         }
 
-        Ui.VSpace(6);
-        ImGui.Separator();
+        //Ui.VSpace(6);
+        //ImGui.Separator();
         Ui.VSpace(6);
 
         var groupItems = new List<UiNav.NavItem<SyncshellAdminNav>>
@@ -190,19 +187,24 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
     private void DrawAccess()
     {
-        _uiSharedService.BigText("Invites");
+        _uiSharedService.BigText("Access");
         ImGuiHelpers.ScaledDummy(2);
 
         var perm = GroupFullInfo.GroupPermissions;
         bool isInvitesDisabled = perm.IsDisableInvites();
 
+        _uiSharedService.HeaderText("Lock Syncshell");
+        UiSharedService.TextWrapped("Locked Syncshells will prevent anyone from being able to join.");
         if (_uiSharedService.IconTextButton(isInvitesDisabled ? FontAwesomeIcon.Unlock : FontAwesomeIcon.Lock,
             isInvitesDisabled ? "Unlock Syncshell" : "Lock Syncshell"))
         {
             perm.SetDisableInvites(!isInvitesDisabled);
             _ = _apiController.GroupChangeGroupPermissionState(new(GroupFullInfo.Group, perm));
         }
-
+        ImGuiHelpers.ScaledDummy(5f);
+        _uiSharedService.HeaderText("Guest Mode");
+        UiSharedService.TextWrapped("Guest Mode enables joining a Syncshell without a password." + Environment.NewLine 
+            + "Users joining without a password will be marked as \"guests\" in the User Management tab.");
         bool enabledGuest = perm.IsEnableGuestMode();
         if (!enabledGuest)
         {
@@ -224,17 +226,57 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                 _ = _apiController.GroupChangeGroupPermissionState(new(GroupFullInfo.Group, perm));
             }
         }
+        ImGuiHelpers.ScaledDummy(5f);
+        _uiSharedService.HeaderText("Broadcast Mode");
+        UiSharedService.TextWrapped("Enabling Broadcast Mode will allow other players around you see and join your Syncshell from the Nearby Broadcasts list." + Environment.NewLine +
+            "The owner of a Syncshell and anyone with mod access may enable broadcasting at any time. This setting is per-player, meaning only those with it enabled with be broadcasting the Syncshell.");
+        UiSharedService.ColorTextWrapped("You can also find this setting in the Main UI below the \"Open Admin Panel\" in the Syncshell options.", ImGuiColors.DalamudYellow);
 
-        ImGuiHelpers.ScaledDummy(2f);
-        ImGui.Separator();
-        ImGuiHelpers.ScaledDummy(2f);
+        if (_broadcastManager.IsListening)
+        {
+            if (_broadcastManager.BroadcastingGroupId == GroupFullInfo.GID)
+            {
+                if (_uiSharedService.IconTextButton(FontAwesomeIcon.Stop, "Stop Broadcasting"))
+                {
+                    _broadcastManager.StopBroadcasting();
+                }
+            }
+            else
+            {
+                using (ImRaii.Disabled((GroupFullInfo.PublicData.KnownPasswordless || GroupFullInfo.GroupPermissions.IsEnableGuestMode()) && !UiSharedService.CtrlPressed()))
+                {
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Wifi, "Start Broadcasting"))
+                    {
+                        _broadcastManager.StartBroadcasting(GroupFullInfo.Group.GID);
+                        var allPairsInGroup = _pairManager.GroupPairs[GroupFullInfo].Count;
+                        if (allPairsInGroup == (_apiController.ServerInfo.MaxGroupUserCount - 1))
+                        {
+                            Mediator.Publish(new NotificationMessage("Group Full", $"Group {GroupFullInfo.Group.GID} is being broadcasted but is capped on players who can join.", MareConfiguration.Models.NotificationType.Error));
+                        }
+                    }
+                }
+                UiSharedService.AttachToolTip("Begin broadcasting your Syncshell to players around you.");
+                if (GroupFullInfo.PublicData.KnownPasswordless)
+                {
+                    UiSharedService.AttachToolTip("This Syncshell has no password!\nHold CTRL and click if you are sure you want to broadcast this passwordless Syncshell.");
+                }
+                else if (GroupFullInfo.GroupPermissions.IsEnableGuestMode())
+                {
+                    UiSharedService.AttachToolTip("This Syncshell has Guest Mode enabled!\nHold CTRL and click if you are sure you want to broadcast this Syncshell with no password.");
+                }
+            }
+        }
 
+        ImGuiHelpers.ScaledDummy(5f);
+        _uiSharedService.HeaderText("One-time Invites");
         UiSharedService.TextWrapped("One-time invites work as single-use passwords. Use those if you do not want to distribute your Syncshell password.");
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Envelope, "Single one-time invite"))
         {
             ImGui.SetClipboardText(_apiController.GroupCreateTempInvite(new(GroupFullInfo.Group), 1).Result.FirstOrDefault() ?? string.Empty);
         }
         UiSharedService.AttachToolTip("Creates a single-use password for joining the syncshell which is valid for 24h and copies it to the clipboard.");
+        ImGuiHelpers.ScaledDummy(2f);
+        ImGui.SetNextItemWidth(100);
         ImGui.InputInt("##amountofinvites", ref _multiInvites);
         ImGui.SameLine();
         using (ImRaii.Disabled(_multiInvites <= 1 || _multiInvites > 100))

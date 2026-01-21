@@ -46,7 +46,7 @@ public partial class SettingsUi
     private void DrawSyncZone()
     {
         _uiShared.BigText("ZoneSync");
-
+        ImGuiHelpers.ScaledDummy(2);
         if (!_zoneSyncConfigService.Current.UserHasConfirmedWarning)
         {
             ImGui.Separator();
@@ -176,11 +176,12 @@ public partial class SettingsUi
     private void DrawSyncBroadcast()
     {
         _uiShared.BigText("Broadcasts");
+        ImGuiHelpers.ScaledDummy(2);
         UiSharedService.TextWrapped("Viewing Broadcast Syncshells is on by default. You can find active broadcasts in the Nearby Broadcast section of the Main UI.");
         UiSharedService.TextWrapped("To enable broadcasting of a Syncshell, use the Syncshell menu next to the Syncshell name in the main UI list of Syncshells.");
         ImGuiHelpers.ScaledDummy(5f);
         var showBroadcastingSyncshells = _configService.Current.ListenForBroadcasts;
-        if (ImGui.Checkbox("Enable Broadcast Feature", ref showBroadcastingSyncshells))
+        if (ImGui.Checkbox("Show Available Broadcasts", ref showBroadcastingSyncshells))
         {
             if (showBroadcastingSyncshells) _broadcastManager.StartListening();
             else _broadcastManager.StopListening();
@@ -203,6 +204,7 @@ public partial class SettingsUi
         bool filterAnimations = _configService.Current.FilterAnimations;
 
         _uiShared.BigText("Filtering");
+        ImGuiHelpers.ScaledDummy(2);
         UiSharedService.TextWrapped("These options do NOT change your per-pair permissions. Think of these as global overrides you can toggle on/off.");
         UiSharedService.TextWrapped("You will not see the filtered sfx/ani/vfx for other players, but they will still be able to see you (if permissions allow).");
         UiSharedService.ColorTextWrapped("Changing these options will redraw all visible pairs around you.", ImGuiColors.DalamudRed);

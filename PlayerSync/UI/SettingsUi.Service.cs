@@ -130,6 +130,7 @@ public partial class SettingsUi
         _lastTab = "Service";
 
         _uiShared.BigText("Service");
+        ImGuiHelpers.ScaledDummy(2);
         var useBackupServer = _serverConfigurationManager.EnableBackupServer;
         if (ImGui.Checkbox("Use Proxied Server", ref useBackupServer))
         {
@@ -525,6 +526,7 @@ public partial class SettingsUi
     private void DrawServicePermissions()
     {
         _uiShared.BigText("Default Permission Settings");
+        ImGuiHelpers.ScaledDummy(2);
         if (_selectedServer == _serverConfigurationManager.CurrentServer && _apiController.IsConnected)
         {
             UiSharedService.TextWrapped("Note: The default permissions settings here are not applied retroactively to existing pairs or joined Syncshells.");
@@ -603,6 +605,7 @@ public partial class SettingsUi
         _lastTab = "Account";
 
         _uiShared.BigText("Account");
+        ImGuiHelpers.ScaledDummy(2);
         var sendCensus = _serverConfigurationManager.SendCensusData;
         if (ImGui.Checkbox("Send Statistical Census Data", ref sendCensus))
         {

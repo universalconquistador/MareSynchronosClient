@@ -121,12 +121,13 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
     private void DrawCompression()
     {
         _uiSharedService.BigText("Compression");
+        ImGuiHelpers.ScaledDummy(2);
     }
 
     private void DrawTransient()
     {
         _uiSharedService.BigText("Transient");
-
+        ImGuiHelpers.ScaledDummy(2);
         using var tabbar = ImRaii.TabBar("transientData");
 
         using (var transientData = ImRaii.TabItem("Stored Transient File Data"))
@@ -537,6 +538,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
     private void DrawAnalysis()
     {
         _uiSharedService.BigText("Analysis");
+        ImGuiHelpers.ScaledDummy(2);
         UiSharedService.DrawTree("What is this? (Explanation / Help)", () =>
         {
             UiSharedService.TextWrapped("This tab shows you all files and their sizes that are currently in use through your character and associated entities in PlayerSync");
