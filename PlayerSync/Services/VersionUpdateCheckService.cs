@@ -1,5 +1,4 @@
-﻿using MareSynchronos.MareConfiguration;
-using MareSynchronos.MareConfiguration.Models;
+﻿using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,25 +10,24 @@ namespace MareSynchronos.Services;
 public class VersionUpdateCheckService : DisposableMediatorSubscriberBase, IHostedService
 {
     private readonly ILogger<VersionUpdateCheckService> _logger;
-    private readonly MareConfigService _mareConfigService;
     private readonly HttpClient _httpClient;
+    private Version _latestVersion = new();
+    private bool _firstRun = true;
 
     private readonly CancellationTokenSource _periodicVersionUpdateCheckCts = new();
 
-    public VersionUpdateCheckService(ILogger<VersionUpdateCheckService> logger, HttpClient httpClient, 
-        MareConfigService mareConfigService, MareMediator mediator) : base(logger, mediator)
+    public VersionUpdateCheckService(ILogger<VersionUpdateCheckService> logger, HttpClient httpClient, MareMediator mediator) : base(logger, mediator)
     {
         _logger = logger;
         _httpClient = httpClient;
-        _mareConfigService = mareConfigService;
     }
 
-    private const int UpdateInterval = 5;
+    private static readonly TimeSpan UpdateInterval = TimeSpan.FromMinutes(5);
     private const string RepositoryUrl = "https://playersync.io/download/plugin/repo.json";
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _ = Task.Run(CheckOnStartup);
+        _latestVersion = Assembly.GetExecutingAssembly().GetName().Version!;
         _logger.LogInformation("Starting VersionUpdateCheckService");
         _ = Task.Run(PeriodicCheckVersionTask, _periodicVersionUpdateCheckCts.Token);
         _logger.LogInformation("Started VersionUpdateCheckService");
@@ -43,18 +41,17 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase, IHost
         return Task.CompletedTask;
     }
 
-    private async Task CheckOnStartup()
-    {
-        await Task.Delay(TimeSpan.FromSeconds(10), _periodicVersionUpdateCheckCts.Token).ConfigureAwait(false);
-        CheckVersionOnStartup();
-    }
-
     private async Task PeriodicCheckVersionTask()
     {
+        if (_firstRun)
+        {
+            // We need to give the plugin a moment to fully start all the services
+            await Task.Delay(TimeSpan.FromSeconds(10), _periodicVersionUpdateCheckCts.Token).ConfigureAwait(false);
+            _firstRun = false;
+        }
+
         while (!_periodicVersionUpdateCheckCts.Token.IsCancellationRequested)
         {
-            await Task.Delay(TimeSpan.FromMinutes(UpdateInterval), _periodicVersionUpdateCheckCts.Token).ConfigureAwait(false);
-
             using var req = new HttpRequestMessage(HttpMethod.Get, RepositoryUrl);
             req.Headers.Accept.ParseAdd("application/json");
 
@@ -70,53 +67,19 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase, IHost
             try
             {
                 Version version = ParseAssemblyVersion(json);
-                CheckVersion(version);
+                if (_latestVersion < version)
+                {
+                    _latestVersion = version;
+                    SendVersionUpdateNotice(version.ToString());
+                }
             }
             catch
             {
                 _logger.LogWarning("There was an issue parsing the repo.json for {url}", RepositoryUrl);
             }
+
+            await Task.Delay(UpdateInterval, _periodicVersionUpdateCheckCts.Token).ConfigureAwait(false);
         }
-    }
-
-    private Version GetLastSeenVersion()
-    {
-        Version version;
-        if (!Version.TryParse(_mareConfigService.Current.LastSeenVersion, out var outVersion))
-            version = new(0, 0, 0, 0);
-        else
-            version = outVersion;
-        return version;
-    }
-
-    private void CheckVersionOnStartup()
-    {
-        Version runningVersion = Assembly.GetExecutingAssembly().GetName().Version!;
-        Version version = GetLastSeenVersion();
-
-        if (runningVersion < version)
-        {
-            SendVersionUpdateNotice(version.ToString());
-        }
-    }
-
-    private void CheckVersion(Version otherVersion)
-    {
-        Version version = GetLastSeenVersion();
-        if (version < otherVersion)
-        {
-            string versionString = otherVersion.ToString();
-            _mareConfigService.Current.LastSeenVersion = versionString;
-            _mareConfigService.Save();
-            SendVersionUpdateNotice(versionString);
-        }
-    }
-
-    private void SendVersionUpdateNotice(string version)
-    {
-        string msg = $"A new version ({version}) of PlayerSync is available. Please update when possible.";
-        _logger.LogInformation(msg);
-        Mediator.Publish(new NotificationMessage("PlayerSync Update Available", msg, NotificationType.Warning));
     }
 
     private static Version ParseAssemblyVersion(string json)
@@ -140,4 +103,10 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase, IHost
         return version;
     }
 
+    private void SendVersionUpdateNotice(string version)
+    {
+        string msg = $"A new version ({version}) of PlayerSync is available. Please update when possible.";
+        _logger.LogInformation(msg);
+        Mediator.Publish(new NotificationMessage("PlayerSync Update Available", msg, NotificationType.Warning));
+    }
 }
