@@ -41,8 +41,8 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         _apiController = apiController;
         SizeConstraints = new()
         {
-            MinimumSize = new(700, 400),
-            MaximumSize = new(700, 400)
+            MinimumSize = new(700, 405),
+            MaximumSize = new(700, 405)
         };
 
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => IsOpen = false);
@@ -91,7 +91,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             if (_groupJoinInfo == null || !_groupJoinInfo.Success)
             {
                 ImGui.TextUnformatted("Join Syncshell");
-                ImGui.Separator();
+                //ImGui.Separator();
             }
 
         if (_groupJoinInfo == null || !_groupJoinInfo.Success)
@@ -99,10 +99,10 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             float PositionalX = 142f * ImGui.GetIO().FontGlobalScale;  // Fixed position reference for the text boxes
             float inputboxsize = 250f;
             ImGuiHelpers.ScaledDummy(2f);
-            UiSharedService.TextWrapped("Here you can join existing Syncshells. " +
-                "Please keep in mind that you cannot join more than " + _apiController.ServerInfo.MaxGroupsJoinedByUser + " syncshells on this server." + Environment.NewLine + Environment.NewLine +
+            UiSharedService.TextWrapped("You may join up to " + _apiController.ServerInfo.MaxGroupsJoinedByUser + " Syncshells on this server." + Environment.NewLine + Environment.NewLine +
                 "Joining a Syncshell will pair you implicitly with all existing users in the Syncshell." + Environment.NewLine + Environment.NewLine +
                 "All permissions to all users in the Syncshell will be set to the preferred Syncshell permissions on joining, excluding prior set preferred permissions.");
+            UiSharedService.ColorTextWrapped("You can find the default permission under Settings -> Service -> Permissions", ImGuiColors.DalamudYellow);
             ImGuiHelpers.ScaledDummy(2f);
             ImGui.Separator();
             ImGuiHelpers.ScaledDummy(2f);
@@ -141,7 +141,10 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             ImGuiHelpers.ScaledDummy(2f);
             using (ImRaii.Disabled(string.IsNullOrEmpty(_desiredSyncshellToJoin)))
             {
-                if (_uiSharedService.IconTextButton(Dalamud.Interface.FontAwesomeIcon.Plus, "Join Syncshell"))
+                var icon = Dalamud.Interface.FontAwesomeIcon.Plus;
+                var iconButtonSize = _uiSharedService.GetIconTextButtonSize(icon, "Join Syncshell");
+                ImGui.SetCursorPosX(PositionalX + inputboxsize * ImGui.GetIO().FontGlobalScale - iconButtonSize);
+                if (_uiSharedService.IconTextButton(icon, "Join Syncshell"))
                 {
                     try
                     {
