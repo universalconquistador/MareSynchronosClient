@@ -12,7 +12,6 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase, IHost
     private readonly ILogger<VersionUpdateCheckService> _logger;
     private readonly HttpClient _httpClient;
     private Version _latestVersion = new();
-    private bool _firstRun = true;
 
     private readonly CancellationTokenSource _periodicVersionUpdateCheckCts = new();
 
@@ -43,12 +42,8 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase, IHost
 
     private async Task PeriodicCheckVersionTask()
     {
-        if (_firstRun)
-        {
-            // We need to give the plugin a moment to fully start all the services
-            await Task.Delay(TimeSpan.FromSeconds(10), _periodicVersionUpdateCheckCts.Token).ConfigureAwait(false);
-            _firstRun = false;
-        }
+        // We need to give the plugin a moment to fully start all the services
+        await Task.Delay(TimeSpan.FromSeconds(10), _periodicVersionUpdateCheckCts.Token).ConfigureAwait(false);
 
         while (!_periodicVersionUpdateCheckCts.Token.IsCancellationRequested)
         {
