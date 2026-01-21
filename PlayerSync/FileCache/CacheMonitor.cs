@@ -453,7 +453,8 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
             if (total > 0)
             {
                 var freeSpace = (double)di.AvailableFreeSpace / total;
-                if (freeSpace < 0.01)
+                bool buffer = di.AvailableFreeSpace < 5L * 1024 * 1024 * 1024;
+                if (freeSpace < 0.01 && buffer)
                 {
                     Logger.LogError("Your PlayerSync storage drive is almost 100% full!");
                     Mediator.Publish(new NotificationMessage("Local Storage Full",
