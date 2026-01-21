@@ -22,7 +22,6 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
     private readonly CancellationTokenSource _periodicCalculationTokenSource = new();
     public static readonly IImmutableList<string> AllowedFileExtensions = [".mdl", ".tex", ".mtrl", ".tmb", ".pap", ".avfx", ".atex", ".sklb", ".eid", ".phyb", ".pbd", ".scd", ".skp", ".shpk"];
 
-
     public CacheMonitor(ILogger<CacheMonitor> logger, IpcManager ipcManager, MareConfigService configService,
         FileCacheManager fileDbManager, MareMediator mediator, PerformanceCollectorService performanceCollector, DalamudUtilService dalamudUtil,
         FileCompactor fileCompactor) : base(logger, mediator)
@@ -62,17 +61,14 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
             InvokeScan();
         }
 
-
         var token = _periodicCalculationTokenSource.Token;
         _ = Task.Run(async () =>
         {
             Logger.LogInformation("Starting Periodic Storage Directory Calculation Task");
             var token = _periodicCalculationTokenSource.Token;
 
-
             while (!token.IsCancellationRequested)
             {
-
                 try
                 {
                     while (_dalamudUtil.IsOnFrameworkThread && !token.IsCancellationRequested)
