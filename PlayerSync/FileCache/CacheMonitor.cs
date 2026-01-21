@@ -22,6 +22,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
     private readonly CancellationTokenSource _periodicCalculationTokenSource = new();
     public static readonly IImmutableList<string> AllowedFileExtensions = [".mdl", ".tex", ".mtrl", ".tmb", ".pap", ".avfx", ".atex", ".sklb", ".eid", ".phyb", ".pbd", ".scd", ".skp", ".shpk"];
 
+
     public CacheMonitor(ILogger<CacheMonitor> logger, IpcManager ipcManager, MareConfigService configService,
         FileCacheManager fileDbManager, MareMediator mediator, PerformanceCollectorService performanceCollector, DalamudUtilService dalamudUtil,
         FileCompactor fileCompactor) : base(logger, mediator)
@@ -61,21 +62,26 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
             InvokeScan();
         }
 
+
         var token = _periodicCalculationTokenSource.Token;
         _ = Task.Run(async () =>
         {
             Logger.LogInformation("Starting Periodic Storage Directory Calculation Task");
             var token = _periodicCalculationTokenSource.Token;
+
+
             while (!token.IsCancellationRequested)
             {
+
                 try
                 {
                     while (_dalamudUtil.IsOnFrameworkThread && !token.IsCancellationRequested)
                     {
                         await Task.Delay(1).ConfigureAwait(false);
                     }
-
+                    Logger.LogDebug("File storage scan starting...");
                     RecalculateFileCacheSize(token);
+                    Logger.LogDebug("File storage scan finished...");
                 }
                 catch
                 {
@@ -395,6 +401,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
         if (string.IsNullOrEmpty(_configService.Current.CacheFolder) || !Directory.Exists(_configService.Current.CacheFolder))
         {
             FileCacheSize = 0;
+            Logger.LogDebug("File directory scan returning with no dir for CacheFolder.");
             return;
         }
 
@@ -422,19 +429,23 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
                 }
                 catch
                 {
+                    Logger.LogDebug("File directory scan returning with error on FileCompactor.");
                     return 0;
                 }
             });
 
         var maxCacheInBytes = (long)(_configService.Current.MaxLocalCacheInGiB * 1024d * 1024d * 1024d);
 
+        Logger.LogDebug("File directory is within bounds: {bounds}", FileCacheSize < maxCacheInBytes);
         if (FileCacheSize < maxCacheInBytes) return;
 
+        Logger.LogDebug("File directory needs cleanup, starting file deletion.");
         var maxCacheBuffer = maxCacheInBytes * 0.05d;
         while (FileCacheSize > maxCacheInBytes - (long)maxCacheBuffer)
         {
             var oldestFile = files[0];
             FileCacheSize -= _fileCompactor.GetFileSizeOnDisk(oldestFile);
+            Logger.LogTrace("Deleting file: {file}", oldestFile.FullName);
             File.Delete(oldestFile.FullName);
             files.Remove(oldestFile);
         }
@@ -455,6 +466,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
 
     protected override void Dispose(bool disposing)
     {
+
         base.Dispose(disposing);
         _scanCancellationTokenSource?.Cancel();
         PenumbraWatcher?.Dispose();
