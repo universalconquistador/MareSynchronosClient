@@ -445,6 +445,27 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
             File.Delete(oldestFile.FullName);
             files.Remove(oldestFile);
         }
+
+        // check for low disk space
+        try
+        {
+            var total = di.TotalSize;
+            if (total > 0)
+            {
+                var freeSpace = (double)di.AvailableFreeSpace / total;
+                if (freeSpace < 0.01)
+                {
+                    Logger.LogError("Your PlayerSync storage drive is almost 100% full!");
+                    Mediator.Publish(new NotificationMessage("Local Storage Full",
+                    $"Your PlayerSync storage drive is almost 100% full! Please check: {di.Name}",
+                    MareConfiguration.Models.NotificationType.Error));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Cannot calculate remaining free space for storage drive: {drive}", di.Name);
+        }
     }
 
     public void ResetLocks()
