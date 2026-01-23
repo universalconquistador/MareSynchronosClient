@@ -203,12 +203,12 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<CharaDataConfigService>());
             collection.AddSingleton<ConfigurationMigrator>();
             collection.AddSingleton<ConfigurationSaveService>();
-
+            collection.AddSingleton<VersionUpdateCheckService>();
+            collection.AddSingleton<CacheMonitor>();
             collection.AddSingleton<HubFactory>();
 
             // add scoped services
             collection.AddScoped<DrawEntityFactory>();
-            collection.AddScoped<CacheMonitor>();
             collection.AddScoped<UiFactory>();
             collection.AddScoped<SelectTagForPairUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, SettingsUi>();
@@ -243,6 +243,7 @@ public sealed class Plugin : IDalamudPlugin
                 pluginInterface, textureProvider, s.GetRequiredService<Dalamud.Localization>(), s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<TokenProvider>(),
                 s.GetRequiredService<MareMediator>()));
             collection.AddHostedService(p => p.GetRequiredService<ConfigurationSaveService>());
+            collection.AddHostedService(p => p.GetRequiredService<VersionUpdateCheckService>());
             collection.AddHostedService(p => p.GetRequiredService<MareMediator>());
             collection.AddHostedService(p => p.GetRequiredService<NotificationService>());
             collection.AddHostedService(p => p.GetRequiredService<FileCacheManager>());

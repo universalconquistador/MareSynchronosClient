@@ -40,12 +40,7 @@ public class RedrawManager
     // science
     private static string GetActorKey(GameObjectHandler handler) => handler.Address.ToString();
 
-    public async Task CoalescedRedrawAsync(
-        ILogger logger,
-        GameObjectHandler handler,
-        Guid applicationId,
-        Action<ICharacter> action,
-        CancellationToken token)
+    public async Task CoalescedRedrawAsync(ILogger logger, GameObjectHandler handler, Guid applicationId, Action<ICharacter> action, CancellationToken token)
     {
         var key = GetActorKey(handler);
         var state = _redrawCoalesce.GetOrAdd(key, _ => new CoalesceState());
