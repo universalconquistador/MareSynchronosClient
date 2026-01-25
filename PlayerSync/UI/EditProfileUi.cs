@@ -185,7 +185,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                 _liveProfile = DrawEditor();
 
             ImGui.TableSetColumnIndex(1);
-            DrawProfilePreview(_liveProfile);
+            DrawProfilePreview();
         }
         finally
         {
@@ -193,11 +193,11 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         }
     }
 
-    private void DrawProfilePreview(ProfileV1 profile)
+    private void DrawProfilePreview()
     {
-        var hostFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        var previewContainerFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
-        ImGui.BeginChild("##profile_preview_parent", new Vector2(0, 0), false, hostFlags);
+        ImGui.BeginChild("##profile_preview_parent", new Vector2(0, 0), false, previewContainerFlags);
         try
         {
             // match standalone profile size
@@ -212,7 +212,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             ImGui.SetCursorPos(cursor + new Vector2(offsetX, offsetY));
 
             var radius = UiScale.ScaledFloat(24f);
-            var previewFlags = hostFlags | ImGuiWindowFlags.NoBackground;
+            var previewFlags = previewContainerFlags | ImGuiWindowFlags.NoBackground;
 
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, Vector2.Zero))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, radius))
@@ -220,7 +220,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                 ImGui.BeginChild("##profile_preview", inner, false, previewFlags);
                 try
                 {
-                    DrawPreview(profile);
+                    DrawPreview();
                 }
                 finally
                 {
@@ -499,7 +499,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         }
     }
 
-    private void DrawPreview(ProfileV1 profile)
+    private void DrawPreview()
     {
         var theme = UiTheme.Default;
         theme.FontHeading = _uiSharedService.GameFont;
@@ -507,10 +507,10 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         const float bannerHeightPx = 250f;
         const float headerFillPx = bannerHeightPx * 0.5f;
         const float radiusPx = 24f;
-        var bannerH = UiScale.ScaledFloat(bannerHeightPx);
-        var width = Math.Max(1f, ImGui.GetContentRegionAvail().X);
+        var bannerHeight = UiScale.ScaledFloat(bannerHeightPx);
+        var windowWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
 
-        ProfileBuilder.DrawBackGroundWindow(UiTheme.ToVec4(profile.Theme.Primary), 24f, 0.5f);
+        ProfileBuilder.DrawBackGroundWindow(UiTheme.ToVec4(_liveProfile.Theme.Primary), 24f, 0.5f);
 
         using var windowStyle = theme.PushWindowStyle();
 
@@ -521,11 +521,11 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         ProfileBuilder.DrawAvatar(theme, _pfpTextureWrap, _supporterTextureWrap, UiTheme.ToVec4(_liveProfile.Theme.Accent), UiTheme.ToVec4(_liveProfile.Theme.Primary),
             out var nameMin, out var nameMax, bannerHeightPx);
 
-        ProfileBuilder.DrawNameInfo(theme, displayName, _apiController.UID, profile, true, nameMin, nameMax);
-        ImGui.Dummy(new Vector2(width, bannerH));
+        ProfileBuilder.DrawNameInfo(theme, displayName, _apiController.UID, _liveProfile, true, nameMin, nameMax);
+        ImGui.Dummy(new Vector2(windowWidth, bannerHeight));
 
-        ProfileBuilder.DrawInterests(theme, profile);
-        ProfileBuilder.DrawAboutMe(theme, profile);
+        ProfileBuilder.DrawInterests(theme, _liveProfile);
+        ProfileBuilder.DrawAboutMe(theme, _liveProfile);
     }
 
     private void UpdateSelfImages(MareProfileData psProfile)
