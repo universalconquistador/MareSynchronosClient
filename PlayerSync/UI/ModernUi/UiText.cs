@@ -1,5 +1,4 @@
 ﻿using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.ManagedFontAtlas;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using System.Numerics;
@@ -8,58 +7,14 @@ namespace MareSynchronos.UI.ModernUi;
 
 public static class UiText
 {
-    /// <summary>
-    /// Draw text using a specific font handle and color (uint).
-    /// </summary>
-    public static void FontText(string text, IFontHandle font, uint color)
-    {
-        using var _font = font.Push();
-        using var _col = ImRaii.PushColor(ImGuiCol.Text, color);
-        ImGui.TextUnformatted(text);
-    }
-
-    /// <summary>
-    /// Draw text using a specific font handle and color (Vector4).
-    /// </summary>
-    public static void FontText(string text, IFontHandle font, Vector4 color)
-        => FontText(text, font, ImGui.GetColorU32(color));
-
-    /// <summary>
-    /// Draw wrapped text using a specific font handle and color, wrapping to the given width.
-    /// </summary>
-    public static void FontTextWrapped(string text, IFontHandle font, Vector4 color, float wrapWidth)
-    {
-        using var _font = font.Push();
-        using var _col = ImRaii.PushColor(ImGuiCol.Text, color);
-
-        var x = ImGui.GetCursorScreenPos().X;
-        ImGui.PushTextWrapPos(x + wrapWidth);
-        ImGui.TextUnformatted(text);
-        ImGui.PopTextWrapPos();
-    }
-
-    /// <summary>
-    /// Draw wrapped text using a specific font handle and color, wrapping to current available width.
-    /// </summary>
-    public static void FontTextWrapped(string text, IFontHandle font, Vector4 color)
-        => FontTextWrapped(text, font, color, ImGui.GetContentRegionAvail().X);
-
-    public static IDisposable PushFont(IFontHandle font) => font.Push();
-
-    public static IDisposable PushTextColor(Vector4 color) => ImRaii.PushColor(ImGuiCol.Text, color);
-
-    public static IDisposable PushTextColor(uint color) => ImRaii.PushColor(ImGuiCol.Text, color);
-
-    private static IFontHandle? PickFont(UiTheme t, UiTextStyle style) => style switch
-    {
-        UiTextStyle.Heading => t.FontHeading,
-        UiTextStyle.Small => t.FontSmall,
-        _ => t.FontBody,
-    };
-
     public static void ThemedText(UiTheme t, string text, UiTextStyle style = UiTextStyle.Body, Vector4? color = null)
     {
-        var font = PickFont(t, style);
+        var font = style switch
+        {
+            UiTextStyle.Heading => t.FontHeading,
+            UiTextStyle.Small => t.FontSmall,
+            _ => t.FontBody
+        };
 
         IDisposable? fontPush = null;
         if (font != null)
@@ -67,9 +22,9 @@ public static class UiText
 
         try
         {
-            if (color is { } c)
+            if (color != null)
             {
-                using var _ = ImRaii.PushColor(ImGuiCol.Text, c);
+                using var _ = ImRaii.PushColor(ImGuiCol.Text, color.Value);
                 ImGui.TextUnformatted(text);
             }
             else
