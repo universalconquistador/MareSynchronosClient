@@ -201,21 +201,21 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         try
         {
             // match standalone profile size
-            var target = new Vector2(400f, 700f) * ImGuiHelpers.GlobalScale;
-            var avail = ImGui.GetContentRegionAvail();
-            var inner = new Vector2(MathF.Min(target.X, avail.X), MathF.Min(target.Y, avail.Y));
+            var targetSize = new Vector2(400f, 700f) * ImGuiHelpers.GlobalScale;
+            var availableRegion = ImGui.GetContentRegionAvail();
+            var inner = new Vector2(MathF.Min(targetSize.X, availableRegion.X), MathF.Min(targetSize.Y, availableRegion.Y));
 
             // center the preview child
             var cursor = ImGui.GetCursorPos();
-            var offX = MathF.Max(0f, (avail.X - inner.X) * 0.5f);
-            var offY = MathF.Max(0f, (avail.Y - inner.Y) * 0.5f);
-            ImGui.SetCursorPos(cursor + new Vector2(offX, offY));
+            var offsetX = MathF.Max(0f, (availableRegion.X - inner.X) * 0.5f);
+            var offsetY = MathF.Max(0f, (availableRegion.Y - inner.Y) * 0.5f);
+            ImGui.SetCursorPos(cursor + new Vector2(offsetX, offsetY));
 
-            var r = UiScale.ScaledFloat(24f);
+            var radius = UiScale.ScaledFloat(24f);
             var previewFlags = hostFlags | ImGuiWindowFlags.NoBackground;
 
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, Vector2.Zero))
-            using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, r))
+            using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, radius))
             {
                 ImGui.BeginChild("##profile_preview", inner, false, previewFlags);
                 try
@@ -333,14 +333,14 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                     ImGui.TableNextColumn();
 
                     var key = InterestOptions[i];
-                    bool v = selected.Contains(key);
+                    bool containsSelectedKey = selected.Contains(key);
 
-                    if (ImGui.Checkbox(key, ref v))
+                    if (ImGui.Checkbox(key, ref containsSelectedKey))
                     {
                         interestsChanged = true;
                         _dirty = true;
 
-                        if (v) selected.Add(key);
+                        if (containsSelectedKey) selected.Add(key);
                         else selected.Remove(key);
                     }
                 }
@@ -399,9 +399,9 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
             try
             {
-                if (!MareProfileManager.ProfileValidator.TryValidate(editorProfile, out var errs))
+                if (!MareProfileManager.ProfileValidator.TryValidate(editorProfile, out var errors))
                 {
-                    _errors.AddRange(errs);
+                    _errors.AddRange(errors);
                 }
                 else
                 {
@@ -443,21 +443,21 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     private void DrawThemeColorEditors()
     {
-        var availW = ImGui.GetContentRegionAvail().X;
+        var availableWidth = ImGui.GetContentRegionAvail().X;
         var gap = ImGui.GetStyle().ItemSpacing.X;
-        const int cols = 4;
+        const int numberOfColumns = 4;
 
-        var colW = (availW - gap * (cols - 1)) / cols;
+        var columnWidth = (availableWidth - gap * (numberOfColumns - 1)) / numberOfColumns;
 
-        if (!ImGui.BeginTable("##theme_colors", cols, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoPadInnerX))
+        if (!ImGui.BeginTable("##theme_colors", numberOfColumns, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoPadInnerX))
             return;
 
         try
         {
-            ImGui.TableSetupColumn("Primary", ImGuiTableColumnFlags.WidthFixed, colW);
-            ImGui.TableSetupColumn("Secondary", ImGuiTableColumnFlags.WidthFixed, colW);
-            ImGui.TableSetupColumn("Accent", ImGuiTableColumnFlags.WidthFixed, colW);
-            ImGui.TableSetupColumn("Text", ImGuiTableColumnFlags.WidthFixed, colW);
+            ImGui.TableSetupColumn("Primary", ImGuiTableColumnFlags.WidthFixed, columnWidth);
+            ImGui.TableSetupColumn("Secondary", ImGuiTableColumnFlags.WidthFixed, columnWidth);
+            ImGui.TableSetupColumn("Accent", ImGuiTableColumnFlags.WidthFixed, columnWidth);
+            ImGui.TableSetupColumn("Text", ImGuiTableColumnFlags.WidthFixed, columnWidth);
 
             ImGui.TableNextRow();
 
@@ -630,39 +630,39 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             UiSharedService.ColorTextWrapped("Upload failed. Please select a PNG file up to 2MB.", ImGuiColors.DalamudRed);
     }
 
-    private static byte[] RescaleProfilePic(byte[] pngBytes, float aspectW, float aspectH, int maxOutW, int maxOutH)
+    private static byte[] RescaleProfilePic(byte[] pngBytes, float aspectWidth, float aspectHeight, int maxOutWidth, int maxOutHeight)
     {
         using var image = Image.Load<Rgba32>(pngBytes);
 
-        var targetAspect = aspectW / aspectH;
-        var srcW = image.Width;
-        var srcH = image.Height;
-        var srcAspect = srcW / (float)srcH;
+        var targetAspect = aspectWidth / aspectHeight;
+        var sourceWidth = image.Width;
+        var sourceHeight = image.Height;
+        var sourceAspect = sourceWidth / (float)sourceHeight;
 
         Rectangle crop;
-        if (srcAspect > targetAspect)
+        if (sourceAspect > targetAspect)
         {
             // crop width
-            var cropW = (int)MathF.Round(srcH * targetAspect);
-            var x = (srcW - cropW) / 2;
-            crop = new Rectangle(x, 0, Math.Max(1, cropW), srcH);
+            var cropWidth = (int)MathF.Round(sourceHeight * targetAspect);
+            var width = (sourceWidth - cropWidth) / 2;
+            crop = new Rectangle(width, 0, Math.Max(1, cropWidth), sourceHeight);
         }
         else
         {
             // crop height
-            var cropH = (int)MathF.Round(srcW / targetAspect);
-            var y = (srcH - cropH) / 2;
-            crop = new Rectangle(0, y, srcW, Math.Max(1, cropH));
+            var cropHeight = (int)MathF.Round(sourceWidth / targetAspect);
+            var height = (sourceHeight - cropHeight) / 2;
+            crop = new Rectangle(0, height, sourceWidth, Math.Max(1, cropHeight));
         }
 
         // fit within maxOutW/maxOutH
-        var outW = crop.Width;
-        var outH = crop.Height;
+        var outWidth = crop.Width;
+        var outHeight = crop.Height;
         var scale = 1f;
-        if (outW > maxOutW) scale = MathF.Min(scale, maxOutW / (float)outW);
-        if (outH > maxOutH) scale = MathF.Min(scale, maxOutH / (float)outH);
-        var finalW = Math.Max(1, (int)MathF.Floor(outW * scale));
-        var finalH = Math.Max(1, (int)MathF.Floor(outH * scale));
+        if (outWidth > maxOutWidth) scale = MathF.Min(scale, maxOutWidth / (float)outWidth);
+        if (outHeight > maxOutHeight) scale = MathF.Min(scale, maxOutHeight / (float)outHeight);
+        var finalWidth = Math.Max(1, (int)MathF.Floor(outWidth * scale));
+        var finalHeight = Math.Max(1, (int)MathF.Floor(outHeight * scale));
 
         image.Mutate(ctx =>
         {
@@ -671,7 +671,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             {
                 ctx.Resize(new ResizeOptions
                 {
-                    Size = new Size(finalW, finalH),
+                    Size = new Size(finalWidth, finalHeight),
                     Mode = ResizeMode.Stretch, // already cropped to aspect ratio
                     Sampler = KnownResamplers.Lanczos3
                 });

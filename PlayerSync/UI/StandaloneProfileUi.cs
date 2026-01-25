@@ -172,9 +172,9 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             UiFx.DrawWindowShimmerBorderFull(gold: new Vector4(1.0f, 0.85f, 0.25f, 1.0f), thicknessPx: 2f, outerInsetPx: 0f, innerInsetPx: 0f, drawInner: true);
     }
 
-    private void DrawPairingSyncshells(UiTheme t, float marginPx = 12f)
+    private void DrawPairingSyncshells(UiTheme theme, float marginPx = 12f)
     {
-        var dl = ImGui.GetWindowDrawList();
+        var drawList = ImGui.GetWindowDrawList();
         var style = ImGui.GetStyle();
         var restoreCursor = ImGui.GetCursorPos();
         var margin = UiScale.ScaledFloat(marginPx);
@@ -198,20 +198,20 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             var iconSize = UiScale.ScaledFloat(24f);
             var font = ImGui.GetFont();
             var baseSize = ImGui.GetFontSize();
-            var baseCol = ImGui.GetColorU32(t.TextMuted);
+            var baseCol = ImGui.GetColorU32(theme.TextMuted);
             var outlineCol = ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.75f));
-            var ts = ImGui.CalcTextSize(icon) * (iconSize / baseSize);
-            var tp = boxMin + (btnSize - ts) * 0.5f;
-            var o = UiScale.ScaledFloat(1.25f);
+            var textSize = ImGui.CalcTextSize(icon) * (iconSize / baseSize);
+            var textPadding = boxMin + (btnSize - textSize) * 0.5f;
+            var offset = UiScale.ScaledFloat(1.25f);
 
             // background
-            dl.AddText(font, iconSize, tp + new Vector2(-o, 0), outlineCol, icon);
-            dl.AddText(font, iconSize, tp + new Vector2(o, 0), outlineCol, icon);
-            dl.AddText(font, iconSize, tp + new Vector2(0, -o), outlineCol, icon);
-            dl.AddText(font, iconSize, tp + new Vector2(0, o), outlineCol, icon);
+            drawList.AddText(font, iconSize, textPadding + new Vector2(-offset, 0), outlineCol, icon);
+            drawList.AddText(font, iconSize, textPadding + new Vector2(offset, 0), outlineCol, icon);
+            drawList.AddText(font, iconSize, textPadding + new Vector2(0, -offset), outlineCol, icon);
+            drawList.AddText(font, iconSize, textPadding + new Vector2(0, offset), outlineCol, icon);
 
             // info icon
-            dl.AddText(font, iconSize, tp, baseCol, icon);
+            drawList.AddText(font, iconSize, textPadding, baseCol, icon);
         }
 
 
@@ -220,10 +220,10 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             var iconSize = UiScale.ScaledFloat(24f);
             var font = ImGui.GetFont();
             var baseSize = ImGui.GetFontSize();
-            var ts = ImGui.CalcTextSize(icon) * (iconSize / baseSize);
-            var tp = boxMin + (btnSize - ts) * 0.5f;
+            var textSize = ImGui.CalcTextSize(icon) * (iconSize / baseSize);
+            var textPadding = boxMin + (btnSize - textSize) * 0.5f;
 
-            dl.AddText(font, iconSize, tp, ImGui.GetColorU32(t.TextMuted), icon);
+            drawList.AddText(font, iconSize, textPadding, ImGui.GetColorU32(theme.TextMuted), icon);
         }
 
         if (hovered)
@@ -232,8 +232,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             var gap = UiScale.ScaledFloat(4f);
 
             // position top right of the icon
-            var ttPos = new Vector2(boxMax.X + gap, boxMin.Y - gap);
-            ImGui.SetNextWindowPos(ttPos, ImGuiCond.Always, new Vector2(0f, 1f));
+            var boxPos = new Vector2(boxMax.X + gap, boxMin.Y - gap);
+            ImGui.SetNextWindowPos(boxPos, ImGuiCond.Always, new Vector2(0f, 1f));
 
             using (ImRaii.PushColor(ImGuiCol.PopupBg, new Vector4(0f, 0f, 0f, 0.95f)))
             using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(1f, 1f, 1f, 1f)))
