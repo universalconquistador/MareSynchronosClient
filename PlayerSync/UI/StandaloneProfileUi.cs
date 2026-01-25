@@ -127,21 +127,22 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         const float headerFillPx = bannerHeightPx * 0.5f;
         const float radiusPx = 24f;
 
-        var bannerH = UiScale.ScaledFloat(bannerHeightPx);
-        var width = Math.Max(1f, ImGui.GetContentRegionAvail().X);
+        var bannerHeight = UiScale.ScaledFloat(bannerHeightPx);
+        var windowWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
+        var colorPrimary = UiTheme.ToVec4(profile.Theme.Primary);
+        var colorSecondary = UiTheme.ToVec4(profile.Theme.Secondary);
+        var colorAccent = UiTheme.ToVec4(profile.Theme.Accent);
+        var profileName = profile.PreferredName != "" ? profile.PreferredName : Pair.UserData.AliasOrUID;
 
         try
         {
-            var profileName = profile.PreferredName != "" ? profile.PreferredName : Pair.UserData.AliasOrUID;
-            ProfileBuilder.DrawBackGroundWindow(UiTheme.ToVec4(profile.Theme.Primary), 24f, 0.5f);
-            ProfileBuilder.DrawGradientWindow(headerColor: UiTheme.ToVec4(profile.Theme.Secondary), bodyColor: UiTheme.ToVec4(profile.Theme.Primary),
-                headerHeightPx: headerFillPx, radiusPx: radiusPx, UiTheme.ToVec4(profile.Theme.Accent), 3.0f, insetPx: 0.0f);
-            ProfileBuilder.DrawAvatar(theme, _textureWrap, _supporterTextureWrap, UiTheme.ToVec4(profile.Theme.Accent), UiTheme.ToVec4(profile.Theme.Primary), 
-                out var nameMin, out var nameMax, bannerHeightPx);
+            ProfileBuilder.DrawBackGroundWindow(colorPrimary, radiusPx, 0.5f);
+            ProfileBuilder.DrawGradientWindow(colorSecondary, colorPrimary, headerFillPx, radiusPx, colorAccent, 3.0f, insetPx: 0.0f);
+            ProfileBuilder.DrawAvatar(theme, _textureWrap, _supporterTextureWrap, colorAccent, colorPrimary, out var nameMin, out var nameMax, bannerHeightPx);
             ProfileBuilder.DrawNameInfo(theme, profileName, Pair.UserData.UID, profile, true, nameMin, nameMax);
 
             // force spacing for ImGui
-            ImGui.Dummy(new Vector2(width, bannerH));
+            ImGui.Dummy(new Vector2(windowWidth, bannerHeight));
 
             ProfileBuilder.DrawInterests(theme, profile);
             ProfileBuilder.DrawAboutMe(theme, profile);

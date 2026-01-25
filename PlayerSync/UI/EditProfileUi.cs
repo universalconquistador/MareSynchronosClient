@@ -509,19 +509,19 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         const float radiusPx = 24f;
         var bannerHeight = UiScale.ScaledFloat(bannerHeightPx);
         var windowWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
+        var colorPrimary = UiTheme.ToVec4(_liveProfile.Theme.Primary);
+        var colorSecondary = UiTheme.ToVec4(_liveProfile.Theme.Secondary);
+        var colorAccent = UiTheme.ToVec4(_liveProfile.Theme.Accent);
+        var displayName = !string.IsNullOrWhiteSpace(_liveProfile.PreferredName) ? _liveProfile.PreferredName : _apiController.DisplayName;
 
-        ProfileBuilder.DrawBackGroundWindow(UiTheme.ToVec4(_liveProfile.Theme.Primary), 24f, 0.5f);
+        ProfileBuilder.DrawBackGroundWindow(colorPrimary, radiusPx);
 
         using var windowStyle = theme.PushWindowStyle();
 
-        var displayName = !string.IsNullOrWhiteSpace(_liveProfile.PreferredName) ? _liveProfile.PreferredName : _apiController.DisplayName;
-        ProfileBuilder.DrawGradientWindow(UiTheme.ToVec4(_liveProfile.Theme.Secondary), UiTheme.ToVec4(_liveProfile.Theme.Primary), 
-            headerFillPx, radiusPx, UiTheme.ToVec4(_liveProfile.Theme.Accent), 3.0f, 0.0f);
-
-        ProfileBuilder.DrawAvatar(theme, _pfpTextureWrap, _supporterTextureWrap, UiTheme.ToVec4(_liveProfile.Theme.Accent), UiTheme.ToVec4(_liveProfile.Theme.Primary),
-            out var nameMin, out var nameMax, bannerHeightPx);
-
+        ProfileBuilder.DrawGradientWindow(colorSecondary, colorPrimary, headerFillPx, radiusPx, colorAccent, 3.0f, 0.0f);
+        ProfileBuilder.DrawAvatar(theme, _pfpTextureWrap, _supporterTextureWrap, colorAccent, colorPrimary, out var nameMin, out var nameMax, bannerHeightPx);
         ProfileBuilder.DrawNameInfo(theme, displayName, _apiController.UID, _liveProfile, true, nameMin, nameMax);
+
         ImGui.Dummy(new Vector2(windowWidth, bannerHeight));
 
         ProfileBuilder.DrawInterests(theme, _liveProfile);

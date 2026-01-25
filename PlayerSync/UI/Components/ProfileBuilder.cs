@@ -292,7 +292,7 @@ public static class ProfileBuilder
 
             ImGui.SetCursorScreenPos(new Vector2(nameMin.X, yAfterLabel));
 
-            DrawPill(theme, "##profile_status", statusLabel!, bg: UiTheme.ToVec4(profile.Theme.Accent),
+            DrawPill("##profile_status", statusLabel!, bg: UiTheme.ToVec4(profile.Theme.Accent),
                 border: UiTheme.ToVec4(profile.Theme.Secondary), fg: UiTheme.ToVec4(profile.Theme.TextPrimary));
         }
 
@@ -523,7 +523,7 @@ public static class ProfileBuilder
         return new Vector2(ts.X + padX * 2f, ts.Y + padY * 2f);
     }
 
-    private static void DrawPill(UiTheme theme, string id, string text, Vector4 bg, Vector4 border, Vector4 fg)
+    private static void DrawPill(string id, string text, Vector4 bg, Vector4 border, Vector4 fg)
     {
         var dl = ImGui.GetWindowDrawList();
         var padX = UiScale.ScaledFloat(10f);
@@ -572,7 +572,7 @@ public static class ProfileBuilder
                     ImGui.SameLine(0, gap);
             }
 
-            DrawPill(theme, $"##{idPrefix}_{itemIndex}", text, bg: bg, border: border, fg: fg);
+            DrawPill($"##{idPrefix}_{itemIndex}", text, bg: bg, border: border, fg: fg);
 
             isFirst = false;
         }
