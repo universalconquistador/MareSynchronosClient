@@ -27,8 +27,8 @@ public partial class SettingsUi
     {
         _lastTab = "zone";
 
-        var t = UiTheme.Default;
-        _selectedTabSync = UiNav.DrawTabsUnderline(t,
+        var theme = UiTheme.Default;
+        _selectedTabSync = UiNav.DrawTabsUnderline(theme,
             [
                 new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
                 new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),

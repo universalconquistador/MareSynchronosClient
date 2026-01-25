@@ -118,8 +118,10 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         bool supporter = profile.IsSupporter;
 
-        var t = UiTheme.Default.WithFonts(body: _uiSharedService.GameFont, heading: _uiSharedService.HeaderFont);
-        using var theme = t.PushWindowStyle();
+        var theme = UiTheme.Default;
+        theme.FontHeading = _uiSharedService.GameFont;
+        theme.FontBody = _uiSharedService.HeaderFont;
+        using var windowStyle = theme.PushWindowStyle();
 
         const float bannerHeightPx = 250f;
         const float headerFillPx = bannerHeightPx * 0.5f;
@@ -134,15 +136,15 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             ProfileBuilder.DrawBackGroundWindow(UiTheme.ToVec4(profile.Theme.Primary), 24f, 0.5f);
             ProfileBuilder.DrawGradientWindow(headerColor: UiTheme.ToVec4(profile.Theme.Secondary), bodyColor: UiTheme.ToVec4(profile.Theme.Primary),
                 headerHeightPx: headerFillPx, radiusPx: radiusPx, UiTheme.ToVec4(profile.Theme.Accent), 3.0f, insetPx: 0.0f);
-            ProfileBuilder.DrawAvatar(t, _textureWrap, _supporterTextureWrap, UiTheme.ToVec4(profile.Theme.Accent), UiTheme.ToVec4(profile.Theme.Primary), 
+            ProfileBuilder.DrawAvatar(theme, _textureWrap, _supporterTextureWrap, UiTheme.ToVec4(profile.Theme.Accent), UiTheme.ToVec4(profile.Theme.Primary), 
                 out var nameMin, out var nameMax, bannerHeightPx);
-            ProfileBuilder.DrawNameInfo(t, profileName, Pair.UserData.UID, profile, true, nameMin, nameMax);
+            ProfileBuilder.DrawNameInfo(theme, profileName, Pair.UserData.UID, profile, true, nameMin, nameMax);
 
             // force spacing for ImGui
             ImGui.Dummy(new Vector2(width, bannerH));
 
-            ProfileBuilder.DrawInterests(t, profile);
-            ProfileBuilder.DrawAboutMe(t, profile);
+            ProfileBuilder.DrawInterests(theme, profile);
+            ProfileBuilder.DrawAboutMe(theme, profile);
 
             var oldNotes = _serverManager.GetNoteForUid(Pair.UserData.UID);
             var newNotes = _serverManager.GetProfileNoteForUid(Pair.UserData.UID);
@@ -152,13 +154,13 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
                 _serverManager.SetProfileNoteForUid(Pair.UserData.UID, notesDraft, save: true);
             }
 
-            var changed = ProfileBuilder.DrawNotes(t, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{Pair.UserData.UID}",
+            var changed = ProfileBuilder.DrawNotes(theme, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{Pair.UserData.UID}",
                 heading: "Note (only visible to you)", placeholder: "Click to add a note", maxLen: 200, lines: 4);
 
             if (changed)
                 _serverManager.SetProfileNoteForUid(Pair.UserData.UID, notesDraft, save: true);
 
-            DrawPairingSyncshells(t, supporter ? 16f : 12f);
+            DrawPairingSyncshells(theme, supporter ? 16f : 12f);
         }
         catch (Exception ex)
         {

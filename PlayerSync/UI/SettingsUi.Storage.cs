@@ -22,8 +22,8 @@ public partial class SettingsUi
     {
         _lastTab = "Storage";
 
-        var t = UiTheme.Default;
-        _selectedTabStorage = UiNav.DrawTabsUnderline(t,
+        var theme = UiTheme.Default;
+        _selectedTabStorage = UiNav.DrawTabsUnderline(theme,
             [
             new(StorageTabs.Storage, "Storage", DrawStorage),
             new(StorageTabs.Clear, "Clear", DrawStorageClear),

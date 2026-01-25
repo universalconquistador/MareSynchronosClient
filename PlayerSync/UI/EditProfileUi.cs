@@ -137,8 +137,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
-        var t = UiTheme.Default;
-        using var theme = t.PushWindowStyle();
+        var theme = UiTheme.Default;
+        using var windowStyle = theme.PushWindowStyle();
 
         var psProfile = _mareProfileManager.GetMareProfile(Self);
 
@@ -501,7 +501,9 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     private void DrawPreview(ProfileV1 profile)
     {
-        var t = UiTheme.Default.WithFonts(_uiSharedService.GameFont, _uiSharedService.HeaderFont);
+        var theme = UiTheme.Default;
+        theme.FontHeading = _uiSharedService.GameFont;
+        theme.FontBody = _uiSharedService.HeaderFont;
         const float bannerHeightPx = 250f;
         const float headerFillPx = bannerHeightPx * 0.5f;
         const float radiusPx = 24f;
@@ -510,20 +512,20 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         ProfileBuilder.DrawBackGroundWindow(UiTheme.ToVec4(profile.Theme.Primary), 24f, 0.5f);
 
-        using var _ = t.PushWindowStyle();
+        using var windowStyle = theme.PushWindowStyle();
 
         var displayName = !string.IsNullOrWhiteSpace(_liveProfile.PreferredName) ? _liveProfile.PreferredName : _apiController.DisplayName;
         ProfileBuilder.DrawGradientWindow(UiTheme.ToVec4(_liveProfile.Theme.Secondary), UiTheme.ToVec4(_liveProfile.Theme.Primary), 
             headerFillPx, radiusPx, UiTheme.ToVec4(_liveProfile.Theme.Accent), 3.0f, 0.0f);
 
-        ProfileBuilder.DrawAvatar(t, _pfpTextureWrap, _supporterTextureWrap, UiTheme.ToVec4(_liveProfile.Theme.Accent), UiTheme.ToVec4(_liveProfile.Theme.Primary),
+        ProfileBuilder.DrawAvatar(theme, _pfpTextureWrap, _supporterTextureWrap, UiTheme.ToVec4(_liveProfile.Theme.Accent), UiTheme.ToVec4(_liveProfile.Theme.Primary),
             out var nameMin, out var nameMax, bannerHeightPx);
 
-        ProfileBuilder.DrawNameInfo(t, displayName, _apiController.UID, profile, true, nameMin, nameMax);
+        ProfileBuilder.DrawNameInfo(theme, displayName, _apiController.UID, profile, true, nameMin, nameMax);
         ImGui.Dummy(new Vector2(width, bannerH));
 
-        ProfileBuilder.DrawInterests(t, profile);
-        ProfileBuilder.DrawAboutMe(t, profile);
+        ProfileBuilder.DrawInterests(theme, profile);
+        ProfileBuilder.DrawAboutMe(theme, profile);
     }
 
     private void UpdateSelfImages(MareProfileData psProfile)

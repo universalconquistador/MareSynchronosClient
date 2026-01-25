@@ -88,8 +88,8 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     }
     protected override void DrawInternal()
     {
-        var t = UiTheme.Default;
-        using var theme = t.PushWindowStyle();
+        var theme = UiTheme.Default;
+        using var windowStyle = theme.PushWindowStyle();
 
         if (!_isModerator && !_isOwner) return;
 
@@ -142,10 +142,10 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             ("", groupItems),
         };
 
-        _selectedNavItem = UiNav.DrawSidebar(t, "Syncshell Admin", navGroups, _selectedNavItem, widthPx: 220f, iconFont: _uiSharedService.IconFont);
+        _selectedNavItem = UiNav.DrawSidebar(theme, "Syncshell Admin", navGroups, _selectedNavItem, widthPx: 220f, iconFont: _uiSharedService.IconFont);
 
-        var panePad = UiScale.S(t.PanelPad);
-        var paneGap = UiScale.S(t.PanelGap);
+        var panePad = UiScale.S(theme.PanelPad);
+        var paneGap = UiScale.S(theme.PanelGap);
 
         ImGui.SameLine(0, paneGap);
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));
@@ -301,12 +301,12 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
     private void DrawUserManagement()
     {
-        var t = UiTheme.Default;
+        var theme = UiTheme.Default;
 
         _uiSharedService.BigText("User Management");
         ImGuiHelpers.ScaledDummy(2);
 
-        _selectedTab = UiNav.DrawTabsUnderline(t,
+        _selectedTab = UiNav.DrawTabsUnderline(theme,
             [
                 new(SyncshellAdminTabs.UserList, "User List & Administration", DrawUserList, FontAwesomeIcon.Users),
                 new(SyncshellAdminTabs.Cleanup, "Mass Cleanup", DrawCleanup, FontAwesomeIcon.Broom),

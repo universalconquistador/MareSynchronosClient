@@ -200,13 +200,13 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             FinishSetup();
         }
 
-        var t = UiTheme.Default;
+        var theme = UiTheme.Default;
 
         //_uiShared.BigText("PlayerSync Setup Wizard");
         //Ui.Hr(t);
         //ImGuiHelpers.ScaledDummy(5f);
 
-        _selectedNavItem = UiNav.DrawSidebar(t, "", _navItems, _selectedNavItem, widthPx: 180f, iconFont: _uiShared.IconFont);
+        _selectedNavItem = UiNav.DrawSidebar(theme, "", _navItems, _selectedNavItem, widthPx: 180f, iconFont: _uiShared.IconFont);
 
         if (_currentWizardPageId != _selectedNavItem.Id)
             _currentWizardPageId = _selectedNavItem.Id;
@@ -236,7 +236,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         {
             if (footer)
             {
-                Ui.Hr(t);
+                Ui.Hr(theme);
 
                 var idx = Array.IndexOf(_wizardOrder, _currentWizardPageId);
                 var isFirst = idx <= 0;

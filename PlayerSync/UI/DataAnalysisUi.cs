@@ -84,7 +84,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
 
     private void DrawAnalysisContent()
     {
-        var t = UiTheme.Default;
+        var theme = UiTheme.Default;
         IReadOnlyList<(string GroupLabel, IReadOnlyList<UiNav.NavItem<AnalysisNav>> Items)> groups =
             new List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<AnalysisNav>> Items)>
             {
@@ -96,10 +96,10 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
             }),
             };
 
-        _selectedNavItem = UiNav.DrawSidebar(t, "Chara Data Analysis", groups, _selectedNavItem, widthPx: 180f, iconFont: _uiSharedService.IconFont);
+        _selectedNavItem = UiNav.DrawSidebar(theme, "Chara Data Analysis", groups, _selectedNavItem, widthPx: 180f, iconFont: _uiSharedService.IconFont);
 
-        var panePad = UiScale.S(t.PanelPad);
-        var paneGap = UiScale.S(t.PanelGap);
+        var panePad = UiScale.S(theme.PanelPad);
+        var paneGap = UiScale.S(theme.PanelGap);
 
         ImGui.SameLine(0, paneGap);
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));

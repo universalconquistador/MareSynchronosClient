@@ -10,11 +10,11 @@ namespace MareSynchronos.UI.ModernUi;
 /// Bootstrap inspired palette + tokens for consistent styling.
 /// kind of like CSS variables
 /// </summary>
-public sealed class UiTheme
+public sealed class UiTheme(IFontHandle? body = null, IFontHandle? heading = null, IFontHandle? small = null)
 {
-    public IFontHandle? FontBody { get; init; }
-    public IFontHandle? FontHeading { get; init; }
-    public IFontHandle? FontSmall { get; init; }
+    public IFontHandle? FontBody { get; set; } = body;
+    public IFontHandle? FontHeading { get; set; } = heading;
+    public IFontHandle? FontSmall { get; set; } = small;
 
     public Vector4 WindowBg { get; init; } = new(0.08f, 0.08f, 0.09f, 0.95f);
     public Vector4 PanelBg { get; init; } = new(0.12f, 0.12f, 0.13f, 0.80f);
@@ -88,50 +88,6 @@ public sealed class UiTheme
                 _items[i].Dispose();
         }
     }
-
-    /// <summary>
-    /// Allows for setting font handlers for different sized pre generated fonts
-    /// </summary>
-    /// <param name="body"></param>
-    /// <param name="heading"></param>
-    /// <param name="small"></param>
-    /// <returns></returns>
-    public UiTheme WithFonts(IFontHandle? body = null, IFontHandle? heading = null, IFontHandle? small = null) => new UiTheme
-    {
-        WindowBg = WindowBg,
-        PanelBg = PanelBg,
-        CardBg = CardBg,
-
-        Border = Border,
-        Separator = Separator,
-
-        Text = Text,
-        TextMuted = TextMuted,
-
-        Primary = Primary,
-        Success = Success,
-        Warning = Warning,
-        Danger = Danger,
-        Info = Info,
-
-        HoverOverlay = HoverOverlay,
-        ActiveOverlay = ActiveOverlay,
-
-        RadiusSm = RadiusSm,
-        RadiusMd = RadiusMd,
-        RadiusLg = RadiusLg,
-
-        CardPadding = CardPadding,
-        PanelPadding = PanelPadding,
-        Gutter = Gutter,
-
-        PanelPad = PanelPad,
-        PanelGap = PanelGap,
-
-        FontBody = body ?? FontBody,
-        FontHeading = heading ?? FontHeading,
-        FontSmall = small ?? FontSmall,
-    };
 
     public static Vector4 ToVec4(float[] v) => new Vector4(v[0], v[1], v[2], v[3]);
 

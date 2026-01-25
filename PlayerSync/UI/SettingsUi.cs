@@ -218,7 +218,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
     private void DrawSettingsContent()
     {
-        var t = UiTheme.Default;
+        var theme = UiTheme.Default;
 
         if (_apiController.ServerState is ServerState.Connected)
         {
@@ -254,10 +254,10 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         ImGuiHelpers.ScaledDummy(5);
 
         // we could have 'out' the selected item, but it was messy to keep state in ImGui when we wanted to be able to "link" to other windows
-        _selectedNavItem = UiNav.DrawSidebar(t, "Settings", NavItems, _selectedNavItem, widthPx: 240f, iconFont: _uiShared.IconFont);
+        _selectedNavItem = UiNav.DrawSidebar(theme, "Settings", NavItems, _selectedNavItem, widthPx: 240f, iconFont: _uiShared.IconFont);
 
-        var panePad = UiScale.S(t.PanelPad);
-        var paneGap = UiScale.S(t.PanelGap);
+        var panePad = UiScale.S(theme.PanelPad);
+        var paneGap = UiScale.S(theme.PanelGap);
 
         ImGui.SameLine(0, paneGap);
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));
