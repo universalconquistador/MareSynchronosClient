@@ -197,6 +197,7 @@ public static class UiNav
                 var max = ImGui.GetItemRectMax();
                 var centerY = (min.Y + max.Y) * 0.5f;
 
+                // can change this but I didn't like the text color changing, didn't remove so it's not lost
                 var col = ImGui.GetColorU32(isSel ? t.Text : t.Text);
 
                 var iconPos = new Vector2(min.X + ImGui.GetStyle().FramePadding.X, centerY - (iconSize.Y * 0.5f));
@@ -218,6 +219,7 @@ public static class UiNav
                 if (tab.Icon.HasValue)
                     label = $"{tab.Icon.Value.ToIconString()}  {label}";
 
+                // can change this but I didn't like the text color changing, didn't remove so it's not lost
                 using var txt = ImRaii.PushColor(ImGuiCol.Text, isSel ? t.Text : t.Text);
 
                 var clicked = ImGui.Button(label);
