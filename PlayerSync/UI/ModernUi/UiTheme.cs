@@ -10,11 +10,11 @@ namespace MareSynchronos.UI.ModernUi;
 /// Bootstrap inspired palette + tokens for consistent styling.
 /// kind of like CSS variables
 /// </summary>
-public sealed class UiTheme(IFontHandle? body = null, IFontHandle? heading = null, IFontHandle? small = null)
+public sealed class UiTheme()
 {
-    public IFontHandle? FontBody { get; set; } = body;
-    public IFontHandle? FontHeading { get; set; } = heading;
-    public IFontHandle? FontSmall { get; set; } = small;
+    public IFontHandle? FontBody { get; set; }
+    public IFontHandle? FontHeading { get; set; }
+    public IFontHandle? FontSmall { get; set; }
 
     public Vector4 WindowBg { get; init; } = new(0.08f, 0.08f, 0.09f, 0.95f);
     public Vector4 PanelBg { get; init; } = new(0.12f, 0.12f, 0.13f, 0.80f);
