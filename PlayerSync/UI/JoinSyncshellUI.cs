@@ -32,6 +32,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private int _globalControlCountdown = 0;
     private bool _timerRunning = false;
     private bool _fixMe = false;
+    private readonly UiTheme _theme = new();
 
     public JoinSyncshellUI(ILogger<JoinSyncshellUI> logger, MareMediator mediator,
         UiSharedService uiSharedService, ApiController apiController, PerformanceCollectorService performanceCollectorService) 
@@ -84,7 +85,7 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
-        using var theme = UiTheme.Default.PushWindowStyle();
+        using var theme = _theme.PushWindowStyle();
 
         using (_uiSharedService.UidFont.Push())
             //ImGui.TextUnformatted(_groupJoinInfo == null || !_groupJoinInfo.Success ? "Join Syncshell" : "Finalize join Syncshell " + _groupJoinInfo.GroupAliasOrGID);

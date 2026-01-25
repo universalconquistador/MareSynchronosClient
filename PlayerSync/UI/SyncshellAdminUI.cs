@@ -37,6 +37,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private Memory<byte> _rulesBuffer = new byte[2000];
     private Memory<byte> _descriptionBuffer = new byte[2000];
     private bool _isProfileSaved;
+    private readonly UiTheme _theme = new();
     private UiNav.NavItem<SyncshellAdminNav>? _selectedNavItem;
     private UiNav.Tab<SyncshellAdminTabs>? _selectedTab;
 
@@ -88,8 +89,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     }
     protected override void DrawInternal()
     {
-        var theme = UiTheme.Default;
-        using var windowStyle = theme.PushWindowStyle();
+        using var windowStyle = _theme.PushWindowStyle();
 
         if (!_isModerator && !_isOwner) return;
 
@@ -142,10 +142,10 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             ("", groupItems),
         };
 
-        _selectedNavItem = UiNav.DrawSidebar(theme, "Syncshell Admin", navGroups, _selectedNavItem, widthPx: 220f, iconFont: _uiSharedService.IconFont);
+        _selectedNavItem = UiNav.DrawSidebar(_theme, "Syncshell Admin", navGroups, _selectedNavItem, widthPx: 220f, iconFont: _uiSharedService.IconFont);
 
-        var panePad = UiScale.ScaledFloat(theme.PanelPad);
-        var paneGap = UiScale.ScaledFloat(theme.PanelGap);
+        var panePad = UiScale.ScaledFloat(_theme.PanelPad);
+        var paneGap = UiScale.ScaledFloat(_theme.PanelGap);
 
         ImGui.SameLine(0, paneGap);
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));
@@ -301,12 +301,10 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
     private void DrawUserManagement()
     {
-        var theme = UiTheme.Default;
-
         _uiSharedService.BigText("User Management");
         ImGuiHelpers.ScaledDummy(2);
 
-        _selectedTab = UiNav.DrawTabsUnderline(theme,
+        _selectedTab = UiNav.DrawTabsUnderline(_theme,
             [
                 new(SyncshellAdminTabs.UserList, "User List & Administration", DrawUserList, FontAwesomeIcon.Users),
                 new(SyncshellAdminTabs.Cleanup, "Mass Cleanup", DrawCleanup, FontAwesomeIcon.Broom),

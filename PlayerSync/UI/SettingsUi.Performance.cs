@@ -25,8 +25,7 @@ public partial class SettingsUi
     {
         _lastTab = "Performance";
 
-        var theme = UiTheme.Default;
-        _selectedTabPerformance = UiNav.DrawTabsUnderline(theme,
+        _selectedTabPerformance = UiNav.DrawTabsUnderline(_theme,
             [
             new(PerformanceTabs.Texture, "Auto Texture Compression", DrawPerformanceTextureCompression),
             new(PerformanceTabs.Threshold, "Auto Threshold Pausing", DrawPerformanceThresholdPausing),

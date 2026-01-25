@@ -35,6 +35,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private readonly HashSet<string> _pauseClicked = new();
     private readonly Dictionary<string, UserPermissions> _edited = new(StringComparer.Ordinal);
     private UiNav.Tab<AnalysisTabs>? _selectedTab;
+    private readonly UiTheme _theme = new();
 
     public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
         UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService, ServerConfigurationManager serverConfigurationManager,
@@ -100,11 +101,10 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
-        var theme = UiTheme.Default;
-        using var windowStyle = theme.PushWindowStyle();
+        using var windowStyle = _theme.PushWindowStyle();
 
         _selectedTab = UiNav.DrawTabsUnderline(
-            theme,
+            _theme,
             [
                 new(AnalysisTabs.Visible, "Visible Players", DrawVisible, FontAwesomeIcon.Eye),
                 new(AnalysisTabs.Paused, "Paused Pairs", DrawPaused, FontAwesomeIcon.Pause),
@@ -115,7 +115,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
         DrawFPS();
 
-        Ui.DrawHorizontalRule(theme);
+        Ui.DrawHorizontalRule(_theme);
 
         _selectedTab.TabAction.Invoke();
     }

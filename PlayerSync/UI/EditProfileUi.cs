@@ -41,6 +41,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     private bool _dirty = false;
     private readonly List<string> _errors = [];
 
+    private readonly UiTheme _theme = new();
     private ProfileV1 _liveProfile;
     private string _descriptionText = string.Empty;
 
@@ -102,6 +103,9 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                 _lastSupporterPicture = [];
             }
         });
+
+        _theme.FontHeading = _uiSharedService.GameFont;
+        _theme.FontBody = _uiSharedService.HeaderFont;
     }
 
     private UserData Self => new(_apiController.UID);
@@ -137,8 +141,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
-        var theme = UiTheme.Default;
-        using var windowStyle = theme.PushWindowStyle();
+        using var windowStyle = _theme.PushWindowStyle();
 
         var psProfile = _mareProfileManager.GetMareProfile(Self);
 
@@ -501,9 +504,6 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     private void DrawPreview()
     {
-        var theme = UiTheme.Default;
-        theme.FontHeading = _uiSharedService.GameFont;
-        theme.FontBody = _uiSharedService.HeaderFont;
         const float bannerHeightPx = 250f;
         const float headerFillPx = bannerHeightPx * 0.5f;
         const float radiusPx = 24f;
@@ -516,16 +516,16 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         ProfileBuilder.DrawBackGroundWindow(colorPrimary, radiusPx);
 
-        using var windowStyle = theme.PushWindowStyle();
+        using var windowStyle = _theme.PushWindowStyle();
 
         ProfileBuilder.DrawGradientWindow(colorSecondary, colorPrimary, headerFillPx, radiusPx, colorAccent, 3.0f, 0.0f);
-        ProfileBuilder.DrawAvatar(theme, _pfpTextureWrap, _supporterTextureWrap, colorAccent, colorPrimary, out var nameMin, out var nameMax, bannerHeightPx);
-        ProfileBuilder.DrawNameInfo(theme, displayName, _apiController.UID, _liveProfile, true, nameMin, nameMax);
+        ProfileBuilder.DrawAvatar(_theme, _pfpTextureWrap, _supporterTextureWrap, colorAccent, colorPrimary, out var nameMin, out var nameMax, bannerHeightPx);
+        ProfileBuilder.DrawNameInfo(_theme, displayName, _apiController.UID, _liveProfile, true, nameMin, nameMax);
 
         ImGui.Dummy(new Vector2(windowWidth, bannerHeight));
 
-        ProfileBuilder.DrawInterests(theme, _liveProfile);
-        ProfileBuilder.DrawAboutMe(theme, _liveProfile);
+        ProfileBuilder.DrawInterests(_theme, _liveProfile);
+        ProfileBuilder.DrawAboutMe(_theme, _liveProfile);
     }
 
     private void UpdateSelfImages(MareProfileData psProfile)

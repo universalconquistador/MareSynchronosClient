@@ -28,8 +28,7 @@ public partial class SettingsUi
 
     private void DrawInterfaceSettings()
     {
-        var theme = UiTheme.Default;
-        _selectedTabInterface = UiNav.DrawTabsUnderline(theme,
+        _selectedTabInterface = UiNav.DrawTabsUnderline(_theme,
             [
             new(InterfaceTabs.Ui, "PlayerSync UI", DrawInterfacePlayerSyncUi),
             new(InterfaceTabs.Game, "Game UI", DrawInterfaceGameUi),

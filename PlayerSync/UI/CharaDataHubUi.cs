@@ -50,6 +50,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
     private bool _openMcdOnlineOnNextRun = false;
     private bool _readExport;
     private string _selectedDtoId = string.Empty;
+    private readonly UiTheme _theme = new();
     private string SelectedDtoId
     {
         get => _selectedDtoId;
@@ -152,7 +153,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
-        using var _ = UiTheme.Default.PushWindowStyle();
+        using var _ = _theme.PushWindowStyle();
 
         if (!_comboHybridUsedLastFrame)
         {

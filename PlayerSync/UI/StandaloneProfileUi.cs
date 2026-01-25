@@ -27,6 +27,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     private IDalamudTextureWrap? _supporterTextureWrap;
     private IDalamudTextureWrap? _textureWrap;
     private bool _editingNotes;
+    private readonly UiTheme _theme = new();
 
     public StandaloneProfileUi(ILogger<StandaloneProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
         ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair,
@@ -49,6 +50,9 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             MinimumSize = new Vector2(400, 700),
             MaximumSize = new Vector2(400, 700),
         };
+
+        _theme.FontHeading = _uiSharedService.GameFont;
+        _theme.FontBody = _uiSharedService.HeaderFont;
 
         IsOpen = true;
     }
@@ -118,11 +122,6 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         bool supporter = profile.IsSupporter;
 
-        var theme = UiTheme.Default;
-        theme.FontHeading = _uiSharedService.GameFont;
-        theme.FontBody = _uiSharedService.HeaderFont;
-        using var windowStyle = theme.PushWindowStyle();
-
         const float bannerHeightPx = 250f;
         const float headerFillPx = bannerHeightPx * 0.5f;
         const float radiusPx = 24f;
@@ -134,18 +133,20 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         var colorAccent = UiTheme.ToVec4(profile.Theme.Accent);
         var profileName = profile.PreferredName != "" ? profile.PreferredName : Pair.UserData.AliasOrUID;
 
+        using var windowStyle = _theme.PushWindowStyle();
+
         try
         {
-            ProfileBuilder.DrawBackGroundWindow(colorPrimary, radiusPx, 0.5f);
+            ProfileBuilder.DrawBackGroundWindow(colorPrimary, radiusPx);
             ProfileBuilder.DrawGradientWindow(colorSecondary, colorPrimary, headerFillPx, radiusPx, colorAccent, 3.0f, insetPx: 0.0f);
-            ProfileBuilder.DrawAvatar(theme, _textureWrap, _supporterTextureWrap, colorAccent, colorPrimary, out var nameMin, out var nameMax, bannerHeightPx);
-            ProfileBuilder.DrawNameInfo(theme, profileName, Pair.UserData.UID, profile, true, nameMin, nameMax);
+            ProfileBuilder.DrawAvatar(_theme, _textureWrap, _supporterTextureWrap, colorAccent, colorPrimary, out var nameMin, out var nameMax, bannerHeightPx);
+            ProfileBuilder.DrawNameInfo(_theme, profileName, Pair.UserData.UID, profile, true, nameMin, nameMax);
 
             // force spacing for ImGui
             ImGui.Dummy(new Vector2(windowWidth, bannerHeight));
 
-            ProfileBuilder.DrawInterests(theme, profile);
-            ProfileBuilder.DrawAboutMe(theme, profile);
+            ProfileBuilder.DrawInterests(_theme, profile);
+            ProfileBuilder.DrawAboutMe(_theme, profile);
 
             var oldNotes = _serverManager.GetNoteForUid(Pair.UserData.UID);
             var newNotes = _serverManager.GetProfileNoteForUid(Pair.UserData.UID);
@@ -155,13 +156,13 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
                 _serverManager.SetProfileNoteForUid(Pair.UserData.UID, notesDraft, save: true);
             }
 
-            var changed = ProfileBuilder.DrawNotes(theme, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{Pair.UserData.UID}",
+            var changed = ProfileBuilder.DrawNotes(_theme, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{Pair.UserData.UID}",
                 heading: "Note (only visible to you)", placeholder: "Click to add a note", maxLen: 200, lines: 4);
 
             if (changed)
                 _serverManager.SetProfileNoteForUid(Pair.UserData.UID, notesDraft, save: true);
 
-            DrawPairingSyncshells(theme, supporter ? 16f : 12f);
+            DrawPairingSyncshells(_theme, supporter ? 16f : 12f);
         }
         catch (Exception ex)
         {

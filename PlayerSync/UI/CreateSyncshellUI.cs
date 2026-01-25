@@ -18,6 +18,7 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
     private readonly UiSharedService _uiSharedService;
     private bool _errorGroupCreate;
     private GroupJoinDto? _lastCreatedGroup;
+    private readonly UiTheme _theme = new();
 
     public CreateSyncshellUI(ILogger<CreateSyncshellUI> logger, MareMediator mareMediator, ApiController apiController, UiSharedService uiSharedService,
         PerformanceCollectorService performanceCollectorService)
@@ -38,7 +39,7 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
-        using var _ = UiTheme.Default.PushWindowStyle();
+        using var _ = _theme.PushWindowStyle();
 
         using (_uiSharedService.UidFont.Push())
             ImGui.TextUnformatted("Create New Syncshell");

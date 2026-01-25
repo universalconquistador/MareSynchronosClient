@@ -40,6 +40,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
     private bool _showModal = false;
     private CancellationTokenSource _transientRecordCts = new();
     private UiNav.NavItem<AnalysisNav>? _selectedNavItem;
+    private readonly UiTheme _theme = new();
 
     public DataAnalysisUi(ILogger<DataAnalysisUi> logger, MareMediator mediator,
         CharacterAnalyzer characterAnalyzer, IpcManager ipcManager,
@@ -84,7 +85,6 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
 
     private void DrawAnalysisContent()
     {
-        var theme = UiTheme.Default;
         IReadOnlyList<(string GroupLabel, IReadOnlyList<UiNav.NavItem<AnalysisNav>> Items)> groups =
             new List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<AnalysisNav>> Items)>
             {
@@ -96,10 +96,10 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
             }),
             };
 
-        _selectedNavItem = UiNav.DrawSidebar(theme, "Chara Data Analysis", groups, _selectedNavItem, widthPx: 180f, iconFont: _uiSharedService.IconFont);
+        _selectedNavItem = UiNav.DrawSidebar(_theme, "Chara Data Analysis", groups, _selectedNavItem, widthPx: 180f, iconFont: _uiSharedService.IconFont);
 
-        var panePad = UiScale.ScaledFloat(theme.PanelPad);
-        var paneGap = UiScale.ScaledFloat(theme.PanelGap);
+        var panePad = UiScale.ScaledFloat(_theme.PanelPad);
+        var paneGap = UiScale.ScaledFloat(_theme.PanelGap);
 
         ImGui.SameLine(0, paneGap);
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));
@@ -111,7 +111,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
-        using var _ = UiTheme.Default.PushWindowStyle();
+        using var _ = _theme.PushWindowStyle();
 
         CompressionTaskPopup();
 

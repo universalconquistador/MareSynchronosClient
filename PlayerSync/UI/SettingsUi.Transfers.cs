@@ -27,8 +27,7 @@ public partial class SettingsUi
     {
         _lastTab = "Transfers";
 
-        var theme = UiTheme.Default;
-        _selectedTabTransfers = UiNav.DrawTabsUnderline(theme,
+        _selectedTabTransfers = UiNav.DrawTabsUnderline(_theme,
             [
                 new(TransfersTabs.Bandwidth, "Bandwidth", DrawTransfersBandwidth),
                 new(TransfersTabs.Overlay, "Overlay", DrawTransfersOverlay),

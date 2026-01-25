@@ -22,8 +22,7 @@ public partial class SettingsUi
 
     private void DrawDebugSettings()
     {
-        var theme = UiTheme.Default;
-        _selectedTabDebug = UiNav.DrawTabsUnderline(theme,
+        _selectedTabDebug = UiNav.DrawTabsUnderline(_theme,
             [
                 new(DebugTabs.Debug, "Debug", DrawDebug),
                 new(DebugTabs.Data, "Data", DrawDebugData),

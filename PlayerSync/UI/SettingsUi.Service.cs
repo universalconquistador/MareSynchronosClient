@@ -34,8 +34,7 @@ public partial class SettingsUi
     {
         _lastTab = "Service";
 
-        var theme = UiTheme.Default;
-        _selectedTabService = UiNav.DrawTabsUnderline(theme,
+        _selectedTabService = UiNav.DrawTabsUnderline(_theme,
             [
             new(ServiceTabs.Service, "Service", DrawService),
             new(ServiceTabs.Permissions, "Permissions", DrawServicePermissions),

@@ -34,6 +34,8 @@ public partial class IntroUi : WindowMediatorSubscriberBase
     private bool _useLegacyLogin = false;
     private ServerStorage? _selectedServer;
 
+    private readonly UiTheme _theme = new();
+
     private enum IntroUiPages
     {
         Welcome,
@@ -43,7 +45,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         Service,
         Account,
     }
-    private static readonly IntroUiPages[] _wizardOrder =
+    private static readonly IntroUiPages[] _setupOrder =
     {
         IntroUiPages.Welcome,
         IntroUiPages.Agreement,
@@ -52,8 +54,8 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         IntroUiPages.Service,
         IntroUiPages.Account,
     };
-    private IntroUiPages _currentWizardPageId = IntroUiPages.Welcome;
-    private readonly HashSet<IntroUiPages> _unlockedWizardPages = new() { IntroUiPages.Welcome };
+    private IntroUiPages _currentSetupPageId = IntroUiPages.Welcome;
+    private readonly HashSet<IntroUiPages> _unlockedSetupPages = new() { IntroUiPages.Welcome };
     private UiNav.NavItem<IntroUiPages> _selectedNavItem = default!;
     private List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<IntroUiPages>> Items)> _navItems = new();
     private const int AgreementCooldownSeconds = 30;
@@ -105,33 +107,33 @@ public partial class IntroUi : WindowMediatorSubscriberBase
                     page = IntroUiPages.Account;
                 }
             }
-            ResetWizard(page);
+            ResetSetup(page);
             IsOpen = true;
         });
 
-        RebuildWizardNav();
+        RebuildSetupNav();
     }
 
-    private void ResetWizard(IntroUiPages startPage = IntroUiPages.Welcome)
+    private void ResetSetup(IntroUiPages startPage = IntroUiPages.Welcome)
     {
-        _currentWizardPageId = startPage;
-        _unlockedWizardPages.Clear();
+        _currentSetupPageId = startPage;
+        _unlockedSetupPages.Clear();
         if (_configService.Current.FirstTimeSetupComplete)
         {
-            foreach (var p in _wizardOrder)
-                _unlockedWizardPages.Add(p);
+            foreach (var p in _setupOrder)
+                _unlockedSetupPages.Add(p);
         }
         else
         {
-            _unlockedWizardPages.Add(IntroUiPages.Welcome);
+            _unlockedSetupPages.Add(IntroUiPages.Welcome);
         }
-        RebuildWizardNav();
+        RebuildSetupNav();
     }
 
-    private void RebuildWizardNav()
+    private void RebuildSetupNav()
     {
         UiNav.NavItem<IntroUiPages> Item(IntroUiPages id, string label, Action draw)
-            => new(id, label, draw, Enabled: _unlockedWizardPages.Contains(id));
+            => new(id, label, draw, Enabled: _unlockedSetupPages.Contains(id));
 
         _navItems = new List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<IntroUiPages>> Items)>
         {
@@ -146,18 +148,18 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             }),
         };
 
-        _selectedNavItem = _navItems[0].Items.First(i => i.Id == _currentWizardPageId);
+        _selectedNavItem = _navItems[0].Items.First(i => i.Id == _currentSetupPageId);
     }
 
     private bool CanGoNextPage()
     {
-        if (_currentWizardPageId == IntroUiPages.Agreement)
+        if (_currentSetupPageId == IntroUiPages.Agreement)
             return _configService.Current.AcceptedAgreement;
 
-        if (_currentWizardPageId == IntroUiPages.Storage)
+        if (_currentSetupPageId == IntroUiPages.Storage)
             return _configService.Current.InitialScanComplete;
 
-        if (_currentWizardPageId == IntroUiPages.Account)
+        if (_currentSetupPageId == IntroUiPages.Account)
             return _uiShared.ApiController.ServerAlive;
 
         return true;
@@ -165,24 +167,24 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 
     private void NextPage()
     {
-        var idx = Array.IndexOf(_wizardOrder, _currentWizardPageId);
-        if (idx < 0 || idx >= _wizardOrder.Length - 1)
+        var idx = Array.IndexOf(_setupOrder, _currentSetupPageId);
+        if (idx < 0 || idx >= _setupOrder.Length - 1)
             return;
 
-        var nextId = _wizardOrder[idx + 1];
-        _unlockedWizardPages.Add(nextId);
-        _currentWizardPageId = nextId;
-        RebuildWizardNav();
+        var nextId = _setupOrder[idx + 1];
+        _unlockedSetupPages.Add(nextId);
+        _currentSetupPageId = nextId;
+        RebuildSetupNav();
     }
 
     private void PreviousPage()
     {
-        var idx = Array.IndexOf(_wizardOrder, _currentWizardPageId);
+        var idx = Array.IndexOf(_setupOrder, _currentSetupPageId);
         if (idx <= 0)
             return;
 
-        _currentWizardPageId = _wizardOrder[idx - 1];
-        RebuildWizardNav();
+        _currentSetupPageId = _setupOrder[idx - 1];
+        RebuildSetupNav();
     }
 
     private int _prevIdx = -1;
@@ -200,16 +202,14 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             FinishSetup();
         }
 
-        var theme = UiTheme.Default;
-
-        //_uiShared.BigText("PlayerSync Setup Wizard");
+        //_uiShared.BigText("PlayerSync Setup Setup");
         //Ui.DrawHorizontalRule(t);
         //ImGuiHelpers.ScaledDummy(5f);
 
-        _selectedNavItem = UiNav.DrawSidebar(theme, "", _navItems, _selectedNavItem, widthPx: 180f, iconFont: _uiShared.IconFont);
+        _selectedNavItem = UiNav.DrawSidebar(_theme, "", _navItems, _selectedNavItem, widthPx: 180f, iconFont: _uiShared.IconFont);
 
-        if (_currentWizardPageId != _selectedNavItem.Id)
-            _currentWizardPageId = _selectedNavItem.Id;
+        if (_currentSetupPageId != _selectedNavItem.Id)
+            _currentSetupPageId = _selectedNavItem.Id;
 
         ImGui.SameLine();
 
@@ -236,11 +236,11 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         {
             if (footer)
             {
-                Ui.DrawHorizontalRule(theme);
+                Ui.DrawHorizontalRule(_theme);
 
-                var idx = Array.IndexOf(_wizardOrder, _currentWizardPageId);
+                var idx = Array.IndexOf(_setupOrder, _currentSetupPageId);
                 var isFirst = idx <= 0;
-                var isLast = idx >= _wizardOrder.Length - 1;
+                var isLast = idx >= _setupOrder.Length - 1;
 
                 var backLabel = "Back";
                 var nextLabel = "Next";
