@@ -203,7 +203,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         var theme = UiTheme.Default;
 
         //_uiShared.BigText("PlayerSync Setup Wizard");
-        //Ui.Hr(t);
+        //Ui.DrawHorizontalRule(t);
         //ImGuiHelpers.ScaledDummy(5f);
 
         _selectedNavItem = UiNav.DrawSidebar(theme, "", _navItems, _selectedNavItem, widthPx: 180f, iconFont: _uiShared.IconFont);
@@ -215,13 +215,13 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 
         using var pane = ImRaii.Child("##setup-pane", new Vector2(0, 0), false, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
 
-        Ui.VSpace(2);
+        Ui.AddVerticalSpace(2);
 
         var style = ImGui.GetStyle();
-        var padFooter = UiScale.S(10f);
-        var padRight = UiScale.S(26f);
-        var padBottom = UiScale.S(10f);
-        var footerExtra = UiScale.S(8f);
+        var padFooter = UiScale.ScaledFloat(10f);
+        var padRight = UiScale.ScaledFloat(26f);
+        var padBottom = UiScale.ScaledFloat(10f);
+        var footerExtra = UiScale.ScaledFloat(8f);
         var footerH = padFooter + padBottom + ImGui.GetFrameHeight() + footerExtra + padFooter;
         var avail = ImGui.GetContentRegionAvail();
         var contentH = Math.Max(0, avail.Y - footerH);
@@ -236,7 +236,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         {
             if (footer)
             {
-                Ui.Hr(theme);
+                Ui.DrawHorizontalRule(theme);
 
                 var idx = Array.IndexOf(_wizardOrder, _currentWizardPageId);
                 var isFirst = idx <= 0;

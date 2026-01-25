@@ -211,7 +211,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             var offY = MathF.Max(0f, (avail.Y - inner.Y) * 0.5f);
             ImGui.SetCursorPos(cursor + new Vector2(offX, offY));
 
-            var r = UiScale.S(24f);
+            var r = UiScale.ScaledFloat(24f);
             var previewFlags = hostFlags | ImGuiWindowFlags.NoBackground;
 
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, Vector2.Zero))
@@ -507,7 +507,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         const float bannerHeightPx = 250f;
         const float headerFillPx = bannerHeightPx * 0.5f;
         const float radiusPx = 24f;
-        var bannerH = UiScale.S(bannerHeightPx);
+        var bannerH = UiScale.ScaledFloat(bannerHeightPx);
         var width = Math.Max(1f, ImGui.GetContentRegionAvail().X);
 
         ProfileBuilder.DrawBackGroundWindow(UiTheme.ToVec4(profile.Theme.Primary), 24f, 0.5f);

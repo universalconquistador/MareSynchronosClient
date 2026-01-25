@@ -241,7 +241,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
             ImGui.TextColored(ImGuiColors.DalamudRed, "Unavailable");
         }
 
-        Ui.VSpace(2);
+        Ui.AddVerticalSpace(2);
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted("Community and Support:");
         ImGui.SameLine();
@@ -250,19 +250,19 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
             Util.OpenLink("https://discord.gg/BzaqbfFFmn");
         }
 
-        //Ui.Hr(t);
+        //Ui.DrawHorizontalRule(t);
         ImGuiHelpers.ScaledDummy(5);
 
         // we could have 'out' the selected item, but it was messy to keep state in ImGui when we wanted to be able to "link" to other windows
         _selectedNavItem = UiNav.DrawSidebar(theme, "Settings", NavItems, _selectedNavItem, widthPx: 240f, iconFont: _uiShared.IconFont);
 
-        var panePad = UiScale.S(theme.PanelPad);
-        var paneGap = UiScale.S(theme.PanelGap);
+        var panePad = UiScale.ScaledFloat(theme.PanelPad);
+        var paneGap = UiScale.ScaledFloat(theme.PanelGap);
 
         ImGui.SameLine(0, paneGap);
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));
         using var pane = ImRaii.Child("##settings-pane", new Vector2(0, 0), false);
-        Ui.VSpace(2);
+        Ui.AddVerticalSpace(2);
 
         _selectedNavItem.NavAction.Invoke();
     }

@@ -12,60 +12,60 @@ public static class ProfileBuilder
 {
     public static void DrawProfileWindow(Vector4 headerColor, Vector4 bodyColor, float headerHeightPx, float radiusPx, float insetPx = 0.0f)
     {
-        var s = ImGuiHelpers.GlobalScale;
-        var dl = ImGui.GetWindowDrawList();
+        var globalScale = ImGuiHelpers.GlobalScale;
+        var drawList = ImGui.GetWindowDrawList();
 
-        var pos = ImGui.GetWindowPos();
-        var size = ImGui.GetWindowSize();
-        var winMin = pos;
-        var winMax = pos + size;
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+        var windowMin = windowPos;
+        var windowMax = windowPos + windowSize;
 
-        var headerH = MathF.Max(0f, headerHeightPx * s);
-        var inset = insetPx * s;
+        var headerHeight = MathF.Max(0f, headerHeightPx * globalScale);
+        var inset = insetPx * globalScale;
 
         // inner rectangle
-        var minX = winMin.X + inset;
-        var maxX = winMax.X - inset;
-        var minY = winMin.Y + inset;
-        var maxY = winMax.Y - inset;
+        var minX = windowMin.X + inset;
+        var maxX = windowMax.X - inset;
+        var minY = windowMin.Y + inset;
+        var maxY = windowMax.Y - inset;
 
         if (maxX <= minX || maxY <= minY)
             return;
 
-        headerH = MathF.Min(headerH, maxY - winMin.Y);
-        var r = MathF.Max(0f, radiusPx * s - inset);
+        headerHeight = MathF.Min(headerHeight, maxY - windowMin.Y);
+        var rounding = MathF.Max(0f, radiusPx * globalScale - inset);
 
         // header region
-        var topMin = new Vector2(minX, minY);
-        var topMax = new Vector2(maxX, winMin.Y + headerH);
+        var headerMin = new Vector2(minX, minY);
+        var headerMax = new Vector2(maxX, windowMin.Y + headerHeight);
 
-        if (topMax.Y > topMin.Y)
+        if (headerMax.Y > headerMin.Y)
         {
-            dl.AddRectFilled(topMin, topMax, ImGui.GetColorU32(headerColor), r, ImDrawFlags.RoundCornersTopLeft | ImDrawFlags.RoundCornersTopRight);
+            drawList.AddRectFilled(headerMin, headerMax, ImGui.GetColorU32(headerColor), rounding, ImDrawFlags.RoundCornersTopLeft | ImDrawFlags.RoundCornersTopRight);
         }
 
         // body region
-        var bodyMin = new Vector2(minX, winMin.Y + headerH);
+        var bodyMin = new Vector2(minX, windowMin.Y + headerHeight);
         var bodyMax = new Vector2(maxX, maxY);
 
         if (bodyMax.Y > bodyMin.Y)
         {
-            dl.AddRectFilled(bodyMin, bodyMax, ImGui.GetColorU32(bodyColor), r, ImDrawFlags.RoundCornersBottomLeft | ImDrawFlags.RoundCornersBottomRight);
+            drawList.AddRectFilled(bodyMin, bodyMax, ImGui.GetColorU32(bodyColor), rounding, ImDrawFlags.RoundCornersBottomLeft | ImDrawFlags.RoundCornersBottomRight);
         }
     }
 
     public static void DrawBackGroundWindow(Vector4 color, float roundingOverridePx = -1f, float insetPx = 0.5f)
     {
-        var s = ImGuiHelpers.GlobalScale;
-        var dl = ImGui.GetWindowDrawList();
-        var pos = ImGui.GetWindowPos();
-        var size = ImGui.GetWindowSize();
-        var inset = insetPx * s;
-        var min = pos + new Vector2(inset, inset);
-        var max = pos + size - new Vector2(inset, inset);
-        var r = roundingOverridePx >= 0 ? roundingOverridePx * s : ImGui.GetStyle().WindowRounding;
-        r = MathF.Max(0f, r - inset);
-        dl.AddRectFilled(min, max, ImGui.GetColorU32(color), r, ImDrawFlags.RoundCornersAll);
+        var globalScale = ImGuiHelpers.GlobalScale;
+        var drawList = ImGui.GetWindowDrawList();
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+        var inset = insetPx * globalScale;
+        var fillMin = windowPos + new Vector2(inset, inset);
+        var fillMax = windowPos + windowSize - new Vector2(inset, inset);
+        var rounding = roundingOverridePx >= 0 ? roundingOverridePx * globalScale : ImGui.GetStyle().WindowRounding;
+        rounding = MathF.Max(0f, rounding - inset);
+        drawList.AddRectFilled(fillMin, fillMax, ImGui.GetColorU32(color), rounding, ImDrawFlags.RoundCornersAll);
     }
 
     /// <summary>
@@ -78,162 +78,162 @@ public static class ProfileBuilder
     /// <param name="borderColor"></param>
     /// <param name="borderThicknessPx"></param>
     /// <param name="insetPx"></param>
-    public static void DrawGradientWindow(Vector4 headerColor, Vector4 bodyColor, float headerHeightPx, 
+    public static void DrawGradientWindow(Vector4 headerColor, Vector4 bodyColor, float headerHeightPx,
         float radiusPx, Vector4 borderColor, float borderThicknessPx = 1.0f, float insetPx = 0.0f)
     {
-        var s = ImGuiHelpers.GlobalScale;
-        var dl = ImGui.GetWindowDrawList();
-        var winMin = ImGui.GetWindowPos();
-        var winMax = winMin + ImGui.GetWindowSize();
-        var headerH = MathF.Max(0f, headerHeightPx * s);
-        var inset = insetPx * s;
-        var minX = winMin.X + inset;
-        var maxX = winMax.X - inset;
-        var minY = winMin.Y + inset;
-        var maxY = winMax.Y - inset;
+        var globalScale = ImGuiHelpers.GlobalScale;
+        var drawList = ImGui.GetWindowDrawList();
+        var windowMin = ImGui.GetWindowPos();
+        var windowMax = windowMin + ImGui.GetWindowSize();
+        var headerHeight = MathF.Max(0f, headerHeightPx * globalScale);
+        var inset = insetPx * globalScale;
+        var minX = windowMin.X + inset;
+        var maxX = windowMax.X - inset;
+        var minY = windowMin.Y + inset;
+        var maxY = windowMax.Y - inset;
 
         if (maxX <= minX || maxY <= minY)
             return;
 
-        headerH = MathF.Min(headerH, maxY - winMin.Y);
+        headerHeight = MathF.Min(headerHeight, maxY - windowMin.Y);
 
-        var r = MathF.Max(0f, radiusPx * s - inset);
-        var thickness = MathF.Max(0f, borderThicknessPx * s);
-        var half = thickness * 0.5f;
-        var aaPad = MathF.Min(0.5f * s, half);
-        var fillInset = (thickness > 0f && borderColor.W > 0f) ? (half + aaPad) : 0f;
-        var fMinX = minX + fillInset;
-        var fMaxX = maxX - fillInset;
-        var fMinY = minY + fillInset;
-        var fMaxY = maxY - fillInset;
+        var rounding = MathF.Max(0f, radiusPx * globalScale - inset);
+        var borderThickness = MathF.Max(0f, borderThicknessPx * globalScale);
+        var borderHalfThickness = borderThickness * 0.5f;
+        var antiAliasPadding = MathF.Min(0.5f * globalScale, borderHalfThickness);
+        var fillInset = (borderThickness > 0f && borderColor.W > 0f) ? (borderHalfThickness + antiAliasPadding) : 0f;
+        var fillMinX = minX + fillInset;
+        var fillMaxX = maxX - fillInset;
+        var fillMinY = minY + fillInset;
+        var fillMaxY = maxY - fillInset;
 
-        if (fMaxX <= fMinX || fMaxY <= fMinY)
+        if (fillMaxX <= fillMinX || fillMaxY <= fillMinY)
             return;
 
-        var rFill = MathF.Max(0f, r - fillInset);
-        var topMin = new Vector2(fMinX, fMinY);
-        var topMax = new Vector2(fMaxX, winMin.Y + headerH);
-        topMax.Y = MathF.Min(topMax.Y, fMaxY);
+        var fillRounding = MathF.Max(0f, rounding - fillInset);
+        var headerMin = new Vector2(fillMinX, fillMinY);
+        var headerMax = new Vector2(fillMaxX, windowMin.Y + headerHeight);
+        headerMax.Y = MathF.Min(headerMax.Y, fillMaxY);
 
-        if (topMax.Y > topMin.Y)
+        if (headerMax.Y > headerMin.Y)
         {
-            dl.AddRectFilled(topMin, topMax, ImGui.GetColorU32(headerColor), rFill, 
+            drawList.AddRectFilled(headerMin, headerMax, ImGui.GetColorU32(headerColor), fillRounding,
                 ImDrawFlags.RoundCornersTopLeft | ImDrawFlags.RoundCornersTopRight);
         }
 
-        var bodyMin = new Vector2(fMinX, winMin.Y + headerH);
-        var bodyMax = new Vector2(fMaxX, fMaxY);
+        var bodyMin = new Vector2(fillMinX, windowMin.Y + headerHeight);
+        var bodyMax = new Vector2(fillMaxX, fillMaxY);
 
         if (bodyMax.Y > bodyMin.Y)
         {
-            float bodyH = bodyMax.Y - bodyMin.Y;
+            float bodyHeight = bodyMax.Y - bodyMin.Y;
 
-            if (rFill <= 0f || bodyH <= rFill + 0.5f)
+            if (fillRounding <= 0f || bodyHeight <= fillRounding + 0.5f)
             {
-                dl.AddRectFilled(bodyMin, bodyMax, ImGui.GetColorU32(bodyColor), rFill, 
+                drawList.AddRectFilled(bodyMin, bodyMax, ImGui.GetColorU32(bodyColor), fillRounding,
                     ImDrawFlags.RoundCornersBottomLeft | ImDrawFlags.RoundCornersBottomRight);
             }
             else
             {
-                float gradBottomY = bodyMax.Y - rFill;
-                float gradH = MathF.Max(1f, gradBottomY - bodyMin.Y);
-                int steps = Math.Clamp((int)((gradBottomY - bodyMin.Y) / UiScale.S(8f)), 12, 220);
-                float stepH = (gradBottomY - bodyMin.Y) / steps;
+                float gradientBottomY = bodyMax.Y - fillRounding;
+                float gradientHeight = MathF.Max(1f, gradientBottomY - bodyMin.Y);
+                int stepCount = Math.Clamp((int)((gradientBottomY - bodyMin.Y) / UiScale.ScaledFloat(8f)), 12, 220);
+                float stepHeight = (gradientBottomY - bodyMin.Y) / stepCount;
 
                 static Vector4 Lerp(Vector4 a, Vector4 b, float t) => a + (b - a) * t;
 
-                for (int i = 0; i < steps; i++)
+                for (int stepIndex = 0; stepIndex < stepCount; stepIndex++)
                 {
-                    float y0 = bodyMin.Y + stepH * i;
-                    float y1 = (i == steps - 1) ? gradBottomY : (y0 + stepH);
+                    float y0 = bodyMin.Y + stepHeight * stepIndex;
+                    float y1 = (stepIndex == stepCount - 1) ? gradientBottomY : (y0 + stepHeight);
 
-                    float tMid = ((y0 + y1) * 0.5f - bodyMin.Y) / gradH;
-                    var c = Lerp(headerColor, bodyColor, Math.Clamp(tMid, 0f, 1f));
+                    float tMid = ((y0 + y1) * 0.5f - bodyMin.Y) / gradientHeight;
+                    var lerpedColor = Lerp(headerColor, bodyColor, Math.Clamp(tMid, 0f, 1f));
 
-                    dl.AddRectFilled(new Vector2(bodyMin.X, y0), new Vector2(bodyMax.X, y1), ImGui.GetColorU32(c));
+                    drawList.AddRectFilled(new Vector2(bodyMin.X, y0), new Vector2(bodyMax.X, y1), ImGui.GetColorU32(lerpedColor));
                 }
 
-                var seam = 1f;
-                dl.AddRectFilled(new Vector2(bodyMin.X, gradBottomY - seam), bodyMax, ImGui.GetColorU32(bodyColor), 
-                    rFill, ImDrawFlags.RoundCornersBottomLeft | ImDrawFlags.RoundCornersBottomRight);
+                var seamOverlap = 1f;
+                drawList.AddRectFilled(new Vector2(bodyMin.X, gradientBottomY - seamOverlap), bodyMax, ImGui.GetColorU32(bodyColor),
+                    fillRounding, ImDrawFlags.RoundCornersBottomLeft | ImDrawFlags.RoundCornersBottomRight);
             }
         }
 
-        if (thickness > 0f && borderColor.W > 0f)
+        if (borderThickness > 0f && borderColor.W > 0f)
         {
-            var bMin = new Vector2(minX + half, minY + half);
-            var bMax = new Vector2(maxX - half, maxY - half);
+            var borderMin = new Vector2(minX + borderHalfThickness, minY + borderHalfThickness);
+            var borderMax = new Vector2(maxX - borderHalfThickness, maxY - borderHalfThickness);
 
-            if (bMax.X > bMin.X && bMax.Y > bMin.Y)
+            if (borderMax.X > borderMin.X && borderMax.Y > borderMin.Y)
             {
-                var br = MathF.Max(0f, r - half);
-                dl.AddRect(bMin, bMax, ImGui.GetColorU32(borderColor), br, ImDrawFlags.RoundCornersAll, thickness);
+                var borderRounding = MathF.Max(0f, rounding - borderHalfThickness);
+                drawList.AddRect(borderMin, borderMax, ImGui.GetColorU32(borderColor), borderRounding, ImDrawFlags.RoundCornersAll, borderThickness);
             }
         }
     }
 
-    public static void DrawAvatar(UiTheme t, IDalamudTextureWrap? avatar, IDalamudTextureWrap? badge, Vector4 borderColor, Vector4 backgroundColor,
+    public static void DrawAvatar(UiTheme theme, IDalamudTextureWrap? avatar, IDalamudTextureWrap? badge, Vector4 borderColor, Vector4 backgroundColor,
         out Vector2 nameMin, out Vector2 nameMax, float bannerHeightPx = 250f, float portraitAspectW = 9f, float portraitAspectH = 16f)
     {
-        var dl = ImGui.GetWindowDrawList();
-        var pad = UiScale.S(t.PanelPad);
+        var drawList = ImGui.GetWindowDrawList();
+        var padding = UiScale.ScaledFloat(theme.PanelPad);
         var origin = ImGui.GetCursorScreenPos();
-        var width = Math.Max(1f, ImGui.GetContentRegionAvail().X);
-        var bannerH = UiScale.S(bannerHeightPx);
-        var innerMin = origin + new Vector2(pad, pad);
-        var innerMax = origin + new Vector2(width - pad, bannerH - pad);
-        var innerW = MathF.Max(1f, innerMax.X - innerMin.X);
-        var innerH = MathF.Max(1f, innerMax.Y - innerMin.Y);
-        var aspect = portraitAspectW / portraitAspectH;
-        var gap = UiScale.S(16f);
-        var portraitH = innerH;
-        var portraitW = portraitH * aspect;
-        var maxPortraitW = innerW * 0.52f;
+        var contentWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
+        var bannerHeight = UiScale.ScaledFloat(bannerHeightPx);
+        var innerMin = origin + new Vector2(padding, padding);
+        var innerMax = origin + new Vector2(contentWidth - padding, bannerHeight - padding);
+        var innerWidth = MathF.Max(1f, innerMax.X - innerMin.X);
+        var innerHeight = MathF.Max(1f, innerMax.Y - innerMin.Y);
+        var aspectRatio = portraitAspectW / portraitAspectH;
+        var gap = UiScale.ScaledFloat(16f);
+        var portraitHeight = innerHeight;
+        var portraitWidth = portraitHeight * aspectRatio;
+        var maxPortraitWidth = innerWidth * 0.52f;
 
-        if (portraitW > maxPortraitW)
+        if (portraitWidth > maxPortraitWidth)
         {
-            portraitW = maxPortraitW;
-            portraitH = portraitW / aspect;
+            portraitWidth = maxPortraitWidth;
+            portraitHeight = portraitWidth / aspectRatio;
         }
 
-        var minPortraitW = UiScale.S(130f);
-        if (portraitW < minPortraitW)
+        var minPortraitWidth = UiScale.ScaledFloat(130f);
+        if (portraitWidth < minPortraitWidth)
         {
-            portraitW = Math.Min(minPortraitW, innerW);
-            portraitH = Math.Min(innerH, portraitW / aspect);
+            portraitWidth = Math.Min(minPortraitWidth, innerWidth);
+            portraitHeight = Math.Min(innerHeight, portraitWidth / aspectRatio);
         }
 
-        var imgMin = innerMin;
-        var imgMax = imgMin + new Vector2(portraitW, portraitH);
+        var imageMin = innerMin;
+        var imageMax = imageMin + new Vector2(portraitWidth, portraitHeight);
 
-        DrawPortraitAvatar(dl, t, avatar, imgMin, imgMax, borderColor, backgroundColor);
+        DrawPortraitAvatar(drawList, theme, avatar, imageMin, imageMax, borderColor, backgroundColor);
 
         if (badge != null)
-            DrawCircularBadge(dl, t, badge, imgMin, imgMax);
+            DrawCircularBadge(drawList, theme, badge, imageMin, imageMax);
 
         // Name rect to the right of the portrait
-        nameMin = new Vector2(imgMax.X + gap, imgMin.Y);
-        nameMax = new Vector2(innerMax.X, imgMin.Y + portraitH);
+        nameMin = new Vector2(imageMax.X + gap, imageMin.Y);
+        nameMax = new Vector2(innerMax.X, imageMin.Y + portraitHeight);
     }
 
-    public static void DrawNameInfo(UiTheme t, string displayName, string handle, ProfileV1 profile, bool online, Vector2 nameMin, Vector2 nameMax)
+    public static void DrawNameInfo(UiTheme theme, string displayName, string handle, ProfileV1 profile, bool online, Vector2 nameMin, Vector2 nameMax)
     {
-        if (nameMax.X <= nameMin.X + UiScale.S(8f) || nameMax.Y <= nameMin.Y + UiScale.S(8f))
+        if (nameMax.X <= nameMin.X + UiScale.ScaledFloat(8f) || nameMax.Y <= nameMin.Y + UiScale.ScaledFloat(8f))
             return;
 
         var restoreCursor = ImGui.GetCursorPos();
-        var nameW = Math.Max(1f, nameMax.X - nameMin.X);
+        var nameWidth = Math.Max(1f, nameMax.X - nameMin.X);
 
         ImGui.SetCursorScreenPos(nameMin);
         ImGui.PushClipRect(nameMin, nameMax, true);
 
-        var localStartX = ImGui.GetCursorPosX();
+        var wrapStartLocalX = ImGui.GetCursorPosX();
 
-        ImGui.PushTextWrapPos(localStartX + nameW);
-        UiText.ThemedText(t, displayName, UiTextStyle.Heading, UiTheme.ToVec4(profile.Theme.TextPrimary));
+        ImGui.PushTextWrapPos(wrapStartLocalX + nameWidth);
+        UiText.ThemedText(theme, displayName, UiTextStyle.Heading, UiTheme.ToVec4(profile.Theme.TextPrimary));
 
         var pronouns = profile.Pronouns.Trim();
-        var gap = UiScale.S(6f);
+        var bulletGap = UiScale.ScaledFloat(6f);
         var line2Y = ImGui.GetCursorScreenPos().Y;
 
         ImGui.SetCursorScreenPos(new Vector2(nameMin.X, line2Y));
@@ -248,8 +248,8 @@ public static class ProfileBuilder
             {
                 ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
 
-                using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(UiScale.S(10f), UiScale.S(6f))))
-                using (ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, UiScale.S(8f)))
+                using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(UiScale.ScaledFloat(10f), UiScale.ScaledFloat(6f))))
+                using (ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, UiScale.ScaledFloat(8f)))
                 {
                     ImGui.BeginTooltip();
                     ImGui.TextUnformatted("Copy UID");
@@ -259,9 +259,9 @@ public static class ProfileBuilder
 
             if (!string.IsNullOrWhiteSpace(pronouns))
             {
-                ImGui.SameLine(0, gap);
+                ImGui.SameLine(0, bulletGap);
                 ImGui.TextUnformatted("•");
-                ImGui.SameLine(0, gap);
+                ImGui.SameLine(0, bulletGap);
                 ImGui.TextUnformatted(pronouns);
             }
         }
@@ -287,12 +287,12 @@ public static class ProfileBuilder
             {
                 ImGui.TextUnformatted("Relations");
             }
-                
+
             var yAfterLabel = ImGui.GetCursorScreenPos().Y;
 
             ImGui.SetCursorScreenPos(new Vector2(nameMin.X, yAfterLabel));
 
-            DrawPill(t, "##profile_status", statusLabel!, bg: UiTheme.ToVec4(profile.Theme.Accent), 
+            DrawPill(theme, "##profile_status", statusLabel!, bg: UiTheme.ToVec4(profile.Theme.Accent),
                 border: UiTheme.ToVec4(profile.Theme.Secondary), fg: UiTheme.ToVec4(profile.Theme.TextPrimary));
         }
 
@@ -301,62 +301,62 @@ public static class ProfileBuilder
         ImGui.SetCursorPos(restoreCursor);
     }
 
-    public static void DrawInterests(UiTheme t, ProfileV1 profile)
+    public static void DrawInterests(UiTheme theme, ProfileV1 profile)
     {
-        var list = profile.Interests.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
+        var interestList = profile.Interests.Where(interest => !string.IsNullOrWhiteSpace(interest)).Select(interest => interest.Trim()).ToList();
 
-        if (list is not { Count: > 0 })
+        if (interestList is not { Count: > 0 })
             return;
 
-        using (PushContentInset(t, out var width))
+        using (PushContentInset(theme, out var innerWidth))
         {
             using (ImRaii.PushColor(ImGuiCol.Text, UiTheme.ToVec4(profile.Theme.TextPrimary)))
             {
                 ImGui.TextUnformatted("Interests");
             }
 
-            DrawPillWrap(t, "interest", list, bg: UiTheme.ToVec4(profile.Theme.Accent), border: UiTheme.ToVec4(profile.Theme.Secondary), 
-                fg: UiTheme.ToVec4(profile.Theme.TextPrimary), width);
+            DrawPillWrap(theme, "interest", interestList, bg: UiTheme.ToVec4(profile.Theme.Accent), border: UiTheme.ToVec4(profile.Theme.Secondary),
+                fg: UiTheme.ToVec4(profile.Theme.TextPrimary), innerWidth);
         }
 
     }
 
-    public static void DrawAboutMe(UiTheme t, ProfileV1 profile)
+    public static void DrawAboutMe(UiTheme theme, ProfileV1 profile)
     {
-        ImGui.Dummy(new Vector2(1f, UiScale.S(Spacing)));
+        ImGui.Dummy(new Vector2(1f, UiScale.ScaledFloat(Spacing)));
 
         var about = profile.AboutMe?.Trim();
         if (string.IsNullOrWhiteSpace(about))
             return;
 
-        using (PushContentInset(t, out var width))
+        using (PushContentInset(theme, out var innerWidth))
         {
-            UiText.TextWrappedMaxLines(about, width: width, maxLines: 4, color: UiTheme.ToVec4(profile.Theme.TextPrimary), ellipsisColor: t.TextMuted);
+            UiText.DrawTextWrappedMaxLines(about, width: innerWidth, maxLines: 4, color: UiTheme.ToVec4(profile.Theme.TextPrimary), ellipsisColor: theme.TextMuted);
         }
     }
 
-    public static bool DrawNotes(UiTheme t, ProfileV1 profile, ref string notesDraft, ref bool editing, string id, 
+    public static bool DrawNotes(UiTheme theme, ProfileV1 profile, ref string notesDraft, ref bool editing, string id,
         string heading = "Note (only visible to you)", string placeholder = "Click to add a note", int maxLen = 200, int lines = 10)
     {
-        ImGui.Dummy(new Vector2(1f, UiScale.S(Spacing)));
+        ImGui.Dummy(new Vector2(1f, UiScale.ScaledFloat(Spacing)));
 
-        var dl = ImGui.GetWindowDrawList();
+        var drawList = ImGui.GetWindowDrawList();
         var style = ImGui.GetStyle();
 
-        using (PushContentInset(t, out var width))
+        using (PushContentInset(theme, out var innerWidth))
         {
             using (ImRaii.PushColor(ImGuiCol.Text, UiTheme.ToVec4(profile.Theme.TextPrimary)))
             {
                 ImGui.TextUnformatted(heading);
             }
 
-            var lineH = ImGui.GetTextLineHeightWithSpacing();
-            var height = (lineH * lines) + (style.FramePadding.Y * 2f);
-            var boxSize = new Vector2(width, height);
+            var lineHeight = ImGui.GetTextLineHeightWithSpacing();
+            var height = (lineHeight * lines) + (style.FramePadding.Y * 2f);
+            var boxSize = new Vector2(innerWidth, height);
             var boxMin = ImGui.GetCursorScreenPos();
             var boxMax = boxMin + boxSize;
             var rounding = style.FrameRounding;
-            var bg = UiTheme.ToVec4(profile.Theme.Accent);
+            var background = UiTheme.ToVec4(profile.Theme.Accent);
             var border = UiTheme.ToVec4(profile.Theme.Secondary);
             var hovered = ImGui.IsMouseHoveringRect(boxMin, boxMax, true);
             var storage = ImGui.GetStateStorage();
@@ -365,10 +365,10 @@ public static class ProfileBuilder
             bool changed = false;
 
             if (editing)
-                dl.AddRectFilled(boxMin, boxMax, ImGui.GetColorU32(bg), rounding);
+                drawList.AddRectFilled(boxMin, boxMax, ImGui.GetColorU32(background), rounding);
 
             if (hovered || editing)
-                dl.AddRect(boxMin, boxMax, ImGui.GetColorU32(border), rounding);
+                drawList.AddRect(boxMin, boxMax, ImGui.GetColorU32(border), rounding);
 
             if (!editing)
             {
@@ -379,11 +379,11 @@ public static class ProfileBuilder
                     storage.SetInt(focusKey, 1);
                 }
 
-                var pad = style.FramePadding;
-                var textMin = boxMin + pad;
-                var textMax = boxMax - pad;
+                var framePadding = style.FramePadding;
+                var textMin = boxMin + framePadding;
+                var textMax = boxMax - framePadding;
 
-                dl.PushClipRect(textMin, textMax, true);
+                drawList.PushClipRect(textMin, textMax, true);
                 try
                 {
                     ImGui.SetCursorScreenPos(textMin);
@@ -394,7 +394,7 @@ public static class ProfileBuilder
 
                     if (string.IsNullOrWhiteSpace(notesDraft))
                     {
-                        using (ImRaii.PushColor(ImGuiCol.Text, UiText.MutedText(UiTheme.ToVec4(profile.Theme.TextPrimary))))
+                        using (ImRaii.PushColor(ImGuiCol.Text, UiText.GetMutedTextColor(UiTheme.ToVec4(profile.Theme.TextPrimary))))
                             ImGui.TextWrapped(placeholder);
                     }
                     else
@@ -407,7 +407,7 @@ public static class ProfileBuilder
                 }
                 finally
                 {
-                    dl.PopClipRect();
+                    drawList.PopClipRect();
                 }
 
                 ImGui.SetCursorScreenPos(new Vector2(boxMin.X, boxMax.Y));
@@ -436,7 +436,7 @@ public static class ProfileBuilder
                 ImGui.SetCursorScreenPos(new Vector2(boxMin.X, boxMax.Y));
             }
 
-            ImGui.Dummy(new Vector2(1f, UiScale.S(8f)));
+            ImGui.Dummy(new Vector2(1f, UiScale.ScaledFloat(8f)));
             return changed;
         }
     }
@@ -473,62 +473,62 @@ public static class ProfileBuilder
         uv1 = new Vector2(u1, v1);
     }
 
-    private static void DrawPortraitAvatar(ImDrawListPtr dl, UiTheme t, IDalamudTextureWrap? avatar, 
+    private static void DrawPortraitAvatar(ImDrawListPtr drawList, UiTheme theme, IDalamudTextureWrap? avatar,
         Vector2 slotMin, Vector2 slotMax, Vector4 borderColor, Vector4 backgroundColor)
     {
         var size = slotMax - slotMin;
         if (size.X <= 1f || size.Y <= 1f)
             return;
 
-        var rounding = UiScale.S(t.RadiusLg);
-        var borderThickness = UiScale.S(3f);
+        var rounding = UiScale.ScaledFloat(theme.RadiusLg);
+        var borderThickness = UiScale.ScaledFloat(3f);
 
-        dl.AddRectFilled(slotMin, slotMax, ImGui.GetColorU32(backgroundColor), rounding);
+        drawList.AddRectFilled(slotMin, slotMax, ImGui.GetColorU32(backgroundColor), rounding);
 
         if (avatar != null)
         {
             var destAspect = size.X / size.Y;
             CalcUvCropToAspect(avatar, destAspect, out var uv0, out var uv1);
 
-            dl.AddImageRounded(avatar.Handle, slotMin, slotMax, uv0, uv1, 0xFFFFFFFF, rounding, ImDrawFlags.RoundCornersAll
+            drawList.AddImageRounded(avatar.Handle, slotMin, slotMax, uv0, uv1, 0xFFFFFFFF, rounding, ImDrawFlags.RoundCornersAll
             );
         }
 
-        dl.AddRect(slotMin, slotMax, ImGui.GetColorU32(borderColor), rounding, ImDrawFlags.RoundCornersAll, borderThickness);
+        drawList.AddRect(slotMin, slotMax, ImGui.GetColorU32(borderColor), rounding, ImDrawFlags.RoundCornersAll, borderThickness);
     }
 
-    private static void DrawCircularBadge(ImDrawListPtr dl, UiTheme t, IDalamudTextureWrap badge, Vector2 avatarMin, Vector2 avatarMax)
+    private static void DrawCircularBadge(ImDrawListPtr drawList, UiTheme theme, IDalamudTextureWrap badge, Vector2 avatarMin, Vector2 avatarMax)
     {
-        var b = UiScale.S(28f);
-        var bMin = new Vector2(avatarMax.X - b, avatarMax.Y - b);
-        var bMax = bMin + new Vector2(b, b);
-        var radius = b * 0.5f;
-        var center = (bMin + bMax) * 0.5f;
+        var badgeSize = UiScale.ScaledFloat(28f);
+        var badgeMin = new Vector2(avatarMax.X - badgeSize, avatarMax.Y - badgeSize);
+        var badgeMax = badgeMin + new Vector2(badgeSize, badgeSize);
+        var radius = badgeSize * 0.5f;
+        var center = (badgeMin + badgeMax) * 0.5f;
 
-        dl.AddCircleFilled(center, radius, ImGui.GetColorU32(t.PanelBg));
+        drawList.AddCircleFilled(center, radius, ImGui.GetColorU32(theme.PanelBg));
 
-        dl.AddImageRounded(badge.Handle, bMin, bMax, new Vector2(0, 0), new Vector2(1, 1), 0xFFFFFFFF, radius, ImDrawFlags.RoundCornersAll
+        drawList.AddImageRounded(badge.Handle, badgeMin, badgeMax, new Vector2(0, 0), new Vector2(1, 1), 0xFFFFFFFF, radius, ImDrawFlags.RoundCornersAll
         );
 
-        var borderThickness = UiScale.S(1.5f);
+        var borderThickness = UiScale.ScaledFloat(1.5f);
 
-        dl.AddCircle(center, radius - (borderThickness * 0.5f), ImGui.GetColorU32(t.Border), 0, borderThickness);
+        drawList.AddCircle(center, radius - (borderThickness * 0.5f), ImGui.GetColorU32(theme.Border), 0, borderThickness);
     }
 
     private static Vector2 CalcPillSize(string text)
     {
-        var padX = UiScale.S(10f);
-        var padY = UiScale.S(5f);
+        var padX = UiScale.ScaledFloat(10f);
+        var padY = UiScale.ScaledFloat(5f);
         var ts = ImGui.CalcTextSize(text);
         return new Vector2(ts.X + padX * 2f, ts.Y + padY * 2f);
     }
 
-    private static void DrawPill(UiTheme t, string id, string text, Vector4 bg, Vector4 border, Vector4 fg)
+    private static void DrawPill(UiTheme theme, string id, string text, Vector4 bg, Vector4 border, Vector4 fg)
     {
         var dl = ImGui.GetWindowDrawList();
-        var padX = UiScale.S(10f);
-        var padY = UiScale.S(5f);
-        var rounding = UiScale.S(999f); // "pill"
+        var padX = UiScale.ScaledFloat(10f);
+        var padY = UiScale.ScaledFloat(5f);
+        var rounding = UiScale.ScaledFloat(999f); // "pill"
         var ts = ImGui.CalcTextSize(text);
         var size = new Vector2(ts.X + padX * 2f, ts.Y + padY * 2f);
 
@@ -541,29 +541,29 @@ public static class ProfileBuilder
         dl.AddText(min + new Vector2(padX, padY), ImGui.GetColorU32(fg), text);
     }
 
-    private static void DrawPillWrap(UiTheme t, string idPrefix, IReadOnlyList<string> items, Vector4 bg, Vector4 border, Vector4 fg, float width)
+    private static void DrawPillWrap(UiTheme theme, string idPrefix, IReadOnlyList<string> items, Vector4 bg, Vector4 border, Vector4 fg, float width)
     {
-        var gap = UiScale.S(8f);
+        var gap = UiScale.ScaledFloat(8f);
         var style = ImGui.GetStyle();
 
-        using var _spacing = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing,
+        using var spacing = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing,
             new Vector2(style.ItemSpacing.X, gap));
 
         var start = ImGui.GetCursorScreenPos();
         var winRight = ImGui.GetWindowPos().X + ImGui.GetWindowSize().X;
-        var pad = UiScale.S(t.PanelPad);
+        var pad = UiScale.ScaledFloat(theme.PanelPad);
         var maxX = MathF.Min(start.X + MathF.Max(1f, width), winRight - pad) - 1f;
-        bool first = true;
+        bool isFirst = true;
 
-        for (var i = 0; i < items.Count; i++)
+        for (var itemIndex = 0; itemIndex < items.Count; itemIndex++)
         {
-            var text = items[i]?.Trim();
+            var text = items[itemIndex]?.Trim();
             if (string.IsNullOrWhiteSpace(text))
                 continue;
 
             var pillSize = CalcPillSize(text);
 
-            if (!first)
+            if (!isFirst)
             {
                 var prevMaxX = ImGui.GetItemRectMax().X;
                 var nextStartX = prevMaxX + gap;
@@ -572,9 +572,9 @@ public static class ProfileBuilder
                     ImGui.SameLine(0, gap);
             }
 
-            DrawPill(t, $"##{idPrefix}_{i}", text, bg: bg, border: border,fg: fg);
+            DrawPill(theme, $"##{idPrefix}_{itemIndex}", text, bg: bg, border: border, fg: fg);
 
-            first = false;
+            isFirst = false;
         }
     }
 
@@ -585,9 +585,9 @@ public static class ProfileBuilder
         public void Dispose() => _end();
     }
 
-    private static IDisposable PushContentInset(UiTheme t, out float innerWidth)
+    private static IDisposable PushContentInset(UiTheme theme, out float innerWidth)
     {
-        var pad = UiScale.S(t.PanelPad);
+        var pad = UiScale.ScaledFloat(theme.PanelPad);
 
         ImGui.Indent(pad);
 

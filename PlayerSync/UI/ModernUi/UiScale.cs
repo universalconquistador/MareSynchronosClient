@@ -14,11 +14,11 @@ public static class UiScale
     public static float Global => ImGuiHelpers.GlobalScale;
 
     /// <summary>Scale a scalar value by <see cref="Global"/>.</summary>
-    public static float S(float px) => px * Global;
+    public static float ScaledFloat(float px) => px * Global;
 
     /// <summary>Scale a Vector2 by <see cref="Global"/>.</summary>
-    public static Vector2 V(float x, float y) => new(S(x), S(y));
+    public static Vector2 ScaledVector(float x, float y) => new(ScaledFloat(x), ScaledFloat(y));
 
     /// <summary>Scale a Vector2 by <see cref="Global"/>.</summary>
-    public static Vector2 V(Vector2 px) => px * Global;
+    public static Vector2 ScaledVector(Vector2 px) => px * Global;
 }

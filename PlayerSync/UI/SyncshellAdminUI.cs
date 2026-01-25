@@ -122,9 +122,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             }
         }
 
-        //Ui.VSpace(6);
+        //Ui.AddVerticalSpace(6);
         //ImGui.Separator();
-        Ui.VSpace(6);
+        Ui.AddVerticalSpace(6);
 
         var groupItems = new List<UiNav.NavItem<SyncshellAdminNav>>
         {
@@ -144,8 +144,8 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
         _selectedNavItem = UiNav.DrawSidebar(theme, "Syncshell Admin", navGroups, _selectedNavItem, widthPx: 220f, iconFont: _uiSharedService.IconFont);
 
-        var panePad = UiScale.S(theme.PanelPad);
-        var paneGap = UiScale.S(theme.PanelGap);
+        var panePad = UiScale.ScaledFloat(theme.PanelPad);
+        var paneGap = UiScale.ScaledFloat(theme.PanelGap);
 
         ImGui.SameLine(0, paneGap);
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));

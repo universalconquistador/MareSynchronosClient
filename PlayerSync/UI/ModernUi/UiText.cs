@@ -7,24 +7,24 @@ namespace MareSynchronos.UI.ModernUi;
 
 public static class UiText
 {
-    public static void ThemedText(UiTheme t, string text, UiTextStyle style = UiTextStyle.Body, Vector4? color = null)
+    public static void ThemedText(UiTheme theme, string text, UiTextStyle style = UiTextStyle.Body, Vector4? color = null)
     {
-        var font = style switch
+        var fontHandle = style switch
         {
-            UiTextStyle.Heading => t.FontHeading,
-            UiTextStyle.Small => t.FontSmall,
-            _ => t.FontBody
+            UiTextStyle.Heading => theme.FontHeading,
+            UiTextStyle.Small => theme.FontSmall,
+            _ => theme.FontBody
         };
 
-        IDisposable? fontPush = null;
-        if (font != null)
-            fontPush = font.Push();
+        IDisposable? fontScope = null;
+        if (fontHandle != null)
+            fontScope = fontHandle.Push();
 
         try
         {
             if (color != null)
             {
-                using var _ = ImRaii.PushColor(ImGuiCol.Text, color.Value);
+                using var textColorScope = ImRaii.PushColor(ImGuiCol.Text, color.Value);
                 ImGui.TextUnformatted(text);
             }
             else
@@ -34,78 +34,78 @@ public static class UiText
         }
         finally
         {
-            fontPush?.Dispose();
+            fontScope?.Dispose();
         }
     }
 
     /// <summary>
     /// Draws text at the current cursor position with a soft shadow behind it.
     /// </summary>
-    public static void TextShadowed(string text, Vector4 fg, Vector4 shadow, Vector2? offsetPx = null, float radiusPx = 1.5f, int passes = 6)
+    public static void DrawTextShadowed(string text, Vector4 foregroundColor, Vector4 shadowColor, Vector2? offsetPx = null, float radiusPx = 1.5f, int passes = 6)
     {
         if (string.IsNullOrEmpty(text))
             return;
 
         passes = Math.Clamp(passes, 1, 12);
 
-        var dl = ImGui.GetWindowDrawList();
-        var pos = ImGui.GetCursorScreenPos();
+        var drawList = ImGui.GetWindowDrawList();
+        var screenPos = ImGui.GetCursorScreenPos();
 
-        var s = ImGuiHelpers.GlobalScale;
-        var off = (offsetPx ?? new Vector2(1f, 1f)) * s;
-        var r = radiusPx * s;
+        var globalScale = ImGuiHelpers.GlobalScale;
+        var shadowOffset = (offsetPx ?? new Vector2(1f, 1f)) * globalScale;
+        var shadowRadius = radiusPx * globalScale;
 
         var font = ImGui.GetFont();
-        var size = ImGui.GetFontSize();
+        var fontSize = ImGui.GetFontSize();
 
-        var perPass = shadow;
-        perPass.W = shadow.W / passes;
+        var perPassShadowColor = shadowColor;
+        perPassShadowColor.W = shadowColor.W / passes;
 
-        for (int i = 0; i < passes; i++)
+        for (int passIndex = 0; passIndex < passes; passIndex++)
         {
-            float a = (i / (float)passes) * (MathF.PI * 2f);
-            var jitter = new Vector2(MathF.Cos(a), MathF.Sin(a)) * (r * 0.5f);
-            dl.AddText(font, size, pos + off + jitter, ImGui.GetColorU32(perPass), text);
+            float angle = (passIndex / (float)passes) * (MathF.PI * 2f);
+            var jitter = new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * (shadowRadius * 0.5f);
+            drawList.AddText(font, fontSize, screenPos + shadowOffset + jitter, ImGui.GetColorU32(perPassShadowColor), text);
         }
 
-        using (ImRaii.PushColor(ImGuiCol.Text, fg))
+        using (ImRaii.PushColor(ImGuiCol.Text, foregroundColor))
             ImGui.TextUnformatted(text);
     }
 
-    public static void TextWrappedMaxLines(string text, float width, int maxLines, Vector4 color, Vector4? ellipsisColor = null)
+    public static void DrawTextWrappedMaxLines(string text, float width, int maxLines, Vector4 color, Vector4? ellipsisColor = null)
     {
         if (string.IsNullOrEmpty(text) || width <= 1f || maxLines <= 0)
             return;
 
-        var dl = ImGui.GetWindowDrawList();
-        var lineH = ImGui.GetTextLineHeightWithSpacing();
-        var maxH = lineH * maxLines;
-        var startLocal = ImGui.GetCursorPos();
-        var startScreen = ImGui.GetCursorScreenPos();
+        var drawList = ImGui.GetWindowDrawList();
+        var lineHeight = ImGui.GetTextLineHeightWithSpacing();
+        var maxHeight = lineHeight * maxLines;
+        var startLocalPos = ImGui.GetCursorPos();
+        var startScreenPos = ImGui.GetCursorScreenPos();
         var textSize = ImGui.CalcTextSize(text, false, width);
-        var usedH = MathF.Min(textSize.Y, maxH);
+        var usedHeight = MathF.Min(textSize.Y, maxHeight);
 
-        var clipMax = startScreen + new Vector2(width, maxH);
-        dl.PushClipRect(startScreen, clipMax, true);
+        var clipMax = startScreenPos + new Vector2(width, maxHeight);
+        drawList.PushClipRect(startScreenPos, clipMax, true);
         try
         {
             using (ImRaii.PushColor(ImGuiCol.Text, color))
             {
-                var localX = ImGui.GetCursorPosX();
-                ImGui.PushTextWrapPos(localX + width);
+                var localCursorX = ImGui.GetCursorPosX();
+                ImGui.PushTextWrapPos(localCursorX + width);
                 ImGui.TextUnformatted(text);
                 ImGui.PopTextWrapPos();
             }
         }
         finally
         {
-            dl.PopClipRect();
+            drawList.PopClipRect();
         }
 
-        ImGui.SetCursorPos(new Vector2(startLocal.X, startLocal.Y + usedH));
+        ImGui.SetCursorPos(new Vector2(startLocalPos.X, startLocalPos.Y + usedHeight));
     }
 
-    public static Vector4 MutedText(Vector4 text, float strength = 0.55f, float alphaMult = 0.85f)
+    public static Vector4 GetMutedTextColor(Vector4 text, float strength = 0.55f, float alphaMult = 0.85f)
     {
         strength = Math.Clamp(strength, 0f, 1f);
 

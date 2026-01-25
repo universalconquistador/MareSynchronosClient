@@ -62,13 +62,13 @@ public sealed class UiTheme()
     public IDisposable PushWindowStyle()
     {
         // window and frame rounding must go in the PreDraw
-        var d3 = ImRaii.PushStyle(ImGuiStyleVar.PopupRounding, UiScale.S(RadiusSm));
-        var d4 = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarRounding, UiScale.S(RadiusSm));
-        var d5 = ImRaii.PushStyle(ImGuiStyleVar.GrabRounding, UiScale.S(RadiusSm));
+        var d3 = ImRaii.PushStyle(ImGuiStyleVar.PopupRounding, UiScale.ScaledFloat(RadiusSm));
+        var d4 = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarRounding, UiScale.ScaledFloat(RadiusSm));
+        var d5 = ImRaii.PushStyle(ImGuiStyleVar.GrabRounding, UiScale.ScaledFloat(RadiusSm));
 
         // spacing
-        var d6 = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(UiScale.S(8), UiScale.S(4.5f)));
-        var d7 = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(UiScale.S(10), UiScale.S(6)));
+        var d6 = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(UiScale.ScaledFloat(8), UiScale.ScaledFloat(4.5f)));
+        var d7 = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(UiScale.ScaledFloat(10), UiScale.ScaledFloat(6)));
 
         // colors
         var c1 = ImRaii.PushColor(ImGuiCol.WindowBg, WindowBg);

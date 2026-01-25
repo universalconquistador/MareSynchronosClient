@@ -98,13 +98,13 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
 
         _selectedNavItem = UiNav.DrawSidebar(theme, "Chara Data Analysis", groups, _selectedNavItem, widthPx: 180f, iconFont: _uiSharedService.IconFont);
 
-        var panePad = UiScale.S(theme.PanelPad);
-        var paneGap = UiScale.S(theme.PanelGap);
+        var panePad = UiScale.ScaledFloat(theme.PanelPad);
+        var paneGap = UiScale.ScaledFloat(theme.PanelGap);
 
         ImGui.SameLine(0, paneGap);
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));
         using var pane = ImRaii.Child("##side-pane", new Vector2(0, 0), false);
-        Ui.VSpace(2);
+        Ui.AddVerticalSpace(2);
 
         _selectedNavItem.NavAction.Invoke();
     }

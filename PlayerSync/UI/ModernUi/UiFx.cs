@@ -9,37 +9,37 @@ namespace MareSynchronos.UI.ModernUi;
 /// </summary>
 public static class UiFx
 {
-    public static void DrawWindowShimmerBorderFull(Vector4 gold, float thicknessPx = 1.35f, float outerInsetPx = 0f, 
+    public static void DrawWindowShimmerBorderFull(Vector4 gold, float thicknessPx = 1.35f, float outerInsetPx = 0f,
         float innerInsetPx = 12f, bool drawInner = true, float roundingOverridePx = -1f)
     {
-        var s = ImGuiHelpers.GlobalScale;
-        var dl = ImGui.GetForegroundDrawList();
-        var pos = ImGui.GetWindowPos();
-        var size = ImGui.GetWindowSize();
-        var rounding = roundingOverridePx >= 0 ? roundingOverridePx * s : ImGui.GetStyle().WindowRounding;
-        var outerInset = outerInsetPx * s;
-        var outerMin = pos + new Vector2(outerInset, outerInset);
-        var outerMax = pos + size - new Vector2(outerInset, outerInset);
+        var scale = ImGuiHelpers.GlobalScale;
+        var drawList = ImGui.GetForegroundDrawList();
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+        var rounding = roundingOverridePx >= 0 ? roundingOverridePx * scale : ImGui.GetStyle().WindowRounding;
+        var outerInset = outerInsetPx * scale;
+        var outerMin = windowPos + new Vector2(outerInset, outerInset);
+        var outerMax = windowPos + windowSize - new Vector2(outerInset, outerInset);
 
-        dl.PushClipRect(pos, pos + size, true);
+        drawList.PushClipRect(windowPos, windowPos + windowSize, true);
         try
         {
-            DrawShimmerRect(dl, outerMin, outerMax, rounding - outerInset, gold, thicknessPx * s, 
+            DrawShimmerRect(drawList, outerMin, outerMax, rounding - outerInset, gold, thicknessPx * scale,
                 glowStrength: 0.22f, shimmerStrength: 1.10f, sparkleCount: 80, intensity: 1.15f);
 
             if (drawInner)
             {
-                var innerInset = innerInsetPx * s;
-                var innerMin = pos + new Vector2(innerInset, innerInset);
-                var innerMax = pos + size - new Vector2(innerInset, innerInset);
+                var innerInset = innerInsetPx * scale;
+                var innerMin = windowPos + new Vector2(innerInset, innerInset);
+                var innerMax = windowPos + windowSize - new Vector2(innerInset, innerInset);
 
-                DrawShimmerRect(dl, innerMin, innerMax, MathF.Max(0f, rounding - innerInset), gold, MathF.Max(1f, thicknessPx * s * 0.75f), 
+                DrawShimmerRect(drawList, innerMin, innerMax, MathF.Max(0f, rounding - innerInset), gold, MathF.Max(1f, thicknessPx * scale * 0.75f),
                     glowStrength: 0.10f, shimmerStrength: 0.45f, sparkleCount: 24, intensity: 0.60f);
             }
         }
         finally
         {
-            dl.PopClipRect();
+            drawList.PopClipRect();
         }
     }
 
@@ -52,22 +52,22 @@ public static class UiFx
         intensity = Math.Clamp(intensity, 0.25f, 3.0f);
 
         var time = (float)ImGui.GetTime();
-        var s = ImGuiHelpers.GlobalScale;
-        var w = max.X - min.X;
-        var h = max.Y - min.Y;
-        var r = MathF.Max(0f, MathF.Min(rounding, 0.5f * MathF.Min(w, h)));
-        var edgeInset = MathF.Max(0.5f * thickness - 0.5f * s, 0f);
+        var scale = ImGuiHelpers.GlobalScale;
+        var width = max.X - min.X;
+        var height = max.Y - min.Y;
+        var cornerRadius = MathF.Max(0f, MathF.Min(rounding, 0.5f * MathF.Min(width, height)));
+        var edgeInset = MathF.Max(0.5f * thickness - 0.5f * scale, 0f);
         var edgeMin = min + new Vector2(edgeInset, edgeInset);
         var edgeMax = max - new Vector2(edgeInset, edgeInset);
-        var edgeW = edgeMax.X - edgeMin.X;
-        var edgeH = edgeMax.Y - edgeMin.Y;
-        var edgeR = MathF.Max(0f, MathF.Min(r - edgeInset, 0.5f * MathF.Min(edgeW, edgeH)));
+        var edgeWidth = edgeMax.X - edgeMin.X;
+        var edgeHeight = edgeMax.Y - edgeMin.Y;
+        var edgeRadius = MathF.Max(0f, MathF.Min(cornerRadius - edgeInset, 0.5f * MathF.Min(edgeWidth, edgeHeight)));
         var edgeCol = gold; edgeCol.W = 0.95f;
 
-        dl.AddRect(edgeMin, edgeMax, ImGui.GetColorU32(edgeCol), edgeR, ImDrawFlags.RoundCornersAll, thickness);
+        dl.AddRect(edgeMin, edgeMax, ImGui.GetColorU32(edgeCol), edgeRadius, ImDrawFlags.RoundCornersAll, thickness);
 
         var maxGlowThick = thickness * (2.4f + 0.7f * intensity);
-        var strokePad = 0.5f * MathF.Max(thickness, maxGlowThick) + 1.0f * s;
+        var strokePad = 0.5f * MathF.Max(thickness, maxGlowThick) + 1.0f * scale;
 
         min += new Vector2(strokePad, strokePad);
         max -= new Vector2(strokePad, strokePad);
@@ -75,9 +75,9 @@ public static class UiFx
         if (max.X <= min.X + 2f || max.Y <= min.Y + 2f)
             return;
 
-        w = max.X - min.X;
-        h = max.Y - min.Y;
-        r = MathF.Max(0f, MathF.Min(r - strokePad, 0.5f * MathF.Min(w, h)));
+        width = max.X - min.X;
+        height = max.Y - min.Y;
+        cornerRadius = MathF.Max(0f, MathF.Min(cornerRadius - strokePad, 0.5f * MathF.Min(width, height)));
 
         float pulse = 0.65f + 0.35f * MathF.Sin(time * 1.7f);
         float glowA = glowStrength * (0.75f + 0.55f * pulse) * intensity;
@@ -86,223 +86,223 @@ public static class UiFx
         var glowThick1 = thickness * (2.0f + 0.6f * intensity);
         var glowThick2 = thickness * (1.2f + 0.3f * intensity);
 
-        dl.AddRect(min, max, ImGui.GetColorU32(glowCol), r, ImDrawFlags.RoundCornersAll, glowThick1);
-        dl.AddRect(min, max, ImGui.GetColorU32(new Vector4(gold.X, gold.Y, gold.Z, glowA * 0.55f)), r, ImDrawFlags.RoundCornersAll, glowThick2);
-        dl.AddRect(min, max, ImGui.GetColorU32(baseCol), r, ImDrawFlags.RoundCornersAll, thickness);
+        dl.AddRect(min, max, ImGui.GetColorU32(glowCol), cornerRadius, ImDrawFlags.RoundCornersAll, glowThick1);
+        dl.AddRect(min, max, ImGui.GetColorU32(new Vector4(gold.X, gold.Y, gold.Z, glowA * 0.55f)), cornerRadius, ImDrawFlags.RoundCornersAll, glowThick2);
+        dl.AddRect(min, max, ImGui.GetColorU32(baseCol), cornerRadius, ImDrawFlags.RoundCornersAll, thickness);
 
-        float per = RoundedPerimeterLength(min, max, r);
-        int segs = (int)Math.Clamp(per / (7.5f * s), 160, 420);
+        float perimeter = GetRoundedPerimeterLength(min, max, cornerRadius);
+        int segmentCount = (int)Math.Clamp(perimeter / (7.5f * scale), 160, 420);
 
-        segs = (int)(segs * (0.90f + 0.35f * intensity));
+        segmentCount = (int)(segmentCount * (0.90f + 0.35f * intensity));
 
-        DrawBand(dl, min, max, r, thickness, baseCol, time, speed: 0.11f, sigma: 0.040f, phaseOffset: 0.00f, segs, shimmerStrength * (1.00f * intensity));
-        DrawBand(dl, min, max, r, thickness, baseCol, time, speed: 0.08f, sigma: 0.060f, phaseOffset: 0.37f, segs, shimmerStrength * (0.70f * intensity));
-        DrawBand(dl, min, max, r, thickness, baseCol, time, speed: 0.06f, sigma: 0.090f, phaseOffset: 0.71f, segs, shimmerStrength * (0.45f * intensity));
-        DrawBand(dl, min, max, r, thickness, baseCol, time, speed: -0.05f, sigma: 0.120f, phaseOffset: 0.15f, segs, shimmerStrength * (0.35f * intensity));
+        DrawBand(dl, min, max, cornerRadius, thickness, baseCol, time, speed: 0.11f, sigma: 0.040f, phaseOffset: 0.00f, segmentCount, shimmerStrength * (1.00f * intensity));
+        DrawBand(dl, min, max, cornerRadius, thickness, baseCol, time, speed: 0.08f, sigma: 0.060f, phaseOffset: 0.37f, segmentCount, shimmerStrength * (0.70f * intensity));
+        DrawBand(dl, min, max, cornerRadius, thickness, baseCol, time, speed: 0.06f, sigma: 0.090f, phaseOffset: 0.71f, segmentCount, shimmerStrength * (0.45f * intensity));
+        DrawBand(dl, min, max, cornerRadius, thickness, baseCol, time, speed: -0.05f, sigma: 0.120f, phaseOffset: 0.15f, segmentCount, shimmerStrength * (0.35f * intensity));
 
-        var head = PerimeterPointRounded(min, max, r, (time * 0.11f) % 1f);
+        var head = GetPerimeterPointRounded(min, max, cornerRadius, (time * 0.11f) % 1f);
 
-        dl.AddCircleFilled(head, (2.4f + 0.5f * intensity) * s, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.55f)));
+        dl.AddCircleFilled(head, (2.4f + 0.5f * intensity) * scale, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.55f)));
 
         int glitter = (int)(sparkleCount * (1.15f + 0.75f * intensity));
-        for (int i = 0; i < glitter; i++)
+        for (int sparkleIndex = 0; sparkleIndex < glitter; sparkleIndex++)
         {
-            float u = Hash01(i);
-            float tw = 0.35f + 0.65f * MathF.Max(0f, MathF.Sin(time * (1.3f + 2.7f * Hash01(i * 13)) + i));
-            float travel = (time * 0.02f * (0.5f + Hash01(i * 7))) % 1f;
-            float up = (u + travel) % 1f;
+            float unit = GetHash01(sparkleIndex);
+            float tw = 0.35f + 0.65f * MathF.Max(0f, MathF.Sin(time * (1.3f + 2.7f * GetHash01(sparkleIndex * 13)) + sparkleIndex));
+            float travel = (time * 0.02f * (0.5f + GetHash01(sparkleIndex * 7))) % 1f;
+            float up = (unit + travel) % 1f;
 
-            var p = PerimeterPointRounded(min, max, r, up);
-            float rr = (0.7f + tw * (1.2f + 0.5f * intensity)) * s;
-            float a = (0.05f + 0.16f * tw) * (0.55f + 0.45f * intensity);
-            dl.AddCircleFilled(p, rr, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, a)));
+            var point = GetPerimeterPointRounded(min, max, cornerRadius, up);
+            float rr = (0.7f + tw * (1.2f + 0.5f * intensity)) * scale;
+            float alpha = (0.05f + 0.16f * tw) * (0.55f + 0.45f * intensity);
+            dl.AddCircleFilled(point, rr, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, alpha)));
         }
     }
 
-    private static void DrawBand(ImDrawListPtr dl, Vector2 min, Vector2 max, float rounding, float thickness, 
+    private static void DrawBand(ImDrawListPtr dl, Vector2 min, Vector2 max, float rounding, float thickness,
         Vector4 baseCol, float time, float speed, float sigma, float phaseOffset, int segs, float strength)
     {
         var phase = (time * speed + phaseOffset) % 1f;
         Vector4 white = new(1f, 1f, 1f, 1f);
 
-        for (int i = 0; i < segs; i++)
+        for (int segmentIndex = 0; segmentIndex < segs; segmentIndex++)
         {
-            float u0 = i / (float)segs;
-            float u1 = (i + 1) / (float)segs;
+            float u0 = segmentIndex / (float)segs;
+            float u1 = (segmentIndex + 1) / (float)segs;
             float um = (u0 + u1) * 0.5f;
 
-            float d = MathF.Abs(um - phase);
-            d = MathF.Min(d, 1f - d);
+            float distance = MathF.Abs(um - phase);
+            distance = MathF.Min(distance, 1f - distance);
 
-            float band = MathF.Exp(-(d * d) / (2f * sigma * sigma));
+            float band = MathF.Exp(-(distance * distance) / (2f * sigma * sigma));
 
-            var p0 = PerimeterPointRounded(min, max, rounding, u0);
-            var p1 = PerimeterPointRounded(min, max, rounding, u1);
+            var p0 = GetPerimeterPointRounded(min, max, rounding, u0);
+            var p1 = GetPerimeterPointRounded(min, max, rounding, u1);
 
-            var c = Lerp(baseCol, white, band * 0.85f);
-            c.W = (0.10f + band * 0.90f) * strength;
+            var color = Lerp(baseCol, white, band * 0.85f);
+            color.W = (0.10f + band * 0.90f) * strength;
 
-            dl.AddLine(p0, p1, ImGui.GetColorU32(c), thickness);
+            dl.AddLine(p0, p1, ImGui.GetColorU32(color), thickness);
         }
     }
 
-    private static float RoundedPerimeterLength(Vector2 min, Vector2 max, float r)
+    private static float GetRoundedPerimeterLength(Vector2 min, Vector2 max, float rounding)
     {
-        var w = MathF.Max(0f, max.X - min.X);
-        var h = MathF.Max(0f, max.Y - min.Y);
-        if (r <= 0f) return 2f * (w + h);
+        var width = MathF.Max(0f, max.X - min.X);
+        var height = MathF.Max(0f, max.Y - min.Y);
+        if (rounding <= 0f) return 2f * (width + height);
 
-        r = MathF.Min(r, 0.5f * MathF.Min(w, h));
-        var w2 = MathF.Max(0f, w - 2f * r);
-        var h2 = MathF.Max(0f, h - 2f * r);
-        return 2f * (w2 + h2) + 2f * MathF.PI * r;
+        rounding = MathF.Min(rounding, 0.5f * MathF.Min(width, height));
+        var w2 = MathF.Max(0f, width - 2f * rounding);
+        var h2 = MathF.Max(0f, height - 2f * rounding);
+        return 2f * (w2 + h2) + 2f * MathF.PI * rounding;
     }
 
-    private static Vector2 PerimeterPointRounded(Vector2 min, Vector2 max, float r, float u)
+    private static Vector2 GetPerimeterPointRounded(Vector2 min, Vector2 max, float rounding, float unit)
     {
-        u = u - MathF.Floor(u);
+        unit = unit - MathF.Floor(unit);
 
-        var w = max.X - min.X;
-        var h = max.Y - min.Y;
-        if (w <= 0f || h <= 0f) return min;
+        var width = max.X - min.X;
+        var height = max.Y - min.Y;
+        if (width <= 0f || height <= 0f) return min;
 
-        if (r <= 0f)
-            return PerimeterPoint(min, max, u);
+        if (rounding <= 0f)
+            return GetPerimeterPoint(min, max, unit);
 
-        r = MathF.Min(r, 0.5f * MathF.Min(w, h));
+        rounding = MathF.Min(rounding, 0.5f * MathF.Min(width, height));
 
-        var w2 = MathF.Max(0f, w - 2f * r);
-        var h2 = MathF.Max(0f, h - 2f * r);
-        var arc = 0.5f * MathF.PI * r;
+        var w2 = MathF.Max(0f, width - 2f * rounding);
+        var h2 = MathF.Max(0f, height - 2f * rounding);
+        var arc = 0.5f * MathF.PI * rounding;
         var per = 2f * (w2 + h2) + 4f * arc;
 
-        float d = u * per;
+        float distance = unit * per;
 
-        if (d < w2) return new Vector2(min.X + r + d, min.Y);
-        d -= w2;
+        if (distance < w2) return new Vector2(min.X + rounding + distance, min.Y);
+        distance -= w2;
 
-        if (d < arc)
+        if (distance < arc)
         {
-            float t = d / arc;
-            float ang = -0.5f * MathF.PI + t * 0.5f * MathF.PI;
-            var c = new Vector2(max.X - r, min.Y + r);
-            return c + new Vector2(r * MathF.Cos(ang), r * MathF.Sin(ang));
+            float arcUnit = distance / arc;
+            float ang = -0.5f * MathF.PI + arcUnit * 0.5f * MathF.PI;
+            var center = new Vector2(max.X - rounding, min.Y + rounding);
+            return center + new Vector2(rounding * MathF.Cos(ang), rounding * MathF.Sin(ang));
         }
-        d -= arc;
+        distance -= arc;
 
-        if (d < h2) return new Vector2(max.X, min.Y + r + d);
-        d -= h2;
+        if (distance < h2) return new Vector2(max.X, min.Y + rounding + distance);
+        distance -= h2;
 
-        if (d < arc)
+        if (distance < arc)
         {
-            float t = d / arc;
-            float ang = 0f + t * 0.5f * MathF.PI;
-            var c = new Vector2(max.X - r, max.Y - r);
-            return c + new Vector2(r * MathF.Cos(ang), r * MathF.Sin(ang));
+            float arcUnit = distance / arc;
+            float ang = 0f + arcUnit * 0.5f * MathF.PI;
+            var center = new Vector2(max.X - rounding, max.Y - rounding);
+            return center + new Vector2(rounding * MathF.Cos(ang), rounding * MathF.Sin(ang));
         }
-        d -= arc;
+        distance -= arc;
 
-        if (d < w2) return new Vector2(max.X - r - d, max.Y);
-        d -= w2;
+        if (distance < w2) return new Vector2(max.X - rounding - distance, max.Y);
+        distance -= w2;
 
-        if (d < arc)
+        if (distance < arc)
         {
-            float t = d / arc;
-            float ang = 0.5f * MathF.PI + t * 0.5f * MathF.PI;
-            var c = new Vector2(min.X + r, max.Y - r);
-            return c + new Vector2(r * MathF.Cos(ang), r * MathF.Sin(ang));
+            float arcUnit = distance / arc;
+            float ang = 0.5f * MathF.PI + arcUnit * 0.5f * MathF.PI;
+            var center = new Vector2(min.X + rounding, max.Y - rounding);
+            return center + new Vector2(rounding * MathF.Cos(ang), rounding * MathF.Sin(ang));
         }
-        d -= arc;
+        distance -= arc;
 
-        if (d < h2) return new Vector2(min.X, max.Y - r - d);
-        d -= h2;
+        if (distance < h2) return new Vector2(min.X, max.Y - rounding - distance);
+        distance -= h2;
 
         {
-            float t = d / arc;
-            float ang = MathF.PI + t * 0.5f * MathF.PI;
-            var c = new Vector2(min.X + r, min.Y + r);
-            return c + new Vector2(r * MathF.Cos(ang), r * MathF.Sin(ang));
+            float arcUnit = distance / arc;
+            float ang = MathF.PI + arcUnit * 0.5f * MathF.PI;
+            var center = new Vector2(min.X + rounding, min.Y + rounding);
+            return center + new Vector2(rounding * MathF.Cos(ang), rounding * MathF.Sin(ang));
         }
     }
 
-    private static float Hash01(int n)
+    private static float GetHash01(int seed)
     {
         unchecked
         {
-            uint x = (uint)n;
-            x ^= x >> 16;
-            x *= 0x7feb352d;
-            x ^= x >> 15;
-            x *= 0x846ca68b;
-            x ^= x >> 16;
-            return (x & 0x00FFFFFF) / 16777215f;
+            uint hash = (uint)seed;
+            hash ^= hash >> 16;
+            hash *= 0x7feb352d;
+            hash ^= hash >> 15;
+            hash *= 0x846ca68b;
+            hash ^= hash >> 16;
+            return (hash & 0x00FFFFFF) / 16777215f;
         }
     }
 
-    private static Vector4 Lerp(Vector4 a, Vector4 b, float t) => a + (b - a) * Math.Clamp(t, 0f, 1f);
+    private static Vector4 Lerp(Vector4 fromColor, Vector4 toColor, float blend) => fromColor + (toColor - fromColor) * Math.Clamp(blend, 0f, 1f);
 
-    private static Vector2 PerimeterPoint(Vector2 min, Vector2 max, float u)
+    private static Vector2 GetPerimeterPoint(Vector2 min, Vector2 max, float unit)
     {
-        var w = max.X - min.X;
-        var h = max.Y - min.Y;
-        var per = 2f * (w + h);
-        float d = (u % 1f) * per;
+        var width = max.X - min.X;
+        var height = max.Y - min.Y;
+        var per = 2f * (width + height);
+        float distance = (unit % 1f) * per;
 
-        if (d < w) return new Vector2(min.X + d, min.Y);
-        d -= w;
-        if (d < h) return new Vector2(max.X, min.Y + d);
-        d -= h;
-        if (d < w) return new Vector2(max.X - d, max.Y);
-        d -= w;
+        if (distance < width) return new Vector2(min.X + distance, min.Y);
+        distance -= width;
+        if (distance < height) return new Vector2(max.X, min.Y + distance);
+        distance -= height;
+        if (distance < width) return new Vector2(max.X - distance, max.Y);
+        distance -= width;
 
-        return new Vector2(min.X, max.Y - d);
+        return new Vector2(min.X, max.Y - distance);
     }
 
-    public static void DrawContentVerticalGradientBgRoundedToWindow(Vector4 top, Vector4 bottom, int steps = 220, 
+    public static void DrawContentVerticalGradientBgRoundedToWindow(Vector4 top, Vector4 bottom, int steps = 220,
         float roundingOverridePx = -1f, float windowInsetPx = 2.0f)
     {
         steps = Math.Clamp(steps, 16, 256);
 
-        var dl = ImGui.GetWindowDrawList();
-        var s = ImGuiHelpers.GlobalScale;
+        var drawList = ImGui.GetWindowDrawList();
+        var scale = ImGuiHelpers.GlobalScale;
         var rawMin = ImGui.GetWindowPos();
         var rawMax = rawMin + ImGui.GetWindowSize();
-        var inset = windowInsetPx * s;
+        var inset = windowInsetPx * scale;
         var winMin = rawMin + new Vector2(inset, inset);
         var winMax = rawMax - new Vector2(inset, inset);
         var contentMin = ImGui.GetCursorScreenPos();
         var contentMax = contentMin + ImGui.GetContentRegionAvail();
-        var r0 = roundingOverridePx >= 0 ? UiScale.S(roundingOverridePx) : ImGui.GetStyle().WindowRounding;
-        var r = MathF.Max(0f, r0 - inset);
+        var roundingBase = roundingOverridePx >= 0 ? UiScale.ScaledFloat(roundingOverridePx) : ImGui.GetStyle().WindowRounding;
+        var rounding = MathF.Max(0f, roundingBase - inset);
 
-        dl.PushClipRect(rawMin, rawMax, true);
+        drawList.PushClipRect(rawMin, rawMax, true);
         try
         {
-            var h = MathF.Max(1f, contentMax.Y - contentMin.Y);
-            var stepH = h / steps;
-            var topArcY = winMin.Y + r;
-            var botArcY = winMax.Y - r;
+            var height = MathF.Max(1f, contentMax.Y - contentMin.Y);
+            var stepH = height / steps;
+            var topArcY = winMin.Y + rounding;
+            var botArcY = winMax.Y - rounding;
 
-            for (var i = 0; i < steps; i++)
+            for (var stepIndex = 0; stepIndex < steps; stepIndex++)
             {
-                var y0 = contentMin.Y + i * stepH;
-                var y1 = (i == steps - 1) ? contentMax.Y : (y0 + stepH);
+                var y0 = contentMin.Y + stepIndex * stepH;
+                var y1 = (stepIndex == steps - 1) ? contentMax.Y : (y0 + stepH);
                 var yMid = (y0 + y1) * 0.5f;
 
                 float insetX = 0f;
-                if (r > 0f)
+                if (rounding > 0f)
                 {
-                    if (yMid < winMin.Y + r)
+                    if (yMid < winMin.Y + rounding)
                     {
                         var dy = topArcY - yMid;
-                        var dx = MathF.Sqrt(MathF.Max(0f, r * r - dy * dy));
-                        insetX = r - dx;
+                        var dx = MathF.Sqrt(MathF.Max(0f, rounding * rounding - dy * dy));
+                        insetX = rounding - dx;
                     }
-                    else if (yMid > winMax.Y - r)
+                    else if (yMid > winMax.Y - rounding)
                     {
                         var dy = yMid - botArcY;
-                        var dx = MathF.Sqrt(MathF.Max(0f, r * r - dy * dy));
-                        insetX = r - dx;
+                        var dx = MathF.Sqrt(MathF.Max(0f, rounding * rounding - dy * dy));
+                        insetX = rounding - dx;
                     }
                 }
 
@@ -313,15 +313,15 @@ public static class UiFx
 
                 if (x1 <= x0) continue;
 
-                var tt = (i + 0.5f) / steps;
+                var tt = (stepIndex + 0.5f) / steps;
                 var c = Lerp(top, bottom, tt);
 
-                dl.AddRectFilled(new Vector2(x0, y0), new Vector2(x1, y1), ImGui.GetColorU32(c));
+                drawList.AddRectFilled(new Vector2(x0, y0), new Vector2(x1, y1), ImGui.GetColorU32(c));
             }
         }
         finally
         {
-            dl.PopClipRect();
+            drawList.PopClipRect();
         }
     }
 
@@ -332,14 +332,14 @@ public static class UiFx
     /// <param name="roundingOverridePx"></param>
     public static void DrawWindowRoundedFill(Vector4 color, float roundingOverridePx = -1f)
     {
-        var dl = ImGui.GetWindowDrawList();
+        var drawList = ImGui.GetWindowDrawList();
         var winPos = ImGui.GetWindowPos();
         var winSize = ImGui.GetWindowSize();
         var min = winPos;
         var max = winPos + winSize;
-        var rounding = roundingOverridePx >= 0 ? UiScale.S(roundingOverridePx) : ImGui.GetStyle().WindowRounding;
+        var rounding = roundingOverridePx >= 0 ? UiScale.ScaledFloat(roundingOverridePx) : ImGui.GetStyle().WindowRounding;
 
-        dl.AddRectFilled(min, max, ImGui.GetColorU32(color), rounding);
+        drawList.AddRectFilled(min, max, ImGui.GetColorU32(color), rounding);
     }
 
     /// <summary>
@@ -349,27 +349,27 @@ public static class UiFx
     /// <param name="roundingOverridePx"></param>
     public static void DrawContentRoundedFill(Vector4 color, float roundingOverridePx = -1f)
     {
-        var dl = ImGui.GetWindowDrawList();
+        var drawList = ImGui.GetWindowDrawList();
         var origin = ImGui.GetCursorScreenPos();
         var size = ImGui.GetContentRegionAvail();
         var min = origin;
         var max = origin + size;
-        var rounding = roundingOverridePx >= 0 ? UiScale.S(roundingOverridePx) : ImGui.GetStyle().WindowRounding;
+        var rounding = roundingOverridePx >= 0 ? UiScale.ScaledFloat(roundingOverridePx) : ImGui.GetStyle().WindowRounding;
 
-        dl.AddRectFilled(min, max, ImGui.GetColorU32(color), rounding);
+        drawList.AddRectFilled(min, max, ImGui.GetColorU32(color), rounding);
     }
 
     public static void DrawContentRoundedFillMatched(Vector4 color, float roundingOverridePx = -1f)
     {
-        var dl = ImGui.GetWindowDrawList();
+        var drawList = ImGui.GetWindowDrawList();
         var winPos = ImGui.GetWindowPos();
         var crMin = winPos + ImGui.GetWindowContentRegionMin();
         var crMax = winPos + ImGui.GetWindowContentRegionMax();
-        var rWin = roundingOverridePx >= 0 ? UiScale.S(roundingOverridePx) : ImGui.GetStyle().WindowRounding;
+        var rWin = roundingOverridePx >= 0 ? UiScale.ScaledFloat(roundingOverridePx) : ImGui.GetStyle().WindowRounding;
         var pad = ImGui.GetStyle().WindowPadding;
         var inset = MathF.Min(pad.X, pad.Y);
         var rContent = MathF.Max(0f, rWin - inset);
 
-        dl.AddRectFilled(crMin, crMax, ImGui.GetColorU32(color), rContent);
+        drawList.AddRectFilled(crMin, crMax, ImGui.GetColorU32(color), rContent);
     }
 }

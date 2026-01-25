@@ -150,8 +150,8 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         if (!ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
             return;
 
-        using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(UiScale.S(5f), UiScale.S(5f))))
-        using (ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, UiScale.S(6f)))
+        using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(UiScale.ScaledFloat(5f), UiScale.ScaledFloat(5f))))
+        using (ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, UiScale.ScaledFloat(6f)))
         {
             ImGui.BeginTooltip();
 

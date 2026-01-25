@@ -34,11 +34,11 @@ public static class UiNav
     /// <param name="widthPx"></param>
     /// <param name="iconFont"></param>
     /// <returns></returns>
-    public static NavItem<TId> DrawSidebar<TId>(UiTheme t, string title, IReadOnlyList<(string GroupLabel, IReadOnlyList<NavItem<TId>> Items)> groups,
+    public static NavItem<TId> DrawSidebar<TId>(UiTheme theme, string title, IReadOnlyList<(string GroupLabel, IReadOnlyList<NavItem<TId>> Items)> groups,
         NavItem<TId>? selectedNavItem, float widthPx = 210f, IFontHandle? iconFont = null) where TId : struct, Enum
     {
-        var width = UiScale.S(widthPx);
-        var pad = UiScale.S(10f);
+        var width = UiScale.ScaledFloat(widthPx);
+        var padding = UiScale.ScaledFloat(10f);
 
         if (selectedNavItem == null)
         {
@@ -50,18 +50,18 @@ public static class UiNav
         if (!child)
             return selectedNavItem;
 
-        using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(pad, pad)))
+        using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(padding, padding)))
         {
             // layout constants
-            var rowH = UiScale.S(34f);
-            var iconPadL = UiScale.S(12f);
-            var iconBoxW = UiScale.S(18f);
-            var gap = UiScale.S(10f);
+            var rowHeight = UiScale.ScaledFloat(34f);
+            var iconPaddingLeft = UiScale.ScaledFloat(12f);
+            var iconBoxWidth = UiScale.ScaledFloat(18f);
+            var iconLabelGap = UiScale.ScaledFloat(10f);
 
             foreach (var (groupLabel, items) in groups)
             {
                 if (!string.IsNullOrWhiteSpace(groupLabel))
-                    Ui.SectionHeader(t, groupLabel, addHr: false);
+                    Ui.DrawSectionHeader(theme, groupLabel, addHr: false);
 
                 foreach (var item in items)
                 {
@@ -70,63 +70,63 @@ public static class UiNav
                     using var disabled = ImRaii.Disabled(!item.Enabled);
                     using var id = ImRaii.PushId(Convert.ToInt32(item.Id));
 
-                    var bg = isSelected ? new Vector4(t.Primary.X, t.Primary.Y, t.Primary.Z, 0.20f) : new Vector4(1, 1, 1, 0.00f);
-                    var hov = isSelected ? new Vector4(t.Primary.X, t.Primary.Y, t.Primary.Z, 0.28f) : t.HoverOverlay;
-                    var act = isSelected ? new Vector4(t.Primary.X, t.Primary.Y, t.Primary.Z, 0.34f) : t.ActiveOverlay;
+                    var buttonColor = isSelected ? new Vector4(theme.Primary.X, theme.Primary.Y, theme.Primary.Z, 0.20f) : new Vector4(1, 1, 1, 0.00f);
+                    var buttonHoverColor = isSelected ? new Vector4(theme.Primary.X, theme.Primary.Y, theme.Primary.Z, 0.28f) : theme.HoverOverlay;
+                    var buttonActiveColor = isSelected ? new Vector4(theme.Primary.X, theme.Primary.Y, theme.Primary.Z, 0.34f) : theme.ActiveOverlay;
 
-                    using var c1 = ImRaii.PushColor(ImGuiCol.Button, bg);
-                    using var c2 = ImRaii.PushColor(ImGuiCol.ButtonHovered, hov);
-                    using var c3 = ImRaii.PushColor(ImGuiCol.ButtonActive, act);
+                    using var buttonColorScoped = ImRaii.PushColor(ImGuiCol.Button, buttonColor);
+                    using var buttonHoverColorScoped = ImRaii.PushColor(ImGuiCol.ButtonHovered, buttonHoverColor);
+                    using var buttonActiveColorScoped = ImRaii.PushColor(ImGuiCol.ButtonActive, buttonActiveColor);
 
-                    using var rounding = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, UiScale.S(t.RadiusSm));
-                    using var fp = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(UiScale.S(10), UiScale.S(8)));
+                    using var rounding = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, UiScale.ScaledFloat(theme.RadiusSm));
+                    using var framePadding = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(UiScale.ScaledFloat(10), UiScale.ScaledFloat(8)));
 
-                    if (ImGui.Button("##nav", new Vector2(-1, rowH)) && item.Enabled)
+                    if (ImGui.Button("##nav", new Vector2(-1, rowHeight)) && item.Enabled)
                         selectedNavItem = item;
 
-                    var min = ImGui.GetItemRectMin();
-                    var max = ImGui.GetItemRectMax();
-                    var centerY = (min.Y + max.Y) * 0.5f;
-                    var dl = ImGui.GetWindowDrawList();
+                    var itemMin = ImGui.GetItemRectMin();
+                    var itemMax = ImGui.GetItemRectMax();
+                    var itemCenterY = (itemMin.Y + itemMax.Y) * 0.5f;
+                    var drawList = ImGui.GetWindowDrawList();
 
                     if (isSelected)
                     {
-                        var barW = UiScale.S(3f);
-                        var colorFill = t.Primary;
-                        colorFill.W = 0.90f;
-                        dl.AddRectFilled(new Vector2(min.X, min.Y), new Vector2(min.X + barW, max.Y), ImGui.GetColorU32(colorFill));
+                        var selectionBarWidth = UiScale.ScaledFloat(3f);
+                        var selectionFillColor = theme.Primary;
+                        selectionFillColor.W = 0.90f;
+                        drawList.AddRectFilled(new Vector2(itemMin.X, itemMin.Y), new Vector2(itemMin.X + selectionBarWidth, itemMax.Y), ImGui.GetColorU32(selectionFillColor));
                     }
 
-                    var col = ImGui.GetColorU32(t.Text);
-                    var x = min.X + iconPadL;
+                    var textColor = ImGui.GetColorU32(theme.Text);
+                    var cursorX = itemMin.X + iconPaddingLeft;
 
                     if (item.Icon.HasValue)
                     {
-                        var iconStr = item.Icon.Value.ToIconString();
-                        Vector2 iconSize;
+                        var iconText = item.Icon.Value.ToIconString();
+                        Vector2 iconTextSize;
 
                         if (iconFont != null)
                         {
                             using (iconFont.Push())
-                                iconSize = ImGui.CalcTextSize(iconStr);
+                                iconTextSize = ImGui.CalcTextSize(iconText);
 
-                            var iconPos = new Vector2(x, centerY - (iconSize.Y * 0.5f));
+                            var iconPosition = new Vector2(cursorX, itemCenterY - (iconTextSize.Y * 0.5f));
                             using (iconFont.Push())
-                                dl.AddText(iconPos, col, iconStr);
+                                drawList.AddText(iconPosition, textColor, iconText);
                         }
                         else
                         {
-                            iconSize = ImGui.CalcTextSize(iconStr);
-                            var iconPos = new Vector2(x, centerY - (iconSize.Y * 0.5f));
-                            dl.AddText(iconPos, col, iconStr);
+                            iconTextSize = ImGui.CalcTextSize(iconText);
+                            var iconPosition = new Vector2(cursorX, itemCenterY - (iconTextSize.Y * 0.5f));
+                            drawList.AddText(iconPosition, textColor, iconText);
                         }
-                        x += iconBoxW + gap;
+                        cursorX += iconBoxWidth + iconLabelGap;
                     }
-                    var labelSize = ImGui.CalcTextSize(item.Label);
-                    var labelPos = new Vector2(x, centerY - (labelSize.Y * 0.5f));
-                    dl.AddText(labelPos, col, item.Label);
+                    var labelTextSize = ImGui.CalcTextSize(item.Label);
+                    var labelPosition = new Vector2(cursorX, itemCenterY - (labelTextSize.Y * 0.5f));
+                    drawList.AddText(labelPosition, textColor, item.Label);
                 }
-                Ui.VSpace(8);
+                Ui.AddVerticalSpace(8);
             }
         }
 
@@ -153,64 +153,64 @@ public static class UiNav
     /// <param name="selectedTab"></param>
     /// <param name="iconFont"></param>
     /// <returns></returns>
-    public static Tab<TId> DrawTabsUnderline<TId>(UiTheme t, IReadOnlyList<Tab<TId>> tabs, Tab<TId>? selectedTab, IFontHandle? iconFont = null) where TId : struct, Enum
+    public static Tab<TId> DrawTabsUnderline<TId>(UiTheme theme, IReadOnlyList<Tab<TId>> tabs, Tab<TId>? selectedTab, IFontHandle? iconFont = null) where TId : struct, Enum
     {
         if (selectedTab == null)
         {
             selectedTab = tabs[0];
         }
 
-        var dl = ImGui.GetWindowDrawList();
+        var drawList = ImGui.GetWindowDrawList();
 
-        using var spacing = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(UiScale.S(10), UiScale.S(1)));
-        using var pad = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(UiScale.S(6), UiScale.S(6)));
+        using var itemSpacing = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(UiScale.ScaledFloat(10), UiScale.ScaledFloat(1)));
+        using var framePadding = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(UiScale.ScaledFloat(6), UiScale.ScaledFloat(6)));
 
-        for (var i = 0; i < tabs.Count; i++)
-        { 
-            var tab = tabs[i];
-            var isSel = tab == selectedTab;
+        for (var tabIndex = 0; tabIndex < tabs.Count; tabIndex++)
+        {
+            var tab = tabs[tabIndex];
+            var isSelected = tab == selectedTab;
 
             using var disabled = ImRaii.Disabled(!tab.Enabled);
             using var id = ImRaii.PushId(Convert.ToInt32(tab.Id));
 
-            using var c = ImRaii.PushColor(ImGuiCol.Button, new Vector4(1, 1, 1, 0));
-            using var ch = ImRaii.PushColor(ImGuiCol.ButtonHovered, t.HoverOverlay);
-            using var ca = ImRaii.PushColor(ImGuiCol.ButtonActive, t.ActiveOverlay);
+            using var buttonColor = ImRaii.PushColor(ImGuiCol.Button, new Vector4(1, 1, 1, 0));
+            using var buttonHoverColor = ImRaii.PushColor(ImGuiCol.ButtonHovered, theme.HoverOverlay);
+            using var buttonActiveColor = ImRaii.PushColor(ImGuiCol.ButtonActive, theme.ActiveOverlay);
 
             if (tab.Icon.HasValue && iconFont != null)
             {
-                var iconStr = tab.Icon.Value.ToIconString();
+                var iconText = tab.Icon.Value.ToIconString();
 
-                Vector2 iconSize;
+                Vector2 iconTextSize;
                 using (iconFont.Push())
-                    iconSize = ImGui.CalcTextSize(iconStr);
+                    iconTextSize = ImGui.CalcTextSize(iconText);
 
-                var labelSize = ImGui.CalcTextSize(tab.Label);
-                var gap = UiScale.S(8f);
-                var totalW = iconSize.X + gap + labelSize.X + (ImGui.GetStyle().FramePadding.X * 2);
+                var labelTextSize = ImGui.CalcTextSize(tab.Label);
+                var iconLabelGap = UiScale.ScaledFloat(8f);
+                var totalWidth = iconTextSize.X + iconLabelGap + labelTextSize.X + (ImGui.GetStyle().FramePadding.X * 2);
 
-                var clicked = ImGui.Button("##tab", new Vector2(totalW, 0));
-                if (clicked && tab.Enabled)
+                var wasClicked = ImGui.Button("##tab", new Vector2(totalWidth, 0));
+                if (wasClicked && tab.Enabled)
                     selectedTab = tab;
 
-                var min = ImGui.GetItemRectMin();
-                var max = ImGui.GetItemRectMax();
-                var centerY = (min.Y + max.Y) * 0.5f;
+                var itemMin = ImGui.GetItemRectMin();
+                var itemMax = ImGui.GetItemRectMax();
+                var itemCenterY = (itemMin.Y + itemMax.Y) * 0.5f;
 
                 // can change this but I didn't like the text color changing, didn't remove so it's not lost
-                var col = ImGui.GetColorU32(isSel ? t.Text : t.Text);
+                var textColor = ImGui.GetColorU32(isSelected ? theme.Text : theme.Text);
 
-                var iconPos = new Vector2(min.X + ImGui.GetStyle().FramePadding.X, centerY - (iconSize.Y * 0.5f));
+                var iconPos = new Vector2(itemMin.X + ImGui.GetStyle().FramePadding.X, itemCenterY - (iconTextSize.Y * 0.5f));
                 using (iconFont.Push())
-                    dl.AddText(iconPos, col, iconStr);
+                    drawList.AddText(iconPos, textColor, iconText);
 
-                var textPos = new Vector2(iconPos.X + iconSize.X + gap, centerY - (labelSize.Y * 0.5f));
-                dl.AddText(textPos, col, tab.Label);
+                var textPos = new Vector2(iconPos.X + iconTextSize.X + iconLabelGap, itemCenterY - (labelTextSize.Y * 0.5f));
+                drawList.AddText(textPos, textColor, tab.Label);
 
-                if (isSel)
+                if (isSelected)
                 {
-                    var y = max.Y + UiScale.S(2);
-                    dl.AddLine(new Vector2(min.X, y), new Vector2(max.X, y), ImGui.GetColorU32(t.Primary), UiScale.S(2));
+                    var underlineY = itemMax.Y + UiScale.ScaledFloat(2);
+                    drawList.AddLine(new Vector2(itemMin.X, underlineY), new Vector2(itemMax.X, underlineY), ImGui.GetColorU32(theme.Primary), UiScale.ScaledFloat(2));
                 }
             }
             else
@@ -220,23 +220,23 @@ public static class UiNav
                     label = $"{tab.Icon.Value.ToIconString()}  {label}";
 
                 // can change this but I didn't like the text color changing, didn't remove so it's not lost
-                using var txt = ImRaii.PushColor(ImGuiCol.Text, isSel ? t.Text : t.Text);
+                using var textColor = ImRaii.PushColor(ImGuiCol.Text, isSelected ? theme.Text : theme.Text);
 
-                var clicked = ImGui.Button(label);
-                var min = ImGui.GetItemRectMin();
-                var max = ImGui.GetItemRectMax();
+                var wasClicked = ImGui.Button(label);
+                var itemMin = ImGui.GetItemRectMin();
+                var itemMax = ImGui.GetItemRectMax();
 
-                if (isSel)
+                if (isSelected)
                 {
-                    var y = max.Y + UiScale.S(2);
-                    dl.AddLine(new Vector2(min.X, y), new Vector2(max.X, y), ImGui.GetColorU32(t.Primary), UiScale.S(2));
+                    var underlineY = itemMax.Y + UiScale.ScaledFloat(2);
+                    drawList.AddLine(new Vector2(itemMin.X, underlineY), new Vector2(itemMax.X, underlineY), ImGui.GetColorU32(theme.Primary), UiScale.ScaledFloat(2));
                 }
 
-                if (clicked && tab.Enabled)
+                if (wasClicked && tab.Enabled)
                     selectedTab = tab;
             }
 
-            if (i != tabs.Count - 1)
+            if (tabIndex != tabs.Count - 1)
                 ImGui.SameLine();
         }
         ImGui.NewLine();

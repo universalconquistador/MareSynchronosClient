@@ -115,7 +115,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
         DrawFPS();
 
-        Ui.Hr(theme);
+        Ui.DrawHorizontalRule(theme);
 
         _selectedTab.TabAction.Invoke();
     }

@@ -59,12 +59,12 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     {
         base.PreDraw();
 
-        var r = UiScale.S(24f);
+        var r = UiScale.ScaledFloat(24f);
         // memo: alway scheck the count in PostDraw()
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, r);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, r);
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, UiScale.S(12f));
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, UiScale.ScaledFloat(12f));
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
     }
 
@@ -127,7 +127,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         const float headerFillPx = bannerHeightPx * 0.5f;
         const float radiusPx = 24f;
 
-        var bannerH = UiScale.S(bannerHeightPx);
+        var bannerH = UiScale.ScaledFloat(bannerHeightPx);
         var width = Math.Max(1f, ImGui.GetContentRegionAvail().X);
 
         try
@@ -177,8 +177,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         var dl = ImGui.GetWindowDrawList();
         var style = ImGui.GetStyle();
         var restoreCursor = ImGui.GetCursorPos();
-        var margin = UiScale.S(marginPx);
-        var btn = MathF.Max(ImGui.GetFrameHeight(), UiScale.S(24f));
+        var margin = UiScale.ScaledFloat(marginPx);
+        var btn = MathF.Max(ImGui.GetFrameHeight(), UiScale.ScaledFloat(24f));
         var btnSize = new Vector2(btn, btn);
         var winPos = ImGui.GetWindowPos();
         var contentMin = winPos + ImGui.GetWindowContentRegionMin();
@@ -195,14 +195,14 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         using (_uiSharedService.IconFont.Push())
         {
-            var iconSize = UiScale.S(24f);
+            var iconSize = UiScale.ScaledFloat(24f);
             var font = ImGui.GetFont();
             var baseSize = ImGui.GetFontSize();
             var baseCol = ImGui.GetColorU32(t.TextMuted);
             var outlineCol = ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.75f));
             var ts = ImGui.CalcTextSize(icon) * (iconSize / baseSize);
             var tp = boxMin + (btnSize - ts) * 0.5f;
-            var o = UiScale.S(1.25f);
+            var o = UiScale.ScaledFloat(1.25f);
 
             // background
             dl.AddText(font, iconSize, tp + new Vector2(-o, 0), outlineCol, icon);
@@ -217,7 +217,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         using (_uiSharedService.IconFont.Push())
         {
-            var iconSize = UiScale.S(24f);
+            var iconSize = UiScale.ScaledFloat(24f);
             var font = ImGui.GetFont();
             var baseSize = ImGui.GetFontSize();
             var ts = ImGui.CalcTextSize(icon) * (iconSize / baseSize);
@@ -229,7 +229,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         if (hovered)
         {
             // offset of box to icon
-            var gap = UiScale.S(4f);
+            var gap = UiScale.ScaledFloat(4f);
 
             // position top right of the icon
             var ttPos = new Vector2(boxMax.X + gap, boxMin.Y - gap);
@@ -237,8 +237,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
             using (ImRaii.PushColor(ImGuiCol.PopupBg, new Vector4(0f, 0f, 0f, 0.95f)))
             using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(1f, 1f, 1f, 1f)))
-            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(UiScale.S(10f), UiScale.S(8f))))
-            using (ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, UiScale.S(8f)))
+            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(UiScale.ScaledFloat(10f), UiScale.ScaledFloat(8f))))
+            using (ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, UiScale.ScaledFloat(8f)))
             {
                 var flags = ImGuiWindowFlags.Tooltip | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove
                     | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.AlwaysAutoResize;
