@@ -112,7 +112,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     private static bool IsProfileLoaded(string? raw)
     {
-        //// this can only happen if a legacy profile was saved as blank
+        // this can only happen if a legacy profile was saved as blank
         if (String.IsNullOrEmpty(raw))
             return true;
 
@@ -465,34 +465,34 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             ImGui.TableNextRow();
 
             ImGui.TableSetColumnIndex(0);
-            var primary = UiTheme.ToVec4(_liveProfile.Theme.Primary);
+            var primary = _liveProfile.Theme.PrimaryV4;
             if (ImGui.ColorEdit4("Primary##col", ref primary, ImGuiColorEditFlags.NoInputs))
             {
-                _liveProfile.Theme.Primary = UiTheme.FromVec4(primary);
+                _liveProfile.Theme.Primary = [primary.X, primary.Y, primary.Z, primary.W];
                 _dirty = true;
             }
 
             ImGui.TableSetColumnIndex(1);          
-            var secondary = UiTheme.ToVec4(_liveProfile.Theme.Secondary);
+            var secondary = _liveProfile.Theme.SecondaryV4;
             if (ImGui.ColorEdit4("Secondary##col", ref secondary, ImGuiColorEditFlags.NoInputs))
             {
-                _liveProfile.Theme.Secondary = UiTheme.FromVec4(secondary);
+                _liveProfile.Theme.Secondary = [secondary.X, secondary.Y, secondary.Z, secondary.W];
                 _dirty = true;
             }
             
             ImGui.TableSetColumnIndex(2);            
-            var accent = UiTheme.ToVec4(_liveProfile.Theme.Accent);
+            var accent = _liveProfile.Theme.AccentV4;
             if (ImGui.ColorEdit4("Accent##col", ref accent, ImGuiColorEditFlags.NoInputs))
             {
-                _liveProfile.Theme.Accent = UiTheme.FromVec4(accent);
+                _liveProfile.Theme.Accent = [accent.X, accent.Y, accent.Z, accent.W];
                 _dirty = true;
             }
 
             ImGui.TableSetColumnIndex(3);
-            var text = UiTheme.ToVec4(_liveProfile.Theme.TextPrimary);
+            var text = _liveProfile.Theme.TextPrimaryV4;
             if (ImGui.ColorEdit4("Text##col", ref text, ImGuiColorEditFlags.NoInputs))
             {
-                _liveProfile.Theme.TextPrimary = UiTheme.FromVec4(text);
+                _liveProfile.Theme.TextPrimary = [text.X, text.Y, text.Z, text.W];
                 _dirty = true;
             }
         }
@@ -509,9 +509,9 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         const float radiusPx = 24f;
         var bannerHeight = UiScale.ScaledFloat(bannerHeightPx);
         var windowWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
-        var colorPrimary = UiTheme.ToVec4(_liveProfile.Theme.Primary);
-        var colorSecondary = UiTheme.ToVec4(_liveProfile.Theme.Secondary);
-        var colorAccent = UiTheme.ToVec4(_liveProfile.Theme.Accent);
+        var colorPrimary = _liveProfile.Theme.PrimaryV4;
+        var colorSecondary = _liveProfile.Theme.SecondaryV4;
+        var colorAccent = _liveProfile.Theme.AccentV4;
         var displayName = !string.IsNullOrWhiteSpace(_liveProfile.PreferredName) ? _liveProfile.PreferredName : _apiController.DisplayName;
 
         ProfileBuilder.DrawBackGroundWindow(colorPrimary, radiusPx);

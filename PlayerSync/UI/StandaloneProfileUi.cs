@@ -128,9 +128,9 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         var bannerHeight = UiScale.ScaledFloat(bannerHeightPx);
         var windowWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
-        var colorPrimary = UiTheme.ToVec4(profile.Theme.Primary);
-        var colorSecondary = UiTheme.ToVec4(profile.Theme.Secondary);
-        var colorAccent = UiTheme.ToVec4(profile.Theme.Accent);
+        var colorPrimary = profile.Theme.PrimaryV4;
+        var colorSecondary = profile.Theme.SecondaryV4;
+        var colorAccent = profile.Theme.AccentV4;
         var profileName = profile.PreferredName != "" ? profile.PreferredName : Pair.UserData.AliasOrUID;
 
         using var windowStyle = _theme.PushWindowStyle();

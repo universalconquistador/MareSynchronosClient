@@ -88,8 +88,4 @@ public sealed class UiTheme()
                 _items[i].Dispose();
         }
     }
-
-    public static Vector4 ToVec4(float[] v) => new Vector4(v[0], v[1], v[2], v[3]);
-
-    public static float[] FromVec4(Vector4 c) => [c.X, c.Y, c.Z, c.W];
 }

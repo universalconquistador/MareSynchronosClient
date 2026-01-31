@@ -230,14 +230,14 @@ public static class ProfileBuilder
         var wrapStartLocalX = ImGui.GetCursorPosX();
 
         ImGui.PushTextWrapPos(wrapStartLocalX + nameWidth);
-        UiText.ThemedText(theme, displayName, UiTextStyle.Heading, UiTheme.ToVec4(profile.Theme.TextPrimary));
+        UiText.ThemedText(theme, displayName, UiTextStyle.Heading, profile.Theme.TextPrimaryV4);
 
         var pronouns = profile.Pronouns.Trim();
         var bulletGap = UiScale.ScaledFloat(6f);
         var line2Y = ImGui.GetCursorScreenPos().Y;
 
         ImGui.SetCursorScreenPos(new Vector2(nameMin.X, line2Y));
-        using (ImRaii.PushColor(ImGuiCol.Text, UiTheme.ToVec4(profile.Theme.TextPrimary)))
+        using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
         {
             ImGui.TextUnformatted(handle);
 
@@ -283,7 +283,7 @@ public static class ProfileBuilder
         };
         if (!string.IsNullOrWhiteSpace(statusLabel))
         {
-            using (ImRaii.PushColor(ImGuiCol.Text, UiTheme.ToVec4(profile.Theme.TextPrimary)))
+            using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
             {
                 ImGui.TextUnformatted("Relations");
             }
@@ -292,8 +292,7 @@ public static class ProfileBuilder
 
             ImGui.SetCursorScreenPos(new Vector2(nameMin.X, yAfterLabel));
 
-            DrawPill("##profile_status", statusLabel!, bg: UiTheme.ToVec4(profile.Theme.Accent),
-                border: UiTheme.ToVec4(profile.Theme.Secondary), fg: UiTheme.ToVec4(profile.Theme.TextPrimary));
+            DrawPill("##profile_status", statusLabel!, bg: profile.Theme.AccentV4, border: profile.Theme.SecondaryV4, fg: profile.Theme.TextPrimaryV4);
         }
 
         ImGui.PopTextWrapPos();
@@ -310,13 +309,12 @@ public static class ProfileBuilder
 
         using (PushContentInset(theme, out var innerWidth))
         {
-            using (ImRaii.PushColor(ImGuiCol.Text, UiTheme.ToVec4(profile.Theme.TextPrimary)))
+            using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
             {
                 ImGui.TextUnformatted("Interests");
             }
 
-            DrawPillWrap(theme, "interest", interestList, bg: UiTheme.ToVec4(profile.Theme.Accent), border: UiTheme.ToVec4(profile.Theme.Secondary),
-                fg: UiTheme.ToVec4(profile.Theme.TextPrimary), innerWidth);
+            DrawPillWrap(theme, "interest", interestList, bg: profile.Theme.AccentV4, border: profile.Theme.SecondaryV4, fg: profile.Theme.TextPrimaryV4, innerWidth);
         }
 
     }
@@ -331,7 +329,7 @@ public static class ProfileBuilder
 
         using (PushContentInset(theme, out var innerWidth))
         {
-            UiText.DrawTextWrappedMaxLines(about, width: innerWidth, maxLines: 4, color: UiTheme.ToVec4(profile.Theme.TextPrimary), ellipsisColor: theme.TextMuted);
+            UiText.DrawTextWrappedMaxLines(about, width: innerWidth, maxLines: 4, color: profile.Theme.TextPrimaryV4, ellipsisColor: theme.TextMuted);
         }
     }
 
@@ -345,7 +343,7 @@ public static class ProfileBuilder
 
         using (PushContentInset(theme, out var innerWidth))
         {
-            using (ImRaii.PushColor(ImGuiCol.Text, UiTheme.ToVec4(profile.Theme.TextPrimary)))
+            using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
             {
                 ImGui.TextUnformatted(heading);
             }
@@ -356,8 +354,8 @@ public static class ProfileBuilder
             var boxMin = ImGui.GetCursorScreenPos();
             var boxMax = boxMin + boxSize;
             var rounding = style.FrameRounding;
-            var background = UiTheme.ToVec4(profile.Theme.Accent);
-            var border = UiTheme.ToVec4(profile.Theme.Secondary);
+            var background = profile.Theme.AccentV4;
+            var border = profile.Theme.SecondaryV4;
             var hovered = ImGui.IsMouseHoveringRect(boxMin, boxMax, true);
             var storage = ImGui.GetStateStorage();
             var focusKey = ImGui.GetID($"{id}##notes_focus_next");
@@ -394,12 +392,12 @@ public static class ProfileBuilder
 
                     if (string.IsNullOrWhiteSpace(notesDraft))
                     {
-                        using (ImRaii.PushColor(ImGuiCol.Text, UiText.GetMutedTextColor(UiTheme.ToVec4(profile.Theme.TextPrimary))))
+                        using (ImRaii.PushColor(ImGuiCol.Text, UiText.GetMutedTextColor(profile.Theme.TextPrimaryV4)))
                             ImGui.TextWrapped(placeholder);
                     }
                     else
                     {
-                        using (ImRaii.PushColor(ImGuiCol.Text, UiTheme.ToVec4(profile.Theme.TextPrimary)))
+                        using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
                             ImGui.TextWrapped(notesDraft);
                     }
 
@@ -427,7 +425,7 @@ public static class ProfileBuilder
                     storage.SetInt(focusKey, 0);
                 }
 
-                using (ImRaii.PushColor(ImGuiCol.Text, UiTheme.ToVec4(profile.Theme.TextPrimary)))
+                using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
                     changed = ImGui.InputTextMultiline(id, ref notesDraft, maxLen, boxSize, ImGuiInputTextFlags.None);
 
                 if (ImGui.IsItemDeactivated())
