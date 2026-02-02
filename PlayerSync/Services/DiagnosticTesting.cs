@@ -1,4 +1,5 @@
 ﻿using MareSynchronos.Services.Models;
+using MareSynchronos.Utils;
 using System.Buffers;
 using System.Diagnostics;
 using System.Net;
@@ -21,6 +22,7 @@ namespace MareSynchronos.Services
         {
             "sync.playersync.io",
             "playersync.io",
+            "mirror.playersync.io",
             "fs-na-01.playersync.io",
             "54cfada9aee2c44d7e67f5769a0a9301.r2.cloudflarestorage.com",
         };
@@ -145,7 +147,7 @@ namespace MareSynchronos.Services
             double elapsedSeconds = Math.Max(0.0001, stopwatch.Elapsed.TotalSeconds);
             double megabitsPerSecond = (totalBytesRead * 8d) / elapsedSeconds / 1_000_000d;
 
-            string detailsText = $"{megabitsPerSecond:0.0} Mbps ({totalBytesRead:N0} bytes in {elapsedSeconds:0.00}s)";
+            string detailsText = $"{megabitsPerSecond:0.0} Mbps ({VariousExtensions.ToByteString(totalBytesRead)} in {elapsedSeconds:0.00}s)";
 
             return new SpeedTestDiagnosticResult(
                 State: DiagnosticsTestState.Passed,
@@ -176,7 +178,7 @@ namespace MareSynchronos.Services
             double elapsedSeconds = Math.Max(0.0001, stopwatch.Elapsed.TotalSeconds);
             double megabitsPerSecond = (CloudflareUploadBytes * 8d) / elapsedSeconds / 1_000_000d;
 
-            string detailsText = $"{megabitsPerSecond:0.0} Mbps ({CloudflareUploadBytes:N0} bytes in {elapsedSeconds:0.00}s)";
+            string detailsText = $"{megabitsPerSecond:0.0} Mbps ({VariousExtensions.ToByteString(CloudflareUploadBytes)} in {elapsedSeconds:0.00}s)";
 
             return new SpeedTestDiagnosticResult(
                 State: DiagnosticsTestState.Passed,
@@ -259,7 +261,7 @@ namespace MareSynchronos.Services
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         /// <exception cref="OperationCanceledException"></exception>
-        public static async Task<string> RunAllDiagnosticTests(IProgress<string> progress, HttpClient httpClient, CancellationToken cancellationToken)
+        public static async Task<string> RunAllDiagnosticTests(IProgress<(DiagnosticsTestState State, string Status)> progress, HttpClient httpClient, CancellationToken cancellationToken)
         {
             List<DiagnosticResult> diagnosticResults = new();
             var runStart = DateTimeOffset.UtcNow;
@@ -270,8 +272,9 @@ namespace MareSynchronos.Services
                 if (cancellationToken.IsCancellationRequested)
                     throw new OperationCanceledException(cancellationToken);
 
-                progress.Report($"DNS Test: {endpoint}");
+                progress.Report((State: DiagnosticsTestState.Testing, Status: $"DNS Test: {endpoint}"));
                 var result = await ExecuteDnsTestAsync(endpoint, cancellationToken).ConfigureAwait(false);
+                progress.Report((result.State, result.Details ?? ""));
                 if (result != null)
                     diagnosticResults.Add(result);
             }
@@ -282,21 +285,24 @@ namespace MareSynchronos.Services
                 if (cancellationToken.IsCancellationRequested)
                     throw new OperationCanceledException(cancellationToken);
 
-                progress.Report($"Ping Test: {endpoint}");
+                progress.Report((State: DiagnosticsTestState.Testing, Status: $"Ping Test: {endpoint}"));
                 var result = await ExecutePingTestAsync(endpoint, cancellationToken).ConfigureAwait(false);
+                progress.Report((result.State, result.Details ?? ""));
                 if (result != null)
                     diagnosticResults.Add(result);
             }
 
             // download test
-            progress.Report("Cloudflare Download Speed Test");
+            progress.Report((State: DiagnosticsTestState.Testing, Status: "Cloudflare Download Speed Test"));
             var downloadResult = await ExecuteDownloadSpeedTestAsync(httpClient, cancellationToken).ConfigureAwait(false);
+            progress.Report((downloadResult.State, downloadResult.Details ?? ""));
             if (downloadResult != null)
                 diagnosticResults.Add(downloadResult);
 
             // upload test
-            progress.Report("Cloudflare Upload Speed Test");
+            progress.Report((State: DiagnosticsTestState.Testing, Status: "Cloudflare Upload Speed Test"));
             var uploadResult = await ExecuteUploadSpeedTestAsync(httpClient, cancellationToken).ConfigureAwait(false);
+            progress.Report((uploadResult.State, uploadResult.Details ?? ""));
             if (uploadResult != null)
                 diagnosticResults.Add(uploadResult);
 
