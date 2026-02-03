@@ -124,35 +124,6 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     public CharacterData? LastCreatedCharacterData { private get; set; }
     private ApiController ApiController => _uiShared.ApiController;
 
-    private static int FeetInchesToCm(int feet, int inches)
-    {
-        int totalInches = feet * 12 + inches;
-        return (int)Math.Round(totalInches * 2.54f);
-    }
-
-    private static void CmToFeetInches(int cm, out int feet, out int inches)
-    {
-        int totalInches = (int)Math.Round(cm / 2.54f);
-        if (totalInches < 0) totalInches = 0;
-
-        feet = totalInches / 12;
-        inches = totalInches % 12;
-    }
-
-    private async Task GlobalControlCountdown(int countdown)
-    {
-        _globalControlCountdown = countdown;
-        while (_globalControlCountdown > 0)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
-            _globalControlCountdown--;
-        }
-        if (_globalControlCountdown < 0)
-        {
-            _globalControlCountdown = 0;
-        }
-    }
-
     protected override void DrawInternal()
     {
         using var _ = _theme.PushWindowStyle();
@@ -328,5 +299,34 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         _selectedNavItem = null;
         Mediator.Publish(new UiToggleMessage(typeof(EditProfileUi)));
         this.IsOpen = false;
+    }
+
+    private static int FeetInchesToCm(int feet, int inches)
+    {
+        int totalInches = feet * 12 + inches;
+        return (int)Math.Round(totalInches * 2.54f);
+    }
+
+    private static void CmToFeetInches(int cm, out int feet, out int inches)
+    {
+        int totalInches = (int)Math.Round(cm / 2.54f);
+        if (totalInches < 0) totalInches = 0;
+
+        feet = totalInches / 12;
+        inches = totalInches % 12;
+    }
+
+    private async Task GlobalControlCountdown(int countdown)
+    {
+        _globalControlCountdown = countdown;
+        while (_globalControlCountdown > 0)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            _globalControlCountdown--;
+        }
+        if (_globalControlCountdown < 0)
+        {
+            _globalControlCountdown = 0;
+        }
     }
 }

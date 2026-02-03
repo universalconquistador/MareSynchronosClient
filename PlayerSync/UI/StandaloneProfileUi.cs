@@ -138,7 +138,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         try
         {
-            ProfileBuilder.DrawBackGroundWindow(colorPrimary, radiusPx);
+            ProfileBuilder.DrawBackgroundWindow(colorPrimary, radiusPx);
             ProfileBuilder.DrawGradientWindow(colorSecondary, colorPrimary, headerFillPx, radiusPx, colorAccent, 3.0f, insetPx: 0.0f);
             ProfileBuilder.DrawAvatar(_theme, _textureWrap, _supporterTextureWrap, colorAccent, colorPrimary, out var nameMin, out var nameMax, bannerHeightPx);
             ProfileBuilder.DrawNameInfo(_theme, profileName, Pair.UserData.UID, profile, true, nameMin, nameMax);

@@ -139,7 +139,7 @@ public static class UiFx
             var p0 = GetPerimeterPointRounded(min, max, rounding, u0);
             var p1 = GetPerimeterPointRounded(min, max, rounding, u1);
 
-            var color = Lerp(baseCol, white, band * 0.85f);
+            var color = Vector4.Lerp(baseCol, white, band * 0.85f);
             color.W = (0.10f + band * 0.90f) * strength;
 
             dl.AddLine(p0, p1, ImGui.GetColorU32(color), thickness);
@@ -239,8 +239,6 @@ public static class UiFx
         }
     }
 
-    private static Vector4 Lerp(Vector4 fromColor, Vector4 toColor, float blend) => fromColor + (toColor - fromColor) * Math.Clamp(blend, 0f, 1f);
-
     private static Vector2 GetPerimeterPoint(Vector2 min, Vector2 max, float unit)
     {
         var width = max.X - min.X;
@@ -314,7 +312,7 @@ public static class UiFx
                 if (x1 <= x0) continue;
 
                 var tt = (stepIndex + 0.5f) / steps;
-                var c = Lerp(top, bottom, tt);
+                var c = Vector4.Lerp(top, bottom, tt);
 
                 drawList.AddRectFilled(new Vector2(x0, y0), new Vector2(x1, y1), ImGui.GetColorU32(c));
             }

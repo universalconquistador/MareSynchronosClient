@@ -403,7 +403,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
             try
             {
-                if (!MareProfileManager.ProfileValidator.TryValidate(editorProfile, out var errors))
+                if (!API.Data.Validators.ProfileValidator.TryValidate(editorProfile, out var errors))
                 {
                     _errors.AddRange(errors);
                 }
@@ -515,7 +515,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         var colorAccent = _liveProfile.Theme.AccentV4;
         var displayName = !string.IsNullOrWhiteSpace(_liveProfile.PreferredName) ? _liveProfile.PreferredName : _apiController.DisplayName;
 
-        ProfileBuilder.DrawBackGroundWindow(colorPrimary, radiusPx);
+        ProfileBuilder.DrawBackgroundWindow(colorPrimary, radiusPx);
 
         using var windowStyle = _theme.PushWindowStyle();
 
@@ -690,46 +690,23 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     private static bool DrawStatusCombo(string id, ref ProfileStatus status)
     {
-        var items = new[]
-        {
-            "Not Shared", "Not Interested", "Taken", "Open", "Looking", "It's Complicated", "Ask Me"
-        };
+        var values = Enum.GetValues<ProfileStatus>();
+        bool changed = false;
 
-        int idx = status switch
+        if (ImGui.BeginCombo(id, ProfileBuilder.StatusLabel(status)))
         {
-            ProfileStatus.NotShared => 0,
-            ProfileStatus.NotInterested => 1,
-            ProfileStatus.Taken => 2,
-            ProfileStatus.Open => 3,
-            ProfileStatus.Looking => 4,
-            ProfileStatus.ItsComplicated => 5,
-            _ => 6,
-        };
-
-        var changed = false;
-
-        if (ImGui.BeginCombo(id, items[idx]))
-        {
-            for (int i = 0; i < items.Length; i++)
+            foreach (var value in values)
             {
-                bool selected = i == idx;
-                if (ImGui.Selectable(items[i], selected))
+                bool selected = value == status;
+
+                if (ImGui.Selectable(ProfileBuilder.StatusLabel(value), selected))
                 {
-                    idx = i;
-                    status = i switch
-                    {
-                        0 => ProfileStatus.NotShared,
-                        1 => ProfileStatus.NotInterested,
-                        2 => ProfileStatus.Taken,
-                        3 => ProfileStatus.Open,
-                        4 => ProfileStatus.Looking,
-                        5 => ProfileStatus.ItsComplicated,
-                        6 => ProfileStatus.AskMe,
-                        _ => ProfileStatus.NotShared,
-                    };
+                    status = value;
                     changed = true;
                 }
-                if (selected) ImGui.SetItemDefaultFocus();
+
+                if (selected)
+                    ImGui.SetItemDefaultFocus();
             }
             ImGui.EndCombo();
         }

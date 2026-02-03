@@ -54,7 +54,7 @@ public static class ProfileBuilder
         }
     }
 
-    public static void DrawBackGroundWindow(Vector4 color, float roundingOverridePx = -1f, float insetPx = 0.5f)
+    public static void DrawBackgroundWindow(Vector4 color, float roundingOverridePx = -1f, float insetPx = 0.5f)
     {
         var globalScale = ImGuiHelpers.GlobalScale;
         var drawList = ImGui.GetWindowDrawList();
@@ -68,16 +68,6 @@ public static class ProfileBuilder
         drawList.AddRectFilled(fillMin, fillMax, ImGui.GetColorU32(color), rounding, ImDrawFlags.RoundCornersAll);
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="headerColor"></param>
-    /// <param name="bodyColor"></param>
-    /// <param name="headerHeightPx"></param>
-    /// <param name="radiusPx"></param>
-    /// <param name="borderColor"></param>
-    /// <param name="borderThicknessPx"></param>
-    /// <param name="insetPx"></param>
     public static void DrawGradientWindow(Vector4 headerColor, Vector4 bodyColor, float headerHeightPx,
         float radiusPx, Vector4 borderColor, float borderThicknessPx = 1.0f, float insetPx = 0.0f)
     {
@@ -140,15 +130,13 @@ public static class ProfileBuilder
                 int stepCount = Math.Clamp((int)((gradientBottomY - bodyMin.Y) / UiScale.ScaledFloat(8f)), 12, 220);
                 float stepHeight = (gradientBottomY - bodyMin.Y) / stepCount;
 
-                static Vector4 Lerp(Vector4 a, Vector4 b, float t) => a + (b - a) * t;
-
                 for (int stepIndex = 0; stepIndex < stepCount; stepIndex++)
                 {
                     float y0 = bodyMin.Y + stepHeight * stepIndex;
                     float y1 = (stepIndex == stepCount - 1) ? gradientBottomY : (y0 + stepHeight);
 
                     float tMid = ((y0 + y1) * 0.5f - bodyMin.Y) / gradientHeight;
-                    var lerpedColor = Lerp(headerColor, bodyColor, Math.Clamp(tMid, 0f, 1f));
+                    var lerpedColor = Vector4.Lerp(headerColor, bodyColor, Math.Clamp(tMid, 0f, 1f));
 
                     drawList.AddRectFilled(new Vector2(bodyMin.X, y0), new Vector2(bodyMax.X, y1), ImGui.GetColorU32(lerpedColor));
                 }
@@ -270,18 +258,7 @@ public static class ProfileBuilder
 
         ImGui.SetCursorScreenPos(new Vector2(nameMin.X, line3Y));
 
-        var statusLabel = profile.Status switch
-        {
-            ProfileStatus.NotShared => "Not Shared",
-            ProfileStatus.NotInterested => "Not Interested",
-            ProfileStatus.Taken => "Taken",
-            ProfileStatus.Open => "Open",
-            ProfileStatus.Looking => "Looking",
-            ProfileStatus.ItsComplicated => "It's Complicated",
-            ProfileStatus.AskMe => "Ask Me",
-            _ => "Not Shared",
-        };
-        if (!string.IsNullOrWhiteSpace(statusLabel))
+        if (!string.IsNullOrWhiteSpace(StatusLabel(profile.Status)))
         {
             using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
             {
@@ -292,13 +269,25 @@ public static class ProfileBuilder
 
             ImGui.SetCursorScreenPos(new Vector2(nameMin.X, yAfterLabel));
 
-            DrawPill("##profile_status", statusLabel!, bg: profile.Theme.AccentV4, border: profile.Theme.SecondaryV4, fg: profile.Theme.TextPrimaryV4);
+            DrawPill("##profile_status", StatusLabel(profile.Status), bg: profile.Theme.AccentV4, border: profile.Theme.SecondaryV4, fg: profile.Theme.TextPrimaryV4);
         }
 
         ImGui.PopTextWrapPos();
         ImGui.PopClipRect();
         ImGui.SetCursorPos(restoreCursor);
     }
+
+    public static string StatusLabel(ProfileStatus status) => status switch
+    {
+        ProfileStatus.NotShared => "Not Shared",
+        ProfileStatus.NotInterested => "Not Interested",
+        ProfileStatus.Taken => "Taken",
+        ProfileStatus.Open => "Open",
+        ProfileStatus.Looking => "Looking",
+        ProfileStatus.ItsComplicated => "It's Complicated",
+        ProfileStatus.AskMe => "Ask Me",
+        _ => status.ToString(),
+    };
 
     public static void DrawInterests(UiTheme theme, ProfileV1 profile)
     {
