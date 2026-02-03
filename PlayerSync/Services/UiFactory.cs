@@ -4,6 +4,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI;
 using MareSynchronos.UI.Components.Popup;
+using MareSynchronos.UI.ModernUi;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 
@@ -20,10 +21,11 @@ public class UiFactory
     private readonly MareProfileManager _mareProfileManager;
     private readonly PerformanceCollectorService _performanceCollectorService;
     private readonly IBroadcastManager _broadcastManager;
+    private readonly UiTheme _theme;
 
     public UiFactory(ILoggerFactory loggerFactory, MareMediator mareMediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, ServerConfigurationManager serverConfigManager,
-        MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService)
+        MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService, UiTheme theme)
     {
         _loggerFactory = loggerFactory;
         _mareMediator = mareMediator;
@@ -34,12 +36,13 @@ public class UiFactory
         _mareProfileManager = mareProfileManager;
         _broadcastManager = broadcastManager;
         _performanceCollectorService = performanceCollectorService;
+        _theme = theme;
     }
 
     public SyncshellAdminUI CreateSyncshellAdminUi(GroupFullInfoDto dto)
     {
         return new SyncshellAdminUI(_loggerFactory.CreateLogger<SyncshellAdminUI>(), _mareMediator,
-            _apiController, _uiSharedService, _broadcastManager, _pairManager, dto, _performanceCollectorService);
+            _apiController, _uiSharedService, _broadcastManager, _pairManager, dto, _performanceCollectorService, _theme);
     }
 
     public SyncshellProfileUi CreateSyncshellProfileUi(GroupFullInfoDto dto)
@@ -51,7 +54,7 @@ public class UiFactory
     public StandaloneProfileUi CreateStandaloneProfileUi(Pair pair)
     {
         return new StandaloneProfileUi(_loggerFactory.CreateLogger<StandaloneProfileUi>(), _mareMediator,
-            _uiSharedService, _serverConfigManager, _mareProfileManager, _pairManager, pair, _performanceCollectorService);
+            _uiSharedService, _serverConfigManager, _mareProfileManager, _pairManager, pair, _performanceCollectorService, _theme);
     }
 
     public PermissionWindowUI CreatePermissionPopupUi(Pair pair)

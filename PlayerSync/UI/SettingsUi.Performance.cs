@@ -14,6 +14,14 @@ public partial class SettingsUi
 {
     private UiNav.Tab<PerformanceTabs>? _selectedTabPerformance;
 
+    private IReadOnlyList<UiNav.Tab<PerformanceTabs>>? _performanceTabs;
+    private IReadOnlyList<UiNav.Tab<PerformanceTabs>> PerformanceTabsList => _performanceTabs ??=
+        [
+            new(PerformanceTabs.Texture, "Auto Texture Compression", DrawPerformanceTextureCompression),
+            new(PerformanceTabs.Threshold, "Auto Threshold Pausing", DrawPerformanceThresholdPausing),
+            new(PerformanceTabs.Height, "Auto Height Pausing", DrawPerformanceHeightPausing),
+        ];
+
     private enum PerformanceTabs
     {
         Texture,
@@ -25,15 +33,7 @@ public partial class SettingsUi
     {
         _lastTab = "Performance";
 
-        _selectedTabPerformance = UiNav.DrawTabsUnderline(_theme,
-            [
-            new(PerformanceTabs.Texture, "Auto Texture Compression", DrawPerformanceTextureCompression),
-            new(PerformanceTabs.Threshold, "Auto Threshold Pausing", DrawPerformanceThresholdPausing),
-            new(PerformanceTabs.Height, "Auto Height Pausing", DrawPerformanceHeightPausing),
-            ],
-            _selectedTabPerformance,
-            _uiShared.IconFont
-            );
+        _selectedTabPerformance = UiNav.DrawTabsUnderline(_theme, PerformanceTabsList, _selectedTabPerformance, _uiShared.IconFont);
 
         using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 

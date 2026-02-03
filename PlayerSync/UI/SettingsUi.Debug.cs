@@ -14,6 +14,13 @@ public partial class SettingsUi
 {
     private UiNav.Tab<DebugTabs>? _selectedTabDebug;
 
+    private IReadOnlyList<UiNav.Tab<DebugTabs>>? _debugTabs;
+    private IReadOnlyList<UiNav.Tab<DebugTabs>> DebugTabsList => _debugTabs ??=
+    [
+        new(DebugTabs.Debug, "Debug", DrawDebug),
+        new(DebugTabs.Data, "Data", DrawDebugData),
+    ];
+
     private enum DebugTabs
     {
         Debug,
@@ -22,14 +29,7 @@ public partial class SettingsUi
 
     private void DrawDebugSettings()
     {
-        _selectedTabDebug = UiNav.DrawTabsUnderline(_theme,
-            [
-                new(DebugTabs.Debug, "Debug", DrawDebug),
-                new(DebugTabs.Data, "Data", DrawDebugData),
-            ],
-            _selectedTabDebug, 
-            _uiShared.IconFont
-            );
+        _selectedTabDebug = UiNav.DrawTabsUnderline(_theme, DebugTabsList, _selectedTabDebug, _uiShared.IconFont);
 
         using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 

@@ -18,6 +18,15 @@ public partial class SettingsUi
 
     private UiNav.Tab<InterfaceTabs>? _selectedTabInterface;
 
+    private IReadOnlyList<UiNav.Tab<InterfaceTabs>>? _interfaceTabs;
+    private IReadOnlyList<UiNav.Tab<InterfaceTabs>> InterfaceTabsList => _interfaceTabs ??=
+    [
+        new(InterfaceTabs.Ui, "PlayerSync UI", DrawInterfacePlayerSyncUi),
+        new(InterfaceTabs.Game, "Game UI", DrawInterfaceGameUi),
+        new(InterfaceTabs.Notes, "Notes", DrawInterfaceNotes),
+        new(InterfaceTabs.Notifications, "Notifications", DrawInterfaceNotifications),
+    ];
+
     private enum InterfaceTabs
     {
         Ui,
@@ -28,15 +37,7 @@ public partial class SettingsUi
 
     private void DrawInterfaceSettings()
     {
-        _selectedTabInterface = UiNav.DrawTabsUnderline(_theme,
-            [
-            new(InterfaceTabs.Ui, "PlayerSync UI", DrawInterfacePlayerSyncUi),
-            new(InterfaceTabs.Game, "Game UI", DrawInterfaceGameUi),
-            new(InterfaceTabs.Notes, "Notes", DrawInterfaceNotes),
-            new(InterfaceTabs.Notifications, "Notifications", DrawInterfaceNotifications),
-            ],
-            _selectedTabInterface, 
-            _uiShared.IconFont);
+        _selectedTabInterface = UiNav.DrawTabsUnderline(_theme, InterfaceTabsList, _selectedTabInterface, _uiShared.IconFont);
 
         using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 

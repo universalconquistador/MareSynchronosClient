@@ -31,6 +31,7 @@ using MareSynchronos.Services.CharaData;
 using PlayerSync.PlayerData.Pairs;
 using PlayerSync.Services;
 using PlayerSync.FileCache;
+using MareSynchronos.UI.ModernUi;
 
 namespace MareSynchronos;
 
@@ -201,6 +202,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<CharaDataConfigService>());
             collection.AddSingleton<ConfigurationMigrator>();
             collection.AddSingleton<ConfigurationSaveService>();
+            collection.AddSingleton<UiTheme>();
 
             collection.AddSingleton<HubFactory>();
 
@@ -222,7 +224,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped<WindowMediatorSubscriberBase, PlayerAnalysisViewerUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, EditProfileUi>((s) => new EditProfileUi(s.GetRequiredService<ILogger<EditProfileUi>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<UiSharedService>(), s.GetRequiredService<FileDialogManager>(),
-                s.GetRequiredService<MareProfileManager>(), s.GetRequiredService<PerformanceCollectorService>()));
+                s.GetRequiredService<MareProfileManager>(), s.GetRequiredService<PerformanceCollectorService>(), s.GetRequiredService<UiTheme>()));
             collection.AddScoped<WindowMediatorSubscriberBase, PopupHandler>();
             collection.AddScoped<IPopupHandler, BanUserPopupHandler>();
             collection.AddScoped<IPopupHandler, CensusPopupHandler>();

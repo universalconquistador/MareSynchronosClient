@@ -50,7 +50,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
     private bool _openMcdOnlineOnNextRun = false;
     private bool _readExport;
     private string _selectedDtoId = string.Empty;
-    private readonly UiTheme _theme = new();
+    private readonly UiTheme _theme;
     private string SelectedDtoId
     {
         get => _selectedDtoId;
@@ -80,7 +80,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
                          CharaDataManager charaDataManager, CharaDataNearbyManager charaDataNearbyManager, CharaDataConfigService configService,
                          UiSharedService uiSharedService, ServerConfigurationManager serverConfigurationManager,
                          DalamudUtilService dalamudUtilService, FileDialogManager fileDialogManager, PairManager pairManager,
-                         CharaDataGposeTogetherManager charaDataGposeTogetherManager)
+                         CharaDataGposeTogetherManager charaDataGposeTogetherManager, UiTheme theme)
         : base(logger, mediator, "PlayerSync Character Data Hub###PlayerSyncCharaDataUI", performanceCollectorService)
     {
         SetWindowSizeConstraints();
@@ -94,6 +94,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
         _fileDialogManager = fileDialogManager;
         _pairManager = pairManager;
         _charaDataGposeTogetherManager = charaDataGposeTogetherManager;
+        _theme = theme;
         Mediator.Subscribe<GposeStartMessage>(this, (_) => IsOpen |= _configService.Current.OpenMareHubOnGposeStart);
         Mediator.Subscribe<OpenCharaDataHubWithFilterMessage>(this, (msg) =>
         {

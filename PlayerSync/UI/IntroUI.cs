@@ -34,7 +34,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
     private bool _useLegacyLogin = false;
     private ServerStorage? _selectedServer;
 
-    private readonly UiTheme _theme = new();
+    private readonly UiTheme _theme;
 
     private enum IntroUiPages
     {
@@ -63,7 +63,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 
     public IntroUi(ILogger<IntroUi> logger, UiSharedService uiShared, MareConfigService configService,
         CacheMonitor fileCacheManager, ServerConfigurationManager serverConfigurationManager, MareMediator mareMediator,
-        PerformanceCollectorService performanceCollectorService, DalamudUtilService dalamudUtilService, ZoneSyncConfigService zoneSyncConfigService)
+        PerformanceCollectorService performanceCollectorService, DalamudUtilService dalamudUtilService, ZoneSyncConfigService zoneSyncConfigService, UiTheme theme)
         : base(logger, mareMediator, "PlayerSync Setup", performanceCollectorService)
     {
         _uiShared = uiShared;
@@ -72,6 +72,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         _serverConfigurationManager = serverConfigurationManager;
         _dalamudUtilService = dalamudUtilService;
         _zoneSyncConfigService = zoneSyncConfigService;
+        _theme = theme;
 
         IsOpen = false;
         ShowCloseButton = false;
@@ -201,10 +202,6 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         {
             FinishSetup();
         }
-
-        //_uiShared.BigText("PlayerSync Setup Setup");
-        //Ui.DrawHorizontalRule(t);
-        //ImGuiHelpers.ScaledDummy(5f);
 
         _selectedNavItem = UiNav.DrawSidebar(_theme, "", _navItems, _selectedNavItem, widthPx: 180f, iconFont: _uiShared.IconFont);
 

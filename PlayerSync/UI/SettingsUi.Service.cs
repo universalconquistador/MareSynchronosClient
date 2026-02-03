@@ -23,6 +23,14 @@ public partial class SettingsUi
 {
     private UiNav.Tab<ServiceTabs>? _selectedTabService;
 
+    private IReadOnlyList<UiNav.Tab<ServiceTabs>>? _serviceTabs;
+    private IReadOnlyList<UiNav.Tab<ServiceTabs>> ServiceTabsList => _serviceTabs ??=
+    [
+        new(ServiceTabs.Service, "Service", DrawService),
+        new(ServiceTabs.Permissions, "Permissions", DrawServicePermissions),
+        new(ServiceTabs.Account, "Account", DrawServiceAccount),
+    ];
+
     private enum ServiceTabs
     {
         Service,
@@ -34,14 +42,7 @@ public partial class SettingsUi
     {
         _lastTab = "Service";
 
-        _selectedTabService = UiNav.DrawTabsUnderline(_theme,
-            [
-            new(ServiceTabs.Service, "Service", DrawService),
-            new(ServiceTabs.Permissions, "Permissions", DrawServicePermissions),
-            new(ServiceTabs.Account, "Account", DrawServiceAccount),
-            ],
-            _selectedTabService, 
-            _uiShared.IconFont);
+        _selectedTabService = UiNav.DrawTabsUnderline(_theme, ServiceTabsList, _selectedTabService, _uiShared.IconFont);
 
         using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 

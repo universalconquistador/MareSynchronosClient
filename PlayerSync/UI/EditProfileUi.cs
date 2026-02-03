@@ -41,7 +41,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     private bool _dirty = false;
     private readonly List<string> _errors = [];
 
-    private readonly UiTheme _theme = new();
+    private readonly UiTheme _theme;
     private ProfileV1 _liveProfile;
     private string _descriptionText = string.Empty;
 
@@ -55,7 +55,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     ];
 
     public EditProfileUi(ILogger<EditProfileUi> logger, MareMediator mediator, ApiController apiController, UiSharedService uiSharedService, 
-        FileDialogManager fileDialogManager, MareProfileManager mareProfileManager, PerformanceCollectorService performanceCollectorService)
+        FileDialogManager fileDialogManager, MareProfileManager mareProfileManager, PerformanceCollectorService performanceCollectorService, UiTheme theme)
         : base(logger, mediator, "PlayerSync Profile Editor###PlayerSyncEditProfileUI", performanceCollectorService)
     {
         IsOpen = false;
@@ -72,6 +72,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         _uiSharedService = uiSharedService;
         _fileDialogManager = fileDialogManager;
         _mareProfileManager = mareProfileManager;
+        _theme = theme;
 
         Mediator.Subscribe<GposeStartMessage>(this, (_) =>
         {

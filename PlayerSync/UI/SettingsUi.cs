@@ -52,7 +52,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private bool _deleteAccountPopupModalShown = false;
     private bool _deleteFilesPopupModalShown = false;
     private string _lastTab = string.Empty;
-    private readonly UiTheme _theme = new();
+    private readonly UiTheme _theme;
     private UiNav.NavItem<SettingsNav>? _selectedNavItem;
 
     private bool _readClearCache = false;
@@ -80,7 +80,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         FileCompactor fileCompactor, ApiController apiController,
         IpcManager ipcManager, CacheMonitor cacheMonitor,
         IBroadcastManager broadcastManager,
-        DalamudUtilService dalamudUtilService, HttpClient httpClient) : base(logger, mediator, "PlayerSync Settings", performanceCollector)
+        DalamudUtilService dalamudUtilService, HttpClient httpClient, UiTheme theme) : base(logger, mediator, "PlayerSync Settings", performanceCollector)
     {
         _configService = configService;
         _pairManager = pairManager;
@@ -99,6 +99,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         _fileCompactor = fileCompactor;
         _uiShared = uiShared;
         _broadcastManager = broadcastManager;
+        _theme = theme;
 
         _validationProgress = new Progress<(int, int, FileCacheEntity)>(v => _currentProgress = v);
 
@@ -191,7 +192,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
     private List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SettingsNav>> Items)>? _navItems;
 
-    private List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SettingsNav>> Items)> NavItems => _navItems ??= new()
+    private IReadOnlyList<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SettingsNav>> Items)> NavItems => _navItems ??= new()
     {
         ("General", new List<UiNav.NavItem<SettingsNav>>
         {
@@ -249,7 +250,6 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
             Util.OpenLink("https://discord.gg/BzaqbfFFmn");
         }
 
-        //Ui.DrawHorizontalRule(t);
         ImGuiHelpers.ScaledDummy(5);
 
         // we could have 'out' the selected item, but it was messy to keep state in ImGui when we wanted to be able to "link" to other windows

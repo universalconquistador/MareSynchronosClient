@@ -34,12 +34,11 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private bool _manualRefresh = false;
     private readonly HashSet<string> _pauseClicked = new();
     private readonly Dictionary<string, UserPermissions> _edited = new(StringComparer.Ordinal);
-    private UiNav.Tab<AnalysisTabs>? _selectedTab;
-    private readonly UiTheme _theme = new();
+    private readonly UiTheme _theme;
 
     public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
         UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService, ServerConfigurationManager serverConfigurationManager,
-        ApiController apiController, DalamudUtilService dalamudUtilService) : base(logger, mediator, "Player Analysis Viewer", performanceCollector)
+        ApiController apiController, DalamudUtilService dalamudUtilService, UiTheme theme) : base(logger, mediator, "Player Analysis Viewer", performanceCollector)
     {
         _uiSharedService = uiSharedService;
         _pairManager = pairManager;
@@ -47,6 +46,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         _serverConfigurationManager = serverConfigurationManager;
         _apiController = apiController;
         _dalamudUtilService = dalamudUtilService;
+        _theme = theme;
         SizeConstraints = new()
         {
             MinimumSize = new(1000, 500),
@@ -99,25 +99,27 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         Permissions
     }
 
+    private UiNav.Tab<AnalysisTabs>? _selectedTabAnalysis;
+
+    private IReadOnlyList<UiNav.Tab<AnalysisTabs>>? _analysisTabs;
+    private IReadOnlyList<UiNav.Tab<AnalysisTabs>> AnalysisTabsList => _analysisTabs ??=
+    [
+        new(AnalysisTabs.Visible, "Visible Players", DrawVisible, FontAwesomeIcon.Eye),
+        new(AnalysisTabs.Paused, "Paused Pairs", DrawPaused, FontAwesomeIcon.Pause),
+        new(AnalysisTabs.Permissions, "Permissions", DrawPermissions, FontAwesomeIcon.Key),
+    ];
+
     protected override void DrawInternal()
     {
         using var windowStyle = _theme.PushWindowStyle();
 
-        _selectedTab = UiNav.DrawTabsUnderline(
-            _theme,
-            [
-                new(AnalysisTabs.Visible, "Visible Players", DrawVisible, FontAwesomeIcon.Eye),
-                new(AnalysisTabs.Paused, "Paused Pairs", DrawPaused, FontAwesomeIcon.Pause),
-                new(AnalysisTabs.Permissions, "Permissions", DrawPermissions, FontAwesomeIcon.Key),
-            ],
-            _selectedTab,
-            iconFont: _uiSharedService.IconFont);
+        _selectedTabAnalysis = UiNav.DrawTabsUnderline(_theme, AnalysisTabsList, _selectedTabAnalysis, iconFont: _uiSharedService.IconFont);
 
         DrawFPS();
 
         Ui.DrawHorizontalRule(_theme);
 
-        _selectedTab.TabAction.Invoke();
+        _selectedTabAnalysis.TabAction.Invoke();
     }
 
     private void DrawVisible()
@@ -153,7 +155,6 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         }
 
         var headerStart = ImGui.GetCursorPos();
-        //ImGui.SetCursorPosY(headerStart.Y - 5f);
         _uiSharedService.BigText($"Visible Players ({_cachedVisiblePairs.Count})");
         var headerSize = ImGui.GetItemRectSize();
 

@@ -32,14 +32,15 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private int _globalControlCountdown = 0;
     private bool _timerRunning = false;
     private bool _fixMe = false;
-    private readonly UiTheme _theme = new();
+    private readonly UiTheme _theme;
 
     public JoinSyncshellUI(ILogger<JoinSyncshellUI> logger, MareMediator mediator,
-        UiSharedService uiSharedService, ApiController apiController, PerformanceCollectorService performanceCollectorService) 
+        UiSharedService uiSharedService, ApiController apiController, PerformanceCollectorService performanceCollectorService, UiTheme theme)
         : base(logger, mediator, "Join existing Syncshell###PlayerSyncJoinSyncshell", performanceCollectorService)
     {
         _uiSharedService = uiSharedService;
         _apiController = apiController;
+        _theme = theme;
         SizeConstraints = new()
         {
             MinimumSize = new(700, 405),

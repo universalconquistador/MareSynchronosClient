@@ -40,13 +40,14 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
     private bool _showModal = false;
     private CancellationTokenSource _transientRecordCts = new();
     private UiNav.NavItem<AnalysisNav>? _selectedNavItem;
-    private readonly UiTheme _theme = new();
+    private readonly IReadOnlyList<(string GroupLabel, IReadOnlyList<UiNav.NavItem<AnalysisNav>> Items)> _analysisGroups;
+    private readonly UiTheme _theme;
 
     public DataAnalysisUi(ILogger<DataAnalysisUi> logger, MareMediator mediator,
         CharacterAnalyzer characterAnalyzer, IpcManager ipcManager,
         PerformanceCollectorService performanceCollectorService, UiSharedService uiSharedService,
         PlayerPerformanceConfigService playerPerformanceConfig, TransientResourceManager transientResourceManager,
-        TransientConfigService transientConfigService)
+        TransientConfigService transientConfigService, UiTheme theme)
         : base(logger, mediator, "PlayerSync Character Data Analysis", performanceCollectorService)
     {
         _characterAnalyzer = characterAnalyzer;
@@ -55,6 +56,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
         _playerPerformanceConfig = playerPerformanceConfig;
         _transientResourceManager = transientResourceManager;
         _transientConfigService = transientConfigService;
+        _theme = theme;
         Mediator.Subscribe<CharacterDataAnalyzedMessage>(this, (_) =>
         {
             _hasUpdate = true;
@@ -73,6 +75,16 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
             }
         };
 
+        _analysisGroups =
+        [
+            ("Mod Files", new List<UiNav.NavItem<AnalysisNav>>
+            {
+                new(AnalysisNav.Analysis, "Analysis", DrawAnalysis, FontAwesomeIcon.MagnifyingGlassChart),
+                new(AnalysisNav.Compression, "Compression", DrawCompression, FontAwesomeIcon.Compress),
+                new(AnalysisNav.Transient, "Transient", DrawTransient, FontAwesomeIcon.ArrowsUpDownLeftRight),
+            }),
+        ];
+
         _conversionProgress.ProgressChanged += ConversionProgress_ProgressChanged;
     }
 
@@ -85,18 +97,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
 
     private void DrawAnalysisContent()
     {
-        IReadOnlyList<(string GroupLabel, IReadOnlyList<UiNav.NavItem<AnalysisNav>> Items)> groups =
-            new List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<AnalysisNav>> Items)>
-            {
-            ("Mod Files", new List<UiNav.NavItem<AnalysisNav>>
-            {
-                new(AnalysisNav.Analysis, "Analysis", DrawAnalysis, FontAwesomeIcon.MagnifyingGlassChart),
-                new(AnalysisNav.Compression, "Compression", DrawCompression, FontAwesomeIcon.Compress),
-                new(AnalysisNav.Transient, "Transient", DrawTransient, FontAwesomeIcon.ArrowsUpDownLeftRight),
-            }),
-            };
-
-        _selectedNavItem = UiNav.DrawSidebar(_theme, "Chara Data Analysis", groups, _selectedNavItem, widthPx: 180f, iconFont: _uiSharedService.IconFont);
+        _selectedNavItem = UiNav.DrawSidebar(_theme, "Chara Data Analysis", _analysisGroups, _selectedNavItem, widthPx: 180f, iconFont: _uiSharedService.IconFont);
 
         var panePad = UiScale.ScaledFloat(_theme.PanelPad);
         var paneGap = UiScale.ScaledFloat(_theme.PanelGap);
@@ -192,28 +193,6 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
             _hasUpdate = false;
         }
     }
-
-    //protected override void DrawInternal()
-    //{
-        
-
-    //    using var tabBar = ImRaii.TabBar("analysisRecordingTabBar");
-    //    using (var tabItem = ImRaii.TabItem("Analysis"))
-    //    {
-    //        if (tabItem)
-    //        {
-    //            using var id = ImRaii.PushId("analysis");
-    //            DrawAnalysis();
-    //        }
-    //    }
-    //    using (var tabItem = ImRaii.TabItem("Transient Files"))
-    //    {
-    //        if (tabItem)
-    //        {
-                
-    //        }
-    //    }
-    //}
 
     private bool _showAlreadyAddedTransients = false;
     private bool _acknowledgeReview = false;

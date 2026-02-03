@@ -8,9 +8,9 @@ using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.UI.Components;
 using MareSynchronos.UI.ModernUi;
 using Microsoft.Extensions.Logging;
-using MareSynchronos.UI.Components;
 using System.Numerics;
 
 namespace MareSynchronos.UI;
@@ -27,16 +27,17 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     private IDalamudTextureWrap? _supporterTextureWrap;
     private IDalamudTextureWrap? _textureWrap;
     private bool _editingNotes;
-    private readonly UiTheme _theme = new();
+    private readonly UiTheme _theme;
 
     public StandaloneProfileUi(ILogger<StandaloneProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
         ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair,
-        PerformanceCollectorService performanceCollector)
+        PerformanceCollectorService performanceCollector, UiTheme theme)
         : base(logger, mediator, "PlayerSync Profile of " + pair.UserData.AliasOrUID + "##PlayerSyncStandaloneProfileUI" + pair.UserData.AliasOrUID, performanceCollector)
     {
         _uiSharedService = uiBuilder;
         _serverManager = serverManager;
         _mareProfileManager = mareProfileManager;
+        _theme = theme;
         Pair = pair;
         _pairManager = pairManager;
 
@@ -115,9 +116,9 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // don't kill UI if there is an error
+            _logger.LogError(ex, "Error with UI texture wraps.");
         }
 
         bool supporter = profile.IsSupporter;

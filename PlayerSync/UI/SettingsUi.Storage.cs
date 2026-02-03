@@ -12,6 +12,13 @@ public partial class SettingsUi
 {
     private UiNav.Tab<StorageTabs>? _selectedTabStorage;
 
+    private IReadOnlyList<UiNav.Tab<StorageTabs>>? _storageTabs;
+    private IReadOnlyList<UiNav.Tab<StorageTabs>> StorageTabsList => _storageTabs ??=
+    [
+        new(StorageTabs.Storage, "Storage", DrawStorage),
+        new(StorageTabs.Clear, "Clear", DrawStorageClear),
+    ];
+
     private enum StorageTabs
     {
         Storage,
@@ -22,13 +29,7 @@ public partial class SettingsUi
     {
         _lastTab = "Storage";
 
-        _selectedTabStorage = UiNav.DrawTabsUnderline(_theme,
-            [
-            new(StorageTabs.Storage, "Storage", DrawStorage),
-            new(StorageTabs.Clear, "Clear", DrawStorageClear),
-            ],
-            _selectedTabStorage,
-            _uiShared.IconFont);
+        _selectedTabStorage = UiNav.DrawTabsUnderline(_theme, StorageTabsList, _selectedTabStorage, _uiShared.IconFont);
 
         using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 
@@ -37,25 +38,6 @@ public partial class SettingsUi
     private void DrawStorage()
     {
         _lastTab = "FileCache";
-
-        //_uiShared.BigText("Export MCDF");
-
-        //ImGuiHelpers.ScaledDummy(10);
-
-        //UiSharedService.ColorTextWrapped("Exporting MCDF has moved.", ImGuiColors.DalamudYellow);
-        //ImGuiHelpers.ScaledDummy(5);
-        //UiSharedService.TextWrapped("It is now found in the Main UI under \"Your User Menu\" (");
-        //ImGui.SameLine();
-        //_uiShared.IconText(FontAwesomeIcon.UserCog);
-        //ImGui.SameLine();
-        //UiSharedService.TextWrapped(") -> \"Character Data Hub\".");
-        //if (_uiShared.IconTextButton(FontAwesomeIcon.Running, "Open PlayerSync Character Data Hub"))
-        //{
-        //    Mediator.Publish(new UiToggleMessage(typeof(CharaDataHubUi)));
-        //}
-        //UiSharedService.TextWrapped("Note: this entry will be removed in the near future. Please use the Main UI to open the Character Data Hub.");
-        //ImGuiHelpers.ScaledDummy(5);
-        //ImGui.Separator();
 
         _uiShared.BigText("Storage");
         ImGuiHelpers.ScaledDummy(2);

@@ -151,20 +151,6 @@ public class MareProfileManager : MediatorSubscriberBase
             if (!string.IsNullOrEmpty(doc.AboutMe) && doc.AboutMe.Length > MaxAboutMeLen)
                 errors.Add($"About Me must be {MaxAboutMeLen} characters or fewer.");
 
-            // Keep alpha > 0.15 so the profile doesn't become unreadable.
-            //var theme = doc.Theme;
-            //if (theme != null)
-            //{
-            //    if (UiTheme.ToVec4(theme.Primary).W < 0.15f)
-            //        errors.Add("Theme: Profile background alpha is too low (min 0.15).");
-            //    if (UiTheme.ToVec4(theme.Accent).W < 0.15f)
-            //        errors.Add("Theme: Accent alpha is too low (min 0.15).");
-            //    if (UiTheme.ToVec4(theme.Secondary).W < 0.15f)
-            //        errors.Add("Theme: Text outline alpha is too low (min 0.15).");
-            //    if (UiTheme.ToVec4(theme.TextPrimary).W < 0.15f)
-            //        errors.Add("Theme: Text primary alpha is too low (min 0.15).");
-            //}
-
             return errors.Count == 0;
         }
     }

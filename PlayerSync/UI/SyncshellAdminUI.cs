@@ -37,12 +37,12 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private Memory<byte> _rulesBuffer = new byte[2000];
     private Memory<byte> _descriptionBuffer = new byte[2000];
     private bool _isProfileSaved;
-    private readonly UiTheme _theme = new();
+    private readonly UiTheme _theme;
     private UiNav.NavItem<SyncshellAdminNav>? _selectedNavItem;
-    private UiNav.Tab<SyncshellAdminTabs>? _selectedTab;
+    private readonly IReadOnlyList<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SyncshellAdminNav>> Items)> _navGroups;
 
-    public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController,
-        UiSharedService uiSharedService, IBroadcastManager broadcastManager, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService)
+    public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController, UiSharedService uiSharedService, 
+        IBroadcastManager broadcastManager, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService, UiTheme theme)
         : base(logger, mediator, "Syncshell Admin Panel (" + groupFullInfo.GroupAliasOrGID + ")", performanceCollectorService)
     {
         GroupFullInfo = groupFullInfo;
@@ -50,6 +50,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         _uiSharedService = uiSharedService;
         _broadcastManager = broadcastManager;
         _pairManager = pairManager;
+        _theme = theme;
         _isOwner = string.Equals(GroupFullInfo.OwnerUID, _apiController.UID, System.StringComparison.Ordinal);
         _isModerator = GroupFullInfo.GroupUserInfo.IsModerator();
         _newPassword = string.Empty;
@@ -69,6 +70,21 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         });
         Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile?.Description ?? "", _descriptionBuffer.Span);
         Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile?.Rules ?? "", _rulesBuffer.Span);
+
+        var groupItems = new List<UiNav.NavItem<SyncshellAdminNav>>
+        {
+            new(SyncshellAdminNav.Access, "Access", DrawAccess, FontAwesomeIcon.DoorOpen),
+            new(SyncshellAdminNav.UserManagement, "User Management", DrawUserManagement, FontAwesomeIcon.Users),
+            new(SyncshellAdminNav.Permissions, "Permissions", DrawPermissions, FontAwesomeIcon.Key),
+            new(SyncshellAdminNav.Profile, "Profile", DrawProfile, FontAwesomeIcon.User),
+        };
+
+        if (_isOwner)
+            groupItems.Add(new(SyncshellAdminNav.Owner, "Owner Settings", DrawOwnerSettings, FontAwesomeIcon.Crown));
+
+        _navGroups =[
+            ("", groupItems),
+        ];
     }
 
     public GroupFullInfoDto GroupFullInfo { get; private set; }
@@ -122,27 +138,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             }
         }
 
-        //Ui.AddVerticalSpace(6);
-        //ImGui.Separator();
         Ui.AddVerticalSpace(6);
 
-        var groupItems = new List<UiNav.NavItem<SyncshellAdminNav>>
-        {
-            new(SyncshellAdminNav.Access, "Access", DrawAccess, FontAwesomeIcon.DoorOpen),
-            new(SyncshellAdminNav.UserManagement, "User Management", DrawUserManagement, FontAwesomeIcon.Users),
-            new(SyncshellAdminNav.Permissions, "Permissions", DrawPermissions, FontAwesomeIcon.Key),
-            new(SyncshellAdminNav.Profile, "Profile", DrawProfile, FontAwesomeIcon.User),
-        };
-
-        if (_isOwner)
-            groupItems.Add(new(SyncshellAdminNav.Owner, "Owner Settings", DrawOwnerSettings, FontAwesomeIcon.Crown));
-
-        var navGroups = new List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SyncshellAdminNav>> Items)>
-        {
-            ("", groupItems),
-        };
-
-        _selectedNavItem = UiNav.DrawSidebar(_theme, "Syncshell Admin", navGroups, _selectedNavItem, widthPx: 220f, iconFont: _uiSharedService.IconFont);
+        _selectedNavItem = UiNav.DrawSidebar(_theme, "Syncshell Admin", _navGroups, _selectedNavItem, widthPx: 220f, iconFont: _uiSharedService.IconFont);
 
         var panePad = UiScale.ScaledFloat(_theme.PanelPad);
         var paneGap = UiScale.ScaledFloat(_theme.PanelGap);
@@ -299,22 +297,26 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             
     }
 
+    // defining this here to keep consistancy with other windows that use partial classes
+    private UiNav.Tab<SyncshellAdminTabs>? _selectedTabSyncshellAdmin;
+
+    private IReadOnlyList<UiNav.Tab<SyncshellAdminTabs>>? _syncshellAdminTabs;
+    private IReadOnlyList<UiNav.Tab<SyncshellAdminTabs>> SyncshellAdminTabsList => _syncshellAdminTabs ??=
+    [
+        new(SyncshellAdminTabs.UserList, "User List & Administration", DrawUserList, FontAwesomeIcon.Users),
+        new(SyncshellAdminTabs.Cleanup, "Mass Cleanup", DrawCleanup, FontAwesomeIcon.Broom),
+        new(SyncshellAdminTabs.Bans, "User Bans", DrawBans, FontAwesomeIcon.Ban),
+    ];
+
     private void DrawUserManagement()
     {
         _uiSharedService.BigText("User Management");
         ImGuiHelpers.ScaledDummy(2);
 
-        _selectedTab = UiNav.DrawTabsUnderline(_theme,
-            [
-                new(SyncshellAdminTabs.UserList, "User List & Administration", DrawUserList, FontAwesomeIcon.Users),
-                new(SyncshellAdminTabs.Cleanup, "Mass Cleanup", DrawCleanup, FontAwesomeIcon.Broom),
-                new(SyncshellAdminTabs.Bans, "User Bans", DrawBans, FontAwesomeIcon.Ban),
-            ],
-            _selectedTab,
-            iconFont: _uiSharedService.IconFont);
+        _selectedTabSyncshellAdmin = UiNav.DrawTabsUnderline(_theme, SyncshellAdminTabsList, _selectedTabSyncshellAdmin, iconFont: _uiSharedService.IconFont);
         ImGuiHelpers.ScaledDummy(5f);
 
-        _selectedTab.TabAction.Invoke();
+        _selectedTabSyncshellAdmin.TabAction.Invoke();
     }
 
     private void DrawUserList()

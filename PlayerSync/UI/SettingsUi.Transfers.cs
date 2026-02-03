@@ -16,6 +16,14 @@ public partial class SettingsUi
 {
     private UiNav.Tab<TransfersTabs>? _selectedTabTransfers;
 
+    private IReadOnlyList<UiNav.Tab<TransfersTabs>>? _transfersTabs;
+    private IReadOnlyList<UiNav.Tab<TransfersTabs>> TransfersTabsList => _transfersTabs ??=
+    [
+        new(TransfersTabs.Bandwidth, "Bandwidth", DrawTransfersBandwidth),
+        new(TransfersTabs.Overlay, "Overlay", DrawTransfersOverlay),
+        new(TransfersTabs.Current, "Current", DrawTransfersCurrent),
+    ];
+
     private enum TransfersTabs
     {
         Bandwidth,
@@ -27,14 +35,7 @@ public partial class SettingsUi
     {
         _lastTab = "Transfers";
 
-        _selectedTabTransfers = UiNav.DrawTabsUnderline(_theme,
-            [
-                new(TransfersTabs.Bandwidth, "Bandwidth", DrawTransfersBandwidth),
-                new(TransfersTabs.Overlay, "Overlay", DrawTransfersOverlay),
-                new(TransfersTabs.Current, "Current", DrawTransfersCurrent),
-            ],
-            _selectedTabTransfers,
-            _uiShared.IconFont);
+        _selectedTabTransfers = UiNav.DrawTabsUnderline(_theme, TransfersTabsList, _selectedTabTransfers, _uiShared.IconFont);
 
         using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 

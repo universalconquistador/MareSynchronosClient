@@ -3,7 +3,6 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.ModernUi;
@@ -14,6 +13,15 @@ namespace MareSynchronos.UI;
 public partial class SettingsUi
 {
     private UiNav.Tab<SyncTabs>? _selectedTabSync;
+
+    private IReadOnlyList<UiNav.Tab<SyncTabs>>? _syncTabs;
+    private IReadOnlyList<UiNav.Tab<SyncTabs>> SyncTabsList => _syncTabs ??=
+    [
+        new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
+        new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),
+        new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
+        new(SyncTabs.Permissions, "Permissions", GoToPermissions),
+    ];
 
     private enum SyncTabs
     {
@@ -27,15 +35,7 @@ public partial class SettingsUi
     {
         _lastTab = "zone";
 
-        _selectedTabSync = UiNav.DrawTabsUnderline(_theme,
-            [
-                new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
-                new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),
-                new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
-                new(SyncTabs.Permissions, "Permissions", GoToPermissions),
-            ],
-            _selectedTabSync, 
-            _uiShared.IconFont);
+        _selectedTabSync = UiNav.DrawTabsUnderline(_theme, SyncTabsList, _selectedTabSync, _uiShared.IconFont);
             
         using var child = ImRaii.Child("##panel", new Vector2(0, 0), false);
 
@@ -193,8 +193,6 @@ public partial class SettingsUi
                 ? "Click to turn OFF broadcast features." + UiSharedService.TooltipSeparator + "Stops showing nearby Syncshell broadcasts."
                 : "Click to turn ON broadcast features." + UiSharedService.TooltipSeparator + "Shows Syncshells broadcasting in your location for easy joining."
         );
-        //ImGui.Dummy(new Vector2(10));
-        //ImGui.Separator();
     }
     private void DrawSyncFilter()
     {

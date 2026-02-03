@@ -18,14 +18,15 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
     private readonly UiSharedService _uiSharedService;
     private bool _errorGroupCreate;
     private GroupJoinDto? _lastCreatedGroup;
-    private readonly UiTheme _theme = new();
+    private readonly UiTheme _theme;
 
     public CreateSyncshellUI(ILogger<CreateSyncshellUI> logger, MareMediator mareMediator, ApiController apiController, UiSharedService uiSharedService,
-        PerformanceCollectorService performanceCollectorService)
+        PerformanceCollectorService performanceCollectorService, UiTheme theme)
         : base(logger, mareMediator, "Create New Syncshell###PlayerSyncCreateSyncshell", performanceCollectorService)
     {
         _apiController = apiController;
         _uiSharedService = uiSharedService;
+        _theme = theme;
         SizeConstraints = new()
         {
             MinimumSize = new(550, 350),
