@@ -46,11 +46,11 @@ namespace PlayerSync.Services
 
         private void UpdateNamePlate(INamePlateUpdateContext context, IReadOnlyList<INamePlateUpdateHandler> handlers)
         {
-            // We could probably make this into an IHostedService and just stop/start the service, unsure.
             if (!(_configService.Current.ShowPairedIndicator 
                 || _configService.Current.ShowPermsInsteadOfFCTags 
                 || _configService.Current.ShowSoundSourceIndicator
-                || _configService.Current.ShowNameHighlights)) return;
+                || _configService.Current.ShowNameHighlights)
+                || _dalamudUtil.IsBoundByDuty) return;
 
             var shouldUpdate = false;
             var now = DateTime.UtcNow;
@@ -111,9 +111,7 @@ namespace PlayerSync.Services
 
                 handle.FreeCompanyTag = fcTagBuilder.Build();
 
-                if (_configService.Current.ShowNameHighlights 
-                    && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights)
-                    && !_dalamudUtil.IsBoundByDuty)
+                if (_configService.Current.ShowNameHighlights && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights))
                 {
                     var textColor = MakeOpaque(color.Foreground);
                     var textGlow = MakeOpaque(color.Glow);
