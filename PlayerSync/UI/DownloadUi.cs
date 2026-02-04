@@ -140,7 +140,7 @@ public class DownloadUi : WindowMediatorSubscriberBase
             const int transparency = 100;
             const int dlBarBorder = 3;
 
-            foreach (var transfer in _currentDownloads.ToList())
+            foreach (var transfer in _currentDownloads)
             {
                 try
                 {
