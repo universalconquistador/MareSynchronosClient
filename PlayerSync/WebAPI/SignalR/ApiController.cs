@@ -250,13 +250,13 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                     return;
                 }
 
-                if (_connectionDto.CurrentClientVersion > currentClientVer)
-                {
-                    Mediator.Publish(new NotificationMessage("Client outdated",
-                        $"There is a new PlayerSync client available: " +
-                        $"{_connectionDto.CurrentClientVersion.Major}.{_connectionDto.CurrentClientVersion.Minor}.{_connectionDto.CurrentClientVersion.Build}.",
-                        NotificationType.Warning));
-                }
+                //if (_connectionDto.CurrentClientVersion > currentClientVer)
+                //{
+                //    Mediator.Publish(new NotificationMessage("Client outdated",
+                //        $"There is a new PlayerSync client available: " +
+                //        $"{_connectionDto.CurrentClientVersion.Major}.{_connectionDto.CurrentClientVersion.Minor}.{_connectionDto.CurrentClientVersion.Build}.",
+                //        NotificationType.Warning));
+                //}
 
                 if (_dalamudUtil.HasModifiedGameFiles)
                 {

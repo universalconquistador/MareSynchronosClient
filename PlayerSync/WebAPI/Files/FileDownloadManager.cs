@@ -296,12 +296,12 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         {
             var file = downloadFileInfoFromService[i];
 
-            _compressedAlternateManager.SetCompressedAlternate(file.Hash, file.CompressedAlternateFileDownload?.Hash);
+            _compressedAlternateManager.SetCompressedAlternate(file.Hash, file.CompressedAlternateFileDownload?.Hash, file.WillNotBeCompressed);
             bool usingAlternate = false;
             if (file.CompressedAlternateFileDownload != null)
             {
                 // Assume that compressed alternates do not themselves have a compressed alternate
-                _compressedAlternateManager.SetCompressedAlternate(file.CompressedAlternateFileDownload.Hash, null);
+                _compressedAlternateManager.SetCompressedAlternate(file.CompressedAlternateFileDownload.Hash, compressedAlternateHash: null, neverWillHaveAlternate: true);
 
                 // If the compressed alternate usage requests it, download the alternate instead.
                 if (compressedAlternateUsage == CompressedAlternateUsage.CompressedNewDownloads || compressedAlternateUsage == CompressedAlternateUsage.AlwaysCompressed)
@@ -310,11 +310,19 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                     Logger.LogDebug("Preparing to download compressed file {compressed} instead of original file {original}.", file.CompressedAlternateFileDownload.Hash, file.Hash);
                     downloadFileInfoFromService[i] = file.CompressedAlternateFileDownload;
                     compressedSubstitutions[file.Hash] = file.CompressedAlternateFileDownload.Hash;
+
+                    if (!locallyPresentFiles.Contains(file.CompressedAlternateFileDownload.Hash) && _fileDbManager.GetFileCacheByHash(file.CompressedAlternateFileDownload.Hash) != null)
+                    {
+                        Logger.LogDebug("But compressed alternate {file} is already downloaded! Not downloading again.", file.CompressedAlternateFileDownload.Hash);
+                        locallyPresentFiles.Add(file.CompressedAlternateFileDownload.Hash);
+                    }
                 }
             }
 
             // If we were asked to download a locally present file, we were just checking if it has an alternate; no need to redownload it.
-            if (locallyPresentFiles.Contains(file.Hash) && !usingAlternate)
+            // If we were asked to download a file and we will use its compressed alternate which is already present then no need to redownload it.
+            if ((locallyPresentFiles.Contains(file.Hash) && !usingAlternate)
+                || (usingAlternate && locallyPresentFiles.Contains(downloadFileInfoFromService[i].Hash)))
             {
                 downloadFileInfoFromService.RemoveAt(i);
                 i--;

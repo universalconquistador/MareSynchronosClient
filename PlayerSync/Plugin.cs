@@ -204,11 +204,12 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<ConfigurationSaveService>();
             collection.AddSingleton<UiTheme>();
 
+            collection.AddSingleton<VersionUpdateCheckService>();
+            collection.AddSingleton<CacheMonitor>();
             collection.AddSingleton<HubFactory>();
 
             // add scoped services
             collection.AddScoped<DrawEntityFactory>();
-            collection.AddScoped<CacheMonitor>();
             collection.AddScoped<UiFactory>();
             collection.AddScoped<SelectTagForPairUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, SettingsUi>();
@@ -217,6 +218,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped<WindowMediatorSubscriberBase, DownloadUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, PopoutProfileUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, DataAnalysisUi>();
+            collection.AddScoped<WindowMediatorSubscriberBase, DiagnosticsUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, JoinSyncshellUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, CreateSyncshellUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, EventViewerUI>();
@@ -243,6 +245,7 @@ public sealed class Plugin : IDalamudPlugin
                 pluginInterface, textureProvider, s.GetRequiredService<Dalamud.Localization>(), s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<TokenProvider>(),
                 s.GetRequiredService<MareMediator>()));
             collection.AddHostedService(p => p.GetRequiredService<ConfigurationSaveService>());
+            collection.AddHostedService(p => p.GetRequiredService<VersionUpdateCheckService>());
             collection.AddHostedService(p => p.GetRequiredService<MareMediator>());
             collection.AddHostedService(p => p.GetRequiredService<NotificationService>());
             collection.AddHostedService(p => p.GetRequiredService<FileCacheManager>());
