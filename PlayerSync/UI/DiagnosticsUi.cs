@@ -6,6 +6,7 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.Models;
+using MareSynchronos.UI.ModernUi;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
@@ -22,26 +23,28 @@ public class DiagnosticsUi : WindowMediatorSubscriberBase
     private bool _isDiagTaskRunning = false;
     private readonly List<(DiagnosticsTestState State, string Status)> _resultTexts = new();
     private string _finalResults = "";
+    private readonly UiTheme _theme;
 
     public DiagnosticsUi(ILogger<DiagnosticsUi> logger, MareMediator mediator, UiSharedService uiSharedService,
-        PerformanceCollectorService performanceCollectorService, HttpClient httpClient)
+        PerformanceCollectorService performanceCollectorService, HttpClient httpClient, UiTheme theme)
         : base(logger, mediator, "PlayerSync Diagnostics", performanceCollectorService)
     {
         
         _uiSharedService = uiSharedService;
         _httpClient = httpClient;
+        _theme = theme;
 
         SizeConstraints = new()
         {
             MinimumSize = new()
             {
                 X = 600,
-                Y = 350
+                Y = 400
             },
             MaximumSize = new()
             {
                 X = 600,
-                Y = 350
+                Y = 400
             }
         };
 
@@ -53,6 +56,8 @@ public class DiagnosticsUi : WindowMediatorSubscriberBase
 
     protected override void DrawInternal()
     {
+        using var _ = _theme.PushWindowStyle();
+
         // drain the queue to draw out the results
         while (_pendingResultTexts.TryDequeue(out var pendingText))
             _resultTexts.Add(pendingText);
@@ -72,7 +77,7 @@ public class DiagnosticsUi : WindowMediatorSubscriberBase
 
         ImGui.TextUnformatted("Status: " + (_isDiagTaskRunning ? "Running..." : "Idle"));
 
-        ImGui.BeginChild("results", new(0, 350), true);
+        ImGui.BeginChild("results", new(0, 400), true);
 
         foreach (var result in _resultTexts)
         {
