@@ -3,11 +3,11 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -387,6 +387,10 @@ public class DrawUserPair
             {
                 perm.SetSticky(true);
             }
+            
+            if (!_pair.IsPaused)
+                _serverConfigurationManager.SetPauseReasonForUid(_pair.UserData.UID, PauseReason.Manual);
+
             perm.SetPaused(!perm.IsPaused());
             _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
         }

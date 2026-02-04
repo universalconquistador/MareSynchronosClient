@@ -73,7 +73,7 @@ public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;
 public record UserAddPairMessage(UserData UserData) : MessageBase;
 public record UserPairStickyPauseAndRemoveMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
-public record PauseMessage(UserData UserData) : MessageBase;
+public record PauseMessage(UserData UserData, PauseReason Reason) : MessageBase;
 public record ProfilePopoutToggle(Pair? Pair) : MessageBase;
 public record CompactUiChange(Vector2 Size, Vector2 Position) : MessageBase;
 public record ProfileOpenStandaloneMessage(Pair Pair) : MessageBase;

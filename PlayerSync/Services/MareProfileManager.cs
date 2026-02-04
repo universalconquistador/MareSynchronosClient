@@ -1,9 +1,12 @@
 ﻿using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Comparer;
+using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using System.Collections.Concurrent;
 
 namespace MareSynchronos.Services;
@@ -19,7 +22,7 @@ public class MareProfileManager : MediatorSubscriberBase
     private const string _mareLogoLoading = _pearLogo;
     private const string _mareLogoNsfw = _pearLogo;
     private const string _noDescription = "-- User has no description set --";
-    private const string _nsfw = "Profile not displayed - NSFW";
+    private const string _nsfw = "Profile is marked NSFW. Enable NSFW profiles in the settings to view.";
     private readonly ApiController _apiController;
     private readonly MareConfigService _mareConfigService;
     private readonly ConcurrentDictionary<UserData, MareProfileData> _mareProfiles = new(UserDataComparer.Instance);
@@ -55,6 +58,11 @@ public class MareProfileManager : MediatorSubscriberBase
         return (profile);
     }
 
+    public void RemoveMareProfile(UserData data)
+    {
+        _mareProfiles.Remove(data, out _);
+    }
+
     private async Task GetMareProfileFromService(UserData data)
     {
         try
@@ -79,6 +87,45 @@ public class MareProfileManager : MediatorSubscriberBase
             // if fails save DefaultProfileData to dict
             Logger.LogWarning(ex, "Failed to get Profile from service for user {user}", data);
             _mareProfiles[data] = _defaultProfileData;
+        }
+    }
+
+    public static class ProfileHandler
+    {
+        private static readonly JsonSerializerSettings Settings = new()
+        {
+            MissingMemberHandling = MissingMemberHandling.Ignore,
+            NullValueHandling = NullValueHandling.Ignore,
+            DefaultValueHandling = DefaultValueHandling.Ignore,
+            ContractResolver = new DefaultContractResolver
+            {
+                NamingStrategy = new CamelCaseNamingStrategy
+                {
+                    ProcessDictionaryKeys = true,
+                    OverrideSpecifiedNames = false,
+                }
+            }
+        };
+
+        public static ProfileV1 Read(string? raw)
+        {
+            raw = (raw ?? string.Empty).Trim();
+
+            if (raw.StartsWith("{", StringComparison.Ordinal))
+            {
+                try
+                {
+                    return JsonConvert.DeserializeObject<ProfileV1>(raw, Settings) ?? new ProfileV1();
+                }
+                catch { }
+            }
+            return new ProfileV1{Version = 1, AboutMe = raw, Theme = new ProfileTheme() };
+        }
+
+        public static string WriteJson(ProfileV1 doc, Formatting formatting = Formatting.None)
+        {
+            doc ??= new ProfileV1();
+            return JsonConvert.SerializeObject(doc, formatting, Settings);
         }
     }
 }

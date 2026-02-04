@@ -48,6 +48,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly TagHandler _tagHandler;
     private readonly UiSharedService _uiSharedService;
     private readonly CharacterAnalyzer _characterAnalyzer;
+    private readonly ServerConfigurationManager _serverConfigurationManager;
     private List<IDrawFolder> _drawFolders;
     private DrawFolderBroadcasts? _broadcastsFolder;
     private Pair? _lastAddedUser;
@@ -64,7 +65,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager,
         ServerConfigurationManager serverManager, MareMediator mediator, FileUploadManager fileTransferManager,
         TagHandler tagHandler, DrawEntityFactory drawEntityFactory, SelectTagForPairUi selectTagForPairUi, SelectPairForTagUi selectPairForTagUi,
-        PerformanceCollectorService performanceCollectorService, IpcManager ipcManager, CharacterAnalyzer characterAnalyzer, PlayerPerformanceConfigService playerPerformanceConfig)
+        PerformanceCollectorService performanceCollectorService, IpcManager ipcManager, CharacterAnalyzer characterAnalyzer, 
+        PlayerPerformanceConfigService playerPerformanceConfig, ServerConfigurationManager serverConfigurationManager)
         : base(logger, mediator, "###PlayerSyncMainUI", performanceCollectorService)
     {
         _uiSharedService = uiShared;
@@ -82,7 +84,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         _selectPairsForGroupUi = selectPairForTagUi;
         _ipcManager = ipcManager;
         _characterAnalyzer = characterAnalyzer;
-        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _zoneSyncConfigService);
+        _serverConfigurationManager = serverConfigurationManager;
+        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _serverConfigurationManager, _zoneSyncConfigService);
 
         AllowClickthrough = false;
         TitleBarButtons = new()

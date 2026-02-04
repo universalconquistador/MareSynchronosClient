@@ -409,6 +409,25 @@ public class ServerConfigurationManager
         return null;
     }
 
+    internal string? GetProfileNoteForUid(string uid)
+    {
+        if (CurrentNotesStorage().UidServerProfileNotes.TryGetValue(uid, out var note))
+        {
+            if (string.IsNullOrEmpty(note)) return null;
+            return note;
+        }
+        return null;
+    }
+
+    internal PauseReason GetPauseReasonForUid(string uid)
+    {
+        if (CurrentNotesStorage().PausedUids.TryGetValue(uid, out var reason))
+        {
+            return reason;
+        }
+        return PauseReason.None;
+    }
+
     internal HashSet<string> GetServerAvailablePairTags()
     {
         return CurrentServerTagStorage().ServerAvailablePairTags;
@@ -472,6 +491,12 @@ public class ServerConfigurationManager
         }
     }
 
+    internal void RemovePauseReasonForUid(string uid)
+    {
+        CurrentNotesStorage().PausedUids.Remove(uid);
+        _notesConfig.Save();
+    }
+
     internal void RenameTag(string oldName, string newName)
     {
         CurrentServerTagStorage().ServerAvailablePairTags.Remove(oldName);
@@ -502,6 +527,36 @@ public class ServerConfigurationManager
         if (string.IsNullOrEmpty(uid)) return;
 
         CurrentNotesStorage().UidServerComments[uid] = note;
+        if (save)
+            _notesConfig.Save();
+    }
+
+    internal void SetPauseReasonForUid(string uid, PauseReason reason, bool save = true)
+    {
+        if (string.IsNullOrEmpty(uid)) return;
+
+        CurrentNotesStorage().PausedUids[uid] = reason;
+        if (save)
+            _notesConfig.Save();
+    }
+
+    internal void SetPauseReasonForUid(List<string> uids, PauseReason reason, bool save = true)
+    {
+        if (uids.Count == 0) return;
+
+        foreach (string uid in uids)
+        {
+            CurrentNotesStorage().PausedUids[uid] = reason;
+        }
+        if (save)
+            _notesConfig.Save();
+    }
+
+    internal void SetProfileNoteForUid(string uid, string note, bool save = true)
+    {
+        if (string.IsNullOrEmpty(uid)) return;
+
+        CurrentNotesStorage().UidServerProfileNotes[uid] = note;
         if (save)
             _notesConfig.Save();
     }
