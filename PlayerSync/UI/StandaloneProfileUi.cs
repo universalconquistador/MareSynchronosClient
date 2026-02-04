@@ -52,8 +52,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             MaximumSize = new Vector2(400, 700),
         };
 
-        _theme.FontHeading = _uiSharedService.GameFont;
-        _theme.FontBody = _uiSharedService.HeaderFont;
+        _theme.FontHeading = _uiSharedService.HeaderFont;
+        _theme.FontBody = _uiSharedService.GameFont;
 
         IsOpen = true;
     }
