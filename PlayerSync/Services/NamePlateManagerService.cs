@@ -111,7 +111,9 @@ namespace PlayerSync.Services
 
                 handle.FreeCompanyTag = fcTagBuilder.Build();
 
-                if (_configService.Current.ShowNameHighlights && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights))
+                if (_configService.Current.ShowNameHighlights 
+                    && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights)
+                    && !_dalamudUtil.IsBoundByDuty)
                 {
                     var textColor = MakeOpaque(color.Foreground);
                     var textGlow = MakeOpaque(color.Glow);
