@@ -42,7 +42,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     private readonly List<string> _errors = [];
 
     private readonly UiTheme _theme;
-    private ProfileV1 _liveProfile;
+    private ProfileV1? _liveProfile;
     private string _descriptionText = string.Empty;
 
     private bool _isNsfw;
@@ -105,8 +105,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             }
         });
 
-        _theme.FontHeading = _uiSharedService.GameFont;
-        _theme.FontBody = _uiSharedService.HeaderFont;
+        _theme.FontHeading = _uiSharedService.HeaderFont;
+        _theme.FontBody = _uiSharedService.GameFont;
     }
 
     private UserData Self => new(_apiController.UID);
@@ -140,6 +140,15 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         return true;
     }
 
+    public override void OnClose()
+    {
+        base.OnClose();
+        _liveProfile = null;
+        _hasProfileLoaded = false;
+        _dirty = false;
+        Mediator.Publish(new ClearProfileDataMessage(Self));
+    }
+
     protected override void DrawInternal()
     {
         using var windowStyle = _theme.PushWindowStyle();
@@ -161,10 +170,16 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             _liveProfile = profile;
         }
 
+        if (_liveProfile == null && _hasProfileLoaded)
+        {
+            _logger.LogDebug("Issue loading profile.");
+            return;
+        }
+
         if (IsProfileLoaded(raw) && IsNewProfile(raw))
         {
             // first time profile/nothing on server
-            _descriptionText = MareProfileManager.ProfileHandler.WriteJson(_liveProfile, Formatting.None);
+            _descriptionText = MareProfileManager.ProfileHandler.WriteJson(_liveProfile!, Formatting.None);
             _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
                         Disabled: false, IsNSFW: null, ProfilePictureBase64: null, Description: _descriptionText));
             _hasProfileLoaded = true;
@@ -262,7 +277,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
             ImGui.SetNextItemWidth(-1);
-            var preferredName = editorProfile.PreferredName;
+            var preferredName = editorProfile!.PreferredName;
             if (ImGui.InputText("##preferredname", ref preferredName, 20))
             {
                 editorProfile.PreferredName = preferredName;
@@ -283,7 +298,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         ImGui.Separator();
         ImGui.TextUnformatted("Relation Status");
-        var statusCurrent = _liveProfile.Status;
+        var statusCurrent = _liveProfile!.Status;
         ImGui.SetNextItemWidth(-1);
         var statucChanged = DrawStatusCombo("##status", ref statusCurrent);
         if (statucChanged)
@@ -309,7 +324,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         }
         _uiSharedService.DrawHelpText("If your profile description or image can be considered NSFW, toggle this to ON");
 
-        if (editorProfile.IsSupporter)
+        if (editorProfile!.IsSupporter)
         {
             ImGui.SameLine();
             var enableSupporter = editorProfile.EnableSupporterElements;
@@ -466,7 +481,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             ImGui.TableNextRow();
 
             ImGui.TableSetColumnIndex(0);
-            var primary = _liveProfile.Theme.PrimaryV4;
+            var primary = _liveProfile!.Theme.PrimaryV4;
             if (ImGui.ColorEdit4("Primary##col", ref primary, ImGuiColorEditFlags.NoInputs))
             {
                 _liveProfile.Theme.Primary = [primary.X, primary.Y, primary.Z, primary.W];
@@ -510,7 +525,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         const float radiusPx = 24f;
         var bannerHeight = UiScale.ScaledFloat(bannerHeightPx);
         var windowWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
-        var colorPrimary = _liveProfile.Theme.PrimaryV4;
+        var colorPrimary = _liveProfile!.Theme.PrimaryV4;
         var colorSecondary = _liveProfile.Theme.SecondaryV4;
         var colorAccent = _liveProfile.Theme.AccentV4;
         var displayName = !string.IsNullOrWhiteSpace(_liveProfile.PreferredName) ? _liveProfile.PreferredName : _apiController.DisplayName;
