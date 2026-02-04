@@ -42,7 +42,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     private readonly List<string> _errors = [];
 
     private readonly UiTheme _theme;
-    private ProfileV1 _liveProfile;
+    private ProfileV1 _liveProfile = new();
     private string _descriptionText = string.Empty;
 
     private bool _isNsfw;
@@ -105,8 +105,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             }
         });
 
-        _theme.FontHeading = _uiSharedService.GameFont;
-        _theme.FontBody = _uiSharedService.HeaderFont;
+        _theme.FontHeading = _uiSharedService.HeaderFont;
+        _theme.FontBody = _uiSharedService.GameFont;
     }
 
     private UserData Self => new(_apiController.UID);
@@ -138,6 +138,15 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             return false;
 
         return true;
+    }
+
+    public override void OnClose()
+    {
+        base.OnClose();
+        _liveProfile = null;
+        _hasProfileLoaded = false;
+        _dirty = false;
+        Mediator.Publish(new ClearProfileDataMessage(Self));
     }
 
     protected override void DrawInternal()
