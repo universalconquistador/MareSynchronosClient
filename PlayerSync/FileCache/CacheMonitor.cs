@@ -66,6 +66,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
         {
             Logger.LogInformation("Starting Periodic Storage Directory Calculation Task");
             var token = _periodicCalculationTokenSource.Token;
+
             while (!token.IsCancellationRequested)
             {
                 try
@@ -74,8 +75,9 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
                     {
                         await Task.Delay(1).ConfigureAwait(false);
                     }
-
+                    Logger.LogDebug("File storage scan starting...");
                     RecalculateFileCacheSize(token);
+                    Logger.LogDebug("File storage scan finished...");
                 }
                 catch
                 {
@@ -395,6 +397,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
         if (string.IsNullOrEmpty(_configService.Current.CacheFolder) || !Directory.Exists(_configService.Current.CacheFolder))
         {
             FileCacheSize = 0;
+            Logger.LogDebug("File directory scan returning with no dir for CacheFolder.");
             return;
         }
 
@@ -422,21 +425,47 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
                 }
                 catch
                 {
+                    Logger.LogDebug("File directory scan returning with error on FileCompactor.");
                     return 0;
                 }
             });
 
         var maxCacheInBytes = (long)(_configService.Current.MaxLocalCacheInGiB * 1024d * 1024d * 1024d);
 
+        Logger.LogDebug("File directory is within bounds: {bounds}", FileCacheSize < maxCacheInBytes);
         if (FileCacheSize < maxCacheInBytes) return;
 
+        Logger.LogDebug("File directory needs cleanup, starting file deletion.");
         var maxCacheBuffer = maxCacheInBytes * 0.05d;
         while (FileCacheSize > maxCacheInBytes - (long)maxCacheBuffer)
         {
             var oldestFile = files[0];
             FileCacheSize -= _fileCompactor.GetFileSizeOnDisk(oldestFile);
+            Logger.LogTrace("Deleting file: {file}", oldestFile.FullName);
             File.Delete(oldestFile.FullName);
             files.Remove(oldestFile);
+        }
+
+        // check for low disk space
+        try
+        {
+            var total = di.TotalSize;
+            if (total > 0)
+            {
+                var freeSpace = (double)di.AvailableFreeSpace / total;
+                bool buffer = di.AvailableFreeSpace < 5L * 1024 * 1024 * 1024;
+                if (freeSpace < 0.01 && buffer)
+                {
+                    Logger.LogError("Your PlayerSync storage drive is almost 100% full!");
+                    Mediator.Publish(new NotificationMessage("Local Storage Full",
+                    $"Your PlayerSync storage drive is almost 100% full! Please check: {di.Name}",
+                    MareConfiguration.Models.NotificationType.Error));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Cannot calculate remaining free space for storage drive: {drive}", di.Name);
         }
     }
 

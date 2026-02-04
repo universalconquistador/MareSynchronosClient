@@ -190,7 +190,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         if (unverifiedUploads.Any())
         {
             await UploadUnverifiedFiles(unverifiedUploads, visiblePlayers, uploadToken).ConfigureAwait(false);
-            Logger.LogInformation("Upload complete for {hash}", data.DataHash.Value);
+            Logger.LogDebug("Upload complete for {hash}", data.DataHash.Value);
         }
 
         foreach (var kvp in data.FileReplacements)
@@ -216,7 +216,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             UIDs = uids,
             FilenameExtensions = extensions,
         };
-        Logger.LogInformation("FilesSend with hashes: \n{hashes}\n, extensions: \n{extensions}", string.Join(',', hashes), System.Text.Json.JsonSerializer.Serialize(extensions, System.Text.Json.JsonSerializerOptions.Web));
+        Logger.LogDebug("FilesSend with hashes: \n{hashes}\n, extensions: \n{extensions}", string.Join(',', hashes), System.Text.Json.JsonSerializer.Serialize(extensions, System.Text.Json.JsonSerializerOptions.Web));
         var response = await _orchestrator.SendRequestAsync(HttpMethod.Post, MareFiles.ServerFilesFilesSendFullPath(_orchestrator.FilesCdnUri!), filesSendDto, ct).ConfigureAwait(false);
         return await response.Content.ReadFromJsonAsync<List<UploadFileDto>>(cancellationToken: ct).ConfigureAwait(false) ?? [];
     }
@@ -260,7 +260,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
     {
         if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
 
-        Logger.LogInformation("[{hash}] Uploading {size}", fileHash, UiSharedService.ByteToString(compressedFile.Length));
+        Logger.LogDebug("[{hash}] Uploading {size}", fileHash, UiSharedService.ByteToString(compressedFile.Length));
 
         if (uploadToken.IsCancellationRequested) return;
 
