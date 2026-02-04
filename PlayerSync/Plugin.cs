@@ -1,5 +1,4 @@
-﻿using Dalamud.Game.ClientState.Objects;
-using Dalamud.Interface.ImGuiFileDialog;
+﻿using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -29,10 +28,10 @@ using NReco.Logging.File;
 using System.Net.Http.Headers;
 using System.Reflection;
 using MareSynchronos.Services.CharaData;
-using Dalamud.Game;
 using PlayerSync.PlayerData.Pairs;
 using PlayerSync.Services;
 using PlayerSync.FileCache;
+using MareSynchronos.UI.ModernUi;
 
 namespace MareSynchronos;
 
@@ -143,7 +142,7 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<BlockedCharacterHandler>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<PerformanceCollectorService>(),
                 s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton(s => new PairManager(s.GetRequiredService<ILogger<PairManager>>(), s.GetRequiredService<PairFactory>(),
-                s.GetRequiredService<MareConfigService>(), s.GetRequiredService<MareMediator>(), contextMenu));
+                s.GetRequiredService<MareConfigService>(), s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<MareMediator>(), contextMenu));
             collection.AddSingleton<RedrawManager>();
             collection.AddSingleton(s => new NamePlateManagerService(s.GetRequiredService<ILogger<NamePlateManagerService>>(), s.GetRequiredService<MareMediator>(), 
                 namePlateGui, s.GetRequiredService<PairManager>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<MareConfigService>()));
@@ -203,6 +202,8 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<IConfigService<IMareConfiguration>>(s => s.GetRequiredService<CharaDataConfigService>());
             collection.AddSingleton<ConfigurationMigrator>();
             collection.AddSingleton<ConfigurationSaveService>();
+            collection.AddSingleton<UiTheme>();
+
             collection.AddSingleton<VersionUpdateCheckService>();
             collection.AddSingleton<CacheMonitor>();
             collection.AddSingleton<HubFactory>();
@@ -225,7 +226,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped<WindowMediatorSubscriberBase, PlayerAnalysisViewerUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, EditProfileUi>((s) => new EditProfileUi(s.GetRequiredService<ILogger<EditProfileUi>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<UiSharedService>(), s.GetRequiredService<FileDialogManager>(),
-                s.GetRequiredService<MareProfileManager>(), s.GetRequiredService<PerformanceCollectorService>()));
+                s.GetRequiredService<MareProfileManager>(), s.GetRequiredService<PerformanceCollectorService>(), s.GetRequiredService<UiTheme>()));
             collection.AddScoped<WindowMediatorSubscriberBase, PopupHandler>();
             collection.AddScoped<IPopupHandler, BanUserPopupHandler>();
             collection.AddScoped<IPopupHandler, CensusPopupHandler>();

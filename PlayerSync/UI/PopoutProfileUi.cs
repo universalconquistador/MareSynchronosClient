@@ -86,6 +86,7 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
             var spacing = ImGui.GetStyle().ItemSpacing;
 
             var mareProfile = _mareProfileManager.GetMareProfile(_pair.UserData);
+            var profile = MareProfileManager.ProfileHandler.Read(mareProfile.Description);
 
             if (_textureWrap == null || !mareProfile.ImageData.Value.SequenceEqual(_lastProfilePicture))
             {
@@ -118,9 +119,14 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
             var imagePos = ImGui.GetCursorPos();
             ImGuiHelpers.ScaledDummy(256, 256 * ImGuiHelpers.GlobalScale + spacing.Y);
             var note = _serverManager.GetNoteForUid(_pair.UserData.UID);
-            if (!string.IsNullOrEmpty(note))
+            var newNote = _serverManager.GetProfileNoteForUid(_pair.UserData.UID);
+            if (!string.IsNullOrEmpty(newNote))
             {
-                UiSharedService.ColorText(note, ImGuiColors.DalamudGrey);
+                UiSharedService.ColorTextWrapped(newNote, ImGuiColors.DalamudGrey);
+            }
+            else if (!string.IsNullOrEmpty(note))
+            {
+                UiSharedService.ColorTextWrapped(note, ImGuiColors.DalamudGrey);
             }
             string status = _pair.IsVisible ? "Visible" : (_pair.IsOnline ? "Online" : "Offline");
             UiSharedService.ColorText(status, (_pair.IsVisible || _pair.IsOnline) ? ImGuiColors.HealerGreen : ImGuiColors.DalamudRed);
@@ -158,7 +164,7 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
             ImGui.Separator();
             var font = _uiSharedService.GameFont.Push();
             var remaining = ImGui.GetWindowContentRegionMax().Y - ImGui.GetCursorPosY();
-            var descText = mareProfile.Description;
+            var descText = profile.AboutMe;
             var textSize = ImGui.CalcTextSize(descText, wrapWidth: 256f * ImGuiHelpers.GlobalScale);
             bool trimmed = textSize.Y > remaining;
             while (textSize.Y > remaining && descText.Contains(' '))
@@ -166,7 +172,7 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
                 descText = descText[..descText.LastIndexOf(' ')].TrimEnd();
                 textSize = ImGui.CalcTextSize(descText + $"...{Environment.NewLine}[Open Full Profile for complete description]", wrapWidth: 256f * ImGuiHelpers.GlobalScale);
             }
-            UiSharedService.TextWrapped(trimmed ? descText + $"...{Environment.NewLine}[Open Full Profile for complete description]" : mareProfile.Description);
+            UiSharedService.TextWrapped(trimmed ? descText + $"...{Environment.NewLine}[Open Full Profile for complete description]" : profile.AboutMe);
             font.Dispose();
 
             var padding = ImGui.GetStyle().WindowPadding.X / 2;

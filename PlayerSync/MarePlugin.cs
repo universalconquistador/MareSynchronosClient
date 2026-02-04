@@ -172,6 +172,11 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
                 Mediator.Publish(new SwitchToIntroUiMessage());
                 return;
             }
+            else if (!_mareConfigService.Current.FirstTimeSetupComplete)
+            {
+                _mareConfigService.Current.FirstTimeSetupComplete = true;
+                _mareConfigService.Save();
+            }
             _runtimeServiceScope.ServiceProvider.GetRequiredService<CacheCreationService>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<TransientResourceManager>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<VisibleUserDataDistributor>();

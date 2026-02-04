@@ -3,6 +3,7 @@ using MareSynchronos.FileCache;
 using MareSynchronos.Interop;
 using MareSynchronos.Interop.Meta;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Events;
 using MareSynchronos.Services.Mediator;
@@ -149,7 +150,7 @@ public class PlayerPerformanceService
             _mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
                 $"Exceeds triangle threshold: automatically paused ({triUsage}/{config.TrisAutoPauseThresholdThousands * 1000} triangles)")));
 
-            _mediator.Publish(new PauseMessage(pair.UserData));
+            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdTriangles));
 
             return false;
         }
@@ -225,7 +226,7 @@ public class PlayerPerformanceService
                 $" and has been automatically paused.",
                 MareConfiguration.Models.NotificationType.Warning));
 
-            _mediator.Publish(new PauseMessage(pair.UserData));
+            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdVram));
 
             _mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
                 $"Exceeds VRAM threshold: automatically paused ({UiSharedService.ByteToString(vramUsage, addSuffix: true)}/{config.VRAMSizeAutoPauseThresholdMiB} MiB)")));
@@ -301,7 +302,7 @@ public class PlayerPerformanceService
                 $"Their height: {actualHeight:F2}, your threshold: {threshold:F2}",
                 MareConfiguration.Models.NotificationType.Warning));
             }
-            _mediator.Publish(new PauseMessage(pair.UserData));
+            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdHeight));
 
             return false;
         }

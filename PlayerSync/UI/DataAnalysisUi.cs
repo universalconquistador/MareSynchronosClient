@@ -9,6 +9,7 @@ using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.ModernUi;
 using MareSynchronos.Utils;
 using Microsoft.Extensions.Logging;
 using System.Numerics;
@@ -38,12 +39,15 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
     private ObjectKind _selectedObjectTab;
     private bool _showModal = false;
     private CancellationTokenSource _transientRecordCts = new();
+    private UiNav.NavItem<AnalysisNav>? _selectedNavItem;
+    private readonly IReadOnlyList<(string GroupLabel, IReadOnlyList<UiNav.NavItem<AnalysisNav>> Items)> _analysisGroups;
+    private readonly UiTheme _theme;
 
     public DataAnalysisUi(ILogger<DataAnalysisUi> logger, MareMediator mediator,
         CharacterAnalyzer characterAnalyzer, IpcManager ipcManager,
         PerformanceCollectorService performanceCollectorService, UiSharedService uiSharedService,
         PlayerPerformanceConfigService playerPerformanceConfig, TransientResourceManager transientResourceManager,
-        TransientConfigService transientConfigService)
+        TransientConfigService transientConfigService, UiTheme theme)
         : base(logger, mediator, "PlayerSync Character Data Analysis", performanceCollectorService)
     {
         _characterAnalyzer = characterAnalyzer;
@@ -52,6 +56,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
         _playerPerformanceConfig = playerPerformanceConfig;
         _transientResourceManager = transientResourceManager;
         _transientConfigService = transientConfigService;
+        _theme = theme;
         Mediator.Subscribe<CharacterDataAnalyzedMessage>(this, (_) =>
         {
             _hasUpdate = true;
@@ -60,8 +65,8 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
         {
             MinimumSize = new()
             {
-                X = 800,
-                Y = 600
+                X = 1000,
+                Y = 800
             },
             MaximumSize = new()
             {
@@ -70,10 +75,83 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
             }
         };
 
+        _analysisGroups =
+        [
+            ("Mod Files", new List<UiNav.NavItem<AnalysisNav>>
+            {
+                new(AnalysisNav.Analysis, "Analysis", DrawAnalysis, FontAwesomeIcon.MagnifyingGlassChart),
+                new(AnalysisNav.Compression, "Compression", DrawCompression, FontAwesomeIcon.Compress),
+                new(AnalysisNav.Transient, "Transient", DrawTransient, FontAwesomeIcon.ArrowsUpDownLeftRight),
+            }),
+        ];
+
         _conversionProgress.ProgressChanged += ConversionProgress_ProgressChanged;
     }
 
+    private enum AnalysisNav
+    {
+        Analysis,
+        Compression,
+        Transient,
+    }
+
+    private void DrawAnalysisContent()
+    {
+        _selectedNavItem = UiNav.DrawSidebar(_theme, "Chara Data Analysis", _analysisGroups, _selectedNavItem, widthPx: 180f, iconFont: _uiSharedService.IconFont);
+
+        var panePad = UiScale.ScaledFloat(_theme.PanelPad);
+        var paneGap = UiScale.ScaledFloat(_theme.PanelGap);
+
+        ImGui.SameLine(0, paneGap);
+        using var padding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(panePad, panePad));
+        using var pane = ImRaii.Child("##side-pane", new Vector2(0, 0), false);
+        Ui.AddVerticalSpace(2);
+
+        _selectedNavItem.NavAction.Invoke();
+    }
+
     protected override void DrawInternal()
+    {
+        using var _ = _theme.PushWindowStyle();
+
+        CompressionTaskPopup();
+
+        DrawAnalysisContent();
+    }
+
+    private void DrawCompression()
+    {
+        _uiSharedService.BigText("Compression");
+        ImGuiHelpers.ScaledDummy(2);
+    }
+
+    private void DrawTransient()
+    {
+        _uiSharedService.BigText("Transient");
+        ImGuiHelpers.ScaledDummy(2);
+        using var tabbar = ImRaii.TabBar("transientData");
+
+        using (var transientData = ImRaii.TabItem("Stored Transient File Data"))
+        {
+            using var id = ImRaii.PushId("data");
+
+            if (transientData)
+            {
+                DrawStoredData();
+            }
+        }
+        using (var transientRecord = ImRaii.TabItem("Record Transient Data"))
+        {
+            using var id = ImRaii.PushId("recording");
+
+            if (transientRecord)
+            {
+                DrawRecording();
+            }
+        }
+    }
+
+    private void CompressionTaskPopup()
     {
         if (_conversionTask != null && !_conversionTask.IsCompleted)
         {
@@ -113,42 +191,6 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
         {
             _cachedAnalysis = _characterAnalyzer.LastAnalysis.DeepClone();
             _hasUpdate = false;
-        }
-
-        using var tabBar = ImRaii.TabBar("analysisRecordingTabBar");
-        using (var tabItem = ImRaii.TabItem("Analysis"))
-        {
-            if (tabItem)
-            {
-                using var id = ImRaii.PushId("analysis");
-                DrawAnalysis();
-            }
-        }
-        using (var tabItem = ImRaii.TabItem("Transient Files"))
-        {
-            if (tabItem)
-            {
-                using var tabbar = ImRaii.TabBar("transientData");
-
-                using (var transientData = ImRaii.TabItem("Stored Transient File Data"))
-                {
-                    using var id = ImRaii.PushId("data");
-
-                    if (transientData)
-                    {
-                        DrawStoredData();
-                    }
-                }
-                using (var transientRecord = ImRaii.TabItem("Record Transient Data"))
-                {
-                    using var id = ImRaii.PushId("recording");
-
-                    if (transientRecord)
-                    {
-                        DrawRecording();
-                    }
-                }
-            }
         }
     }
 
@@ -474,6 +516,8 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
 
     private void DrawAnalysis()
     {
+        _uiSharedService.BigText("Analysis");
+        ImGuiHelpers.ScaledDummy(2);
         UiSharedService.DrawTree("What is this? (Explanation / Help)", () =>
         {
             UiSharedService.TextWrapped("This tab shows you all files and their sizes that are currently in use through your character and associated entities in PlayerSync");
@@ -517,7 +561,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
         ImGui.SameLine();
         ImGui.TextUnformatted(_cachedAnalysis!.Values.Sum(c => c.Values.Count).ToString());
         ImGui.SameLine();
-        using (var font = ImRaii.PushFont(UiBuilder.IconFont))
+        using (_uiSharedService.IconFont.Push())
         {
             ImGui.TextUnformatted(FontAwesomeIcon.InfoCircle.ToIconString());
         }
@@ -555,7 +599,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
                 ImGui.TextUnformatted(kvp.Value.Count.ToString());
                 ImGui.SameLine();
 
-                using (var font = ImRaii.PushFont(UiBuilder.IconFont))
+                using (_uiSharedService.IconFont.Push())
                 {
                     ImGui.TextUnformatted(FontAwesomeIcon.InfoCircle.ToIconString());
                 }
