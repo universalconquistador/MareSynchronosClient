@@ -169,13 +169,9 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         {
             await _apiController.GroupZoneJoin(new(ownLocation, joinPermissions)).ConfigureAwait(false);
         }
-        catch (HubException)
+        catch (HubException ex)
         {
-            var message = "This sync service does not support ZoneSync and the feature will be disabled.";
-            Logger.LogError(message);
-            Mediator.Publish(new NotificationMessage("ZoneSync Error", message, NotificationType.Error, TimeSpan.FromSeconds(7.5)));
-            _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = false;
-            _zoneSyncConfigService.Save();
+            _logger.LogError(ex, "Error in sending GroupZoneJoin message.");
         }
         catch (AggregateException)
         {
