@@ -89,4 +89,5 @@ public class MareConfig : IMareConfiguration
     public bool MysterySetting {  get; set; } = false;
     public bool InitialSetupOptions { get; set; } = false;
     public bool FirstTimeSetupComplete { get; set; } = false;
+    public bool AllowPairingRequests { get; set; } = true;
 }

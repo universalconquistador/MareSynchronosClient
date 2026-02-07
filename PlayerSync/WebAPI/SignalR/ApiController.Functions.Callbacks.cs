@@ -245,6 +245,12 @@ public partial class ApiController
         return Task.CompletedTask;
     }
 
+    public Task Client_UpdatePairRequests(UserPairRequestsDto dto)
+    {
+        ExecuteSafely(() => _pairRequestManager.UpdatePairRequests(dto));
+        return Task.CompletedTask;
+    }
+
     public void OnGroupChangePermissions(Action<GroupPermissionDto> act)
     {
         if (_initialized) return;
@@ -412,6 +418,12 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_BroadcastListeningChanged), act);
+    }
+
+    public void OnUpdatePairRequests(Action<UserPairRequestsDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_UpdatePairRequests), act);
     }
 
     private void ExecuteSafely(Action act)

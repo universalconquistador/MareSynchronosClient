@@ -152,6 +152,10 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     {
         get => _targetManager.Target?.Name.TextValue ?? "";
     }
+    public unsafe nint TargetAddress
+    {
+        get => _targetManager.Target?.Address ?? nint.Zero;
+    }
 
     private unsafe bool HasGposeTarget => GposeTarget != null;
     private unsafe int GPoseTargetIdx => !HasGposeTarget ? -1 : GposeTarget->ObjectIndex;

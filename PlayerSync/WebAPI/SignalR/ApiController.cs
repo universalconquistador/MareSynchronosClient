@@ -31,6 +31,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private readonly ServerConfigurationManager _serverManager;
     private readonly TokenProvider _tokenProvider;
     private readonly MareConfigService _mareConfigService;
+    private readonly PairRequestManager _pairRequestManager;
     private CancellationTokenSource _connectionCancellationTokenSource;
     private ConnectionDto? _connectionDto;
     private bool _doNotNotifyOnNextInfo = false;
@@ -43,7 +44,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public ApiController(ILogger<ApiController> logger, HubFactory hubFactory, DalamudUtilService dalamudUtil,
         PairManager pairManager, ServerConfigurationManager serverManager, MareMediator mediator,
-        TokenProvider tokenProvider, MareConfigService mareConfigService) : base(logger, mediator)
+        TokenProvider tokenProvider, MareConfigService mareConfigService, PairRequestManager pairRequestManager) : base(logger, mediator)
     {
         _hubFactory = hubFactory;
         _dalamudUtil = dalamudUtil;
@@ -51,6 +52,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         _serverManager = serverManager;
         _tokenProvider = tokenProvider;
         _mareConfigService = mareConfigService;
+        _pairRequestManager = pairRequestManager;
         _connectionCancellationTokenSource = new CancellationTokenSource();
 
         Mediator.Subscribe<DalamudLoginMessage>(this, (_) => DalamudUtilOnLogIn());
@@ -70,6 +72,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         {
             DalamudUtilOnLogIn();
         }
+
     }
 
     public string AuthFailureMessage { get; private set; } = string.Empty;

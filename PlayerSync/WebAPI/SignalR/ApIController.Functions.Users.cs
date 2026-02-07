@@ -110,6 +110,18 @@ public partial class ApiController
         await _mareHub!.InvokeAsync(nameof(UserUpdateDefaultPermissions), defaultPermissionsDto).ConfigureAwait(false);
     }
 
+    public async Task UserMakePairRequest(UserPairRequestDto request)
+    {
+        CheckConnection();
+        await _mareHub!.InvokeAsync(nameof(UserMakePairRequest), request).ConfigureAwait(false);
+    }
+
+    public async Task UserRejectPairRequest(UserData user)
+    {
+        CheckConnection();
+        await _mareHub!.InvokeAsync(nameof(UserRejectPairRequest), user).ConfigureAwait(false);
+    }
+
     private async Task PushCharacterDataInternal(CharacterData character, List<UserData> visibleCharacters)
     {
         Logger.LogInformation("Pushing character data for {hash} to {charas}", character.DataHash.Value, string.Join(", ", visibleCharacters.Select(c => c.AliasOrUID)));
