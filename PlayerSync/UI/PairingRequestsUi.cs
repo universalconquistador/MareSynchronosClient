@@ -25,7 +25,6 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
         _uiSharedService = uiSharedService;
         _theme = theme;
 
-        Mediator.Subscribe<TogglePairRequestsWindow>(this, (_) => Toggle());
         Mediator.Subscribe<GposeStartMessage>(this, (_) => IsOpen = false);
 
         SizeConstraints = new()

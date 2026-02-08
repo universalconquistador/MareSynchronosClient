@@ -84,7 +84,7 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
         // not being dragged so this must be a click action
         if (pillWasClicked && !_isDraggingPill)
         {
-            Mediator.Publish(new TogglePairRequestsWindow());
+            Mediator.Publish(new UiToggleMessage(typeof(PairingRequestsUi)));
         }
 
         if (ImGui.IsItemDeactivated())
