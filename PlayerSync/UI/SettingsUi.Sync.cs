@@ -12,6 +12,8 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
+    private string _uidToAddForIgnorePairRequest = string.Empty;
+    private int _selectedIgnoreEntry = -1;
     private UiNav.Tab<SyncTabs>? _selectedTabSync;
 
     private IReadOnlyList<UiNav.Tab<SyncTabs>>? _syncTabs;
@@ -19,6 +21,7 @@ public partial class SettingsUi
     [
         new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
         new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),
+        new(SyncTabs.Pairs, "Pair Requests", DrawPairRequests),
         new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
         new(SyncTabs.Permissions, "Permissions", GoToPermissions),
     ];
@@ -27,6 +30,7 @@ public partial class SettingsUi
     {
         Zone,
         Broadcast,
+        Pairs,
         Filter,
         Permissions
     }
@@ -194,6 +198,69 @@ public partial class SettingsUi
                 : "Click to turn ON broadcast features." + UiSharedService.TooltipSeparator + "Shows Syncshells broadcasting in your location for easy joining."
         );
     }
+
+    private void DrawPairRequests()
+    {
+        _uiShared.BigText("Pair Requests");
+        ImGuiHelpers.ScaledDummy(2);
+
+        UiSharedService.TextWrapped("This setting will allow other players to send you a requst to direct pair.");
+        UiSharedService.TextWrapped("If this setting is disabled, you can still pair normally by entering their UID/Vanity code.");
+        ImGuiHelpers.ScaledDummy(5f);
+
+        var allowPairingRequests = _configService.Current.AllowPairingRequests;
+        if (ImGui.Checkbox("Allow Pairing Requests", ref allowPairingRequests))
+        {
+            _configService.Current.AllowPairingRequests = allowPairingRequests;
+            _configService.Save();
+        }
+        ImGuiHelpers.ScaledDummy(5f);
+        
+
+        _uiShared.BigText("Ignored UIDs");
+        UiSharedService.TextWrapped("You will not be notified of pair requests for ignored UIDs.");
+        ImGui.Dummy(new Vector2(10));
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        ImGui.InputText("##ignoreuid", ref _uidToAddForIgnorePairRequest, 20);
+        ImGui.SameLine();
+        using (ImRaii.Disabled(string.IsNullOrEmpty(_uidToAddForIgnorePairRequest)))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Plus, "Add UID to ignore list"))
+            {
+                if (!_serverConfigurationManager.IsUidBlacklistedForPairRequest(_uidToAddForIgnorePairRequest))
+                {
+                    _serverConfigurationManager.AddPairingRequestBlacklistUid(_uidToAddForIgnorePairRequest);
+                }
+                _uidToAddForIgnorePairRequest = string.Empty;
+            }
+        }
+        _uiShared.DrawHelpText("Hint: UIDs are case sensitive.");
+        var ignoreUidList = _serverConfigurationManager.GetAllBlacklistUidForPairRequest();
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        using (var lb = ImRaii.ListBox("Pair Request Ignore List"))
+        {
+            if (lb)
+            {
+                for (int i = 0; i < ignoreUidList.Count; i++)
+                {
+                    bool shouldBeSelected = _selectedIgnoreEntry == i;
+                    if (ImGui.Selectable(ignoreUidList[i] + "##" + i, shouldBeSelected))
+                    {
+                        _selectedIgnoreEntry = i;
+                    }
+                }
+            }
+        }
+        using (ImRaii.Disabled(_selectedIgnoreEntry == -1))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete selected UID"))
+            {
+                _serverConfigurationManager.RemovePairingRequestBlacklistUid(ignoreUidList[_selectedIgnoreEntry]);
+                _selectedIgnoreEntry = -1;
+            }
+        }
+    }
+
     private void DrawSyncFilter()
     {
         bool filterSounds = _configService.Current.FilterSounds;

@@ -7,4 +7,5 @@ public class ServerNotesStorage
     public Dictionary<string, string> UidServerProfileNotes { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, PauseReason> PausedUids { get; set; } = new(StringComparer.Ordinal);
     public List<string> PairingBlacklistUids { get; set; } = new();
+    public Dictionary<string, string> PendingRequests{ get; set; } = new(StringComparer.Ordinal);
 }

@@ -1,15 +1,14 @@
-﻿using Dalamud.Game.Gui.ContextMenu;
+﻿using Microsoft.Extensions.Logging;
+using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
+using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
-using MareSynchronos.Utils;
+using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.WebAPI;
-using Microsoft.Extensions.Logging;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using MareSynchronos.API.Data;
 
 namespace MareSynchronos.PlayerData.Pairs
 {
@@ -20,19 +19,22 @@ namespace MareSynchronos.PlayerData.Pairs
         private readonly DalamudUtilService _dalamudUtilService;
         private readonly PairManager _pairManager;
         private readonly ApiController _apiController;
+        private readonly ServerConfigurationManager _serverConfigurationManager;
         private List<UserPairRequestFullDto> _pendingPairRequests = new();
 
         public PairRequestManager(ILogger<PairRequestManager> logger, MareMediator mediator, IContextMenu dalamudContextMenu,
             MareConfigService mareConfigService, DalamudUtilService dalamudUtilService, PairManager pairManager,
-            ApiController apiController) : base(logger, mediator)
+            ApiController apiController, ServerConfigurationManager serverConfigurationManager) : base(logger, mediator)
         {
             _dalamudContextMenu = dalamudContextMenu;
             _dalamudUtilService = dalamudUtilService;
             _configurationService = mareConfigService;
             _pairManager = pairManager;
             _apiController = apiController;
+            _serverConfigurationManager = serverConfigurationManager;
 
             Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPendingPairRequests());
+            Mediator.Subscribe<PairRequestsUpdate>(this, (msg) => UpdatePairRequests(msg.Dto));
 
             _dalamudContextMenu.OnMenuOpened += DalamudContextMenuOnOnOpenGameObjectContextMenu;
         }
@@ -46,6 +48,8 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private string SelfUID => _apiController.UID;
 
+        public int ReceivedPendingCount => _pendingPairRequests.Count(p => p.RequestTarget.UID == SelfUID);
+
         public List<UserPairRequestFullDto> GetReceivedPendingRequests()
         {
             return _pendingPairRequests.Where(p => p.RequestTarget.UID == SelfUID).ToList();
@@ -56,21 +60,79 @@ namespace MareSynchronos.PlayerData.Pairs
             return _pendingPairRequests.Where(p => p.Requestor.UID == SelfUID).ToList();
         }
 
-        public void AcceptPendingPairRequest(string targetIdent)
+        public void SendPairRequest(string targetIdent)
         {
-            Logger.LogDebug("Accepting pair request for {ident}", targetIdent);
-            _ = SendPairRequest(targetIdent);
+            Logger.LogDebug("Sending pair request for {ident}", targetIdent);
+            _ = SendPairRequestInternal(targetIdent: targetIdent);
         }
 
-        public void RejectPendingPairRequest(UserData userData)
+        public void SendPairRequest(UserData userData)
+        {
+            Logger.LogDebug("Sending pair request for {user}", userData.UID);
+            _ = SendPairRequestInternal(userData: userData);
+        }
+
+        public void SendPairRejection(UserData userData)
         {
             Logger.LogDebug("Rejecting pair request for {user}", userData.UID);
-            _ = SendPairRejection(userData);
+            _ = SendPairRejectionInternal(userData);
         }
 
-        public void UpdatePairRequests(UserPairRequestsDto pairRequest)
+        private void UpdatePairRequests(UserPairRequestsDto pairRequest)
         {
-            //
+            var incomingPairRequests = pairRequest?.PairingRequests ?? [];
+            var requestsToSelf = new HashSet<string>(incomingPairRequests.Where(r => r.RequestTarget.UID == SelfUID).Select(r => r.Requestor.UID), StringComparer.Ordinal);
+            var existingRequests = new HashSet<string>(_pendingPairRequests.Where(r => r.RequestTarget.UID == SelfUID).Select(r => r.Requestor.UID), StringComparer.Ordinal);
+            var newIncomingRequestorUids = requestsToSelf.Where(uid => !existingRequests.Contains(uid)).ToList();
+
+            _pendingPairRequests = incomingPairRequests;
+
+            // handle new requests
+            if (newIncomingRequestorUids.Count > 0)
+            {
+                var newRequests = _pendingPairRequests.Where(r => r.RequestTarget.UID == SelfUID && newIncomingRequestorUids.Contains(r.Requestor.UID)).ToList();
+                foreach (var req in newRequests)
+                {
+                    if (_serverConfigurationManager.IsUidBlacklistedForPairRequest(req.Requestor.UID))
+                    {
+                        _ = SendPairRejectionInternal(req.Requestor);
+                    }
+
+                    var name = "";
+                    try
+                    {
+                        name = _dalamudUtilService.FindPlayerByNameHash(req.RequestorIdent).Name;
+                        _serverConfigurationManager.AddPendingRequestForIdent(req.RequestorIdent, name ?? "");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogDebug(ex, "Could not find player for {ident}", req.RequestorIdent);
+                    }
+
+                    var msg = name != "" ? $"Player {name} ({req.Requestor.AliasOrUID}) " : $"UID/Alias {req.Requestor.AliasOrUID} ";
+                    Mediator.Publish(new NotificationMessage("New Pair Request", msg + "has sent you request to pair.", MareConfiguration.Models.NotificationType.Info));
+                }
+            }
+
+            // clean up the local ident cache
+            var pendingIdents = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var request in _pendingPairRequests)
+            {
+                if (!string.IsNullOrWhiteSpace(request.RequestorIdent))
+                    pendingIdents.Add(request.RequestorIdent);
+
+                if (!string.IsNullOrWhiteSpace(request.RequestTargetIdent))
+                    pendingIdents.Add(request.RequestTargetIdent);
+            }
+
+            var knownIdents = _serverConfigurationManager.GetAllPendingPairRequestIdent();
+            foreach (var ident in knownIdents)
+            {
+                if (!pendingIdents.Contains(ident))
+                {
+                    _serverConfigurationManager.RemovePendingRequestForIdent(ident);
+                }
+            }
         }
 
         private unsafe void DalamudContextMenuOnOnOpenGameObjectContextMenu(IMenuOpenedArgs args)
@@ -79,8 +141,12 @@ namespace MareSynchronos.PlayerData.Pairs
             if (args.MenuType == ContextMenuType.Inventory) return;
             if (!_configurationService.Current.EnableRightClickMenus) return;
 
-            // ensure it's a player
             var target = _dalamudUtilService.TargetAddress;
+
+            // don't add menu to self
+            if (_dalamudUtilService.GetPlayerPtr() == target) return;
+
+            // ensure it's a player
             var playerCharacter = ((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)target);
             var isPlayerCharacter = playerCharacter->GetObjectKind() == FFXIVClientStructs.FFXIV.Client.Game.Object.ObjectKind.Pc;
             if (!isPlayerCharacter) return;
@@ -89,10 +155,7 @@ namespace MareSynchronos.PlayerData.Pairs
             var isUserPaired = _pairManager.DirectPairs.Exists(p => p.Address == target);
             if (isUserPaired) return;
 
-            var targetName = ((BattleChara*)playerCharacter)->NameString;
-            Logger.LogDebug("Target ident name is {name}", targetName);
-
-            var targetIdent = ((BattleChara*)playerCharacter)->Character.ContentId.ToString().GetHash256();
+            var targetIdent = DalamudUtilService.GetHashedCIDFromPlayerPointer(target);
             if (targetIdent == null) return;
 
             try
@@ -113,19 +176,19 @@ namespace MareSynchronos.PlayerData.Pairs
             args.AddMenuItem(new MenuItem()
             {
                 Name = pairIndividually,
-                OnClicked = (a) => _ = SendPairRequest(targetIdent),
+                OnClicked = (a) => _ = SendPairRequestInternal(targetIdent),
                 UseDefaultPrefix = false,
                 PrefixChar = 'P',
                 PrefixColor = 530
             });
         }
 
-        private async Task SendPairRequest(string targetIdent)
+        private async Task SendPairRequestInternal(string? targetIdent = null, UserData? userData = null)
         {
-            Logger.LogDebug("Got here when clicking {id}", targetIdent);
+            await _apiController.UserMakePairRequest(new(RequestTargetIdent: targetIdent, UserData: userData)).ConfigureAwait(false);
         }
 
-        private async Task SendPairRejection(UserData userData)
+        private async Task SendPairRejectionInternal(UserData userData)
         {
             await _apiController.UserRejectPairRequest(userData).ConfigureAwait(false);
         }

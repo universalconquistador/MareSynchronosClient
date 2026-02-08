@@ -68,13 +68,13 @@ public class Pair
         SeStringBuilder seStringBuilder2 = new();
         SeStringBuilder seStringBuilder3 = new();
         SeStringBuilder seStringBuilder4 = new();
-        SeStringBuilder seStringBuilder5 = new();
+        //SeStringBuilder seStringBuilder5 = new();
         SeStringBuilder seStringBuilder6 = new();
         var openProfileSeString = seStringBuilder.AddText("Open Profile").Build();
         var reapplyDataSeString = seStringBuilder2.AddText("Reapply Last Data").Build();
         var cyclePauseState = seStringBuilder3.AddText("Cycle Pause State").Build();
         var changePermissions = seStringBuilder4.AddText("Change Permissions").Build();
-        var pairIndividually = seStringBuilder5.AddText("Pair Individually").Build();
+        //var pairIndividually = seStringBuilder5.AddText("Pair Individually").Build();
         var pauseForever = seStringBuilder6.AddText("Keep Paused").Build();
         args.AddMenuItem(new MenuItem()
         {
@@ -113,17 +113,17 @@ public class Pair
         });
 
         // Only show the option to pair if we don't already have a pairing
-        if (IndividualPairStatus == IndividualPairStatus.None)
-        {
-            args.AddMenuItem(new MenuItem()
-            {
-                Name = pairIndividually,
-                OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
-                UseDefaultPrefix = false,
-                PrefixChar = 'P',
-                PrefixColor = 530
-            });
-        }
+        //if (IndividualPairStatus == IndividualPairStatus.None)
+        //{
+        //    args.AddMenuItem(new MenuItem()
+        //    {
+        //        Name = pairIndividually,
+        //        OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
+        //        UseDefaultPrefix = false,
+        //        PrefixChar = 'P',
+        //        PrefixColor = 530
+        //    });
+        //}
 
         // This kind of acts like a blacklist feature
         args.AddMenuItem(new MenuItem()

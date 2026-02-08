@@ -247,7 +247,7 @@ public partial class ApiController
 
     public Task Client_UpdatePairRequests(UserPairRequestsDto dto)
     {
-        ExecuteSafely(() => _pairRequestManager.UpdatePairRequests(dto));
+        ExecuteSafely(() => Mediator.Publish(new PairRequestsUpdate(dto)));
         return Task.CompletedTask;
     }
 

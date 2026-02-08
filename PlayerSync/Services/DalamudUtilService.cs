@@ -324,7 +324,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return await RunOnFrameworkThread(() => _cid.Value.ToString().GetHash256()).ConfigureAwait(false);
     }
 
-    private unsafe static string GetHashedCIDFromPlayerPointer(nint ptr)
+    public unsafe static string GetHashedCIDFromPlayerPointer(nint ptr)
     {
         return ((BattleChara*)ptr)->Character.ContentId.ToString().GetHash256();
     }

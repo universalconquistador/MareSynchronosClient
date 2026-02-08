@@ -31,7 +31,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private readonly ServerConfigurationManager _serverManager;
     private readonly TokenProvider _tokenProvider;
     private readonly MareConfigService _mareConfigService;
-    private readonly PairRequestManager _pairRequestManager;
     private CancellationTokenSource _connectionCancellationTokenSource;
     private ConnectionDto? _connectionDto;
     private bool _doNotNotifyOnNextInfo = false;
@@ -44,7 +43,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public ApiController(ILogger<ApiController> logger, HubFactory hubFactory, DalamudUtilService dalamudUtil,
         PairManager pairManager, ServerConfigurationManager serverManager, MareMediator mediator,
-        TokenProvider tokenProvider, MareConfigService mareConfigService, PairRequestManager pairRequestManager) : base(logger, mediator)
+        TokenProvider tokenProvider, MareConfigService mareConfigService) : base(logger, mediator)
     {
         _hubFactory = hubFactory;
         _dalamudUtil = dalamudUtil;
@@ -52,7 +51,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         _serverManager = serverManager;
         _tokenProvider = tokenProvider;
         _mareConfigService = mareConfigService;
-        _pairRequestManager = pairRequestManager;
         _connectionCancellationTokenSource = new CancellationTokenSource();
 
         Mediator.Subscribe<DalamudLoginMessage>(this, (_) => DalamudUtilOnLogIn());
@@ -60,7 +58,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Mediator.Subscribe<HubClosedMessage>(this, (msg) => MareHubOnClosed(msg.Exception));
         Mediator.Subscribe<HubReconnectedMessage>(this, (msg) => _ = MareHubOnReconnectedAsync());
         Mediator.Subscribe<HubReconnectingMessage>(this, (msg) => MareHubOnReconnecting(msg.Exception));
-        Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
+        //Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
         Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
         Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData, msg.Reason));
@@ -483,6 +481,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         OnGposeLobbyPushWorldData((dto, data) => _ = Client_GposeLobbyPushWorldData(dto, data));
 
         OnBroadcastListeningChanged(isListening => _ = Client_BroadcastListeningChanged(isListening));
+        OnUpdatePairRequests(dto => _ = Client_UpdatePairRequests(dto));
 
         _healthCheckTokenSource?.Cancel();
         _healthCheckTokenSource?.Dispose();
