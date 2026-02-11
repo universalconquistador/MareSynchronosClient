@@ -23,7 +23,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly ServerConfigurationManager _serverManager;
     private readonly UiSharedService _uiSharedService;
-    private readonly FileDownloadManager _fileDownloadManager;
+    private readonly FileImageTransferHandler _fileImageTransferHandler;
 
     private byte[]? _lastProfilePicture;
     private byte[] _lastSupporterPicture = [];
@@ -36,7 +36,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
     public StandaloneProfileUi(ILogger<StandaloneProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
         ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair,
-        PerformanceCollectorService performanceCollector, UiTheme theme, FileDownloadManager fileDownloadManager)
+        PerformanceCollectorService performanceCollector, UiTheme theme, FileImageTransferHandler fileImageTransferHandler)
         : base(logger, mediator, "PlayerSync Profile of " + pair.UserData.AliasOrUID + "##PlayerSyncStandaloneProfileUI" + pair.UserData.AliasOrUID, performanceCollector)
     {
         _uiSharedService = uiBuilder;
@@ -45,7 +45,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         _theme = theme;
         Pair = pair;
         _pairManager = pairManager;
-        _fileDownloadManager = fileDownloadManager;
+        _fileImageTransferHandler = fileImageTransferHandler;
 
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar 
             | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoBackground;
@@ -98,7 +98,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         var cancellationToken = _profileImageDownloadCts.Token;
 
         // let download run in background
-        _profileImageDownloadTask = _fileDownloadManager.DownloadProfileImageAsync(Pair.UserData.UID, cancellationToken,
+        _profileImageDownloadTask = _fileImageTransferHandler.DownloadProfileImageAsync(Pair.UserData.UID, cancellationToken,
             imageBytes => _lastProfilePicture = imageBytes);
     }
 

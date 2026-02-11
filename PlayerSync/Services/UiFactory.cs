@@ -6,6 +6,7 @@ using MareSynchronos.UI;
 using MareSynchronos.UI.Components.Popup;
 using MareSynchronos.UI.ModernUi;
 using MareSynchronos.WebAPI;
+using MareSynchronos.WebAPI.Files;
 using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.Services;
@@ -22,10 +23,12 @@ public class UiFactory
     private readonly PerformanceCollectorService _performanceCollectorService;
     private readonly IBroadcastManager _broadcastManager;
     private readonly UiTheme _theme;
+    private readonly FileImageTransferHandler _fileImageTransferHandler;
 
     public UiFactory(ILoggerFactory loggerFactory, MareMediator mareMediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, ServerConfigurationManager serverConfigManager,
-        MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService, UiTheme theme)
+        MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService, 
+        UiTheme theme, FileImageTransferHandler fileImageTransferHandler)
     {
         _loggerFactory = loggerFactory;
         _mareMediator = mareMediator;
@@ -37,6 +40,7 @@ public class UiFactory
         _broadcastManager = broadcastManager;
         _performanceCollectorService = performanceCollectorService;
         _theme = theme;
+        _fileImageTransferHandler = fileImageTransferHandler;
     }
 
     public SyncshellAdminUI CreateSyncshellAdminUi(GroupFullInfoDto dto)
@@ -54,7 +58,7 @@ public class UiFactory
     public StandaloneProfileUi CreateStandaloneProfileUi(Pair pair)
     {
         return new StandaloneProfileUi(_loggerFactory.CreateLogger<StandaloneProfileUi>(), _mareMediator,
-            _uiSharedService, _serverConfigManager, _mareProfileManager, _pairManager, pair, _performanceCollectorService, _theme);
+            _uiSharedService, _serverConfigManager, _mareProfileManager, _pairManager, pair, _performanceCollectorService, _theme, _fileImageTransferHandler);
     }
 
     public PermissionWindowUI CreatePermissionPopupUi(Pair pair)

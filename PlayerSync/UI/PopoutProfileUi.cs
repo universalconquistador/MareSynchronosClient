@@ -21,7 +21,7 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly ServerConfigurationManager _serverManager;
     private readonly UiSharedService _uiSharedService;
-    private readonly FileDownloadManager _fileDownloadManager;
+    private readonly FileImageTransferHandler _fileImageTransferHandler;
     private Vector2 _lastMainPos = Vector2.Zero;
     private Vector2 _lastMainSize = Vector2.Zero;
     private byte[] _lastProfilePicture = [];
@@ -35,13 +35,13 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
     public PopoutProfileUi(ILogger<PopoutProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
         ServerConfigurationManager serverManager, MareConfigService mareConfigService,
         MareProfileManager mareProfileManager, PairManager pairManager, PerformanceCollectorService performanceCollectorService, 
-        FileDownloadManager fileDownloadManager): base(logger, mediator, "###PlayerSyncPopoutProfileUI", performanceCollectorService)
+        FileImageTransferHandler fileImageTransferHandler): base(logger, mediator, "###PlayerSyncPopoutProfileUI", performanceCollectorService)
     {
         _uiSharedService = uiBuilder;
         _serverManager = serverManager;
         _mareProfileManager = mareProfileManager;
         _pairManager = pairManager;
-        _fileDownloadManager = fileDownloadManager;
+        _fileImageTransferHandler = fileImageTransferHandler;
         Flags = ImGuiWindowFlags.NoDecoration;
 
         Mediator.Subscribe<ProfilePopoutToggle>(this, (msg) =>
@@ -97,7 +97,7 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
         var cancellationToken = _profileImageDownloadCts.Token;
 
         // let download run in background
-        _profileImageDownloadTask = _fileDownloadManager.DownloadProfileImageAsync(_pair.UserData.UID, cancellationToken,
+        _profileImageDownloadTask = _fileImageTransferHandler.DownloadProfileImageAsync(_pair.UserData.UID, cancellationToken,
             imageBytes => _lastProfilePicture = imageBytes);
     }
 

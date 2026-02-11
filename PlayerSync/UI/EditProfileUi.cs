@@ -6,6 +6,7 @@ using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data;
+using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -30,7 +31,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     private readonly FileDialogManager _fileDialogManager;
     private readonly MareProfileManager _mareProfileManager;
     private readonly UiSharedService _uiSharedService;
-    private readonly FileDownloadManager _fileDownloadManager;
+    private readonly FileImageTransferHandler _fileImageTransferHandler;
 
     private bool _showFileDialogError;
     private bool _wasOpen;
@@ -61,8 +62,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     ];
 
     public EditProfileUi(ILogger<EditProfileUi> logger, MareMediator mediator, ApiController apiController, UiSharedService uiSharedService, 
-        FileDialogManager fileDialogManager, MareProfileManager mareProfileManager, PerformanceCollectorService performanceCollectorService, UiTheme theme, FileDownloadManager fileDownloadManager)
-        : base(logger, mediator, "PlayerSync Profile Editor###PlayerSyncEditProfileUI", performanceCollectorService)
+        FileDialogManager fileDialogManager, MareProfileManager mareProfileManager, PerformanceCollectorService performanceCollectorService, UiTheme theme, 
+        FileImageTransferHandler fileImageTransferHandler) : base(logger, mediator, "PlayerSync Profile Editor###PlayerSyncEditProfileUI", performanceCollectorService)
     {
         IsOpen = false;
 
@@ -78,7 +79,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         _uiSharedService = uiSharedService;
         _fileDialogManager = fileDialogManager;
         _mareProfileManager = mareProfileManager;
-        _fileDownloadManager = fileDownloadManager;
+        _fileImageTransferHandler = fileImageTransferHandler;
         _theme = theme;
 
         Mediator.Subscribe<GposeStartMessage>(this, (_) =>
@@ -158,7 +159,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         var cancellationToken = _profileImageDownloadCts.Token;
 
         // let download run in background
-        _profileImageDownloadTask = _fileDownloadManager.DownloadProfileImageAsync(_apiController.UID, cancellationToken,
+        _profileImageDownloadTask = _fileImageTransferHandler.DownloadProfileImageAsync(_apiController.UID, cancellationToken,
             imageBytes => _lastProfilePicture = imageBytes);
     }
 
@@ -464,8 +465,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
                     if (_pfpHasChanged)
                     {
-                        var profileImageType = UiSharedService.GetProfileImageTypeValue(API.Data.Enum.ProfileImageType.Profile)!;
-                        _ = _fileDownloadManager.UploadProfileImagePngAsync(profileImageType, _lastProfilePicture, CancellationToken.None);
+                        var profileImageType = UiSharedService.GetProfileImageTypeValue(ProfileImageType.Profile)!;
+                        _ = _fileImageTransferHandler.UploadProfileImagePngAsync(profileImageType, _lastProfilePicture, CancellationToken.None);
                         _pfpHasChanged = false;
                     }
 
@@ -675,12 +676,17 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         ImGui.SameLine();
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Clear uploaded profile picture", width))
         {
-            _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID), Disabled: false, IsNSFW: null, ProfilePictureBase64: "", Description: null));
+            var profileImageType = UiSharedService.GetProfileImageTypeValue(ProfileImageType.Profile)!;
+            _ = _fileImageTransferHandler.DeleteProfileImageAsync(profileImageType, CancellationToken.None);
+            _pfpTextureWrap?.Dispose();
+            _pfpTextureWrap = null;
+            var psProfile = _mareProfileManager.GetMareProfile(Self);
+            _pfpTextureWrap = _uiSharedService.LoadImage(psProfile.ImageData.Value);
         }
         UiSharedService.AttachToolTip("Clear your currently uploaded profile picture");
 
         if (_showFileDialogError)
-            UiSharedService.ColorTextWrapped("Upload failed. Please select a PNG file up to 2MB.", ImGuiColors.DalamudRed);
+            UiSharedService.ColorTextWrapped("Upload failed. Please select a PNG file up to 2MiB.", ImGuiColors.DalamudRed);
     }
 
     private static byte[] RescaleProfilePic(byte[] pngBytes, float aspectWidth, float aspectHeight, int maxOutWidth, int maxOutHeight)
