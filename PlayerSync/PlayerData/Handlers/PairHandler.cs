@@ -250,7 +250,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             // If the load was for a sound file, remember that
             if (resourceLoad.GamePath.EndsWith(".scd", StringComparison.OrdinalIgnoreCase))
             {
-                Pair.HasLoadedSoundSinceRedraw = true;
+                Pair.LastLoadedSoundSinceRedraw = DateTimeOffset.UtcNow;
             }
         }
     }
@@ -391,7 +391,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                         break;
 
                     case PlayerChanges.ForcedRedraw:
-                        Pair.HasLoadedSoundSinceRedraw = false;
+                        Pair.LastLoadedSoundSinceRedraw = null;
                         await _ipcManager.Penumbra.RedrawAsync(Logger, handler, applicationId, token).ConfigureAwait(false);
                         break;
 
@@ -742,7 +742,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             }
         }
 
-        Pair.HasLoadedSoundSinceRedraw = false;
+        Pair.LastLoadedSoundSinceRedraw = null;
     }
 
     private List<FileReplacementData> TryCalculateModdedDictionary(Guid applicationBase, CharacterData charaData, CompressedAlternateUsage compressedAlternateUsage, ConcurrentDictionary<string, string> compressionSubstitutions, out HashSet<string> locallyPresentFiles, out Dictionary<(string GamePath, string? Hash), string> moddedDictionary, CancellationToken token)
