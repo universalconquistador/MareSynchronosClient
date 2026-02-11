@@ -542,6 +542,23 @@ public class DrawUserPair
             }
         }
 
+        if (Pair.HasLoadedSoundSinceRedraw)
+        {
+            var icon = FontAwesomeIcon.VolumeOff;
+            currentRightSide -= _uiSharedService.GetIconSize(icon).X + spacingX;
+            ImGui.SameLine(currentRightSide);
+            _uiSharedService.IconText(icon, ImGuiColors.HealerGreen);
+            UiSharedService.AttachToolTip("Recently started playing modded audio." + UiSharedService.TooltipSeparator + "CTRL + Click to disable sound sync.");
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && UiSharedService.CtrlPressed())
+            {
+                var perm = _pair.UserPair!.OwnPermissions;
+
+                perm.SetSticky(true);
+                perm.SetDisableSounds(true);
+                _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
+            }
+        }
+
         if (ImGui.BeginPopup("User Flyout Menu"))
         {
             using (ImRaii.PushId($"buttons-{_pair.UserData.UID}"))

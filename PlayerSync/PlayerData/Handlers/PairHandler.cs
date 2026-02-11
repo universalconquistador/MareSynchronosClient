@@ -115,6 +115,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate();
             _applicationCancellationTokenSource = _applicationCancellationTokenSource?.CancelRecreate();
         });
+        Mediator.Subscribe<PenumbraResourceLoadMessage>(this, OnPenumbraResourceLoaded);
 
         LastAppliedDataBytes = -1;
     }
@@ -145,6 +146,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         : ((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)_charaHandler!.Address)->EntityId;
     public string? PlayerName { get; private set; }
     public string PlayerNameHash => Pair.Ident;
+    public nint LastCompanionPtr { get; private set; } = nint.Zero;
+    public nint LastMinionOrMountPtr { get; private set; } = nint.Zero;
+    public nint LastPetPtr { get; private set; } = nint.Zero;
 
     // Maps from hash in the last applied data to compressed hash
     public ConcurrentDictionary<string, string> ActiveCompressionRedirects { get; private set; } = new ConcurrentDictionary<string, string>();
@@ -233,6 +237,21 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         if (_charaHandler != null)
         {
             Mediator.Publish(new PlayerUploadingMessage(_charaHandler, isUploading));
+        }
+    }
+
+    private void OnPenumbraResourceLoaded(PenumbraResourceLoadMessage resourceLoad)
+    {
+        if (resourceLoad.GameObject == PlayerCharacter
+            || (LastCompanionPtr != nint.Zero && resourceLoad.GameObject == LastCompanionPtr)
+            || (LastMinionOrMountPtr != nint.Zero && resourceLoad.GameObject == LastMinionOrMountPtr)
+            || (LastPetPtr != nint.Zero && resourceLoad.GameObject == LastPetPtr))
+        {
+            // If the load was for a sound file, remember that
+            if (resourceLoad.GamePath.EndsWith(".scd", StringComparison.OrdinalIgnoreCase))
+            {
+                Pair.HasLoadedSoundSinceRedraw = true;
+            }
         }
     }
 
@@ -372,6 +391,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                         break;
 
                     case PlayerChanges.ForcedRedraw:
+                        Pair.HasLoadedSoundSinceRedraw = false;
                         await _ipcManager.Penumbra.RedrawAsync(Logger, handler, applicationId, token).ConfigureAwait(false);
                         break;
 
@@ -590,31 +610,45 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 $"Initializing User For Character {pc.Name}")));
         }
 
-        if (_charaHandler?.Address != nint.Zero && !IsVisible)
+        if (_charaHandler?.Address != nint.Zero)
         {
-            Guid appData = Guid.NewGuid();
-            IsVisible = true;
-            if (_cachedData != null)
-            {
-                Logger.LogTrace("[BASE-{appBase}] {this} visibility changed, now: {visi}, cached data exists", appData, this, IsVisible);
+            LastCompanionPtr =  _dalamudUtil.GetCompanionPtr(PlayerCharacter);
+            LastMinionOrMountPtr =  _dalamudUtil.GetMinionOrMountPtr(PlayerCharacter);
+            LastPetPtr =  _dalamudUtil.GetPetPtr(PlayerCharacter);
 
-                _ = Task.Run(() =>
-                {
-                    ApplyCharacterData(appData, _cachedData!, forceApplyCustomization: true);
-                });
-            }
-            else
+            if (!IsVisible)
             {
-                Logger.LogTrace("{this} visibility changed, now: {visi}, no cached data exists", this, IsVisible);
+                Guid appData = Guid.NewGuid();
+                IsVisible = true;
+                if (_cachedData != null)
+                {
+                    Logger.LogTrace("[BASE-{appBase}] {this} visibility changed, now: {visi}, cached data exists", appData, this, IsVisible);
+
+                    _ = Task.Run(() =>
+                    {
+                        ApplyCharacterData(appData, _cachedData!, forceApplyCustomization: true);
+                    });
+                }
+                else
+                {
+                    Logger.LogTrace("{this} visibility changed, now: {visi}, no cached data exists", this, IsVisible);
+                }
             }
         }
-        else if (_charaHandler?.Address == nint.Zero && IsVisible)
+        else
         {
-            IsVisible = false;
-            _charaHandler.Invalidate();
-            _downloadCancellationTokenSource?.CancelDispose();
-            _downloadCancellationTokenSource = null;
-            Logger.LogTrace("{this} visibility changed, now: {visi}", this, IsVisible);
+            LastCompanionPtr = nint.Zero;
+            LastMinionOrMountPtr = nint.Zero;
+            LastPetPtr = nint.Zero;
+
+            if (IsVisible)
+            {
+                IsVisible = false;
+                _charaHandler.Invalidate();
+                _downloadCancellationTokenSource?.CancelDispose();
+                _downloadCancellationTokenSource = null;
+                Logger.LogTrace("{this} visibility changed, now: {visi}", this, IsVisible);
+            }
         }
     }
 
@@ -707,6 +741,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 await _ipcManager.Penumbra.RedrawAsync(Logger, tempHandler, applicationId, cancelToken).ConfigureAwait(false);
             }
         }
+
+        Pair.HasLoadedSoundSinceRedraw = false;
     }
 
     private List<FileReplacementData> TryCalculateModdedDictionary(Guid applicationBase, CharacterData charaData, CompressedAlternateUsage compressedAlternateUsage, ConcurrentDictionary<string, string> compressionSubstitutions, out HashSet<string> locallyPresentFiles, out Dictionary<(string GamePath, string? Hash), string> moddedDictionary, CancellationToken token)
