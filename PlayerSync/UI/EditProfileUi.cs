@@ -9,11 +9,13 @@ using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.Components;
 using MareSynchronos.UI.ModernUi;
+using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
+using MareSynchronos.WebAPI.Files;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using MareSynchronos.UI.Components;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
@@ -28,6 +30,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     private readonly FileDialogManager _fileDialogManager;
     private readonly MareProfileManager _mareProfileManager;
     private readonly UiSharedService _uiSharedService;
+    private readonly FileDownloadManager _fileDownloadManager;
 
     private bool _showFileDialogError;
     private bool _wasOpen;
@@ -36,9 +39,12 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     private IDalamudTextureWrap? _supporterTextureWrap;
     private byte[] _lastProfilePicture = [];
     private byte[] _lastSupporterPicture = [];
+    private Task? _profileImageDownloadTask;
+    private CancellationTokenSource? _profileImageDownloadCts;
 
     private bool _hasProfileLoaded = false;
     private bool _dirty = false;
+    private bool _pfpHasChanged = false;
     private readonly List<string> _errors = [];
 
     private readonly UiTheme _theme;
@@ -55,7 +61,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     ];
 
     public EditProfileUi(ILogger<EditProfileUi> logger, MareMediator mediator, ApiController apiController, UiSharedService uiSharedService, 
-        FileDialogManager fileDialogManager, MareProfileManager mareProfileManager, PerformanceCollectorService performanceCollectorService, UiTheme theme)
+        FileDialogManager fileDialogManager, MareProfileManager mareProfileManager, PerformanceCollectorService performanceCollectorService, UiTheme theme, FileDownloadManager fileDownloadManager)
         : base(logger, mediator, "PlayerSync Profile Editor###PlayerSyncEditProfileUI", performanceCollectorService)
     {
         IsOpen = false;
@@ -72,6 +78,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         _uiSharedService = uiSharedService;
         _fileDialogManager = fileDialogManager;
         _mareProfileManager = mareProfileManager;
+        _fileDownloadManager = fileDownloadManager;
         _theme = theme;
 
         Mediator.Subscribe<GposeStartMessage>(this, (_) =>
@@ -140,13 +147,38 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         return true;
     }
 
+    public override void OnOpen()
+    {
+        base.OnOpen();
+
+        if (_pfpTextureWrap != null)
+            return;
+
+        _profileImageDownloadCts = _profileImageDownloadCts.CancelRecreate();
+        var cancellationToken = _profileImageDownloadCts.Token;
+
+        // let download run in background
+        _profileImageDownloadTask = _fileDownloadManager.DownloadProfileImageAsync(_apiController.UID, cancellationToken,
+            imageBytes => _lastProfilePicture = imageBytes);
+    }
+
     public override void OnClose()
     {
-        base.OnClose();
+        _profileImageDownloadCts?.CancelDispose();
+        _profileImageDownloadCts = null;
+
+        _pfpTextureWrap?.Dispose();
+        _pfpTextureWrap = null;
+
+        _profileImageDownloadTask = null;
+        _pfpHasChanged = false;
+
         _liveProfile = null;
         _hasProfileLoaded = false;
         _dirty = false;
         Mediator.Publish(new ClearProfileDataMessage(Self));
+
+        base.OnClose();
     }
 
     protected override void DrawInternal()
@@ -430,6 +462,13 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                     _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
                         Disabled: false, IsNSFW: null, ProfilePictureBase64: null, Description: _descriptionText));
 
+                    if (_pfpHasChanged)
+                    {
+                        var profileImageType = UiSharedService.GetProfileImageTypeValue(API.Data.Enum.ProfileImageType.Profile)!;
+                        _ = _fileDownloadManager.UploadProfileImagePngAsync(profileImageType, _lastProfilePicture, CancellationToken.None);
+                        _pfpHasChanged = false;
+                    }
+
                     _liveProfile = editorProfile;
                     _dirty = false;
                 }
@@ -542,12 +581,13 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     {
         try
         {
-            var avatarBytes = psProfile.ImageData.Value;
-            if (_pfpTextureWrap == null || !_lastProfilePicture.SequenceEqual(avatarBytes))
+            _pfpTextureWrap ??= _uiSharedService.LoadImage(psProfile.ImageData.Value);
+
+            if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted)
             {
                 _pfpTextureWrap?.Dispose();
-                _lastProfilePicture = avatarBytes;
                 _pfpTextureWrap = _uiSharedService.LoadImage(_lastProfilePicture);
+                _profileImageDownloadTask = null;
             }
 
             var supporterBytes = psProfile.SupporterImageData.Value;
@@ -614,11 +654,14 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
                         _showFileDialogError = false;
 
-                        // update pfp on server
-                        await _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID), 
-                            false, null, Convert.ToBase64String(processedPng), Description: null)).ConfigureAwait(false);
+                        // update our local preview profile image
+                        _pfpTextureWrap?.Dispose();
+                        _pfpTextureWrap = _uiSharedService.LoadImage(processedPng);
+                        _lastProfilePicture = processedPng;
 
-                        _dirty = true; // don't really need the user to save, but they might be worried if they can't
+                        // flag the profile image as needing to be uploaded/saved to the server
+                        _pfpHasChanged = true;
+                        _dirty = true;
                     }
                     catch
                     {

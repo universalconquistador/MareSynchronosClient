@@ -10,6 +10,8 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.Components;
 using MareSynchronos.UI.ModernUi;
+using MareSynchronos.Utils;
+using MareSynchronos.WebAPI.Files;
 using Microsoft.Extensions.Logging;
 using System.Numerics;
 
@@ -21,17 +23,20 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly ServerConfigurationManager _serverManager;
     private readonly UiSharedService _uiSharedService;
+    private readonly FileDownloadManager _fileDownloadManager;
 
-    private byte[] _lastProfilePicture = [];
+    private byte[]? _lastProfilePicture;
     private byte[] _lastSupporterPicture = [];
     private IDalamudTextureWrap? _supporterTextureWrap;
     private IDalamudTextureWrap? _textureWrap;
+    private Task? _profileImageDownloadTask;
+    private CancellationTokenSource? _profileImageDownloadCts;
     private bool _editingNotes;
     private readonly UiTheme _theme;
 
     public StandaloneProfileUi(ILogger<StandaloneProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
         ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair,
-        PerformanceCollectorService performanceCollector, UiTheme theme)
+        PerformanceCollectorService performanceCollector, UiTheme theme, FileDownloadManager fileDownloadManager)
         : base(logger, mediator, "PlayerSync Profile of " + pair.UserData.AliasOrUID + "##PlayerSyncStandaloneProfileUI" + pair.UserData.AliasOrUID, performanceCollector)
     {
         _uiSharedService = uiBuilder;
@@ -40,6 +45,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         _theme = theme;
         Pair = pair;
         _pairManager = pairManager;
+        _fileDownloadManager = fileDownloadManager;
 
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar 
             | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoBackground;
@@ -81,6 +87,21 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         base.PostDraw();
     }
 
+    public override void OnOpen()
+    {
+        base.OnOpen();
+
+        if (_textureWrap != null)
+            return;
+
+        _profileImageDownloadCts = _profileImageDownloadCts.CancelRecreate();
+        var cancellationToken = _profileImageDownloadCts.Token;
+
+        // let download run in background
+        _profileImageDownloadTask = _fileDownloadManager.DownloadProfileImageAsync(Pair.UserData.UID, cancellationToken,
+            imageBytes => _lastProfilePicture = imageBytes);
+    }
+
     protected override void DrawInternal()
     {
         // close window if we click off of it
@@ -92,16 +113,18 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         var profile = MareProfileManager.ProfileHandler.Read(psProfile.Description);
         var notesDraft = _serverManager.GetProfileNoteForUid(Pair.UserData.UID) ?? "";
 
-        // set up profile pictures
         try
         {
-            if (_textureWrap == null || !psProfile.ImageData.Value.SequenceEqual(_lastProfilePicture))
+            _textureWrap ??= _uiSharedService.LoadImage(psProfile.ImageData.Value);
+
+            if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted)
             {
                 _textureWrap?.Dispose();
-                _lastProfilePicture = psProfile.ImageData.Value;
                 _textureWrap = _uiSharedService.LoadImage(_lastProfilePicture);
+                _profileImageDownloadTask = null;
             }
 
+            // use legacy support profile for now to load the InSync image
             if (profile.IsSupporter)
             {
                 if (_supporterTextureWrap == null || !psProfile.SupporterImageData.Value.SequenceEqual(_lastSupporterPicture))
@@ -116,9 +139,13 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            //
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error with UI texture wraps.");
+            _logger.LogError(ex, "Error downloading/creating profile texture wrap.");
         }
 
         bool supporter = profile.IsSupporter;
@@ -284,7 +311,17 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
     public override void OnClose()
     {
+        _profileImageDownloadCts?.CancelDispose();
+        _profileImageDownloadCts = null;
+
+        _textureWrap?.Dispose();
+        _textureWrap = null;
+
+        _profileImageDownloadTask = null;
+
         Mediator.Publish(new RemoveWindowMessage(this));
         _mareProfileManager.RemoveMareProfile(Pair.UserData);
+
+        base.OnClose();
     }
 }
