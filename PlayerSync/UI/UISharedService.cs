@@ -190,6 +190,28 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         return addSuffix ? $"{dblSByte:0.00} {suffix[i]}" : $"{dblSByte:0.00}";
     }
 
+    public static string ApproxElapsedTimeToString(TimeSpan elapsedTime)
+    {
+        if (elapsedTime.TotalSeconds < 1.0f)
+        {
+            return "just now";
+        }
+        else if (elapsedTime.TotalMinutes < 1.0f)
+        {
+            return "recently";
+        }
+        else if (elapsedTime.TotalHours < 1.0f)
+        {
+            int minutes = (int)Math.Floor(elapsedTime.TotalMinutes);
+            return minutes != 1 ? $"{minutes} minutes ago" : $"{minutes} minute ago";
+        }
+        else
+        {
+            int hours = (int)Math.Floor(elapsedTime.TotalHours);
+            return hours != 1 ? $"{hours} hours ago" : $"{hours} hour ago";
+        }
+    }
+
     public static void CenterNextWindow(float width, float height, ImGuiCond cond = ImGuiCond.None)
     {
         var center = ImGui.GetMainViewport().GetCenter();
