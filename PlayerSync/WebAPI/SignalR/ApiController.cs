@@ -78,6 +78,9 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     public Version CurrentClientVersion => _connectionDto?.CurrentClientVersion ?? new Version(0, 0, 0);
 
     public DefaultPermissionsDto? DefaultPermissions => _connectionDto?.DefaultPreferredPermissions ?? null;
+
+    public UserPreferencesDto? UserPreferences => _connectionDto?.UserPreferences ?? null;
+
     public string DisplayName => _connectionDto?.User.AliasOrUID ?? string.Empty;
 
     public bool IsConnected => ServerState == ServerState.Connected;
@@ -463,6 +466,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         OnUserReceiveUploadStatus(dto => _ = Client_UserReceiveUploadStatus(dto));
         OnUserUpdateProfile(dto => _ = Client_UserUpdateProfile(dto));
         OnUserDefaultPermissionUpdate(dto => _ = Client_UserUpdateDefaultPermissions(dto));
+        OnUserUpdatePreferences(dto => _ = Client_UserUpdatePreferences(dto));
         OnUpdateUserIndividualPairStatusDto(dto => _ = Client_UpdateUserIndividualPairStatusDto(dto));
 
         OnGroupChangePermissions((dto) => _ = Client_GroupChangePermissions(dto));

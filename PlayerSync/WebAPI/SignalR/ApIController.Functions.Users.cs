@@ -110,6 +110,12 @@ public partial class ApiController
         await _mareHub!.InvokeAsync(nameof(UserUpdateDefaultPermissions), defaultPermissionsDto).ConfigureAwait(false);
     }
 
+    public async Task UserUpdatePreferences(UserPreferencesDto userPreferencesDto)
+    {
+        CheckConnection();
+        await _mareHub!.InvokeAsync(nameof(UserUpdatePreferences), userPreferencesDto).ConfigureAwait(false);
+    }
+
     public async Task UserMakePairRequest(UserPairRequestDto request)
     {
         CheckConnection();

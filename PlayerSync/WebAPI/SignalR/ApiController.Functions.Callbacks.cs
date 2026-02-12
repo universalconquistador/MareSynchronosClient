@@ -183,6 +183,13 @@ public partial class ApiController
         return Task.CompletedTask;
     }
 
+    public Task Client_UserUpdatePreferences(UserPreferencesDto dto)
+    {
+        Logger.LogDebug("Client_UserUpdatePreferences: {dto}", dto);
+        _connectionDto!.UserPreferences = dto;
+        return Task.CompletedTask;
+    }
+
     public Task Client_UserUpdateOtherPairPermissions(UserPermissionsDto dto)
     {
         Logger.LogDebug("Client_UserUpdateOtherPairPermissions: {dto}", dto);
@@ -334,6 +341,12 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_UserUpdateDefaultPermissions), act);
+    }
+
+    public void OnUserUpdatePreferences(Action<UserPreferencesDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_UserUpdatePreferences), act);
     }
 
     public void OnUserReceiveCharacterData(Action<OnlineUserCharaDataDto> act)

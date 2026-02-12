@@ -208,57 +208,67 @@ public partial class SettingsUi
         UiSharedService.TextWrapped("If this setting is disabled, you can still pair normally by entering their UID/Vanity code.");
         ImGuiHelpers.ScaledDummy(5f);
 
-        var allowPairingRequests = _configService.Current.AllowPairingRequests;
-        if (ImGui.Checkbox("Allow Pairing Requests", ref allowPairingRequests))
+        if (_selectedServer == _serverConfigurationManager.CurrentServer && _apiController.IsConnected)
         {
-            _configService.Current.AllowPairingRequests = allowPairingRequests;
-            _configService.Save();
-        }
-        ImGuiHelpers.ScaledDummy(5f);
-        
-
-        _uiShared.BigText("Ignored UIDs");
-        UiSharedService.TextWrapped("You will not be notified of pair requests for ignored UIDs.");
-        ImGui.Dummy(new Vector2(10));
-        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
-        ImGui.InputText("##ignoreuid", ref _uidToAddForIgnorePairRequest, 20);
-        ImGui.SameLine();
-        using (ImRaii.Disabled(string.IsNullOrEmpty(_uidToAddForIgnorePairRequest)))
-        {
-            if (_uiShared.IconTextButton(FontAwesomeIcon.Plus, "Add UID to ignore list"))
+            var pref = _apiController.UserPreferences!;
+            var prefEnablePairRequests = pref.IsEnablePairRequests;
+            if (ImGui.Checkbox("Allow Pair Requests", ref prefEnablePairRequests))
             {
-                if (!_serverConfigurationManager.IsUidBlacklistedForPairRequest(_uidToAddForIgnorePairRequest))
-                {
-                    _serverConfigurationManager.AddPairingRequestBlacklistUid(_uidToAddForIgnorePairRequest);
-                }
-                _uidToAddForIgnorePairRequest = string.Empty;
+                pref.IsEnablePairRequests = prefEnablePairRequests;
+                _ = _apiController.UserUpdatePreferences(pref);
             }
-        }
-        _uiShared.DrawHelpText("Hint: UIDs are case sensitive.");
-        var ignoreUidList = _serverConfigurationManager.GetAllBlacklistUidForPairRequest();
-        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
-        using (var lb = ImRaii.ListBox("Pair Request Ignore List"))
-        {
-            if (lb)
+            ImGuiHelpers.ScaledDummy(5f);
+
+            _uiShared.BigText("Ignored UIDs");
+            UiSharedService.TextWrapped("You will not be notified of pair requests for ignored UIDs.");
+            ImGui.Dummy(new Vector2(10));
+            ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+            ImGui.InputText("##ignoreuid", ref _uidToAddForIgnorePairRequest, 20);
+            ImGui.SameLine();
+            using (ImRaii.Disabled(string.IsNullOrEmpty(_uidToAddForIgnorePairRequest)))
             {
-                for (int i = 0; i < ignoreUidList.Count; i++)
+                if (_uiShared.IconTextButton(FontAwesomeIcon.Plus, "Add UID to ignore list"))
                 {
-                    bool shouldBeSelected = _selectedIgnoreEntry == i;
-                    if (ImGui.Selectable(ignoreUidList[i] + "##" + i, shouldBeSelected))
+                    if (!_serverConfigurationManager.IsUidBlacklistedForPairRequest(_uidToAddForIgnorePairRequest))
                     {
-                        _selectedIgnoreEntry = i;
+                        _serverConfigurationManager.AddPairingRequestBlacklistUid(_uidToAddForIgnorePairRequest);
+                    }
+                    _uidToAddForIgnorePairRequest = string.Empty;
+                }
+            }
+            _uiShared.DrawHelpText("Hint: UIDs are case sensitive.");
+            var ignoreUidList = _serverConfigurationManager.GetAllBlacklistUidForPairRequest();
+            ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+            using (var lb = ImRaii.ListBox("Pair Request Ignore List"))
+            {
+                if (lb)
+                {
+                    for (int i = 0; i < ignoreUidList.Count; i++)
+                    {
+                        bool shouldBeSelected = _selectedIgnoreEntry == i;
+                        if (ImGui.Selectable(ignoreUidList[i] + "##" + i, shouldBeSelected))
+                        {
+                            _selectedIgnoreEntry = i;
+                        }
                     }
                 }
             }
-        }
-        using (ImRaii.Disabled(_selectedIgnoreEntry == -1))
-        {
-            if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete selected UID"))
+            using (ImRaii.Disabled(_selectedIgnoreEntry == -1))
             {
-                _serverConfigurationManager.RemovePairingRequestBlacklistUid(ignoreUidList[_selectedIgnoreEntry]);
-                _selectedIgnoreEntry = -1;
+                if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete selected UID"))
+                {
+                    _serverConfigurationManager.RemovePairingRequestBlacklistUid(ignoreUidList[_selectedIgnoreEntry]);
+                    _selectedIgnoreEntry = -1;
+                }
             }
         }
+        else
+        {
+            UiSharedService.ColorTextWrapped("Pair Requests Settings unavailable for this service. " +
+                "You need to connect to this service to change these settings since they are stored on the service.", ImGuiColors.DalamudYellow);
+        }
+
+        
     }
 
     private void DrawSyncFilter()
