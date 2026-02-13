@@ -187,11 +187,12 @@ public class DrawUserPair
         }
         else
         {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Pair Individually", _menuWidth, true))
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Send Pair Request", _menuWidth, true))
             {
-                _ = _apiController.UserAddPair(new(_pair.UserData), true);
+                //_ = _apiController.UserAddPair(new(_pair.UserData), true);
+                _ = _apiController.UserMakePairRequest(new(UserData: _pair.UserData));
             }
-            UiSharedService.AttachToolTip("Pair individually with " + entryUID);
+            UiSharedService.AttachToolTip("Send pair request to " + entryUID);
         }
         if (!_pair.UserPair!.OwnPermissions.IsPaused())
         {

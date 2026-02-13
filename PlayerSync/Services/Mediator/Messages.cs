@@ -3,6 +3,7 @@ using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.API.Dto.Group;
+using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
@@ -70,7 +71,7 @@ public record ToggleCollapseMessage : MessageBase;
 public record PrefillJoinSyncshellParameters(string GroupId, bool ExpectPasswordless, bool IsGuestModeEnabled) : MessageBase;
 public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading) : MessageBase;
 public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;
-public record UserAddPairMessage(UserData UserData) : MessageBase;
+//public record UserAddPairMessage(UserData UserData) : MessageBase;
 public record UserPairStickyPauseAndRemoveMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
 public record PauseMessage(UserData UserData, PauseReason Reason) : MessageBase;
@@ -111,5 +112,6 @@ public record GroupZoneSyncUpdateMessage : MessageBase;
 public record WorldChangeMessage : MessageBase;
 public record ToggleThemeEditorMessage : MessageBase;
 public record RedrawNameplateMessage : MessageBase;
+public record PairRequestsUpdate(UserPairRequestsDto Dto) : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name
