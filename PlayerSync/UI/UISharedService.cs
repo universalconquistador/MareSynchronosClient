@@ -10,6 +10,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
+using MareSynchronos.API.Data.Enum;
 using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.Localization;
@@ -1115,6 +1116,14 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         _localization.SetupWithLangCode(languageCode);
         Strings.ToS = new Strings.ToSStrings();
     }
+
+    public static string? GetProfileImageTypeValue(ProfileImageType imageType) => imageType switch
+    {
+        ProfileImageType.Profile => "profile",
+        ProfileImageType.Banner => "banner",
+        ProfileImageType.Background => "background",
+        _ => null
+    };
 
     internal static void DistanceSeparator()
     {
