@@ -98,26 +98,28 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             IsOpen = false;
         });
 
-        Mediator.Subscribe<ClearProfileDataMessage>(this, (msg) =>
-        {
-            if (msg.UserData == null || string.Equals(msg.UserData.UID, _apiController.UID, StringComparison.Ordinal))
-            {
-                _pfpTextureWrap?.Dispose();
-                _pfpTextureWrap = null;
+        //Mediator.Subscribe<ClearProfileDataMessage>(this, (msg) =>
+        //{
+        //    if (msg.UserData == null || string.Equals(msg.UserData.UID, _apiController.UID, StringComparison.Ordinal))
+        //    {
+        //        _pfpTextureWrap?.Dispose();
+        //        _pfpTextureWrap = null;
 
-                _supporterTextureWrap?.Dispose();
-                _supporterTextureWrap = null;
+        //        _supporterTextureWrap?.Dispose();
+        //        _supporterTextureWrap = null;
 
-                _lastProfilePicture = [];
-                _lastSupporterPicture = [];
-            }
-        });
+        //        _lastProfilePicture = [];
+        //        _lastSupporterPicture = [];
+        //    }
+        //});
 
         _theme.FontHeading = _uiSharedService.HeaderFont;
         _theme.FontBody = _uiSharedService.GameFont;
     }
 
     private UserData Self => new(_apiController.UID);
+
+    private bool IsDevServer => _apiController.ServerInfo.FileServerAddress.ToString().Contains("dev");
 
     private static bool IsProfileLoaded(string? raw)
     {
@@ -451,7 +453,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                 }
                 else
                 {
-                    if (_apiController.ServerInfo.FileServerAddress.ToString().Contains("dev"))
+                    if (IsDevServer)
                     {
                         _descriptionText = MareProfileManager.ProfileHandler.WriteJson(editorProfile, Formatting.None);
                     }
@@ -463,7 +465,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                     _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
                         Disabled: false, IsNSFW: null, ProfilePictureBase64: null, Description: _descriptionText));
 
-                    if (_pfpHasChanged)
+                    if (_pfpHasChanged && IsDevServer)
                     {
                         var profileImageType = UiSharedService.GetProfileImageTypeValue(ProfileImageType.Profile)!;
                         _ = _fileImageTransferHandler.UploadProfileImagePngAsync(profileImageType, _lastProfilePicture, CancellationToken.None);
@@ -584,7 +586,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         {
             _pfpTextureWrap ??= _uiSharedService.LoadImage(psProfile.ImageData.Value);
 
-            if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted)
+            if (_lastProfilePicture.Length != 0  && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted)
             {
                 _pfpTextureWrap?.Dispose();
                 _pfpTextureWrap = _uiSharedService.LoadImage(_lastProfilePicture);
@@ -615,7 +617,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         var style = ImGui.GetStyle();
         var width = (ImGui.GetContentRegionAvail().X - style.ItemSpacing.X) / 2f;
 
-        if (_uiSharedService.IconTextButton(FontAwesomeIcon.FileUpload, "Upload new profile picture", width))
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.FileUpload, "Select new profile picture", width))
         {
             _fileDialogManager.OpenFileDialog("Select new Profile picture", ".png", (success, file) =>
             {
@@ -671,10 +673,10 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                 });
             });
         }
-        UiSharedService.AttachToolTip("Select and upload a new profile picture");
+        UiSharedService.AttachToolTip("Select a new profile picture");
 
         ImGui.SameLine();
-        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Clear uploaded profile picture", width))
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Delete uploaded profile picture", width))
         {
             var profileImageType = UiSharedService.GetProfileImageTypeValue(ProfileImageType.Profile)!;
             _ = _fileImageTransferHandler.DeleteProfileImageAsync(profileImageType, CancellationToken.None);
@@ -683,7 +685,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             var psProfile = _mareProfileManager.GetMareProfile(Self);
             _pfpTextureWrap = _uiSharedService.LoadImage(psProfile.ImageData.Value);
         }
-        UiSharedService.AttachToolTip("Clear your currently uploaded profile picture");
+        UiSharedService.AttachToolTip("Delete your currently uploaded profile picture");
 
         if (_showFileDialogError)
             UiSharedService.ColorTextWrapped("Upload failed. Please select a PNG file up to 2MiB.", ImGuiColors.DalamudRed);
