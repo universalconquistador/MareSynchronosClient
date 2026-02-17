@@ -29,7 +29,7 @@ public class MareProfileManager : MediatorSubscriberBase
 
     private readonly MareProfileData _defaultProfileData = new(IsFlagged: false, IsNSFW: false, _mareLogo, string.Empty, _noDescription);
     private readonly MareProfileData _loadingProfileData = new(IsFlagged: false, IsNSFW: false, _mareLogoLoading, string.Empty, "Loading Data from server...");
-    private readonly MareProfileData _nsfwProfileData = new(IsFlagged: false, IsNSFW: false, _mareLogoNsfw, string.Empty, _nsfw);
+    private readonly MareProfileData _nsfwProfileData = new(IsFlagged: false, IsNSFW: true, _mareLogoNsfw, string.Empty, _nsfw);
 
     public MareProfileManager(ILogger<MareProfileManager> logger, MareConfigService mareConfigService,
         MareMediator mediator, ApiController apiController) : base(logger, mediator)
@@ -61,6 +61,11 @@ public class MareProfileManager : MediatorSubscriberBase
     public void RemoveMareProfile(UserData data)
     {
         _mareProfiles.Remove(data, out _);
+    }
+
+    public bool IsProfileMarkedNsfwOrAllowed(MareProfileData profile, UserData user)
+    {
+        return !(profile.IsNSFW && !_mareConfigService.Current.ProfilesAllowNsfw && !string.Equals(_apiController.UID, user.UID, StringComparison.Ordinal)) || !profile.IsNSFW;
     }
 
     private async Task GetMareProfileFromService(UserData data)
