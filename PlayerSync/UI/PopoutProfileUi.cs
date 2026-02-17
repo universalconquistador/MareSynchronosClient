@@ -116,8 +116,11 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
 
             if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted)
             {
-                _textureWrap?.Dispose();
-                _textureWrap = _uiSharedService.LoadImage(_lastProfilePicture);
+                if (_mareProfileManager.IsProfileMarkedNsfwOrAllowed(psProfile, _pair.UserData))
+                {
+                    _textureWrap?.Dispose();
+                    _textureWrap = _uiSharedService.LoadImage(_lastProfilePicture!);
+                }
                 _profileImageDownloadTask = null;
             }
 

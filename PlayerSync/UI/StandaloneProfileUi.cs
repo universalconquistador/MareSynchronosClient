@@ -112,15 +112,17 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         var psProfile = _mareProfileManager.GetMareProfile(Pair.UserData);
         var profile = MareProfileManager.ProfileHandler.Read(psProfile.Description);
         var notesDraft = _serverManager.GetProfileNoteForUid(Pair.UserData.UID) ?? "";
-
         try
         {
             _textureWrap ??= _uiSharedService.LoadImage(psProfile.ImageData.Value);
 
             if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted)
             {
-                _textureWrap?.Dispose();
-                _textureWrap = _uiSharedService.LoadImage(_lastProfilePicture);
+                if (_mareProfileManager.IsProfileMarkedNsfwOrAllowed(psProfile, Pair.UserData))
+                {
+                    _textureWrap?.Dispose();
+                    _textureWrap = _uiSharedService.LoadImage(_lastProfilePicture!);
+                }
                 _profileImageDownloadTask = null;
             }
 
