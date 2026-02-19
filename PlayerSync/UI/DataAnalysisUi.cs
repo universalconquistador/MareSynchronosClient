@@ -80,7 +80,7 @@ public class DataAnalysisUi : WindowMediatorSubscriberBase
             ("Mod Files", new List<UiNav.NavItem<AnalysisNav>>
             {
                 new(AnalysisNav.Analysis, "Analysis", DrawAnalysis, FontAwesomeIcon.MagnifyingGlassChart),
-                new(AnalysisNav.Compression, "Compression", DrawCompression, FontAwesomeIcon.Compress),
+                //new(AnalysisNav.Compression, "Compression", DrawCompression, FontAwesomeIcon.Compress),
                 new(AnalysisNav.Transient, "Transient", DrawTransient, FontAwesomeIcon.ArrowsUpDownLeftRight),
             }),
         ];

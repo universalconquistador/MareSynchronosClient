@@ -288,6 +288,18 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                     _naggedAboutLod = false;
                 }
 
+                if (_mareConfigService.Current.OverrideCdnTimeZone)
+                {
+                    Logger.LogInformation("Setting is configured to override the cdn time zone.");
+                    if (!_mareConfigService.Current.IgnoreWarningOverrideCdnTimeZone && !_warnCdnOverride)
+                    {
+                        _warnCdnOverride = true;
+                        Mediator.Publish(new NotificationMessage("CDN Time Zone Override", "You have the Debug setting for CDN Time Zone Override enabled. " +
+                            "It is recommended not to enable this setting for normal use. To ignore this warning, select the Ignore CDN Override Warning in the debug options.",
+                            NotificationType.Warning));
+                    }
+                }
+
                 await LoadIninitialPairsAsync().ConfigureAwait(false);
                 await LoadOnlinePairsAsync().ConfigureAwait(false);
                 Mediator.Publish(new GroupZoneSyncUpdateMessage());
@@ -328,6 +340,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     }
 
     private bool _naggedAboutLod = false;
+    private bool _warnCdnOverride = false;
 
     public Task CyclePauseAsync(UserData userData)
     {

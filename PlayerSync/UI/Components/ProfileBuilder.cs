@@ -43,10 +43,10 @@ public static class ProfileBuilder
         var inset = 3f * globalScale;
 
         var fillMin = new Vector2(leftX + inset, endY + inset);
-        var fillMax = new Vector2(rightX - inset, bottomY - 2.5f * globalScale);
+        var fillMax = new Vector2(rightX - inset, bottomY - inset);
 
         var min = new Vector2(windowPos.X + inset, startY - inset);
-        var max = new Vector2(windowPos.X + windowSize.X - inset, endY + inset);
+        var max = new Vector2(windowPos.X + windowSize.X - inset, endY + 5 * globalScale); // overlap a bit so no fractional pixel gaps
 
         topColor.W = 0.01f; // top fade out
         bottomColor.W = 1.0f; // bottom solid
@@ -234,7 +234,7 @@ public static class ProfileBuilder
 
         using (PushContentInset(theme, out var innerWidth))
         {
-            UiText.DrawTextWrappedMaxLines(about, width: innerWidth, maxLines: 5, color: profile.Theme.TextPrimaryV4, ellipsisColor: theme.TextMuted);
+            UiText.DrawTextWrappedMaxLines(about, width: innerWidth, maxLines: 5, color: profile.Theme.TextPrimaryV4);
         }
     }
 
