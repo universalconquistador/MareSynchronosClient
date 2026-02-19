@@ -72,16 +72,20 @@ public static class UiText
             ImGui.TextUnformatted(text);
     }
 
-    public static void DrawTextWrappedMaxLines(string text, float width, int maxLines, Vector4 color, Vector4? ellipsisColor = null)
+    public static void DrawTextWrappedMaxLines(string text, float width, int maxLines, Vector4 color)
     {
         if (string.IsNullOrEmpty(text) || width <= 1f || maxLines <= 0)
             return;
 
         var drawList = ImGui.GetWindowDrawList();
-        var lineHeight = ImGui.GetTextLineHeightWithSpacing();
+        var style = ImGui.GetStyle();
+
+        var lineHeight = ImGui.GetTextLineHeight();
         var maxHeight = lineHeight * maxLines;
+
         var startLocalPos = ImGui.GetCursorPos();
         var startScreenPos = ImGui.GetCursorScreenPos();
+
         var textSize = ImGui.CalcTextSize(text, false, width);
         var usedHeight = MathF.Min(textSize.Y, maxHeight);
 
@@ -102,7 +106,7 @@ public static class UiText
             drawList.PopClipRect();
         }
 
-        ImGui.SetCursorPos(new Vector2(startLocalPos.X, startLocalPos.Y + usedHeight));
+        ImGui.SetCursorPos(new Vector2(startLocalPos.X, startLocalPos.Y + usedHeight + style.ItemSpacing.Y));
     }
 
     public static Vector4 GetMutedTextColor(Vector4 text, float strength = 0.55f, float alphaMult = 0.85f)
