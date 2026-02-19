@@ -342,6 +342,7 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
     private void FrameworkUpdate()
     {
         if (!_delayedZoningTask?.IsCompleted ?? false) return;
+        if (_dalamudUtil.GetPlayerPtr() == IntPtr.Zero) return;
 
         try
         {
