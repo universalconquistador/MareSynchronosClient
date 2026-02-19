@@ -249,7 +249,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         try
         {
             // match standalone profile size
-            var targetSize = new Vector2(400f, 700f) * ImGuiHelpers.GlobalScale;
+            var targetSize = new Vector2(400f, 711f) * ImGuiHelpers.GlobalScale;
             var availableRegion = ImGui.GetContentRegionAvail();
             var inner = new Vector2(MathF.Min(targetSize.X, availableRegion.X), MathF.Min(targetSize.Y, availableRegion.Y));
 
@@ -337,7 +337,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         }
 
         ImGui.Separator();
-        ImGui.TextUnformatted("Profile Picture");
+        ImGui.TextUnformatted("Profile Picture - 9:16 aspect ratio (1920x1080) jpg/png up to 4MiB");
         DrawProfilePictureUpload();
 
         ImGui.Separator();
@@ -409,7 +409,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         var aboutMe = editorProfile.AboutMe;
         ImGui.TextUnformatted("About Me");
         ImGui.SetNextItemWidth(-1);
-        if (ImGui.InputTextMultiline("##aboutme", ref aboutMe, 2048, new Vector2(-1, ImGui.GetTextLineHeight() * 5f)))
+        if (ImGui.InputTextMultiline("##aboutme", ref aboutMe, 2048, new Vector2(-1, ImGui.GetTextLineHeight() * 5.75f)))
         {
             editorProfile.AboutMe = aboutMe;
             _dirty = true;
@@ -432,10 +432,10 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             ImGui.Spacing();
         }
 
-        ImGui.TextWrapped("!!! AVOID: Any profile image that can be considered highly illegal or obscene " +
-            "(bestiality, anything that could be considered a sexual act with a minor), as well as " +
-            "slurs of any kind in the description that can be considered highly offensive. " +
-            "In case of valid reports from other users, this could lead to a ban from PlayerSync.");
+        ImGui.TextWrapped("AVOID: Offensive imagery and slurs of any kind. Profiles and images should not contain anything " +
+            "that can be considered highly illegal or obscene (sexual acts with minors, bestiality, etc...) " +
+            "In the case of valid reports from other users, this could lead to a ban from Playersync. " +
+            "Absolutley NO personal information of youself or others (images, text info, etc.)");
         ImGui.TextWrapped("If your profile picture or profile description could be considered NSFW, enable the toggle for it.");
 
         ImGui.Spacing();
@@ -556,13 +556,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     private void DrawPreview()
     {
-        const float bannerHeightPx = 250f;
-        const float headerFillPx = bannerHeightPx * 0.5f;
         const float radiusPx = 24f;
-        var bannerHeight = UiScale.ScaledFloat(bannerHeightPx);
-        var windowWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
         var colorPrimary = _liveProfile.Theme.PrimaryV4;
-        var colorSecondary = _liveProfile.Theme.SecondaryV4;
         var colorAccent = _liveProfile.Theme.AccentV4;
         var displayName = !string.IsNullOrWhiteSpace(_liveProfile.PreferredName) ? _liveProfile.PreferredName : _apiController.DisplayName;
 
@@ -570,11 +565,14 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         using var windowStyle = _theme.PushWindowStyle();
 
-        ProfileBuilder.DrawGradientWindow(colorSecondary, colorPrimary, headerFillPx, radiusPx, colorAccent, 3.0f, 0.0f);
-        ProfileBuilder.DrawAvatar(_theme, _pfpTextureWrap, _supporterTextureWrap, colorAccent, colorPrimary, out var nameMin, out var nameMax, bannerHeightPx);
-        ProfileBuilder.DrawNameInfo(_theme, displayName, _apiController.UID, _liveProfile, true, nameMin, nameMax);
+        ProfileBuilder.DrawBackgroundImage(_theme, _pfpTextureWrap);
+        ProfileBuilder.DrawGradient(_liveProfile.Theme.SecondaryV4, _liveProfile.Theme.PrimaryV4);
+        ProfileBuilder.DrawWindowBorder(colorAccent, radiusPx, 3.0f, 0.0f);
 
-        ImGui.Dummy(new Vector2(windowWidth, bannerHeight));
+        ProfileBuilder.DrawNameInfo(_theme, displayName, _apiController.UID, _liveProfile);
+
+        var gapHeight = ProfileBuilder.CalculateGapHeight(_theme, _liveProfile);
+        ImGui.SetCursorPos(new(_theme.PanelPadding, gapHeight));
 
         ProfileBuilder.DrawInterests(_theme, _liveProfile);
         ProfileBuilder.DrawAboutMe(_theme, _liveProfile);
@@ -619,7 +617,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.FileUpload, "Select new profile picture", width))
         {
-            _fileDialogManager.OpenFileDialog("Select new Profile picture", ".png", (success, file) =>
+            _fileDialogManager.OpenFileDialog("Select new Profile picture", ".png,.jpg,.jpeg", (success, file) =>
             {
                 if (!success) return;
 
@@ -628,11 +626,11 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                     try
                     {
                         // set the pfp size/shape values
-                        const int MaxUploadBytes = 2 * 1024 * 1024;
+                        const int MaxUploadBytes = 4 * 1024 * 1024;
                         const float AspectW = 9f;
                         const float AspectH = 16f;
-                        const int MaxOutputHeight = 512;
-                        const int MaxOutputWidth = 512;
+                        const int MaxOutputHeight = 1920;
+                        const int MaxOutputWidth = 1080;
 
                         var fileContent = File.ReadAllBytes(file);
 
@@ -642,10 +640,34 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                             return;
                         }
 
+                        bool isJpgImage = false;
                         await using (var ms = new MemoryStream(fileContent, writable: false))
                         {
                             var format = await Image.DetectFormatAsync(ms).ConfigureAwait(false);
-                            if (format == null || !format.FileExtensions.Contains("png", StringComparer.OrdinalIgnoreCase))
+                            if (format == null)
+                            {
+                                _showFileDialogError = true;
+                                return;
+                            }
+
+                            isJpgImage = format.FileExtensions.Contains("jpg", StringComparer.OrdinalIgnoreCase) 
+                                || format.FileExtensions.Contains("jpeg", StringComparer.OrdinalIgnoreCase);
+
+                            var isPngImage = format.FileExtensions.Contains("png", StringComparer.OrdinalIgnoreCase);
+
+                            if (!isPngImage && !isJpgImage)
+                            {
+                                _showFileDialogError = true;
+                                return;
+                            }
+                        }
+
+                        // convert it so we're not dealing with a lot of file types
+                        if (isJpgImage)
+                        {
+                            // maybe make this a background task?
+                            fileContent = ImageTools.ConvertJpegToPng(fileContent);
+                            if (fileContent.Length < 8)
                             {
                                 _showFileDialogError = true;
                                 return;
@@ -654,13 +676,27 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
                         // crop to aspect + resize
                         var processedPng = RescaleProfilePic(fileContent, AspectW, AspectH, MaxOutputWidth, MaxOutputHeight);
+                        if (processedPng.Length < 8)
+                        {
+                            _showFileDialogError = true;
+                            return;
+                        }
 
-                        _showFileDialogError = false;
+                        // swap-safe update our local preview profile image
+                        var newTextureWrap = _uiSharedService.LoadImage(processedPng);
+                        if (newTextureWrap == null)
+                        {
+                            _showFileDialogError = true;
+                            return;
+                        }
 
                         // update our local preview profile image
-                        _pfpTextureWrap?.Dispose();
-                        _pfpTextureWrap = _uiSharedService.LoadImage(processedPng);
+                        var oldTextureWrap = _pfpTextureWrap;
+                        _pfpTextureWrap = newTextureWrap;
                         _lastProfilePicture = processedPng;
+                        oldTextureWrap?.Dispose();
+
+                        _showFileDialogError = false;
 
                         // flag the profile image as needing to be uploaded/saved to the server
                         _pfpHasChanged = true;
@@ -688,7 +724,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         UiSharedService.AttachToolTip("Delete your currently uploaded profile picture");
 
         if (_showFileDialogError)
-            UiSharedService.ColorTextWrapped("Upload failed. Please select a PNG file up to 2MiB.", ImGuiColors.DalamudRed);
+            UiSharedService.ColorTextWrapped("Upload failed. Please select a PNG or JPG/JPEG file up to 4MiB.", ImGuiColors.DalamudRed);
     }
 
     private static byte[] RescaleProfilePic(byte[] pngBytes, float aspectWidth, float aspectHeight, int maxOutWidth, int maxOutHeight)
