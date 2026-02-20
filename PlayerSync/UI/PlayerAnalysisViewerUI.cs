@@ -70,7 +70,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         Alias,
         FileSize,
         VRAM,
-        Triangles
+        Triangles,
+        Sound
     }
 
     private SortByID sortBy = SortByID.None;
@@ -220,7 +221,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         var height = max.Y - cursorPos;
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale));
 
-        if (ImGui.BeginTable("AnalysisTable", 7,
+        if (ImGui.BeginTable("AnalysisTable", 8,
                 ImGuiTableFlags.ScrollY |
                 ImGuiTableFlags.RowBg |
                 ImGuiTableFlags.SortMulti,
@@ -232,10 +233,11 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
                 ImGui.TableSetupColumn("Target", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 24f * ImGuiHelpers.GlobalScale);
                 ImGui.TableSetupColumn("UID");
-                ImGui.TableSetupColumn("Alias");
+                ImGui.TableSetupColumn("Alias", ImGuiTableColumnFlags.WidthFixed, 150f);
                 ImGui.TableSetupColumn("File Size");
                 ImGui.TableSetupColumn("Approx. VRAM Usage");
                 ImGui.TableSetupColumn("Approx. Triangle Count");
+                ImGui.TableSetupColumn("Sound", ImGuiTableColumnFlags.WidthFixed, 100f);
                 ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
 
                 // draw manual heeders clickable for sort
@@ -243,8 +245,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
                 void HeaderCell(string label, int colIndex, SortByID sortKey, bool totheleft = false)
                 {
-                    // sort only columns 2 to 6
-                    if (colIndex >= 1 && colIndex <= 5)
+                    // sort only columns 2 to 7
+                    if (colIndex >= 1 && colIndex <= 8)
                     {
                         ImGui.TableSetColumnIndex(colIndex);
 
@@ -284,7 +286,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 HeaderCell("File Size", 3, SortByID.FileSize);
                 HeaderCell("Approx. VRAM Usage", 4, SortByID.VRAM);
                 HeaderCell("Approx. Triangle Count", 5, SortByID.Triangles);
-                HeaderCell("Actions", 6, SortByID.None, true);
+                HeaderCell("Sound", 6, SortByID.Sound);
+                HeaderCell("Actions", 7, SortByID.None, true);
 
                 // Sort my table
                 var sortedPairs = allVisiblePairs.ToList();
@@ -302,6 +305,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     {
                         int cmp = sortBy switch
                         {
+                            SortByID.Sound => Nullable.Compare(a.LastLoadedSoundSinceRedraw, b.LastLoadedSoundSinceRedraw),
                             SortByID.UID => string.Compare(a.UserData.UID, b.UserData.UID, StringComparison.OrdinalIgnoreCase),
                             SortByID.Alias => string.Compare(a.UserData.Alias ?? "", b.UserData.Alias ?? "", StringComparison.OrdinalIgnoreCase),
                             SortByID.FileSize => a.LastAppliedDataBytes.CompareTo(b.LastAppliedDataBytes),
@@ -477,11 +481,34 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     else
                         DrawNotLoaded();
 
+                    // Sound Column Goes Here
+                    ImGui.TableSetColumnIndex(6);
+                    ImGui.AlignTextToFramePadding();
+                    float cellWidth2 = ImGui.GetColumnWidth();
+                    Vector2 iconSize2 = ImGui.CalcTextSize(FontAwesomeIcon.VolumeOff.ToIconString()); // approximate width of icon
+                    float indent2 = (cellWidth2 - iconSize2.X) * 0.5f;
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent2);
+
+                    if (pair.LastLoadedSoundSinceRedraw != null)
+                    {
+                        var icon = FontAwesomeIcon.VolumeOff;
+                        _uiSharedService.IconText(icon, ImGuiColors.HealerGreen);
+                        UiSharedService.AttachToolTip($"Started playing modded audio {UiSharedService.ApproxElapsedTimeToString(DateTimeOffset.UtcNow - pair.LastLoadedSoundSinceRedraw.Value)}.{UiSharedService.TooltipSeparator}CTRL + Click to disable sound sync with {pair.UserData.AliasOrUID}.");
+                        if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && UiSharedService.CtrlPressed())
+                        {
+                            var perm = pair.UserPair!.OwnPermissions;
+
+                            perm.SetSticky(true);
+                            perm.SetDisableSounds(true);
+                            _ = _apiController.UserSetPairPermissions(new(pair.UserData, perm));
+                        }
+                    }
+
                     // Button options Column
                     var uid = pair.UserData.UID;
                     bool isBusy = _pauseClicked.Contains(uid);
 
-                    ImGui.TableSetColumnIndex(6);
+                    ImGui.TableSetColumnIndex(7);
                     ImGui.AlignTextToFramePadding();
                     ImGui.BeginDisabled(isBusy);
                     if (ImGui.Button($"Pause##{pair.UserData.UID}"))
