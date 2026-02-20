@@ -6,6 +6,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.ModernUi;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.API.Data;
 namespace MareSynchronos.UI;
 
 public class PairingRequestsUi : WindowMediatorSubscriberBase
@@ -68,7 +69,6 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
             foreach (var request in pendingIncomingRequests)
             {
                 var requestorUid = request.Requestor.UID;
-                var requestorIdent = request.RequestTargetIdent;
                 var requestorName = _serverConfigurationManager.GetPendingRequestNameForIdent(request.RequestorIdent) ?? "Unknown";
                 var recipientName = _serverConfigurationManager.GetPendingRequestNameForIdent(request.RequestTargetIdent) ?? "Unknown";
 
@@ -85,23 +85,23 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
 
                 ImGui.TableNextColumn();
 
-                if (ImGui.Button($"Accept##{requestorIdent}"))
+                if (ImGui.Button($"Accept##{requestorUid}"))
                 {
-                    _pairRequestManager.SendPairRequest(requestorIdent);
+                    _pairRequestManager.SendPairRequest(new UserData(requestorUid));
                 }
 
                 ImGui.SameLine();
 
                 if (ImGui.Button($"Deny##{requestorUid}"))
                 {
-                    _pairRequestManager.SendPairRejection(new(requestorUid));
+                    _pairRequestManager.SendPairRejection(new UserData(requestorUid));
                 }
 
                 ImGui.SameLine();
 
                 if (ImGui.Button($"Ignore Player##{requestorUid}"))
                 {
-                    _pairRequestManager.SendPairRejection(new(requestorUid));
+                    _pairRequestManager.SendPairRejection(new UserData(requestorUid));
                     _serverConfigurationManager.AddPairingRequestBlacklistUid(requestorUid);
                 }
             }
@@ -109,7 +109,8 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
             foreach (var request in pendingOutgoingRequests)
             {
                 var requestorUid = request.Requestor.UID;
-                var requestorName = _serverConfigurationManager.GetPendingRequestNameForIdent(request.RequestorIdent) ?? "Unknown";
+                var targetIdent = request.RequestTargetIdent;
+                var requestorName = _uiSharedService.PlayerName;
                 var recipientName = _serverConfigurationManager.GetPendingRequestNameForIdent(request.RequestTargetIdent) ?? "Unknown";
 
                 ImGui.TableNextRow();
@@ -125,9 +126,9 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
 
                 ImGui.TableNextColumn();
 
-                if (ImGui.Button($"Cancel##{requestorUid}"))
+                if (ImGui.Button($"Cancel##{targetIdent}"))
                 {
-                    _pairRequestManager.SendPairRejection(new(requestorUid));
+                    _pairRequestManager.SendPairRejection(targetIdent);
                 }
             }
 

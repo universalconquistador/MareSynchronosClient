@@ -72,10 +72,16 @@ namespace MareSynchronos.PlayerData.Pairs
             _ = SendPairRequestInternal(userData: userData);
         }
 
+        public void SendPairRejection(string targetIdent)
+        {
+            Logger.LogDebug("Rejecting pair request for {user}", targetIdent);
+            _ = SendPairRejectionInternal(targetIdent: targetIdent);
+        }
+
         public void SendPairRejection(UserData userData)
         {
             Logger.LogDebug("Rejecting pair request for {user}", userData.UID);
-            _ = SendPairRejectionInternal(userData);
+            _ = SendPairRejectionInternal(userData: userData);
         }
 
         private void UpdatePairRequests(UserPairRequestsDto pairRequest)
@@ -95,7 +101,7 @@ namespace MareSynchronos.PlayerData.Pairs
                 {
                     if (_serverConfigurationManager.IsUidBlacklistedForPairRequest(req.Requestor.UID))
                     {
-                        _ = SendPairRejectionInternal(req.Requestor);
+                        _ = SendPairRejectionInternal(userData: req.Requestor);
                     }
 
                     var name = "";
@@ -188,9 +194,9 @@ namespace MareSynchronos.PlayerData.Pairs
             await _apiController.UserMakePairRequest(new(RequestTargetIdent: targetIdent, UserData: userData)).ConfigureAwait(false);
         }
 
-        private async Task SendPairRejectionInternal(UserData userData)
+        private async Task SendPairRejectionInternal(string? targetIdent = null, UserData? userData = null)
         {
-            await _apiController.UserRejectPairRequest(userData).ConfigureAwait(false);
+            await _apiController.UserRejectPairRequest(new(RequestTargetIdent: targetIdent, UserData: userData)).ConfigureAwait(false);
         }
 
         private void ClearPendingPairRequests()

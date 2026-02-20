@@ -122,10 +122,10 @@ public partial class ApiController
         await _mareHub!.InvokeAsync(nameof(UserMakePairRequest), request).ConfigureAwait(false);
     }
 
-    public async Task UserRejectPairRequest(UserData user)
+    public async Task UserRejectPairRequest(UserPairRequestDto request)
     {
         CheckConnection();
-        await _mareHub!.InvokeAsync(nameof(UserRejectPairRequest), user).ConfigureAwait(false);
+        await _mareHub!.InvokeAsync(nameof(UserRejectPairRequest), request).ConfigureAwait(false);
     }
 
     private async Task PushCharacterDataInternal(CharacterData character, List<UserData> visibleCharacters)
