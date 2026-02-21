@@ -66,13 +66,9 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
         var style = ImGui.GetStyle();
         float globalScale = ImGuiHelpers.GlobalScale;
 
-        // UID is max 10 chars; worst-case "W" width
-        float uidColumnWidth =
-            ImGui.CalcTextSize(new string('W', 10)).X +
-            style.CellPadding.X * 2f +
-            12f * globalScale;
+        // max UID width is 10 "W"
+        float uidColumnWidth = ImGui.CalcTextSize(new string('W', 10)).X +  style.CellPadding.X * 2f + 12f * globalScale;
 
-        // Actions width: compute from rendered button labels
         float acceptButtonWidth = ImGui.CalcTextSize("Accept").X + style.FramePadding.X * 2f;
         float dismissButtonWidth = ImGui.CalcTextSize("Dismiss").X + style.FramePadding.X * 2f;
         float ignoreButtonWidth = ImGui.CalcTextSize("Ignore Player").X + style.FramePadding.X * 2f;
@@ -86,17 +82,12 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
             style.CellPadding.X * 2f +
             10f * globalScale;
 
-        // Match other ModernUi tables
         using var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(8f * globalScale, 4f * globalScale));
 
         float tableHeight = MathF.Max(0f, ImGui.GetContentRegionAvail().Y);
 
-        using var table = ImRaii.Table("##PendingPairRequests", 3,
-            ImGuiTableFlags.RowBg |
-            ImGuiTableFlags.ScrollY |
-            ImGuiTableFlags.SizingFixedFit |
-            ImGuiTableFlags.NoHostExtendX,
-            new Vector2(0, tableHeight));
+        using var table = ImRaii.Table("##PendingPairRequests", 3, ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY
+            | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoHostExtendX, new Vector2(0, tableHeight));
 
         if (!table) return;
 
@@ -121,6 +112,12 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
             ImGui.TableNextColumn();
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(requestorUid);
+            if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+            if (ImGui.IsItemClicked())
+            {
+                ImGui.SetClipboardText(requestorUid);
+            }
+            UiSharedService.AttachToolTip("Click to copy");
 
             // Name
             ImGui.TableNextColumn();
@@ -157,7 +154,6 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
             UiSharedService.AttachToolTip("Ignoring a player will block their requests to you." + UiSharedService.TooltipSeparator +
                 "Unblock requests in Settings -> Sync Settings -> Pair Requests.");
 
-            // Row hover highlight (same behavior as PlayerAnalysisViewerUI)
             if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
             {
                 var rowIndex = ImGui.TableGetRowIndex();

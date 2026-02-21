@@ -577,6 +577,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
             ImGui.TableNextColumn();
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(pair.UserData.UID);
+            if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
             if (ImGui.IsItemClicked())
             {
                 ImGui.SetClipboardText(pair.UserData.UID);
@@ -710,6 +711,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     ImGui.AlignTextToFramePadding();
                     using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
                     ImGui.TextUnformatted(uid);
+                    if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
                     if (ImGui.IsItemClicked())
                     {
                         ImGui.SetClipboardText(pair.UserData.UID);
