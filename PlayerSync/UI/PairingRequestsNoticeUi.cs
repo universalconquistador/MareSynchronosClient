@@ -13,13 +13,11 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
     private const float PillHeight = 50f;
 
     private bool _isDraggingPill;
-    private readonly UiSharedService _uiShared;
     private readonly PairRequestManager _pairRequestManager;
 
-    public PairingRequestsNoticeUi(ILogger<PairingRequestsNoticeUi> logger, MareMediator mediator, UiSharedService uiShared, PerformanceCollectorService performanceCollectorService, 
+    public PairingRequestsNoticeUi(ILogger<PairingRequestsNoticeUi> logger, MareMediator mediator, PerformanceCollectorService performanceCollectorService, 
         PairRequestManager pairRequestManager) : base(logger, mediator, "PlayerSync Pending Pair Notice", performanceCollectorService)
     {
-        _uiShared = uiShared;
         _pairRequestManager = pairRequestManager;
 
         SizeConstraints = new WindowSizeConstraints()
@@ -110,9 +108,9 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
 
     public override bool DrawConditions()
     {
-#if DEBUG
-        return true;
-#endif
+//#if DEBUG
+//        return true;
+//#endif
         if (_pairRequestManager.ReceivedPendingCount == 0) return false;
         if (!IsOpen) return false;
         return true;

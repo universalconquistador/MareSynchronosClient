@@ -1,9 +1,12 @@
 ﻿using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.User;
+using MareSynchronos.Services;
+using MareSynchronos.Services.ServerConfiguration;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using System.Text;
+using System.Xml.Linq;
 
 namespace MareSynchronos.WebAPI;
 
@@ -117,6 +120,29 @@ public partial class ApiController
     }
 
     public async Task UserMakePairRequest(UserPairRequestDto request)
+    {
+        if (request.RequestTargetIdent != null)
+        {
+            var name = _dalamudUtil.FindPlayerByNameHash(request.RequestTargetIdent).Name;
+            _serverManager.AddPendingRequestForIdent(request.RequestTargetIdent, name ?? "");
+        }
+        else if (request.UserData != null)
+        {
+            var pair = _pairManager.GetPairByUID(request.UserData.UID);
+            if (pair != null)
+            {
+                _serverManager.AddPendingRequestForIdent(pair.Ident, pair.PlayerName ?? "No Name");
+            }
+        }
+        else
+        {
+            Logger.LogDebug("No valid ident or name was available for pair request.");
+        }
+
+        await UserMakePairRequestInternal(request).ConfigureAwait(false);
+    }
+
+    private async Task UserMakePairRequestInternal(UserPairRequestDto request)
     {
         CheckConnection();
         await _mareHub!.InvokeAsync(nameof(UserMakePairRequest), request).ConfigureAwait(false);

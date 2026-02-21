@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Dalamud.Game.Gui.ContextMenu;
+﻿using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
 using MareSynchronos.API.Data;
@@ -9,6 +8,7 @@ using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.WebAPI;
+using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.PlayerData.Pairs
 {
@@ -38,6 +38,7 @@ namespace MareSynchronos.PlayerData.Pairs
 
             _dalamudContextMenu.OnMenuOpened += DalamudContextMenuOnOnOpenGameObjectContextMenu;
         }
+
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
@@ -48,16 +49,19 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private string SelfUID => _apiController.UID;
 
-        public int ReceivedPendingCount => _pendingPairRequests.Count(p => p.RequestTarget.UID == SelfUID);
+        public int ReceivedPendingCount
+        {
+            get
+            {
+                var tempPairRequestList = _pendingPairRequests;
+                return tempPairRequestList.Count;
+            }
+        }
 
         public List<UserPairRequestFullDto> GetReceivedPendingRequests()
         {
-            return _pendingPairRequests.Where(p => p.RequestTarget.UID == SelfUID).ToList();
-        }
-
-        public List<UserPairRequestFullDto> GetSentPendingRequests()
-        {
-            return _pendingPairRequests.Where(p => p.Requestor.UID == SelfUID).ToList();
+            var tempPairRequestList = _pendingPairRequests;
+            return tempPairRequestList.ToList();
         }
 
         public void SendPairRequest(string targetIdent)
@@ -87,42 +91,46 @@ namespace MareSynchronos.PlayerData.Pairs
         private void UpdatePairRequests(UserPairRequestsDto pairRequest)
         {
             var incomingPairRequests = pairRequest?.PairingRequests ?? [];
-            var requestsToSelf = new HashSet<string>(incomingPairRequests.Where(r => r.RequestTarget.UID == SelfUID).Select(r => r.Requestor.UID), StringComparer.Ordinal);
-            var existingRequests = new HashSet<string>(_pendingPairRequests.Where(r => r.RequestTarget.UID == SelfUID).Select(r => r.Requestor.UID), StringComparer.Ordinal);
-            var newIncomingRequestorUids = requestsToSelf.Where(uid => !existingRequests.Contains(uid)).ToList();
-
-            _pendingPairRequests = incomingPairRequests;
+            var existingRequestorUids = new HashSet<string>(_pendingPairRequests.Select(r => r.Requestor.UID), StringComparer.Ordinal);
+            var newRequests = incomingPairRequests.Where(r => existingRequestorUids.Add(r.Requestor.UID)).ToList();
 
             // handle new requests
-            if (newIncomingRequestorUids.Count > 0)
+            foreach (var req in newRequests)
             {
-                var newRequests = _pendingPairRequests.Where(r => r.RequestTarget.UID == SelfUID && newIncomingRequestorUids.Contains(r.Requestor.UID)).ToList();
-                foreach (var req in newRequests)
+                if (_serverConfigurationManager.IsUidBlacklistedForPairRequest(req.Requestor.UID))
                 {
-                    if (_serverConfigurationManager.IsUidBlacklistedForPairRequest(req.Requestor.UID))
-                    {
-                        _ = SendPairRejectionInternal(userData: req.Requestor);
-                    }
+                    _ = SendPairRejectionInternal(userData: req.Requestor);
+                    incomingPairRequests.Remove(req);
+                    continue;
+                }
 
-                    var name = "";
-                    try
+                var name = "";
+                name = _dalamudUtilService.FindPlayerByNameHash(req.RequestorIdent).Name;
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    var pair = _pairManager.GetPairByUID(req.Requestor.UID);
+                    if (pair != null)
                     {
-                        name = _dalamudUtilService.FindPlayerByNameHash(req.RequestorIdent).Name;
-                        _serverConfigurationManager.AddPendingRequestForIdent(req.RequestorIdent, name ?? "");
+                        name = pair.PlayerName; // this may be empty string
                     }
-                    catch (Exception ex)
-                    {
-                        Logger.LogDebug(ex, "Could not find player for {ident}", req.RequestorIdent);
-                    }
+                }
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    name = "Unknown";
+                }
 
-                    var msg = name != "" ? $"Player {name} ({req.Requestor.AliasOrUID}) " : $"UID/Alias {req.Requestor.AliasOrUID} ";
-                    Mediator.Publish(new NotificationMessage("New Pair Request", msg + "has sent you request to pair.", MareConfiguration.Models.NotificationType.Info));
+                _serverConfigurationManager.AddPendingRequestForIdent(req.RequestorIdent, name);
+
+                if (_configurationService.Current.ShowPairingRequestNotification)
+                {
+                    var msg = name != "Unknown" ? $"Player {name} ({req.Requestor.AliasOrUID}) " : $"UID/Alias {req.Requestor.AliasOrUID} ";
+                    Mediator.Publish(new NotificationMessage("New Pair Request", msg + "has sent you a request to pair directly.", MareConfiguration.Models.NotificationType.Info));
                 }
             }
 
             // clean up the local ident cache
             var pendingIdents = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var request in _pendingPairRequests)
+            foreach (var request in incomingPairRequests)
             {
                 if (!string.IsNullOrWhiteSpace(request.RequestorIdent))
                     pendingIdents.Add(request.RequestorIdent);
@@ -139,6 +147,8 @@ namespace MareSynchronos.PlayerData.Pairs
                     _serverConfigurationManager.RemovePendingRequestForIdent(ident);
                 }
             }
+
+            _pendingPairRequests = incomingPairRequests.ToList();
         }
 
         private unsafe void DalamudContextMenuOnOnOpenGameObjectContextMenu(IMenuOpenedArgs args)
@@ -158,8 +168,8 @@ namespace MareSynchronos.PlayerData.Pairs
             if (!isPlayerCharacter) return;
 
             // check that we're not already directly paired
-            var isUserPaired = _pairManager.DirectPairs.Exists(p => p.Address == target);
-            if (isUserPaired) return;
+            var existingPair = _pairManager.DirectPairs.SingleOrDefault(p => p.Address == target);
+            if (existingPair != null && existingPair.UserPair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional) return;
 
             var targetIdent = DalamudUtilService.GetHashedCIDFromPlayerPointer(target);
             if (targetIdent == null) return;
@@ -201,7 +211,7 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private void ClearPendingPairRequests()
         {
-            _pendingPairRequests.Clear();
+            _pendingPairRequests = new List<UserPairRequestFullDto>();
         }
     }
 }

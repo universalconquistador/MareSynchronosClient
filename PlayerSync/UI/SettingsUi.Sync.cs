@@ -204,11 +204,11 @@ public partial class SettingsUi
         _uiShared.BigText("Pair Requests");
         ImGuiHelpers.ScaledDummy(2);
 
-        UiSharedService.TextWrapped("This setting will allow other players to send you a requst to direct pair.");
+        UiSharedService.TextWrapped("This setting will allow other PlayerSync users to send you a requst to pair directly.");
         UiSharedService.TextWrapped("If this setting is disabled, you can still pair normally by entering their UID/Vanity code.");
         ImGuiHelpers.ScaledDummy(5f);
 
-        if (_selectedServer == _serverConfigurationManager.CurrentServer && _apiController.IsConnected)
+        if (_apiController.IsConnected)
         {
             var pref = _apiController.UserPreferences!;
             var prefEnablePairRequests = pref.IsEnablePairRequests;
@@ -267,8 +267,6 @@ public partial class SettingsUi
             UiSharedService.ColorTextWrapped("Pair Requests Settings unavailable for this service. " +
                 "You need to connect to this service to change these settings since they are stored on the service.", ImGuiColors.DalamudYellow);
         }
-
-        
     }
 
     private void DrawSyncFilter()
