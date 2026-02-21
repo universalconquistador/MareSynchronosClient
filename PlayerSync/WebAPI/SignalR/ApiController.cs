@@ -58,7 +58,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Mediator.Subscribe<HubClosedMessage>(this, (msg) => MareHubOnClosed(msg.Exception));
         Mediator.Subscribe<HubReconnectedMessage>(this, (msg) => _ = MareHubOnReconnectedAsync());
         Mediator.Subscribe<HubReconnectingMessage>(this, (msg) => MareHubOnReconnecting(msg.Exception));
-        Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
+        //Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
         Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
         Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData, msg.Reason));
@@ -70,6 +70,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         {
             DalamudUtilOnLogIn();
         }
+
     }
 
     public string AuthFailureMessage { get; private set; } = string.Empty;
@@ -77,6 +78,9 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     public Version CurrentClientVersion => _connectionDto?.CurrentClientVersion ?? new Version(0, 0, 0);
 
     public DefaultPermissionsDto? DefaultPermissions => _connectionDto?.DefaultPreferredPermissions ?? null;
+
+    public UserPreferencesDto? UserPreferences => _connectionDto?.UserPreferences ?? null;
+
     public string DisplayName => _connectionDto?.User.AliasOrUID ?? string.Empty;
 
     public bool IsConnected => ServerState == ServerState.Connected;
@@ -475,6 +479,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         OnUserReceiveUploadStatus(dto => _ = Client_UserReceiveUploadStatus(dto));
         OnUserUpdateProfile(dto => _ = Client_UserUpdateProfile(dto));
         OnUserDefaultPermissionUpdate(dto => _ = Client_UserUpdateDefaultPermissions(dto));
+        OnUserUpdatePreferences(dto => _ = Client_UserUpdatePreferences(dto));
         OnUpdateUserIndividualPairStatusDto(dto => _ = Client_UpdateUserIndividualPairStatusDto(dto));
 
         OnGroupChangePermissions((dto) => _ = Client_GroupChangePermissions(dto));
@@ -493,6 +498,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         OnGposeLobbyPushWorldData((dto, data) => _ = Client_GposeLobbyPushWorldData(dto, data));
 
         OnBroadcastListeningChanged(isListening => _ = Client_BroadcastListeningChanged(isListening));
+        OnUpdatePairRequests(dto => _ = Client_UpdatePairRequests(dto));
 
         _healthCheckTokenSource?.Cancel();
         _healthCheckTokenSource?.Dispose();
