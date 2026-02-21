@@ -492,7 +492,7 @@ public partial class SettingsUi
             _configService.Current.ShowPairingRequestNotification = pairingRequestNotifs;
             _configService.Save();
         }
-        _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner when a player requests to pair through the context menu.");
+        _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner when a player sends a request to pair directly.");
         if (ImGui.Checkbox("Enable broadcast notifications", ref broadcastNotifs))
         {
             _configService.Current.ShowAvailableBroadcastsNotification = broadcastNotifs;

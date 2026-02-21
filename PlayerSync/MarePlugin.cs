@@ -86,6 +86,7 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly GroupZoneSyncManager _groupZoneSyncManager;
     private readonly NamePlateManagerService _namePlateManagerService;
+    private readonly PairRequestManager _pairRequestManager;
     private IServiceScope? _runtimeServiceScope;
     private Task? _launchTask = null;
 
@@ -93,7 +94,7 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
         ServerConfigurationManager serverConfigurationManager,
         DalamudUtilService dalamudUtil,
         IServiceScopeFactory serviceScopeFactory, MareMediator mediator,
-        GroupZoneSyncManager groupZoneSyncManager, NamePlateManagerService namePlateManagerService) : base(logger, mediator)
+        GroupZoneSyncManager groupZoneSyncManager, NamePlateManagerService namePlateManagerService, PairRequestManager pairRequestManager) : base(logger, mediator)
     {
         _mareConfigService = mareConfigService;
         _serverConfigurationManager = serverConfigurationManager;
@@ -101,6 +102,7 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
         _serviceScopeFactory = serviceScopeFactory;
         _groupZoneSyncManager = groupZoneSyncManager;
         _namePlateManagerService = namePlateManagerService;
+        _pairRequestManager = pairRequestManager;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)

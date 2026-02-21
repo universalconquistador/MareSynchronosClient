@@ -150,6 +150,8 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton((s) => new GroupZoneSyncManager(s.GetRequiredService<ILogger<GroupZoneSyncManager>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<ZoneSyncConfigService>(), s.GetRequiredService<PairManager>()));
+            collection.AddSingleton((s) => new PairRequestManager(s.GetRequiredService<ILogger<PairRequestManager>>(), s.GetRequiredService<MareMediator>(), contextMenu, s.GetRequiredService<MareConfigService>(),
+                s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<ServerConfigurationManager>()));
             collection.AddSingleton((s) => new DtrEntry(s.GetRequiredService<ILogger<DtrEntry>>(), dtrBar, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<IBroadcastManager>(), s.GetRequiredService<ApiController>()));
             collection.AddSingleton((s) => new IpcCallerPenumbra(s.GetRequiredService<ILogger<IpcCallerPenumbra>>(), pluginInterface,
@@ -225,6 +227,8 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped<WindowMediatorSubscriberBase, EventViewerUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, CharaDataHubUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, PlayerAnalysisViewerUI>();
+            collection.AddScoped<WindowMediatorSubscriberBase, PairingRequestsUi>();
+            collection.AddScoped<WindowMediatorSubscriberBase, PairingRequestsNoticeUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, EditProfileUi>((s) => new EditProfileUi(s.GetRequiredService<ILogger<EditProfileUi>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<UiSharedService>(), s.GetRequiredService<FileDialogManager>(),
                 s.GetRequiredService<MareProfileManager>(), s.GetRequiredService<PerformanceCollectorService>(), s.GetRequiredService<UiTheme>(), 

@@ -152,6 +152,10 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     {
         get => _targetManager.Target?.Name.TextValue ?? "";
     }
+    public unsafe nint TargetAddress
+    {
+        get => _targetManager.Target?.Address ?? nint.Zero;
+    }
 
     private unsafe bool HasGposeTarget => GposeTarget != null;
     private unsafe int GPoseTargetIdx => !HasGposeTarget ? -1 : GposeTarget->ObjectIndex;
@@ -320,7 +324,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return await RunOnFrameworkThread(() => _cid.Value.ToString().GetHash256()).ConfigureAwait(false);
     }
 
-    private unsafe static string GetHashedCIDFromPlayerPointer(nint ptr)
+    public unsafe static string GetHashedCIDFromPlayerPointer(nint ptr)
     {
         return ((BattleChara*)ptr)->Character.ContentId.ToString().GetHash256();
     }
