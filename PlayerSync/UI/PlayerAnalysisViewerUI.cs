@@ -394,6 +394,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
                     _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
                     UiSharedService.AttachToolTip("Target " + pair.PlayerName);
+                    if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
                     if (ImGui.IsItemClicked()) Mediator.Publish(new TargetPairMessage(pair));
 
                     // UID Column                     
@@ -402,6 +403,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
                     TableHelper.CText(pair.UserData.UID, centerHorizontally: false, leftPadding: 0f);
                     targetColor.Dispose();
+                    if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
                     if (ImGui.IsItemClicked())
                     {
                         ImGui.SetClipboardText(pair.UserData.UID);
