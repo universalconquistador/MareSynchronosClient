@@ -125,6 +125,9 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         //if (!ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
         //    IsOpen = false;
 
+        // user might unpair us, pause, etc.
+        if (!Pair.IsOnline) IsOpen = false;
+
         // get profile data
         var psProfile = _mareProfileManager.GetMareProfile(Pair.UserData);
         var profile = MareProfileManager.ProfileHandler.Read(psProfile.Description);
@@ -191,7 +194,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             ProfileBuilder.DrawWindowBorder(colorAccent, radiusPx, 3.0f, 0.0f);
             ProfileBuilder.DrawNameInfo(_theme, profileName, uid, profile);
 
-            if (DrawCloseCircleButtonTopRight("##close_profile", profile.Theme.TextPrimaryV4))
+            if (DrawCloseButton("##close_profile", profile.Theme.TextPrimaryV4))
             {
                 IsOpen = false;
             }
@@ -281,30 +284,38 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
                 if (ImGui.Begin("##ps_pair_info_tt", flags))
                 {
-                    if (Pair.UserPair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional)
+                    if (!Pair.IsOnline || Pair == null)
                     {
-                        ImGui.TextUnformatted("Directly paired");
-                        if (Pair.UserPair.OwnPermissions.IsPaused())
-                        {
-                            ImGui.SameLine();
-                            UiSharedService.ColorText("You: paused", ImGuiColors.DalamudYellow);
-                        }
-                        if (Pair.UserPair.OtherPermissions.IsPaused())
-                        {
-                            ImGui.SameLine();
-                            UiSharedService.ColorText("They: paused", ImGuiColors.DalamudYellow);
-                        }
+                        ImGui.TextUnformatted("Pair info unavailable");
                     }
-
-                    if (Pair.UserPair.Groups.Any())
+                    else 
                     {
-                        ImGui.TextUnformatted("Paired through Syncshells:");
-                        foreach (var group in Pair.UserPair.Groups)
+                        if (Pair.UserPair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional)
                         {
-                            var groupNote = _serverManager.GetNoteForGid(group);
-                            var groupName = _pairManager.GroupPairs.First(f => string.Equals(f.Key.GID, group, StringComparison.Ordinal)).Key.GroupAliasOrGID;
-                            var groupString = string.IsNullOrEmpty(groupNote) ? groupName : $"{groupNote} ({groupName})";
-                            ImGui.TextUnformatted("- " + groupString);
+                            ImGui.TextUnformatted("Directly paired");
+                            if (Pair.UserPair.OwnPermissions.IsPaused())
+                            {
+                                ImGui.SameLine();
+                                UiSharedService.ColorText("You: paused", ImGuiColors.DalamudYellow);
+                            }
+                            if (Pair.UserPair.OtherPermissions.IsPaused())
+                            {
+                                ImGui.SameLine();
+                                UiSharedService.ColorText("They: paused", ImGuiColors.DalamudYellow);
+                            }
+                        }
+
+                        if (Pair.UserPair.Groups.Any())
+                        {
+                            var groups = Pair.UserPair.Groups.Distinct(StringComparer.OrdinalIgnoreCase);
+                            ImGui.TextUnformatted("Paired through Syncshells:");
+                            foreach (var group in groups)
+                            {
+                                var groupNote = _serverManager.GetNoteForGid(group);
+                                var groupName = _pairManager.GroupPairs.First(f => string.Equals(f.Key.GID, group, StringComparison.Ordinal)).Key.GroupAliasOrGID;
+                                var groupString = string.IsNullOrEmpty(groupNote) ? groupName : $"{groupNote} ({groupName})";
+                                ImGui.TextUnformatted("- " + groupString);
+                            }
                         }
                     }
                 }
@@ -315,7 +326,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         ImGui.SetCursorPos(restoreCursor);
     }
 
-    private static bool DrawCloseCircleButtonTopRight(string id, Vector4 color, float marginPx = 12f)
+    private static bool DrawCloseButton(string id, Vector4 color, float marginPx = 12f)
     {
         var drawList = ImGui.GetWindowDrawList();
         var windowPos = ImGui.GetWindowPos();
