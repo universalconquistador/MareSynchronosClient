@@ -30,6 +30,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     private byte[] _lastSupporterPicture = [];
     private IDalamudTextureWrap? _supporterTextureWrap;
     private IDalamudTextureWrap? _textureWrap;
+    private IDalamudTextureWrap? _playerSyncWatermark;
     private Task? _profileImageDownloadTask;
     private CancellationTokenSource? _profileImageDownloadCts;
     private bool _editingNotes;
@@ -66,6 +67,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     }
 
     public Pair Pair { get; init; }
+
+    private IDalamudTextureWrap Watermark => _playerSyncWatermark ??= _uiSharedService.LoadImage(_mareProfileManager.PlayerSyncWatermark);
 
     public override void PreDraw()
     {
@@ -110,6 +113,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         _textureWrap?.Dispose();
         _textureWrap = null;
+        _playerSyncWatermark?.Dispose();
+        _playerSyncWatermark = null;
 
         _profileImageDownloadTask = null;
 
@@ -221,6 +226,10 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
             if (changed)
                 _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
+
+            var watermarkColor = profile.Theme.AccentV4;
+            watermarkColor.W = 0.3f;
+            ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 10f);
 
             DrawPairingSyncshells(_theme, profile.Theme.TextPrimaryV4, supporter ? 16f : 12f);
         }
