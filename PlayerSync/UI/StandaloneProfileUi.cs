@@ -191,7 +191,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             ProfileBuilder.DrawWindowBorder(colorAccent, radiusPx, 3.0f, 0.0f);
             ProfileBuilder.DrawNameInfo(_theme, profileName, uid, profile);
 
-            if (DrawCloseCircleButtonTopRight("##close_profile", profile.Theme.AccentV4))
+            if (DrawCloseCircleButtonTopRight("##close_profile", profile.Theme.TextPrimaryV4))
             {
                 IsOpen = false;
             }
@@ -219,7 +219,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             if (changed)
                 _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
 
-            DrawPairingSyncshells(_theme, profile.Theme.AccentV4, supporter ? 16f : 12f);
+            DrawPairingSyncshells(_theme, profile.Theme.TextPrimaryV4, supporter ? 16f : 12f);
         }
         catch (Exception ex)
         {
