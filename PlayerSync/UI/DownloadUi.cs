@@ -105,7 +105,7 @@ public class DownloadUi : WindowMediatorSubscriberBase
 
             try
             {
-                foreach (var item in _currentDownloads.ToList())
+                foreach (var item in _currentDownloads)
                 {
                     var dlSlot = item.Value.Count(c => c.Value.DownloadStatus == DownloadStatus.WaitingForSlot);
                     var dlQueue = item.Value.Count(c => c.Value.DownloadStatus == DownloadStatus.WaitingForQueue);
