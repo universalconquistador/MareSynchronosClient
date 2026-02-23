@@ -1,5 +1,4 @@
 ﻿using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
@@ -173,7 +172,8 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public bool IsLoggedIn { get; private set; }
     public bool IsOnFrameworkThread => _framework.IsInFrameworkUpdateThread;
     public bool IsZoning => _condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.BetweenAreas51];
-    public bool IsBoundByDuty => _condition[ConditionFlag.BoundByDuty];
+    public bool IsBoundByDuty { get; set; } = false;
+    public bool IsSyncPausedByDuty => IsBoundByDuty && _configService.Current.DisableSyncDuringDuty;
     public bool IsInCombatOrPerforming { get; private set; } = false;
     public bool HasModifiedGameFiles => _gameData.HasModifiedGameDataFiles;
     public uint ClassJobId => _classJobId!.Value;
@@ -700,6 +700,27 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 IsInCombatOrPerforming = false;
                 Mediator.Publish(new CombatOrPerformanceEndMessage());
                 Mediator.Publish(new ResumeScanMessage(nameof(IsInCombatOrPerforming)));
+            }
+
+            if (_condition[ConditionFlag.BoundByDuty] && !IsBoundByDuty)
+            {
+                _logger.LogDebug("Duty start");
+                IsBoundByDuty = true;
+                if (_configService.Current.DisableSyncDuringDuty)
+                {
+                    Mediator.Publish(new PauseSyncMessage());
+                    Mediator.Publish(new HaltScanMessage(nameof(IsBoundByDuty)));
+                }
+            }
+            else if (!_condition[ConditionFlag.BoundByDuty] && IsBoundByDuty)
+            {
+                _logger.LogDebug("Duty end");
+                IsBoundByDuty = false;
+                if (_configService.Current.DisableSyncDuringDuty)
+                {
+                    Mediator.Publish(new ResumeSyncMessage());
+                    Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByDuty)));
+                }
             }
 
             if (_condition[ConditionFlag.WatchingCutscene] && !IsInCutscene)
