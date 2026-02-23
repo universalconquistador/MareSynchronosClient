@@ -175,8 +175,6 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             _logger.LogError(ex, "Error downloading/creating profile texture wrap.");
         }
 
-        bool supporter = profile.IsSupporter;
-
         const float radiusPx = 24f;
         var colorPrimary = profile.Theme.PrimaryV4;
         var colorAccent = profile.Theme.AccentV4;
@@ -231,16 +229,12 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             watermarkColor.W = 0.3f;
             ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 10f);
 
-            DrawPairingSyncshells(_theme, profile.Theme.TextPrimaryV4, supporter ? 16f : 12f);
+            DrawPairingSyncshells(_theme, profile.Theme.TextPrimaryV4, 12f);
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Window Draw Failed");
         }
-
-        // this has to go at the very end to ensure nothing is draw over it
-        if (supporter)
-            UiFx.DrawWindowShimmerBorderFull(gold: new Vector4(1.0f, 0.85f, 0.25f, 1.0f), thicknessPx: 2f, outerInsetPx: 0f, innerInsetPx: 0f, drawInner: true);
     }
 
     private void DrawPairingSyncshells(UiTheme theme, Vector4 color, float marginPx = 12f)
