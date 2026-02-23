@@ -271,12 +271,14 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
     private void UiSharedService_GposeStart()
     {
+        if (_dalamudUtilService.IsBoundByDuty) return; // make this better
         _wasOpen = IsOpen;
         IsOpen = false;
     }
 
     private void UiSharedService_GposeEnd()
     {
+        if (_dalamudUtilService.IsBoundByDuty) return; // make this betters
         IsOpen = _wasOpen;
     }
 

@@ -344,6 +344,28 @@ public static class ProfileBuilder
         }
     }
 
+    public static void DrawWatermark(IDalamudTextureWrap? textureWrap, Vector2 imageSize, Vector4 tintColor, float marginPx = 12f)
+    {
+        if (textureWrap == null) return;
+
+        var drawList = ImGui.GetWindowDrawList();
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+
+        var margin = UiScale.ScaledFloat(marginPx);
+        var scaledSize = new Vector2(
+            MathF.Max(1f, UiScale.ScaledFloat(imageSize.X)),
+            MathF.Max(1f, UiScale.ScaledFloat(imageSize.Y)));
+
+        var imageMin = new Vector2(
+            windowPos.X + windowSize.X - margin - scaledSize.X,
+            windowPos.Y + windowSize.Y - margin - scaledSize.Y);
+
+        var imageMax = imageMin + scaledSize;
+
+        drawList.AddImage(textureWrap.Handle, imageMin, imageMax, ImGui.GetColorU32(tintColor));
+    }
+
     private const float Spacing = 15;
 
     private static void DrawCircularBadge(ImDrawListPtr drawList, UiTheme theme, IDalamudTextureWrap badge, Vector2 avatarMin, Vector2 avatarMax)
@@ -505,8 +527,6 @@ public static class ProfileBuilder
         var pillHeight = ImGui.GetTextLineHeight() + padY * 2f;
         return (rowCount * pillHeight) + ((rowCount - 1) * gap);
     }
-
-
 
     private static float MeasureInterestsHeight(UiTheme theme, ProfileV1 profile)
     {

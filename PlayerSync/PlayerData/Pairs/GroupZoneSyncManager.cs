@@ -54,6 +54,8 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
     /// </summary>
     public void ScheduleGroupZoneSync()
     {
+        if (!_apiController.IsConnected) return;
+
         var enableGroupZoneSyncJoining = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
         if (!enableGroupZoneSyncJoining) return;
 
@@ -110,7 +112,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
     {
         if (!_apiController.IsConnected)
         {
-            _logger.LogWarning("Can't call SendGroupZoneSyncInfo when not connected.");
+            _logger.LogDebug("Can't call SendGroupZoneSyncInfo when not connected.");
             return;
         }
         var dutyBound = _dalamudUtilService.IsBoundByDuty;

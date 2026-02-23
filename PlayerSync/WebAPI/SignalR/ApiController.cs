@@ -63,6 +63,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
         Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData, msg.Reason));
         Mediator.Subscribe<UserPairStickyPauseAndRemoveMessage>(this, (msg) => _ = UserPairStickyPauseAndRemove(msg.UserData));
+        Mediator.Subscribe<ZoneSwitchEndMessage>(this, (msg) => _ = PauseServerConnection());
+        Mediator.Subscribe<ResumeSyncMessage>(this, (msg) => _ = ResumeServerConnection());
 
         ServerState = ServerState.Offline;
 
@@ -110,6 +112,28 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     public async Task<bool> CheckClientHealth()
     {
         return await _mareHub!.InvokeAsync<bool>(nameof(CheckClientHealth)).ConfigureAwait(false);
+    }
+
+    public async Task PauseServerConnection()
+    {
+        if (!_dalamudUtil.IsSyncPausedByDuty) return;
+
+        if (!(ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting)) return;
+
+        _serverManager.CurrentServer.FullPause = true;
+        _serverManager.Save();
+
+
+        Logger.LogDebug("BBBBBBBBBBBBBBBB");
+        await CreateConnectionsAsync().ConfigureAwait(false);
+    }
+
+    public async Task ResumeServerConnection()
+    {
+        if (ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting) return;
+        _serverManager.CurrentServer.FullPause = false;
+        _serverManager.Save();
+        await CreateConnectionsAsync().ConfigureAwait(false);
     }
 
     public async Task CreateConnectionsAsync()
