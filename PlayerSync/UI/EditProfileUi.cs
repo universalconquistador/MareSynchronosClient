@@ -157,6 +157,9 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     {
         base.OnOpen();
 
+        if (!_apiController.IsConnected)
+            return;
+
         if (_pfpTextureWrap != null)
             return;
 
@@ -192,6 +195,12 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     protected override void DrawInternal()
     {
         using var windowStyle = _theme.PushWindowStyle();
+
+        if (!_apiController.IsConnected)
+        {
+            UiSharedService.ColorTextWrapped("Must be connected to the service to use this feature.", ImGuiColors.DalamudYellow);
+            return;
+        }
 
         var psProfile = _mareProfileManager.GetMareProfile(Self);
 
