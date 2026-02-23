@@ -186,6 +186,8 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private void AddContextMenu(IMenuOpenedArgs args, string targetIdent)
         {
+            if (!_apiController.IsConnected) return;
+
             SeStringBuilder seStringBuilder = new();
             var pairIndividually = seStringBuilder.AddText("Send Pair Request").Build();
 

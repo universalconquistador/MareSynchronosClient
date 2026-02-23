@@ -38,6 +38,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     private IDalamudTextureWrap? _pfpTextureWrap;
     private IDalamudTextureWrap? _supporterTextureWrap;
+    private IDalamudTextureWrap? _playerSyncWatermark;
     private byte[] _lastProfilePicture = [];
     private byte[] _lastSupporterPicture = [];
     private Task? _profileImageDownloadTask;
@@ -121,6 +122,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     private bool IsDevServer => _apiController.ServerInfo.FileServerAddress.ToString().Contains("dev");
 
+    private IDalamudTextureWrap Watermark => _playerSyncWatermark ??= _uiSharedService.LoadImage(_mareProfileManager.PlayerSyncWatermark);
+
     private static bool IsProfileLoaded(string? raw)
     {
         // this can only happen if a legacy profile was saved as blank
@@ -154,6 +157,9 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     {
         base.OnOpen();
 
+        if (!_apiController.IsConnected)
+            return;
+
         if (_pfpTextureWrap != null)
             return;
 
@@ -172,6 +178,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         _pfpTextureWrap?.Dispose();
         _pfpTextureWrap = null;
+        _playerSyncWatermark?.Dispose();
+        _playerSyncWatermark = null;
 
         _profileImageDownloadTask = null;
         _pfpHasChanged = false;
@@ -187,6 +195,12 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     protected override void DrawInternal()
     {
         using var windowStyle = _theme.PushWindowStyle();
+
+        if (!_apiController.IsConnected)
+        {
+            UiSharedService.ColorTextWrapped("Must be connected to the service to use this feature.", ImGuiColors.DalamudYellow);
+            return;
+        }
 
         var psProfile = _mareProfileManager.GetMareProfile(Self);
 
@@ -568,7 +582,6 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         ProfileBuilder.DrawBackgroundImage(_theme, _pfpTextureWrap);
         ProfileBuilder.DrawGradient(_liveProfile.Theme.SecondaryV4, _liveProfile.Theme.PrimaryV4);
         ProfileBuilder.DrawWindowBorder(colorAccent, radiusPx, 3.0f, 0.0f);
-
         ProfileBuilder.DrawNameInfo(_theme, displayName, _apiController.UID, _liveProfile);
 
         var gapHeight = ProfileBuilder.CalculateGapHeight(_theme, _liveProfile);
@@ -576,6 +589,10 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         ProfileBuilder.DrawInterests(_theme, _liveProfile);
         ProfileBuilder.DrawAboutMe(_theme, _liveProfile);
+
+        var watermarkColor = _liveProfile.Theme.AccentV4;
+        watermarkColor.W = 0.3f;
+        ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 10f);
     }
 
     private void UpdateSelfImages(MareProfileData psProfile)

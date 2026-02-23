@@ -6,6 +6,7 @@ using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.ModernUi;
+using MareSynchronos.WebAPI.SignalR.Utils;
 using System.Numerics;
 
 namespace MareSynchronos.UI;
@@ -22,6 +23,7 @@ public partial class SettingsUi
         new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
         new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),
         new(SyncTabs.Pairs, "Pair Requests", DrawPairRequests),
+        new(SyncTabs.Duty, "Auto Duty", DrawAutoDuty),
         new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
         new(SyncTabs.Permissions, "Permissions", GoToPermissions),
     ];
@@ -31,6 +33,7 @@ public partial class SettingsUi
         Zone,
         Broadcast,
         Pairs,
+        Duty,
         Filter,
         Permissions
     }
@@ -266,6 +269,34 @@ public partial class SettingsUi
         {
             UiSharedService.ColorTextWrapped("Pair Requests Settings unavailable for this service. " +
                 "You need to connect to this service to change these settings since they are stored on the service.", ImGuiColors.DalamudYellow);
+        }
+    }
+
+    private void DrawAutoDuty()
+    {
+        bool disableSyncDuringDuty = _configService.Current.DisableSyncDuringDuty;
+        bool IsBoundByDuty = _dalamudUtilService.IsBoundByDuty;
+        bool isConnectingOrConnected = _apiController.ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting;
+
+        _uiShared.BigText("Auto Duty");
+        ImGuiHelpers.ScaledDummy(2);
+        UiSharedService.TextWrapped("This option will disconnect from the service upon entering a duty and reconnect when you leave the instance.");
+        ImGuiHelpers.ScaledDummy(5f);
+        if (ImGui.Checkbox("Auto disconnect when bound by duty", ref disableSyncDuringDuty))
+        {
+            if (isConnectingOrConnected && !_serverConfigurationManager.CurrentServer.FullPause && IsBoundByDuty && disableSyncDuringDuty)
+            {
+                Mediator.Publish(new PauseSyncMessage());
+                Mediator.Publish(new HaltScanMessage(nameof(IsBoundByDuty)));
+            }
+            else if (!isConnectingOrConnected && _serverConfigurationManager.CurrentServer.FullPause && IsBoundByDuty && !disableSyncDuringDuty)
+            {
+                Mediator.Publish(new ResumeSyncMessage());
+                Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByDuty)));
+            }
+
+            _configService.Current.DisableSyncDuringDuty = disableSyncDuringDuty;
+            _configService.Save();
         }
     }
 

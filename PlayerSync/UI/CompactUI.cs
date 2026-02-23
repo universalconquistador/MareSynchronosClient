@@ -135,6 +135,8 @@ public class CompactUi : WindowMediatorSubscriberBase
 #endif
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (_) => IsOpen = true);
         Mediator.Subscribe<SwitchToIntroUiMessage>(this, (_) => IsOpen = false);
+        Mediator.Subscribe<PauseSyncMessage>(this, (_) => UiSharedService_GposeStart());
+        Mediator.Subscribe<ResumeSyncMessage>(this, (_) => UiSharedService_GposeEnd());
         Mediator.Subscribe<CutsceneStartMessage>(this, (_) => UiSharedService_GposeStart());
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => UiSharedService_GposeEnd());
         Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.DownloadId] = msg.DownloadStatus);
