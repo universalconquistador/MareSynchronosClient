@@ -72,8 +72,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         SizeConstraints = new()
         {
-            MinimumSize = new(1000, 800),
-            MaximumSize = new(1000, 800),
+            MinimumSize = new(1000, 820),
+            MaximumSize = new(1000, 820),
         };
 
         _apiController = apiController;
@@ -450,7 +450,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             "that can be considered highly illegal or obscene (sexual acts with minors, bestiality, etc...) " +
             "In the case of valid reports from other users, this could lead to a ban from Playersync. " +
             "Absolutley NO personal information of youself or others (images, text info, etc.)");
-        ImGui.TextWrapped("If your profile picture or profile description could be considered NSFW, enable the toggle for it.");
+        ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "If your profile picture or profile description could be considered NSFW, enable the toggle for it.");
 
         ImGui.Spacing();
 

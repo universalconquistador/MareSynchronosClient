@@ -23,7 +23,7 @@ public partial class SettingsUi
         new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
         new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),
         new(SyncTabs.Pairs, "Pair Requests", DrawPairRequests),
-        new(SyncTabs.Duty, "Auto Duty", DrawAutoDuty),
+        new(SyncTabs.Duty, "Duty Pause", DrawDutyPause),
         new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
         new(SyncTabs.Permissions, "Permissions", GoToPermissions),
     ];
@@ -272,13 +272,13 @@ public partial class SettingsUi
         }
     }
 
-    private void DrawAutoDuty()
+    private void DrawDutyPause()
     {
         bool disableSyncDuringDuty = _configService.Current.DisableSyncDuringDuty;
         bool IsBoundByDuty = _dalamudUtilService.IsBoundByDuty;
         bool isConnectingOrConnected = _apiController.ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting;
 
-        _uiShared.BigText("Auto Duty");
+        _uiShared.BigText("Duty Pause");
         ImGuiHelpers.ScaledDummy(2);
         UiSharedService.TextWrapped("This option will disconnect from the service upon entering a duty and reconnect when you leave the instance.");
         ImGuiHelpers.ScaledDummy(5f);
