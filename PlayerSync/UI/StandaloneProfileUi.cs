@@ -25,6 +25,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     private readonly ServerConfigurationManager _serverManager;
     private readonly UiSharedService _uiSharedService;
     private readonly FileImageTransferHandler _fileImageTransferHandler;
+    private readonly PairRequestManager _pairRequestManager;
 
     private byte[]? _lastProfilePicture;
     private byte[] _lastSupporterPicture = [];
@@ -38,7 +39,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
     public StandaloneProfileUi(ILogger<StandaloneProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
         ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair,
-        PerformanceCollectorService performanceCollector, UiTheme theme, FileImageTransferHandler fileImageTransferHandler)
+        PerformanceCollectorService performanceCollector, UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairRequestManager pairRequestManager)
         : base(logger, mediator, "PlayerSync Profile of " + pair.UserData.AliasOrUID + "##PlayerSyncStandaloneProfileUI" + pair.UserData.AliasOrUID, performanceCollector)
     {
         _uiSharedService = uiBuilder;
@@ -48,6 +49,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         Pair = pair;
         _pairManager = pairManager;
         _fileImageTransferHandler = fileImageTransferHandler;
+        _pairRequestManager = pairRequestManager;
 
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar 
             | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoBackground;
@@ -131,7 +133,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         //    IsOpen = false;
 
         // user might unpair us, pause, etc.
-        if (!Pair.IsOnline) IsOpen = false;
+        if (!Pair.IsPaired) IsOpen = false;
 
         // get profile data
         var psProfile = _mareProfileManager.GetMareProfile(Pair.UserData);
@@ -197,7 +199,16 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             ProfileBuilder.DrawWindowBorder(colorAccent, radiusPx, 3.0f, 0.0f);
             ProfileBuilder.DrawNameInfo(_theme, profileName, uid, profile);
 
-            if (DrawCloseButton("##close_profile", profile.Theme.TextPrimaryV4))
+            var isDirectlyPaired = Pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional;
+            var pairIcon = isDirectlyPaired ? FontAwesomeIcon.UserCheck : FontAwesomeIcon.UserPlus;
+            var hoverText = isDirectlyPaired ? "Directly Paired" : $"Click to send {Pair.PlayerName} a direct pair request.";
+            if (DrawTopRightIconButton("##pair_status", pairIcon, profile.Theme.TextPrimaryV4, 1, 14f, 8f, !isDirectlyPaired, hoverText))
+            {
+                if (isDirectlyPaired) return;
+
+                _pairRequestManager.SendPairRequest(userData: Pair.UserData);
+            }
+            if (DrawCloseButton("##close_profile", profile.Theme.TextPrimaryV4, 14f))
             {
                 IsOpen = false;
             }
@@ -227,9 +238,9 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
             var watermarkColor = profile.Theme.AccentV4;
             watermarkColor.W = 0.3f;
-            ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 10f);
+            ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 7f);
 
-            DrawPairingSyncshells(_theme, profile.Theme.TextPrimaryV4, 12f);
+            DrawPairingSyncshells(_theme, profile.Theme.TextPrimaryV4, 14f);
         }
         catch (Exception ex)
         {
@@ -365,4 +376,47 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         return clicked;
     }
+
+    private static bool DrawTopRightIconButton(string id, FontAwesomeIcon icon, Vector4 color, int offsetCount, float marginPx = 12f, float gapPx = 6f,
+        bool hoverHand = false, string hoverText = "")
+    {
+        var drawList = ImGui.GetWindowDrawList();
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+        var margin = UiScale.ScaledFloat(marginPx);
+        var gap = UiScale.ScaledFloat(gapPx);
+        var btn = MathF.Max(ImGui.GetFrameHeight(), UiScale.ScaledFloat(24f));
+        var btnSize = new Vector2(btn, btn);
+        var clampedOffsetCount = Math.Max(0, offsetCount);
+        var stepX = btnSize.X + gap;
+
+        var buttonMin = new Vector2(windowPos.X + windowSize.X - margin - btnSize.X - (stepX * clampedOffsetCount), windowPos.Y + margin);
+
+        ImGui.SetCursorScreenPos(buttonMin);
+        ImGui.InvisibleButton(id, btnSize);
+        if (!String.IsNullOrWhiteSpace(hoverText))
+            UiSharedService.AttachToolTip(hoverText);
+
+        var hovered = ImGui.IsItemHovered();
+        var clicked = ImGui.IsItemClicked(ImGuiMouseButton.Left);
+
+        if (hovered && hoverHand)
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+
+        var iconString = icon.ToIconString();
+
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var iconSize = UiScale.ScaledFloat(20f);
+            var font = ImGui.GetFont();
+            var baseSize = ImGui.GetFontSize();
+            var textSize = ImGui.CalcTextSize(iconString) * (iconSize / baseSize);
+            var textPadding = buttonMin + (btnSize - textSize) * 0.5f;
+
+            drawList.AddText(font, iconSize, textPadding, ImGui.GetColorU32(color), iconString);
+        }
+
+        return clicked;
+    }
+
 }

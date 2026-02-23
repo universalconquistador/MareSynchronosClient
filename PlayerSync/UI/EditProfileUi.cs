@@ -581,7 +581,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         var watermarkColor = _liveProfile.Theme.AccentV4;
         watermarkColor.W = 0.3f;
-        ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 10f);
+        ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 7f);
     }
 
     private void UpdateSelfImages(MareProfileData psProfile)
