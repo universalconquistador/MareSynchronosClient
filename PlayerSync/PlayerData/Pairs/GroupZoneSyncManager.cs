@@ -1,19 +1,20 @@
-﻿using MareSynchronos.Services;
-using MareSynchronos.Services.Mediator;
-using Microsoft.Extensions.Logging;
-using MareSynchronos.MareConfiguration;
-using MareSynchronos.WebAPI;
-using MareSynchronos.PlayerData.Pairs;
-using MareSynchronos.MareConfiguration.Models;
-using Microsoft.AspNetCore.SignalR;
-using MareSynchronos.API.Data.Enum;
+﻿using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
-using MareSynchronos.Utils;
 using MareSynchronos.API.Dto;
+using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Models;
+using MareSynchronos.PlayerData.Pairs;
+using MareSynchronos.Services;
+using MareSynchronos.Services.Mediator;
+using MareSynchronos.Utils;
+using MareSynchronos.WebAPI;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace PlayerSync.PlayerData.Pairs;
 
-public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
+public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedService
 {
     private readonly ILogger<GroupZoneSyncManager> _logger;
     private readonly ApiController _apiController;
@@ -39,13 +40,25 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase
         _zoneSyncConfigService = zoneSyncConfigService;
         _pairManager = pairManager;
         _ownPermissions = _apiController.DefaultPermissions.DeepClone()!;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogDebug("ZoneSync manger started.");
 
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (__) => ScheduleGroupZoneSync());
         Mediator.Subscribe<WorldChangeMessage>(this, (__) => ScheduleGroupZoneSync());
         Mediator.Subscribe<GroupZoneSetEnableState>(this, (msg) => _ = GroupZoneJoinEnabled(msg.isEnabled));
         Mediator.Subscribe<GroupZoneSyncUpdateMessage>(this, (__) => ScheduleGroupZoneSync());
 
-        _logger.LogDebug("ZoneSync manger initialized.");
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogDebug("ZoneSync manger stopped.");
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
