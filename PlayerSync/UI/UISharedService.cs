@@ -123,6 +123,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
                 SizePx = 23
             }));
         });
+
         GameFont = _pluginInterface.UiBuilder.FontAtlas.NewGameFontHandle(new(GameFontFamilyAndSize.Axis12));
         IconFont = _pluginInterface.UiBuilder.IconFontFixedWidthHandle;
     }

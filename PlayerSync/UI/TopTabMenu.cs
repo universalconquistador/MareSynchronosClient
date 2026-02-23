@@ -245,8 +245,16 @@ public class TopTabMenu : IMediatorSubscriber
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.UserPlus, "Add"))
             {
-                _ = _apiController.UserMakePairRequest(new(UserData: new(_pairToAdd)));
-                _pairToAdd = string.Empty;
+                if (ApiController.MainServiceUri.Contains("dev"))
+                {
+                    _ = _apiController.UserMakePairRequest(new(UserData: new(_pairToAdd)));
+                    _pairToAdd = string.Empty;
+                }
+                else
+                {
+                    _ = _apiController.UserAddPair(new(new(_pairToAdd)), false);
+                    _pairToAdd = string.Empty;
+                }
             }
         }
         UiSharedService.AttachToolTip("Pair with " + (_pairToAdd.IsNullOrEmpty() ? "other user" : _pairToAdd));

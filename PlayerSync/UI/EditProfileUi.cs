@@ -367,17 +367,6 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         }
         _uiSharedService.DrawHelpText("If your profile description or image can be considered NSFW, toggle this to ON");
 
-        if (editorProfile.IsSupporter)
-        {
-            ImGui.SameLine();
-            var enableSupporter = editorProfile.EnableSupporterElements;
-            if (ImGui.Checkbox("Supporter Frame", ref enableSupporter))
-            {
-                editorProfile.EnableSupporterElements = enableSupporter;
-                _dirty = true;
-            }
-        }
-
         ImGui.Separator();
 
         var selected = new HashSet<string>((editorProfile.Interests ?? Enumerable.Empty<string>()).Where(s => !string.IsNullOrWhiteSpace(s))
@@ -592,7 +581,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         var watermarkColor = _liveProfile.Theme.AccentV4;
         watermarkColor.W = 0.3f;
-        ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 10f);
+        ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 7f);
     }
 
     private void UpdateSelfImages(MareProfileData psProfile)

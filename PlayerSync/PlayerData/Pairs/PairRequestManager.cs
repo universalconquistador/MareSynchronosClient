@@ -8,11 +8,12 @@ using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.WebAPI;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.PlayerData.Pairs
 {
-    public class PairRequestManager : DisposableMediatorSubscriberBase
+    public class PairRequestManager : DisposableMediatorSubscriberBase, IHostedService
     {
         private readonly IContextMenu _dalamudContextMenu;
         private readonly MareConfigService _configurationService;
@@ -32,19 +33,24 @@ namespace MareSynchronos.PlayerData.Pairs
             _pairManager = pairManager;
             _apiController = apiController;
             _serverConfigurationManager = serverConfigurationManager;
-
-            Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPendingPairRequests());
-            Mediator.Subscribe<PairRequestsUpdate>(this, (msg) => UpdatePairRequests(msg.Dto));
-
-            _dalamudContextMenu.OnMenuOpened += DalamudContextMenuOnOnOpenGameObjectContextMenu;
         }
 
-        protected override void Dispose(bool disposing)
+        public Task StartAsync(CancellationToken cancellationToken)
         {
-            base.Dispose(disposing);
+            Logger.LogDebug("Pair Request Manger started.");
+            Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPendingPairRequests());
+            Mediator.Subscribe<PairRequestsUpdate>(this, (msg) => UpdatePairRequests(msg.Dto));
+            _dalamudContextMenu.OnMenuOpened += DalamudContextMenuOnOnOpenGameObjectContextMenu;
 
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            Logger.LogDebug("Pair Request Manger stopped.");
             _dalamudContextMenu.OnMenuOpened -= DalamudContextMenuOnOnOpenGameObjectContextMenu;
 
+            return Task.CompletedTask;
         }
 
         private string SelfUID => _apiController.UID;
