@@ -181,6 +181,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         _playerSyncWatermark?.Dispose();
         _playerSyncWatermark = null;
 
+        _lastProfilePicture = [];
+
         _profileImageDownloadTask = null;
         _pfpHasChanged = false;
 
