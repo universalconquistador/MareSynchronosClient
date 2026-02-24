@@ -24,7 +24,7 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
     private readonly FileImageTransferHandler _fileImageTransferHandler;
     private Vector2 _lastMainPos = Vector2.Zero;
     private Vector2 _lastMainSize = Vector2.Zero;
-    private byte[] _lastProfilePicture = [];
+    private byte[]? _lastProfilePicture;
     private byte[] _lastSupporterPicture = [];
     private Pair? _pair;
     private IDalamudTextureWrap? _supporterTextureWrap;
@@ -116,7 +116,7 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
 
             if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted)
             {
-                if (_mareProfileManager.IsProfileMarkedNsfwOrAllowed(psProfile, _pair.UserData))
+                if (_mareProfileManager.IsProfileMarkedNsfwOrAllowed(psProfile, _pair.UserData) && _lastProfilePicture.Length > 0)
                 {
                     _textureWrap?.Dispose();
                     _textureWrap = _uiSharedService.LoadImage(_lastProfilePicture!);
@@ -235,6 +235,8 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
 
         _textureWrap?.Dispose();
         _textureWrap = null;
+
+        _lastProfilePicture = null;
 
         _profileImageDownloadTask = null;
 
