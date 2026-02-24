@@ -49,8 +49,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         _theme = theme;
         SizeConstraints = new()
         {
-            MinimumSize = new(1000, 500),
-            MaximumSize = new(1000, 2000)
+            MinimumSize = new(1100, 500),
+            MaximumSize = new(1100, 2000)
         };
         Mediator.Subscribe<OpenPlayerAnalysisViewerUIUiMessage>(this, (_) => Toggle());
     }

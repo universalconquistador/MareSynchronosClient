@@ -72,7 +72,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         {
             DalamudUtilOnLogIn();
         }
-
     }
 
     public string AuthFailureMessage { get; private set; } = string.Empty;
@@ -123,8 +122,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         _serverManager.CurrentServer.FullPause = true;
         _serverManager.Save();
 
-
-        Logger.LogDebug("BBBBBBBBBBBBBBBB");
         await CreateConnectionsAsync().ConfigureAwait(false);
     }
 

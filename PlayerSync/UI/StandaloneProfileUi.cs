@@ -118,6 +118,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         _playerSyncWatermark?.Dispose();
         _playerSyncWatermark = null;
 
+        _lastProfilePicture = null;
+
         _profileImageDownloadTask = null;
 
         Mediator.Publish(new RemoveWindowMessage(this));
@@ -143,7 +145,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         {
             _textureWrap ??= _uiSharedService.LoadImage(psProfile.ImageData.Value);
 
-            if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted)
+            if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted && _lastProfilePicture.Length > 0)
             {
                 if (_mareProfileManager.IsProfileMarkedNsfwOrAllowed(psProfile, Pair.UserData))
                 {

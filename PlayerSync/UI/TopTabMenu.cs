@@ -245,7 +245,7 @@ public class TopTabMenu : IMediatorSubscriber
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.UserPlus, "Add"))
             {
-                if (ApiController.MainServiceUri.Contains("dev"))
+                if (_serverConfigurationManager.CurrentServer.ServerUri.Contains("dev"))
                 {
                     _ = _apiController.UserMakePairRequest(new(UserData: new(_pairToAdd)));
                     _pairToAdd = string.Empty;
