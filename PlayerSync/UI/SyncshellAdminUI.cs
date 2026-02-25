@@ -155,17 +155,18 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
     private void DrawProfile()
     {
+        var globalScale = ImGuiHelpers.GlobalScale;
         _uiSharedService.BigText("Profile");
         ImGuiHelpers.ScaledDummy(2);
         _uiSharedService.HeaderText("Syncshell Description");
-        if (ImGui.InputTextMultiline("###description_input", _descriptionBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300)))
+        if (ImGui.InputTextMultiline("###description_input", _descriptionBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 200 * globalScale)))
             _isProfileSaved = false;
 
         ImGuiHelpers.ScaledDummy(2f);
 
         ImGuiHelpers.ScaledDummy(2f);
         _uiSharedService.HeaderText("Syncshell Rules");
-        if (ImGui.InputTextMultiline("###rules_input", _rulesBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 300)))
+        if (ImGui.InputTextMultiline("###rules_input", _rulesBuffer.Span, new Vector2(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X, 200 * globalScale)))
             _isProfileSaved = false;
 
         ImGuiHelpers.ScaledDummy(2f);

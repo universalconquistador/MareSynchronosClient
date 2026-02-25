@@ -239,8 +239,9 @@ public class TopTabMenu : IMediatorSubscriber
         ImGui.SetNextItemWidth(availableXWidth - buttonSize - spacingX);
         ImGui.InputTextWithHint("##otheruid", "Other players UID/Alias", ref _pairToAdd, 20);
         ImGui.SameLine();
-        var alreadyExisting = _pairManager.DirectPairs.Exists(p => string.Equals(p.UserData.UID, _pairToAdd, StringComparison.Ordinal) 
-            || string.Equals(p.UserData.Alias, _pairToAdd, StringComparison.Ordinal) && p.IndividualPairStatus == IndividualPairStatus.Bidirectional);
+        var alreadyExistingUid = _pairManager.DirectPairs.Exists(p => string.Equals(p.UserData.UID, _pairToAdd, StringComparison.Ordinal) && p.IndividualPairStatus == IndividualPairStatus.Bidirectional);
+        var alreadyExistingAlias = _pairManager.DirectPairs.Exists(p => string.Equals(p.UserData.Alias, _pairToAdd, StringComparison.Ordinal) && p.IndividualPairStatus == IndividualPairStatus.Bidirectional);
+        bool alreadyExisting = alreadyExistingUid || alreadyExistingAlias;
         using (ImRaii.Disabled(alreadyExisting || string.IsNullOrEmpty(_pairToAdd)))
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.UserPlus, "Add"))
