@@ -173,7 +173,6 @@ public class Pair
         if (CachedPlayer == null) return;
         if (LastReceivedCharacterData == null) return;
 
-        // Is this how permissions are applied?
         CachedPlayer.ApplyCharacterData(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
     }
 
@@ -280,11 +279,19 @@ public class Pair
         bool disableIndividualVFX = (UserPair.OtherPermissions.IsDisableVFX() || UserPair.OwnPermissions.IsDisableVFX() || _configService.Current.FilterVfx);
         bool disableIndividualSounds = (UserPair.OtherPermissions.IsDisableSounds() || UserPair.OwnPermissions.IsDisableSounds() || _configService.Current.FilterSounds);
 
+        bool filterBiDiPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
+        bool isDirectPaired = UserPair.IndividualPairStatus == IndividualPairStatus.Bidirectional;
+        bool overrideFilterPair = !filterBiDiPairs && isDirectPaired;
+
+        bool overrideFilterUid = _configService.Current.UIDsToOverrideFilter.Contains(UserPair.User.UID, StringComparer.OrdinalIgnoreCase) 
+            || _configService.Current.UIDsToOverrideFilter.Contains(UserPair.User.Alias, StringComparer.OrdinalIgnoreCase);
+
         _logger.LogTrace("Disable: Sounds: {disableIndividualSounds}, Anims: {disableIndividualAnims}; " +
             "VFX: {disableGroupSounds}",
             disableIndividualSounds, disableIndividualAnimations, disableIndividualVFX);
 
-        if (disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX)
+        bool hasDisabled = disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX;
+        if (hasDisabled && !overrideFilterUid && !overrideFilterPair)
         {
             _logger.LogTrace("Data cleaned up: Animations disabled: {disableAnimations}, Sounds disabled: {disableSounds}, VFX disabled: {disableVFX}",
                 disableIndividualAnimations, disableIndividualSounds, disableIndividualVFX);

@@ -305,6 +305,8 @@ public partial class SettingsUi
         bool filterSounds = _configService.Current.FilterSounds;
         bool filterVfx = _configService.Current.FilterVfx;
         bool filterAnimations = _configService.Current.FilterAnimations;
+        bool filterMods = _configService.Current.FilterMods;
+        bool filterDirectPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
 
         _uiShared.BigText("Filtering");
         ImGuiHelpers.ScaledDummy(2);
@@ -333,6 +335,80 @@ public partial class SettingsUi
             Mediator.Publish(new ChangeFilterMessage());
         }
         _uiShared.DrawHelpText("This setting will prevent modded animations from being displayed.");
+
+        Ui.DrawHorizontalRule(_theme);
+
+        if (ImGui.Checkbox("Filter out all sync data (make others appear vanilla)", ref filterMods))
+        {
+            _configService.Current.FilterMods = filterMods;
+            _configService.Save();
+            Mediator.Publish(new NotificationMessage("Filter All Mods", "You must disconnect and reconnect from the service for this" +
+                " filter feature to take effect.", NotificationType.Warning));
+        }
+        _uiShared.DrawHelpText("This setting will prevent all mods from other players from loading." + UiSharedService.TooltipSeparator +
+            "Note: This does NOT prevent others from seeing your mods.");
+        UiSharedService.ColorTextWrapped("This does NOT prevent others from seeing your mods.", ImGuiColors.DalamudYellow);
+        UiSharedService.ColorTextWrapped("You MUST disconnect + reconnect to the service when turning this feature on or off in " +
+            "order to take effect.", ImGuiColors.DalamudRed);
+
+        Ui.DrawHorizontalRule(_theme);
+        // Overrides
+
+        if (ImGui.Checkbox("Include filtering on direct pairs", ref filterDirectPairs))
+        {
+            _configService.Current.DoFilteringBidirectionDirectPairs = filterDirectPairs;
+            _configService.Save();
+            if (filterAnimations || filterSounds || filterVfx)
+                Mediator.Publish(new ChangeFilterMessage());
+        }
+
+        _uiShared.BigText("Override UIDs");
+        ImGuiHelpers.ScaledDummy(2);
+
+        UiSharedService.TextWrapped("The entries in the list below will not have filtering applied.");
+        UiSharedService.ColorTextWrapped("Cycle pause a user after adding or removing them from the list.", ImGuiColors.DalamudYellow);
+        ImGui.Dummy(new Vector2(10));
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        ImGui.InputText("##filteroverrideuids", ref _uidToAddForOverrideFilter, 20);
+        ImGui.SameLine();
+        using (ImRaii.Disabled(string.IsNullOrEmpty(_uidToAddForOverrideFilter)))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Plus, "Add UID/Vanity ID to overrides"))
+            {
+                if (!_configService.Current.UIDsToOverrideFilter.Contains(_uidToAddForOverrideFilter, StringComparer.Ordinal))
+                {
+                    _configService.Current.UIDsToOverrideFilter.Add(_uidToAddForOverrideFilter);
+                    _configService.Save();
+                }
+                _uidToAddForOverrideFilter = string.Empty;
+            }
+        }
+        _uiShared.DrawHelpText("Hint: UIDs are case sensitive.");
+        var overrideList = _configService.Current.UIDsToOverrideFilter;
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        using (var lb = ImRaii.ListBox("UID Filter Overrides"))
+        {
+            if (lb)
+            {
+                for (int i = 0; i < overrideList.Count; i++)
+                {
+                    bool shouldBeSelected = _selectedOverrideFilterEntry == i;
+                    if (ImGui.Selectable(overrideList[i] + "##" + i, shouldBeSelected))
+                    {
+                        _selectedOverrideFilterEntry = i;
+                    }
+                }
+            }
+        }
+        using (ImRaii.Disabled(_selectedOverrideFilterEntry == -1))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete selected UID"))
+            {
+                _configService.Current.UIDsToOverrideFilter.RemoveAt(_selectedOverrideFilterEntry);
+                _selectedOverrideFilterEntry = -1;
+                _configService.Save();
+            }
+        }
     }
 
     private void GoToPermissions()
