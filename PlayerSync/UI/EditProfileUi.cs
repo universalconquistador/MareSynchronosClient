@@ -72,8 +72,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         SizeConstraints = new()
         {
-            MinimumSize = new(1000, 820),
-            MaximumSize = new(1000, 820),
+            MinimumSize = new(1000, 840),
+            MaximumSize = new(1000, 840),
         };
 
         _apiController = apiController;
