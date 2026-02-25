@@ -366,7 +366,7 @@ public partial class SettingsUi
         ImGuiHelpers.ScaledDummy(2);
 
         UiSharedService.TextWrapped("The entries in the list below will not have filtering applied.");
-        UiSharedService.ColorTextWrapped("Cycle pause a user after adding or removing them from the list.", ImGuiColors.DalamudYellow);
+        UiSharedService.ColorTextWrapped("This will atempt to cycle pause state on a pair when adding or removing them from the list.", ImGuiColors.DalamudYellow);
         ImGui.Dummy(new Vector2(10));
         ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
         ImGui.InputText("##filteroverrideuids", ref _uidToAddForOverrideFilter, 20);
@@ -377,6 +377,14 @@ public partial class SettingsUi
             {
                 if (!_configService.Current.UIDsToOverrideFilter.Contains(_uidToAddForOverrideFilter, StringComparer.Ordinal))
                 {
+                    var pairToCycle = _pairManager.GetOnlineUserPairs().FirstOrDefault(u => string.Equals(u.UserData.UID, _uidToAddForOverrideFilter, StringComparison.OrdinalIgnoreCase) 
+                        || string.Equals(u.UserData.Alias, _uidToAddForOverrideFilter, StringComparison.OrdinalIgnoreCase));
+
+                    if (pairToCycle != null && pairToCycle.IsVisible)
+                    {
+                        _ = _apiController.CyclePauseAsync(pairToCycle.UserData);
+                    }
+
                     _configService.Current.UIDsToOverrideFilter.Add(_uidToAddForOverrideFilter);
                     _configService.Save();
                 }
@@ -404,6 +412,15 @@ public partial class SettingsUi
         {
             if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete selected UID"))
             {
+                var pairId = _configService.Current.UIDsToOverrideFilter[_selectedOverrideFilterEntry];
+                var pairToCycle = _pairManager.GetOnlineUserPairs().FirstOrDefault(u => string.Equals(u.UserData.UID, pairId, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(u.UserData.Alias, pairId, StringComparison.OrdinalIgnoreCase));
+
+                if (pairToCycle != null && pairToCycle.IsVisible)
+                {
+                    _ = _apiController.CyclePauseAsync(pairToCycle.UserData);
+                }
+
                 _configService.Current.UIDsToOverrideFilter.RemoveAt(_selectedOverrideFilterEntry);
                 _selectedOverrideFilterEntry = -1;
                 _configService.Save();
