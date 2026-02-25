@@ -27,13 +27,14 @@ public class PairHandlerFactory
     private readonly PluginWarningNotificationService _pluginWarningNotificationManager;
     private readonly ICompressedAlternateManager _compressedAlternateManager;
     private readonly PlayerPerformanceConfigService _performanceConfig;
+    private readonly MareConfigService _mareConfigService;
 
     public PairHandlerFactory(ILoggerFactory loggerFactory, GameObjectHandlerFactory gameObjectHandlerFactory, IpcManager ipcManager,
         FileDownloadManagerFactory fileDownloadManagerFactory, DalamudUtilService dalamudUtilService,
         PluginWarningNotificationService pluginWarningNotificationManager, IHostApplicationLifetime hostApplicationLifetime,
         FileCacheManager fileCacheManager, MareMediator mareMediator, PlayerPerformanceService playerPerformanceService,
         ServerConfigurationManager serverConfigManager, ICompressedAlternateManager compressedAlternateManager,
-        PlayerPerformanceConfigService performanceConfig)
+        PlayerPerformanceConfigService performanceConfig, MareConfigService mareConfigService)
     {
         _loggerFactory = loggerFactory;
         _gameObjectHandlerFactory = gameObjectHandlerFactory;
@@ -48,12 +49,13 @@ public class PairHandlerFactory
         _serverConfigManager = serverConfigManager;
         _compressedAlternateManager = compressedAlternateManager;
         _performanceConfig = performanceConfig;
+        _mareConfigService = mareConfigService;
     }
 
     public PairHandler Create(Pair pair)
     {
         return new PairHandler(_loggerFactory.CreateLogger<PairHandler>(), pair, _gameObjectHandlerFactory,
             _ipcManager, _fileDownloadManagerFactory.Create(), _pluginWarningNotificationManager, _dalamudUtilService, _hostApplicationLifetime,
-            _fileCacheManager, _mareMediator, _playerPerformanceService, _serverConfigManager, _compressedAlternateManager, _performanceConfig);
+            _fileCacheManager, _mareMediator, _playerPerformanceService, _serverConfigManager, _compressedAlternateManager, _mareConfigService, _performanceConfig);
     }
 }
