@@ -203,7 +203,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
             var isDirectlyPaired = Pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional;
             var pairIcon = isDirectlyPaired ? FontAwesomeIcon.UserCheck : FontAwesomeIcon.UserPlus;
-            var hoverText = isDirectlyPaired ? "Directly Paired" : $"Click to send {Pair.PlayerName} a direct pair request.";
+            var hoverText = isDirectlyPaired ? "Directly paired" : $"Click to send {Pair.PlayerName} a direct pair request.";
             if (DrawTopRightIconButton("##pair_status", pairIcon, profile.Theme.TextPrimaryV4, 1, 14f, 8f, !isDirectlyPaired, hoverText))
             {
                 if (isDirectlyPaired) return;
