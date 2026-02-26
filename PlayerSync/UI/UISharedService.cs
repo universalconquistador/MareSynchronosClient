@@ -10,6 +10,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
+using MareSynchronos.API.Data.Enum;
 using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.Localization;
@@ -19,6 +20,7 @@ using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.UI.ModernUi;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 using MareSynchronos.WebAPI.SignalR;
@@ -121,6 +123,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
                 SizePx = 23
             }));
         });
+
         GameFont = _pluginInterface.UiBuilder.FontAtlas.NewGameFontHandle(new(GameFontFamilyAndSize.Axis12));
         IconFont = _pluginInterface.UiBuilder.IconFontFixedWidthHandle;
     }
@@ -146,10 +149,16 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
     public static void AttachToolTip(string text)
     {
-        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        if (!ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            return;
+
+        using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(UiScale.ScaledFloat(5f), UiScale.ScaledFloat(5f))))
+        using (ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, UiScale.ScaledFloat(6f)))
         {
             ImGui.BeginTooltip();
-            ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35f);
+
+            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + ImGui.GetFontSize() * 35f);
+
             if (text.Contains(TooltipSeparator, StringComparison.Ordinal))
             {
                 var splitText = text.Split(TooltipSeparator, StringSplitOptions.RemoveEmptyEntries);
@@ -163,10 +172,12 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             {
                 ImGui.TextUnformatted(text);
             }
+
             ImGui.PopTextWrapPos();
             ImGui.EndTooltip();
         }
     }
+
 
     public static string ByteToString(long bytes, bool addSuffix = true)
     {
@@ -179,6 +190,28 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         }
 
         return addSuffix ? $"{dblSByte:0.00} {suffix[i]}" : $"{dblSByte:0.00}";
+    }
+
+    public static string ApproxElapsedTimeToString(TimeSpan elapsedTime)
+    {
+        if (elapsedTime.TotalSeconds < 1.0f)
+        {
+            return "just now";
+        }
+        else if (elapsedTime.TotalMinutes < 1.0f)
+        {
+            return "recently";
+        }
+        else if (elapsedTime.TotalHours < 1.0f)
+        {
+            int minutes = (int)Math.Floor(elapsedTime.TotalMinutes);
+            return minutes != 1 ? $"{minutes} minutes ago" : $"{minutes} minute ago";
+        }
+        else
+        {
+            int hours = (int)Math.Floor(elapsedTime.TotalHours);
+            return hours != 1 ? $"{hours} hours ago" : $"{hours} hour ago";
+        }
     }
 
     public static void CenterNextWindow(float width, float height, ImGuiCond cond = ImGuiCond.None)
@@ -466,6 +499,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
     public void DrawCacheDirectorySetting()
     {
+        ImGuiHelpers.ScaledDummy(5);
         ColorTextWrapped("Note: The storage folder should be somewhere close to root (i.e. C:\\SyncStorage) in a new empty folder. DO NOT point this to your game folder. DO NOT point this to your Penumbra folder.", ImGuiColors.DalamudYellow);
         ColorTextWrapped("Do NOT share this folder with other syncs, it will conflict and cause issues.", ImGuiColors.DalamudRed);
         var cacheDirectory = _configService.Current.CacheFolder;
@@ -588,7 +622,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public void DrawFileScanState()
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("File Scanner Status");
+        ImGui.TextUnformatted("File Scanner Status:");
         ImGui.SameLine();
         if (_cacheMonitor.IsScanRunning)
         {
@@ -793,7 +827,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
         float mySpace = ImGui.GetStyle().ItemSpacing.X;
         float sglobal = ImGui.GetIO().FontGlobalScale;
-        float spacey = 2;
+        float spacey = 1.25f;
 
         ImGui.TextUnformatted("Mandatory Plugins:");
         ImGui.SameLine(0, mySpace * spacey * sglobal);
@@ -821,10 +855,10 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
         ColorText("Moodles", GetBoolColor(_moodlesExists));
         AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
-        //ImGui.SameLine(0, mySpace * spacey * sglobal);
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
 
-        ImGui.TextUnformatted("");
-        ImGui.SameLine(PosiX1);
+        //ImGui.TextUnformatted("");
+        //ImGui.SameLine(PosiX1);
         ColorText("PetNicknames", GetBoolColor(_petNamesExists));
         AttachToolTip($"PetNicknames is " + (_petNamesExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine(0, mySpace * spacey * sglobal);
@@ -1083,6 +1117,14 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         _localization.SetupWithLangCode(languageCode);
         Strings.ToS = new Strings.ToSStrings();
     }
+
+    public static string? GetProfileImageTypeValue(ProfileImageType imageType) => imageType switch
+    {
+        ProfileImageType.Profile => "profile",
+        ProfileImageType.Banner => "banner",
+        ProfileImageType.Background => "background",
+        _ => null
+    };
 
     internal static void DistanceSeparator()
     {

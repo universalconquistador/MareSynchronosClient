@@ -4,7 +4,9 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI;
 using MareSynchronos.UI.Components.Popup;
+using MareSynchronos.UI.ModernUi;
 using MareSynchronos.WebAPI;
+using MareSynchronos.WebAPI.Files;
 using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.Services;
@@ -19,10 +21,15 @@ public class UiFactory
     private readonly ServerConfigurationManager _serverConfigManager;
     private readonly MareProfileManager _mareProfileManager;
     private readonly PerformanceCollectorService _performanceCollectorService;
+    private readonly IBroadcastManager _broadcastManager;
+    private readonly UiTheme _theme;
+    private readonly FileImageTransferHandler _fileImageTransferHandler;
+    private readonly PairRequestManager _pairRequestManager;
 
     public UiFactory(ILoggerFactory loggerFactory, MareMediator mareMediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, ServerConfigurationManager serverConfigManager,
-        MareProfileManager mareProfileManager, PerformanceCollectorService performanceCollectorService)
+        MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService, 
+        UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairRequestManager pairRequestManager)
     {
         _loggerFactory = loggerFactory;
         _mareMediator = mareMediator;
@@ -31,13 +38,17 @@ public class UiFactory
         _pairManager = pairManager;
         _serverConfigManager = serverConfigManager;
         _mareProfileManager = mareProfileManager;
+        _broadcastManager = broadcastManager;
         _performanceCollectorService = performanceCollectorService;
+        _theme = theme;
+        _fileImageTransferHandler = fileImageTransferHandler;
+        _pairRequestManager = pairRequestManager;
     }
 
     public SyncshellAdminUI CreateSyncshellAdminUi(GroupFullInfoDto dto)
     {
         return new SyncshellAdminUI(_loggerFactory.CreateLogger<SyncshellAdminUI>(), _mareMediator,
-            _apiController, _uiSharedService, _pairManager, dto, _performanceCollectorService);
+            _apiController, _uiSharedService, _broadcastManager, _pairManager, dto, _performanceCollectorService, _theme);
     }
 
     public SyncshellProfileUi CreateSyncshellProfileUi(GroupFullInfoDto dto)
@@ -48,8 +59,8 @@ public class UiFactory
 
     public StandaloneProfileUi CreateStandaloneProfileUi(Pair pair)
     {
-        return new StandaloneProfileUi(_loggerFactory.CreateLogger<StandaloneProfileUi>(), _mareMediator,
-            _uiSharedService, _serverConfigManager, _mareProfileManager, _pairManager, pair, _performanceCollectorService);
+        return new StandaloneProfileUi(_loggerFactory.CreateLogger<StandaloneProfileUi>(), _mareMediator, _uiSharedService, _serverConfigManager, 
+            _mareProfileManager, _pairManager, pair, _performanceCollectorService, _theme, _fileImageTransferHandler, _pairRequestManager);
     }
 
     public PermissionWindowUI CreatePermissionPopupUi(Pair pair)

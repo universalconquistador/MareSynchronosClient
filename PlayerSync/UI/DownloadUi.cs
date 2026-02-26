@@ -105,7 +105,7 @@ public class DownloadUi : WindowMediatorSubscriberBase
 
             try
             {
-                foreach (var item in _currentDownloads.ToList())
+                foreach (var item in _currentDownloads)
                 {
                     var dlSlot = item.Value.Count(c => c.Value.DownloadStatus == DownloadStatus.WaitingForSlot);
                     var dlQueue = item.Value.Count(c => c.Value.DownloadStatus == DownloadStatus.WaitingForQueue);
@@ -140,7 +140,7 @@ public class DownloadUi : WindowMediatorSubscriberBase
             const int transparency = 100;
             const int dlBarBorder = 3;
 
-            foreach (var transfer in _currentDownloads.ToList())
+            foreach (var transfer in _currentDownloads)
             {
                 try
                 {

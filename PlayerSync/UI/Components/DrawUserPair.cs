@@ -3,11 +3,11 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -185,13 +185,13 @@ public class DrawUserPair
             }
             UiSharedService.AttachToolTip("Hold CTRL and click to unpair from " + entryUID);
         }
-        else
+        if (_pair.IndividualPairStatus != API.Data.Enum.IndividualPairStatus.Bidirectional)
         {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Pair Individually", _menuWidth, true))
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Send Pair Request", _menuWidth, true))
             {
-                _ = _apiController.UserAddPair(new(_pair.UserData), true);
+                _ = _apiController.UserMakePairRequest(new(UserData: _pair.UserData));
             }
-            UiSharedService.AttachToolTip("Pair individually with " + entryUID);
+            UiSharedService.AttachToolTip("Send pair request to " + entryUID);
         }
         if (!_pair.UserPair!.OwnPermissions.IsPaused())
         {
@@ -387,6 +387,10 @@ public class DrawUserPair
             {
                 perm.SetSticky(true);
             }
+            
+            if (!_pair.IsPaused)
+                _serverConfigurationManager.SetPauseReasonForUid(_pair.UserData.UID, PauseReason.Manual);
+
             perm.SetPaused(!perm.IsPaused());
             _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
         }
@@ -535,6 +539,23 @@ public class DrawUserPair
                 ImGui.SameLine(currentRightSide);
                 _uiSharedService.IconText(icon);
                 UiSharedService.AttachToolTip(text);
+            }
+        }
+
+        if (Pair.LastLoadedSoundSinceRedraw != null)
+        {
+            var icon = FontAwesomeIcon.VolumeOff;
+            currentRightSide -= _uiSharedService.GetIconSize(icon).X + spacingX;
+            ImGui.SameLine(currentRightSide);
+            _uiSharedService.IconText(icon, ImGuiColors.HealerGreen);
+            UiSharedService.AttachToolTip($"Started playing modded audio {UiSharedService.ApproxElapsedTimeToString(DateTimeOffset.UtcNow - Pair.LastLoadedSoundSinceRedraw.Value)}.{UiSharedService.TooltipSeparator}CTRL + Click to disable sound sync with {_pair.UserData.AliasOrUID}.");
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && UiSharedService.CtrlPressed())
+            {
+                var perm = _pair.UserPair!.OwnPermissions;
+
+                perm.SetSticky(true);
+                perm.SetDisableSounds(true);
+                _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
             }
         }
 

@@ -24,7 +24,7 @@ public class MareConfig : IMareConfiguration
     public NotificationLocation ErrorNotification { get; set; } = NotificationLocation.Both;
     public string ExportFolder { get; set; } = string.Empty;
     public bool FileScanPaused { get; set; } = false;
-    public NotificationLocation InfoNotification { get; set; } = NotificationLocation.Toast;
+    public NotificationLocation InfoNotification { get; set; } = NotificationLocation.Both;
     public bool InitialScanComplete { get; set; } = false;
     public LogLevel LogLevel { get; set; } = LogLevel.Information;
     public bool LogPerformance { get; set; } = false;
@@ -76,8 +76,12 @@ public class MareConfig : IMareConfiguration
     public bool FilterAnimations { get; set; } = false;
     public bool FilterSounds { get; set; } = false;
     public bool FilterVfx { get; set; } = false;
+    public bool FilterMods { get; set; } = false;
+    public bool DoFilteringBidirectionDirectPairs { get; set; } = true;
+    public List<string> UIDsToOverrideFilter { get; set; } = new();
     public bool OverrideCdnTimeZone { get; set; } = false;
     public string OverrideCdnTimeZoneId { get; set; } = string.Empty;
+    public bool IgnoreWarningOverrideCdnTimeZone { get; set; } = false;
     public bool ShowSoundSourceIndicator { get; set; } = true;
     public bool ShowPairedIndicator { get; set; } = false;
     public bool ShowPermsInsteadOfFCTags { get; set; } = false;
@@ -88,4 +92,6 @@ public class MareConfig : IMareConfiguration
     public SeStringTextColors NameHighlightColor { get; set; } = new(Foreground: 0xBDD671u, Glow: 0x37501Du);
     public bool MysterySetting {  get; set; } = false;
     public bool InitialSetupOptions { get; set; } = false;
+    public bool FirstTimeSetupComplete { get; set; } = false;
+    public bool DisableSyncDuringDuty { get; set; } = false;
 }

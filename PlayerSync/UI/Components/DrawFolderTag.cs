@@ -3,6 +3,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.PlayerData.Pairs;
+using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
 using System.Collections.Immutable;
@@ -13,13 +14,15 @@ public class DrawFolderTag : DrawFolderBase
 {
     private readonly ApiController _apiController;
     private readonly SelectPairForTagUi _selectPairForTagUi;
+    private readonly ServerConfigurationManager _serverConfigurationManager;
 
     public DrawFolderTag(string id, IImmutableList<DrawUserPair> drawPairs, IImmutableList<Pair> allPairs,
-        TagHandler tagHandler, ApiController apiController, SelectPairForTagUi selectPairForTagUi, UiSharedService uiSharedService)
+        TagHandler tagHandler, ApiController apiController, SelectPairForTagUi selectPairForTagUi, ServerConfigurationManager serverConfigurationManager, UiSharedService uiSharedService)
         : base(id, drawPairs, allPairs, tagHandler, uiSharedService)
     {
         _apiController = apiController;
         _selectPairForTagUi = selectPairForTagUi;
+        _serverConfigurationManager = serverConfigurationManager;
     }
 
     protected override bool RenderIfEmpty => _id switch
@@ -166,6 +169,7 @@ public class DrawFolderTag : DrawFolderBase
 
     private void PauseRemainingPairs(IEnumerable<Pair> availablePairs)
     {
+        _serverConfigurationManager.SetPauseReasonForUid(availablePairs.Select(p => p.UserData.UID).Distinct().ToList(), MareConfiguration.Models.PauseReason.PauseAllPairs);
         _ = _apiController.SetBulkPermissions(new(availablePairs
             .ToDictionary(g => g.UserData.UID, g =>
         {

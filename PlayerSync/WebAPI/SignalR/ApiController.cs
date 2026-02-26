@@ -58,11 +58,13 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Mediator.Subscribe<HubClosedMessage>(this, (msg) => MareHubOnClosed(msg.Exception));
         Mediator.Subscribe<HubReconnectedMessage>(this, (msg) => _ = MareHubOnReconnectedAsync());
         Mediator.Subscribe<HubReconnectingMessage>(this, (msg) => MareHubOnReconnecting(msg.Exception));
-        Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
+        //Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
         Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
-        Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData));
+        Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData, msg.Reason));
         Mediator.Subscribe<UserPairStickyPauseAndRemoveMessage>(this, (msg) => _ = UserPairStickyPauseAndRemove(msg.UserData));
+        Mediator.Subscribe<ZoneSwitchEndMessage>(this, (msg) => _ = PauseServerConnection());
+        Mediator.Subscribe<ResumeSyncMessage>(this, (msg) => _ = ResumeServerConnection());
 
         ServerState = ServerState.Offline;
 
@@ -77,6 +79,9 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     public Version CurrentClientVersion => _connectionDto?.CurrentClientVersion ?? new Version(0, 0, 0);
 
     public DefaultPermissionsDto? DefaultPermissions => _connectionDto?.DefaultPreferredPermissions ?? null;
+
+    public UserPreferencesDto? UserPreferences => _connectionDto?.UserPreferences ?? null;
+
     public string DisplayName => _connectionDto?.User.AliasOrUID ?? string.Empty;
 
     public bool IsConnected => ServerState == ServerState.Connected;
@@ -106,6 +111,26 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     public async Task<bool> CheckClientHealth()
     {
         return await _mareHub!.InvokeAsync<bool>(nameof(CheckClientHealth)).ConfigureAwait(false);
+    }
+
+    public async Task PauseServerConnection()
+    {
+        if (!_dalamudUtil.IsSyncPausedByDuty) return;
+
+        if (!(ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting)) return;
+
+        _serverManager.CurrentServer.FullPause = true;
+        _serverManager.Save();
+
+        await CreateConnectionsAsync().ConfigureAwait(false);
+    }
+
+    public async Task ResumeServerConnection()
+    {
+        if (ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting) return;
+        _serverManager.CurrentServer.FullPause = false;
+        _serverManager.Save();
+        await CreateConnectionsAsync().ConfigureAwait(false);
     }
 
     public async Task CreateConnectionsAsync()
@@ -288,6 +313,18 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                     _naggedAboutLod = false;
                 }
 
+                if (_mareConfigService.Current.OverrideCdnTimeZone)
+                {
+                    Logger.LogInformation("Setting is configured to override the cdn time zone.");
+                    if (!_mareConfigService.Current.IgnoreWarningOverrideCdnTimeZone && !_warnCdnOverride)
+                    {
+                        _warnCdnOverride = true;
+                        Mediator.Publish(new NotificationMessage("CDN Time Zone Override", "You have the Debug setting for CDN Time Zone Override enabled. " +
+                            "It is recommended not to enable this setting for normal use. To ignore this warning, select the Ignore CDN Override Warning in the debug options.",
+                            NotificationType.Warning));
+                    }
+                }
+
                 await LoadIninitialPairsAsync().ConfigureAwait(false);
                 await LoadOnlinePairsAsync().ConfigureAwait(false);
                 Mediator.Publish(new GroupZoneSyncUpdateMessage());
@@ -328,6 +365,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     }
 
     private bool _naggedAboutLod = false;
+    private bool _warnCdnOverride = false;
 
     public Task CyclePauseAsync(UserData userData)
     {
@@ -355,12 +393,13 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         return Task.CompletedTask;
     }
 
-    public async Task PauseAsync(UserData userData)
+    public async Task PauseAsync(UserData userData, PauseReason reason)
     {
         var pair = _pairManager.GetOnlineUserPairs().Single(p => p.UserPair != null && p.UserData == userData);
         var perm = pair.UserPair!.OwnPermissions;
         perm.SetPaused(paused: true);
         await UserSetPairPermissions(new UserPermissionsDto(userData, perm)).ConfigureAwait(false);
+        _serverManager.SetPauseReasonForUid(userData.UID, reason);
     }
 
     // Perma pause is basically like blacklisting a user on sync
@@ -383,6 +422,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         perm.SetSticky(sticky: true);
         await UserSetPairPermissions(new UserPermissionsDto(userData, perm)).ConfigureAwait(false);
         await UserRemovePair(new(userData)).ConfigureAwait(false);
+        _serverManager.SetPauseReasonForUid(userData.UID, PauseReason.Permanent);
     }
 
     public Task<ConnectionDto> GetConnectionDto() => GetConnectionDtoAsync(true);
@@ -460,6 +500,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         OnUserReceiveUploadStatus(dto => _ = Client_UserReceiveUploadStatus(dto));
         OnUserUpdateProfile(dto => _ = Client_UserUpdateProfile(dto));
         OnUserDefaultPermissionUpdate(dto => _ = Client_UserUpdateDefaultPermissions(dto));
+        OnUserUpdatePreferences(dto => _ = Client_UserUpdatePreferences(dto));
         OnUpdateUserIndividualPairStatusDto(dto => _ = Client_UpdateUserIndividualPairStatusDto(dto));
 
         OnGroupChangePermissions((dto) => _ = Client_GroupChangePermissions(dto));
@@ -478,6 +519,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         OnGposeLobbyPushWorldData((dto, data) => _ = Client_GposeLobbyPushWorldData(dto, data));
 
         OnBroadcastListeningChanged(isListening => _ = Client_BroadcastListeningChanged(isListening));
+        OnUpdatePairRequests(dto => _ = Client_UpdatePairRequests(dto));
 
         _healthCheckTokenSource?.Cancel();
         _healthCheckTokenSource?.Dispose();

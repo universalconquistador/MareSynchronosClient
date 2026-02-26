@@ -5,6 +5,7 @@ using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Factories;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
@@ -51,6 +52,7 @@ public class Pair
     public long LastAppliedDataTris { get; set; } = -1;
     public long LastAppliedApproximateVRAMBytes { get; set; } = -1;
     public int LastAppliedCompressedAlternates { get; set; } = -1;
+    public DateTimeOffset? LastLoadedSoundSinceRedraw { get; set; } = null;
     public string Ident => _onlineUserIdentDto?.Ident ?? string.Empty;
     public nint Address => CachedPlayer?.PlayerCharacter ?? nint.Zero;
     
@@ -67,13 +69,13 @@ public class Pair
         SeStringBuilder seStringBuilder2 = new();
         SeStringBuilder seStringBuilder3 = new();
         SeStringBuilder seStringBuilder4 = new();
-        SeStringBuilder seStringBuilder5 = new();
+        //SeStringBuilder seStringBuilder5 = new();
         SeStringBuilder seStringBuilder6 = new();
         var openProfileSeString = seStringBuilder.AddText("Open Profile").Build();
         var reapplyDataSeString = seStringBuilder2.AddText("Reapply Last Data").Build();
         var cyclePauseState = seStringBuilder3.AddText("Cycle Pause State").Build();
         var changePermissions = seStringBuilder4.AddText("Change Permissions").Build();
-        var pairIndividually = seStringBuilder5.AddText("Pair Individually").Build();
+        //var pairIndividually = seStringBuilder5.AddText("Pair Individually").Build();
         var pauseForever = seStringBuilder6.AddText("Keep Paused").Build();
         args.AddMenuItem(new MenuItem()
         {
@@ -112,17 +114,17 @@ public class Pair
         });
 
         // Only show the option to pair if we don't already have a pairing
-        if (IndividualPairStatus == IndividualPairStatus.None)
-        {
-            args.AddMenuItem(new MenuItem()
-            {
-                Name = pairIndividually,
-                OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
-                UseDefaultPrefix = false,
-                PrefixChar = 'P',
-                PrefixColor = 530
-            });
-        }
+        //if (IndividualPairStatus == IndividualPairStatus.None)
+        //{
+        //    args.AddMenuItem(new MenuItem()
+        //    {
+        //        Name = pairIndividually,
+        //        OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
+        //        UseDefaultPrefix = false,
+        //        PrefixChar = 'P',
+        //        PrefixColor = 530
+        //    });
+        //}
 
         // This kind of acts like a blacklist feature
         args.AddMenuItem(new MenuItem()
@@ -171,7 +173,6 @@ public class Pair
         if (CachedPlayer == null) return;
         if (LastReceivedCharacterData == null) return;
 
-        // Is this how permissions are applied?
         CachedPlayer.ApplyCharacterData(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
     }
 
@@ -206,6 +207,24 @@ public class Pair
     public string? GetNote()
     {
         return _serverConfigurationManager.GetNoteForUid(UserData.UID);
+    }
+
+    public string GetPauseReason()
+    {
+        var reasonCode = _serverConfigurationManager.GetPauseReasonForUid(UserData.UID);
+        return reasonCode switch
+        {
+            PauseReason.None => "Unknown",
+            PauseReason.Manual => "Manually paused by user",
+            PauseReason.Permanent => "Permanently paused by user",
+            PauseReason.ThresholdVram => "Exceeded VRAM threshold",
+            PauseReason.ThresholdTriangles => "Exceeded triangles threshold",
+            PauseReason.ThresholdHeight => "Exceeded height threshold",
+            PauseReason.PauseSyncshell => "In a paused syncshell",
+            PauseReason.PauseAllPairs => "User paused all pairs",
+            PauseReason.PauseAllSyncs => "User paused all syncshells",
+            _ => string.Empty
+        };
     }
 
     public string GetPlayerNameHash()
@@ -260,11 +279,19 @@ public class Pair
         bool disableIndividualVFX = (UserPair.OtherPermissions.IsDisableVFX() || UserPair.OwnPermissions.IsDisableVFX() || _configService.Current.FilterVfx);
         bool disableIndividualSounds = (UserPair.OtherPermissions.IsDisableSounds() || UserPair.OwnPermissions.IsDisableSounds() || _configService.Current.FilterSounds);
 
+        bool filterBiDiPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
+        bool isDirectPaired = UserPair.IndividualPairStatus == IndividualPairStatus.Bidirectional;
+        bool overrideFilterPair = !filterBiDiPairs && isDirectPaired;
+
+        bool overrideFilterUid = _configService.Current.UIDsToOverrideFilter.Contains(UserPair.User.UID, StringComparer.OrdinalIgnoreCase) 
+            || _configService.Current.UIDsToOverrideFilter.Contains(UserPair.User.Alias, StringComparer.OrdinalIgnoreCase);
+
         _logger.LogTrace("Disable: Sounds: {disableIndividualSounds}, Anims: {disableIndividualAnims}; " +
             "VFX: {disableGroupSounds}",
             disableIndividualSounds, disableIndividualAnimations, disableIndividualVFX);
 
-        if (disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX)
+        bool hasDisabled = disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX;
+        if (hasDisabled && !overrideFilterUid && !overrideFilterPair)
         {
             _logger.LogTrace("Data cleaned up: Animations disabled: {disableAnimations}, Sounds disabled: {disableSounds}, VFX disabled: {disableVFX}",
                 disableIndividualAnimations, disableIndividualSounds, disableIndividualVFX);

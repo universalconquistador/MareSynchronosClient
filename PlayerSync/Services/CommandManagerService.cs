@@ -103,6 +103,7 @@ public sealed class CommandManagerService : IDisposable
     private string BuildFullHelpForAlias(string alias) =>
         "Opens the PlayerSync UI" + Environment.NewLine + Environment.NewLine +
         "Additionally possible commands:" + Environment.NewLine +
+        $"\t {alias} diag - Opens the PlayerSync Diagnostics window" + Environment.NewLine +
         $"\t {alias} toggle - Disconnects from PlayerSync, if connected. Connects to PlayerSync, if disconnected" + Environment.NewLine +
         $"\t {alias} toggle on|off - Connects or disconnects to PlayerSync respectively" + Environment.NewLine +
         $"\t {alias} gpose - Opens the PlayerSync Character Data Hub window" + Environment.NewLine +
@@ -166,7 +167,11 @@ public sealed class CommandManagerService : IDisposable
         if (!_mareConfigService.Current.HasValidSetup())
             return;
 
-        if (string.Equals(splitArgs[0], "toggle", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(splitArgs[0], "diag", StringComparison.OrdinalIgnoreCase))
+        {
+            _mediator.Publish(new UiToggleMessage(typeof(DiagnosticsUi)));
+        }
+        else if (string.Equals(splitArgs[0], "toggle", StringComparison.OrdinalIgnoreCase))
         {
             if (_apiController.ServerState == WebAPI.SignalR.Utils.ServerState.Disconnecting)
             {

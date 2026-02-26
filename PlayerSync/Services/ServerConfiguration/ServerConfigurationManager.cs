@@ -409,6 +409,44 @@ public class ServerConfigurationManager
         return null;
     }
 
+    internal string? GetProfileNoteForUid(string uid)
+    {
+        if (CurrentNotesStorage().UidServerProfileNotes.TryGetValue(uid, out var note))
+        {
+            if (string.IsNullOrEmpty(note)) return null;
+            return note;
+        }
+        return null;
+    }
+
+    internal PauseReason GetPauseReasonForUid(string uid)
+    {
+        if (CurrentNotesStorage().PausedUids.TryGetValue(uid, out var reason))
+        {
+            return reason;
+        }
+        return PauseReason.None;
+    }
+
+    internal string? GetPendingRequestNameForIdent(string ident)
+    {
+        if (CurrentNotesStorage().PendingRequests.TryGetValue(ident, out var name))
+        {
+            return name;
+        }
+        return null;
+    }
+
+    internal List<string> GetAllPendingPairRequestIdent()
+    {
+        return CurrentNotesStorage().PendingRequests.Keys.ToList();
+    }
+
+    internal bool IsUidBlacklistedForPairRequest(string uid)
+    {
+        return CurrentNotesStorage().PairingBlacklistUids.Contains(uid);
+    }
+
     internal HashSet<string> GetServerAvailablePairTags()
     {
         return CurrentServerTagStorage().ServerAvailablePairTags;
@@ -432,6 +470,11 @@ public class ServerConfigurationManager
         }
 
         return false;
+    }
+
+    internal List<string> GetAllBlacklistUidForPairRequest()
+    {
+        return CurrentNotesStorage().PairingBlacklistUids.ToList();
     }
 
     internal void RemoveCharacterFromServer(int serverSelectionIndex, Authentication item)
@@ -472,6 +515,24 @@ public class ServerConfigurationManager
         }
     }
 
+    internal void RemovePauseReasonForUid(string uid)
+    {
+        CurrentNotesStorage().PausedUids.Remove(uid);
+        _notesConfig.Save();
+    }
+
+    internal void RemovePendingRequestForIdent(string ident)
+    {
+        CurrentNotesStorage().PendingRequests.Remove(ident);
+        _notesConfig.Save();
+    }
+
+    internal void RemovePairingRequestBlacklistUid(string uid)
+    {
+        CurrentNotesStorage().PairingBlacklistUids.Remove(uid);
+        _notesConfig.Save();
+    }
+
     internal void RenameTag(string oldName, string newName)
     {
         CurrentServerTagStorage().ServerAvailablePairTags.Remove(oldName);
@@ -502,6 +563,52 @@ public class ServerConfigurationManager
         if (string.IsNullOrEmpty(uid)) return;
 
         CurrentNotesStorage().UidServerComments[uid] = note;
+        if (save)
+            _notesConfig.Save();
+    }
+
+    internal void SetPauseReasonForUid(string uid, PauseReason reason, bool save = true)
+    {
+        if (string.IsNullOrEmpty(uid)) return;
+
+        CurrentNotesStorage().PausedUids[uid] = reason;
+        if (save)
+            _notesConfig.Save();
+    }
+
+    internal void SetPauseReasonForUid(List<string> uids, PauseReason reason, bool save = true)
+    {
+        if (uids.Count == 0) return;
+
+        foreach (string uid in uids)
+        {
+            CurrentNotesStorage().PausedUids[uid] = reason;
+        }
+        if (save)
+            _notesConfig.Save();
+    }
+
+    internal void AddPendingRequestForIdent(string ident, string name)
+    {
+        CurrentNotesStorage().PendingRequests[ident] = name;
+        _notesConfig.Save();
+    }
+
+    internal void AddPairingRequestBlacklistUid(string uid)
+    {
+        var currentList = CurrentNotesStorage().PairingBlacklistUids;
+        if (!currentList.Contains(uid))
+        {
+            currentList.Add(uid);
+            _notesConfig.Save();
+        }
+    }
+
+    internal void SetProfileNoteForUid(string uid, string note, bool save = true)
+    {
+        if (string.IsNullOrEmpty(uid)) return;
+
+        CurrentNotesStorage().UidServerProfileNotes[uid] = note;
         if (save)
             _notesConfig.Save();
     }

@@ -8,6 +8,8 @@ using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.Utils;
+using MareSynchronos.WebAPI.Files;
 using Microsoft.Extensions.Logging;
 using System.Numerics;
 
@@ -19,22 +21,27 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly ServerConfigurationManager _serverManager;
     private readonly UiSharedService _uiSharedService;
+    private readonly FileImageTransferHandler _fileImageTransferHandler;
     private Vector2 _lastMainPos = Vector2.Zero;
     private Vector2 _lastMainSize = Vector2.Zero;
-    private byte[] _lastProfilePicture = [];
+    private byte[]? _lastProfilePicture;
     private byte[] _lastSupporterPicture = [];
     private Pair? _pair;
     private IDalamudTextureWrap? _supporterTextureWrap;
     private IDalamudTextureWrap? _textureWrap;
+    private Task? _profileImageDownloadTask;
+    private CancellationTokenSource? _profileImageDownloadCts;
 
     public PopoutProfileUi(ILogger<PopoutProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
         ServerConfigurationManager serverManager, MareConfigService mareConfigService,
-        MareProfileManager mareProfileManager, PairManager pairManager, PerformanceCollectorService performanceCollectorService) : base(logger, mediator, "###PlayerSyncPopoutProfileUI", performanceCollectorService)
+        MareProfileManager mareProfileManager, PairManager pairManager, PerformanceCollectorService performanceCollectorService, 
+        FileImageTransferHandler fileImageTransferHandler): base(logger, mediator, "###PlayerSyncPopoutProfileUI", performanceCollectorService)
     {
         _uiSharedService = uiBuilder;
         _serverManager = serverManager;
         _mareProfileManager = mareProfileManager;
         _pairManager = pairManager;
+        _fileImageTransferHandler = fileImageTransferHandler;
         Flags = ImGuiWindowFlags.NoDecoration;
 
         Mediator.Subscribe<ProfilePopoutToggle>(this, (msg) =>
@@ -74,7 +81,24 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
             }
         });
 
-        IsOpen = false;
+        IsOpen = false;   
+    }
+
+    public override void OnOpen()
+    {
+        base.OnOpen();
+
+        if (_pair == null) return;
+
+        if (_textureWrap != null)
+            return;
+
+        _profileImageDownloadCts = _profileImageDownloadCts.CancelRecreate();
+        var cancellationToken = _profileImageDownloadCts.Token;
+
+        // let download run in background
+        _profileImageDownloadTask = _fileImageTransferHandler.DownloadProfileImageAsync(_pair.UserData.UID, cancellationToken,
+            imageBytes => _lastProfilePicture = imageBytes);
     }
 
     protected override void DrawInternal()
@@ -85,22 +109,28 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
         {
             var spacing = ImGui.GetStyle().ItemSpacing;
 
-            var mareProfile = _mareProfileManager.GetMareProfile(_pair.UserData);
+            var psProfile = _mareProfileManager.GetMareProfile(_pair.UserData);
+            var profile = MareProfileManager.ProfileHandler.Read(psProfile.Description);
 
-            if (_textureWrap == null || !mareProfile.ImageData.Value.SequenceEqual(_lastProfilePicture))
+            _textureWrap ??= _uiSharedService.LoadImage(psProfile.ImageData.Value);
+
+            if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted)
             {
-                _textureWrap?.Dispose();
-                _lastProfilePicture = mareProfile.ImageData.Value;
-                _textureWrap = _uiSharedService.LoadImage(_lastProfilePicture);
+                if (_mareProfileManager.IsProfileMarkedNsfwOrAllowed(psProfile, _pair.UserData) && _lastProfilePicture.Length > 0)
+                {
+                    _textureWrap?.Dispose();
+                    _textureWrap = _uiSharedService.LoadImage(_lastProfilePicture!);
+                }
+                _profileImageDownloadTask = null;
             }
 
-            if (_supporterTextureWrap == null || !mareProfile.SupporterImageData.Value.SequenceEqual(_lastSupporterPicture))
+            if (_supporterTextureWrap == null || !psProfile.SupporterImageData.Value.SequenceEqual(_lastSupporterPicture))
             {
                 _supporterTextureWrap?.Dispose();
                 _supporterTextureWrap = null;
-                if (!string.IsNullOrEmpty(mareProfile.Base64SupporterPicture))
+                if (!string.IsNullOrEmpty(psProfile.Base64SupporterPicture))
                 {
-                    _lastSupporterPicture = mareProfile.SupporterImageData.Value;
+                    _lastSupporterPicture = psProfile.SupporterImageData.Value;
                     _supporterTextureWrap = _uiSharedService.LoadImage(_lastSupporterPicture);
                 }
             }
@@ -118,9 +148,14 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
             var imagePos = ImGui.GetCursorPos();
             ImGuiHelpers.ScaledDummy(256, 256 * ImGuiHelpers.GlobalScale + spacing.Y);
             var note = _serverManager.GetNoteForUid(_pair.UserData.UID);
-            if (!string.IsNullOrEmpty(note))
+            var newNote = _serverManager.GetProfileNoteForUid(_pair.UserData.UID);
+            if (!string.IsNullOrEmpty(newNote))
             {
-                UiSharedService.ColorText(note, ImGuiColors.DalamudGrey);
+                UiSharedService.ColorTextWrapped(newNote, ImGuiColors.DalamudGrey);
+            }
+            else if (!string.IsNullOrEmpty(note))
+            {
+                UiSharedService.ColorTextWrapped(note, ImGuiColors.DalamudGrey);
             }
             string status = _pair.IsVisible ? "Visible" : (_pair.IsOnline ? "Online" : "Offline");
             UiSharedService.ColorText(status, (_pair.IsVisible || _pair.IsOnline) ? ImGuiColors.HealerGreen : ImGuiColors.DalamudRed);
@@ -158,7 +193,7 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
             ImGui.Separator();
             var font = _uiSharedService.GameFont.Push();
             var remaining = ImGui.GetWindowContentRegionMax().Y - ImGui.GetCursorPosY();
-            var descText = mareProfile.Description;
+            var descText = profile.AboutMe;
             var textSize = ImGui.CalcTextSize(descText, wrapWidth: 256f * ImGuiHelpers.GlobalScale);
             bool trimmed = textSize.Y > remaining;
             while (textSize.Y > remaining && descText.Contains(' '))
@@ -166,7 +201,7 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
                 descText = descText[..descText.LastIndexOf(' ')].TrimEnd();
                 textSize = ImGui.CalcTextSize(descText + $"...{Environment.NewLine}[Open Full Profile for complete description]", wrapWidth: 256f * ImGuiHelpers.GlobalScale);
             }
-            UiSharedService.TextWrapped(trimmed ? descText + $"...{Environment.NewLine}[Open Full Profile for complete description]" : mareProfile.Description);
+            UiSharedService.TextWrapped(trimmed ? descText + $"...{Environment.NewLine}[Open Full Profile for complete description]" : profile.AboutMe);
             font.Dispose();
 
             var padding = ImGui.GetStyle().WindowPadding.X / 2;
@@ -186,9 +221,25 @@ public class PopoutProfileUi : WindowMediatorSubscriberBase
                     new Vector2(rectMax.X - spacing.X, rectMin.Y + iconSize + (textPos / 2) - (iconSize / 2)));
             }
         }
+        catch (OperationCanceledException) { }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error during draw tooltip");
         }
+    }
+
+    public override void OnClose()
+    {
+        _profileImageDownloadCts?.CancelDispose();
+        _profileImageDownloadCts = null;
+
+        _textureWrap?.Dispose();
+        _textureWrap = null;
+
+        _lastProfilePicture = null;
+
+        _profileImageDownloadTask = null;
+
+        base.OnClose();
     }
 }

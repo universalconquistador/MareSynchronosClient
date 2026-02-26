@@ -7,6 +7,7 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
 using System.Collections.Immutable;
@@ -19,17 +20,21 @@ public class DrawFolderGroup : DrawFolderBase
     private readonly GroupFullInfoDto _groupFullInfoDto;
     private readonly IdDisplayHandler _idDisplayHandler;
     private readonly MareMediator _mareMediator;
+    private readonly PairManager _pairManager;
+    private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly IBroadcastManager _broadcastManager;
 
     public DrawFolderGroup(string id, GroupFullInfoDto groupFullInfoDto, ApiController apiController,
         IImmutableList<DrawUserPair> drawPairs, IImmutableList<Pair> allPairs, TagHandler tagHandler, IdDisplayHandler idDisplayHandler,
-        MareMediator mareMediator, UiSharedService uiSharedService, IBroadcastManager broadcastManager) :
+        MareMediator mareMediator, PairManager pairManager, ServerConfigurationManager serverConfigurationManager, UiSharedService uiSharedService, IBroadcastManager broadcastManager) :
         base(id, drawPairs, allPairs, tagHandler, uiSharedService)
     {
         _groupFullInfoDto = groupFullInfoDto;
         _apiController = apiController;
         _idDisplayHandler = idDisplayHandler;
         _mareMediator = mareMediator;
+        _pairManager = pairManager;
+        _serverConfigurationManager = serverConfigurationManager;
         _broadcastManager = broadcastManager;
     }
 
@@ -330,6 +335,11 @@ public class DrawFolderGroup : DrawFolderBase
         if (_uiSharedService.IconButton(pauseIcon))
         {
             var perm = _groupFullInfoDto.GroupUserPermissions;
+            if (!perm.IsPaused())
+            {
+                var uidsToPause = _pairManager.GroupPairs[_groupFullInfoDto].Where(p => !p.UserPair.OwnPermissions.IsSticky()).Select(u => u.UserData.UID).ToList();
+                _serverConfigurationManager.SetPauseReasonForUid(uidsToPause, MareConfiguration.Models.PauseReason.PauseSyncshell);
+            }            
             perm.SetPaused(!perm.IsPaused());
             _ = _apiController.GroupChangeIndividualPermissionState(new GroupPairUserPermissionDto(_groupFullInfoDto.Group, new(_apiController.UID), perm));
         }

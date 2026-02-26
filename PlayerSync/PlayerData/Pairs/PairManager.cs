@@ -9,6 +9,7 @@ using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Factories;
 using MareSynchronos.Services.Events;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.Services.ServerConfiguration;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
@@ -19,6 +20,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private readonly ConcurrentDictionary<UserData, Pair> _allClientPairs = new(UserDataComparer.Instance);
     private readonly ConcurrentDictionary<GroupData, GroupFullInfoDto> _allGroups = new(GroupDataComparer.Instance);
     private readonly MareConfigService _configurationService;
+    private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly IContextMenu _dalamudContextMenu;
     private readonly PairFactory _pairFactory;
     private Lazy<List<Pair>> _directPairsInternal;
@@ -26,11 +28,12 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
 
     public PairManager(ILogger<PairManager> logger, PairFactory pairFactory,
-                MareConfigService configurationService, MareMediator mediator,
+                MareConfigService configurationService, ServerConfigurationManager serverConfigurationManager, MareMediator mediator,
                 IContextMenu dalamudContextMenu) : base(logger, mediator)
     {
         _pairFactory = pairFactory;
         _configurationService = configurationService;
+        _serverConfigurationManager = serverConfigurationManager;
         _dalamudContextMenu = dalamudContextMenu;
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPairs());
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => ReapplyPairData());
@@ -276,6 +279,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         {
             Mediator.Publish(new ClearProfileDataMessage(dto.User));
         }
+
+        if (pair.UserPair.OwnPermissions.IsPaused() && !dto.Permissions.IsPaused())
+            _serverConfigurationManager.RemovePauseReasonForUid(pair.UserData.UID);
 
         pair.UserPair.OwnPermissions = dto.Permissions;
 
