@@ -273,6 +273,9 @@ public static class ProfileBuilder
             if (hovered || editing)
                 drawList.AddRect(boxMin, boxMax, ImGui.GetColorU32(border), rounding);
 
+            if (hovered)
+                ImGui.SetMouseCursor(ImGuiMouseCursor.TextInput);
+
             if (!editing)
             {
                 ImGui.SetCursorScreenPos(boxMin);
@@ -333,7 +336,7 @@ public static class ProfileBuilder
                 using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
                     changed = ImGui.InputTextMultiline(id, ref notesDraft, maxLen, boxSize, ImGuiInputTextFlags.None);
 
-                if (ImGui.IsItemDeactivated())
+                if (ImGui.IsItemDeactivated() || !ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
                     editing = false;
 
                 ImGui.SetCursorScreenPos(new Vector2(boxMin.X, boxMax.Y));

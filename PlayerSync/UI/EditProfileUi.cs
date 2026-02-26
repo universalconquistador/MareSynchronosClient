@@ -99,28 +99,11 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             IsOpen = false;
         });
 
-        //Mediator.Subscribe<ClearProfileDataMessage>(this, (msg) =>
-        //{
-        //    if (msg.UserData == null || string.Equals(msg.UserData.UID, _apiController.UID, StringComparison.Ordinal))
-        //    {
-        //        _pfpTextureWrap?.Dispose();
-        //        _pfpTextureWrap = null;
-
-        //        _supporterTextureWrap?.Dispose();
-        //        _supporterTextureWrap = null;
-
-        //        _lastProfilePicture = [];
-        //        _lastSupporterPicture = [];
-        //    }
-        //});
-
         _theme.FontHeading = _uiSharedService.HeaderFont;
         _theme.FontBody = _uiSharedService.GameFont;
     }
 
     private UserData Self => new(_apiController.UID);
-
-    private bool IsDevServer => _apiController.ServerInfo.FileServerAddress.ToString().Contains("dev");
 
     private IDalamudTextureWrap Watermark => _playerSyncWatermark ??= _uiSharedService.LoadImage(_mareProfileManager.PlayerSyncWatermark);
 
@@ -458,19 +441,12 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                 }
                 else
                 {
-                    if (IsDevServer)
-                    {
-                        _descriptionText = MareProfileManager.ProfileHandler.WriteJson(editorProfile, Formatting.None);
-                    }
-                    else
-                    {
-                        _descriptionText = editorProfile.AboutMe.Trim();
-                    }
+                    _descriptionText = MareProfileManager.ProfileHandler.WriteJson(editorProfile, Formatting.None); // 1.14.1.0
 
                     _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
                         Disabled: false, IsNSFW: null, ProfilePictureBase64: null, Description: _descriptionText));
 
-                    if (_pfpHasChanged && IsDevServer)
+                    if (_pfpHasChanged)
                     {
                         var profileImageType = UiSharedService.GetProfileImageTypeValue(ProfileImageType.Profile)!;
                         _ = _fileImageTransferHandler.UploadProfileImagePngAsync(profileImageType, _lastProfilePicture, CancellationToken.None);

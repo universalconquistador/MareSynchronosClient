@@ -366,7 +366,7 @@ public partial class SettingsUi
         ImGuiHelpers.ScaledDummy(2);
 
         UiSharedService.TextWrapped("The entries in the list below will not have filtering applied.");
-        UiSharedService.ColorTextWrapped("This will atempt to cycle pause state on a pair when adding or removing them from the list.", ImGuiColors.DalamudYellow);
+        UiSharedService.ColorTextWrapped("This will attempt to cycle pause state on a pair when adding or removing them from the list.", ImGuiColors.DalamudYellow);
         ImGui.Dummy(new Vector2(10));
         ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
         ImGui.InputText("##filteroverrideuids", ref _uidToAddForOverrideFilter, 20);
