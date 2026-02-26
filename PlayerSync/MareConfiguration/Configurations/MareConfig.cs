@@ -24,7 +24,7 @@ public class MareConfig : IMareConfiguration
     public NotificationLocation ErrorNotification { get; set; } = NotificationLocation.Both;
     public string ExportFolder { get; set; } = string.Empty;
     public bool FileScanPaused { get; set; } = false;
-    public NotificationLocation InfoNotification { get; set; } = NotificationLocation.Toast;
+    public NotificationLocation InfoNotification { get; set; } = NotificationLocation.Both;
     public bool InitialScanComplete { get; set; } = false;
     public LogLevel LogLevel { get; set; } = LogLevel.Information;
     public bool LogPerformance { get; set; } = false;
