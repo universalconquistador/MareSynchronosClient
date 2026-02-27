@@ -119,7 +119,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate();
             _applicationCancellationTokenSource = _applicationCancellationTokenSource?.CancelRecreate();
         });
-        Mediator.Subscribe<PenumbraResourceLoadMessage>(this, OnPenumbraResourceLoaded);
+
+        // Temp disable sound check while investigating loading time issues with Penumbra 1.5.2.4
+        //Mediator.Subscribe<PenumbraResourceLoadMessage>(this, OnPenumbraResourceLoaded);
 
         LastAppliedDataBytes = -1;
     }
