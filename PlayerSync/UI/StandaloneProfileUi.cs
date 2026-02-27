@@ -223,21 +223,21 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             ProfileBuilder.DrawInterests(_theme, profile);
             ProfileBuilder.DrawAboutMe(_theme, profile);
 
-            ImGui.SetCursorPos(new(pad, contentSize.Y - 135f * ImGuiHelpers.GlobalScale));
+            //ImGui.SetCursorPos(new(pad, contentSize.Y - 135f * ImGuiHelpers.GlobalScale));
 
-            var oldNotes = _serverManager.GetNoteForUid(uid);
-            var newNotes = _serverManager.GetProfileNoteForUid(uid);
-            if (!String.IsNullOrEmpty(oldNotes) && String.IsNullOrEmpty(newNotes))
-            {
-                notesDraft = oldNotes;
-                _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
-            }
+            //var oldNotes = _serverManager.GetNoteForUid(uid);
+            //var newNotes = _serverManager.GetProfileNoteForUid(uid);
+            //if (!String.IsNullOrEmpty(oldNotes) && String.IsNullOrEmpty(newNotes))
+            //{
+            //    notesDraft = oldNotes;
+            //    _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
+            //}
 
-            var changed = ProfileBuilder.DrawNotes(_theme, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{uid}",
-                heading: "Note (only visible to you)", placeholder: "Click to add a note", maxLen: 200, lines: 2);
+            //var changed = ProfileBuilder.DrawNotes(_theme, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{uid}",
+            //    heading: "Note (only visible to you)", placeholder: "Click to add a note", maxLen: 200, lines: 2);
 
-            if (changed)
-                _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
+            //if (changed)
+            //    _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
 
             var watermarkColor = profile.Theme.AccentV4;
             watermarkColor.W = 0.3f;
