@@ -131,7 +131,7 @@ public static class ProfileBuilder
         var pad = UiScale.ScaledFloat(theme.PanelPad);
 
         ImGui.SetCursorPos(new(pad, pad));
-        UiText.ThemedText(theme, displayName, UiTextStyle.Heading, profile.Theme.TextPrimaryV4);
+        UiText.HeaderText(theme, displayName, profile.Theme.TextPrimaryV4, profile.Theme.AccentV4);
 
         var pronouns = profile.Pronouns.Trim();
         var bulletGap = UiScale.ScaledFloat(6f);
@@ -139,7 +139,7 @@ public static class ProfileBuilder
         using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
         {
             ImGui.SetCursorPosX(pad);
-            ImGui.TextUnformatted(handle);
+            UiText.DrawTextShadowed(handle, profile.Theme.TextPrimaryV4, profile.Theme.AccentV4);
 
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                 ImGui.SetClipboardText(handle);
@@ -162,7 +162,7 @@ public static class ProfileBuilder
                 ImGui.SameLine(0, bulletGap);
                 ImGui.TextUnformatted("•");
                 ImGui.SameLine(0, bulletGap);
-                ImGui.TextUnformatted(pronouns);
+                UiText.DrawTextShadowed(pronouns, profile.Theme.TextPrimaryV4, profile.Theme.AccentV4);
             }
         }
 
@@ -171,7 +171,7 @@ public static class ProfileBuilder
             using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
             {
                 ImGui.SetCursorPosX(pad);
-                ImGui.TextUnformatted("Relationship Status");
+                UiText.DrawTextShadowed("Relationship Status", profile.Theme.TextPrimaryV4, profile.Theme.AccentV4);
             }
 
             ImGui.SetCursorPosX(pad);
@@ -188,7 +188,7 @@ public static class ProfileBuilder
         var interestsHeight = MeasureInterestsHeight(theme, profile);
         var aboutMeHeight = MeasureAboutHeight(theme, profile);
 
-        var calculated = contentSize.Y - interestsHeight - aboutMeHeight - 150 * ImGuiHelpers.GlobalScale;
+        var calculated = contentSize.Y - interestsHeight - aboutMeHeight - 80 * ImGuiHelpers.GlobalScale;
 
         return calculated;
     }
@@ -216,7 +216,7 @@ public static class ProfileBuilder
         {
             using (ImRaii.PushColor(ImGuiCol.Text, profile.Theme.TextPrimaryV4))
             {
-                ImGui.TextUnformatted("Interests");
+                UiText.DrawTextShadowed("Interests", profile.Theme.TextPrimaryV4, profile.Theme.AccentV4);
             }
 
             DrawPillWrap(theme, "interest", interestList, bg: profile.Theme.AccentV4, border: profile.Theme.SecondaryV4, fg: profile.Theme.TextPrimaryV4, innerWidth);

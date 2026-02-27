@@ -5,6 +5,7 @@ using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -23,6 +24,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     private readonly MareProfileManager _mareProfileManager;
     private readonly PairManager _pairManager;
     private readonly ServerConfigurationManager _serverManager;
+    private readonly MareConfigService _mareConfigService;
     private readonly UiSharedService _uiSharedService;
     private readonly FileImageTransferHandler _fileImageTransferHandler;
     private readonly PairRequestManager _pairRequestManager;
@@ -36,14 +38,16 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     private CancellationTokenSource? _profileImageDownloadCts;
     private bool _editingNotes;
     private readonly UiTheme _theme;
+    private bool _confirmNsfwWarning = false;
 
     public StandaloneProfileUi(ILogger<StandaloneProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
-        ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair,
+        ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair, MareConfigService mareConfigService,
         PerformanceCollectorService performanceCollector, UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairRequestManager pairRequestManager)
         : base(logger, mediator, "PlayerSync Profile of " + pair.UserData.AliasOrUID + "##PlayerSyncStandaloneProfileUI" + pair.UserData.AliasOrUID, performanceCollector)
     {
         _uiSharedService = uiBuilder;
         _serverManager = serverManager;
+        _mareConfigService = mareConfigService;
         _mareProfileManager = mareProfileManager;
         _theme = theme;
         Pair = pair;
@@ -210,10 +214,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
                 _pairRequestManager.SendPairRequest(userData: Pair.UserData);
             }
-            if (DrawCloseButton("##close_profile", profile.Theme.TextPrimaryV4, 14f))
-            {
-                IsOpen = false;
-            }
+            
             var gapHeight = ProfileBuilder.CalculateGapHeight(_theme, profile);
             var pad = _theme.PanelPad * ImGuiHelpers.GlobalScale;
 
@@ -222,27 +223,56 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             ProfileBuilder.DrawInterests(_theme, profile);
             ProfileBuilder.DrawAboutMe(_theme, profile);
 
-            ImGui.SetCursorPos(new(pad, contentSize.Y - 135f * ImGuiHelpers.GlobalScale));
+            //ImGui.SetCursorPos(new(pad, contentSize.Y - 135f * ImGuiHelpers.GlobalScale));
 
-            var oldNotes = _serverManager.GetNoteForUid(uid);
-            var newNotes = _serverManager.GetProfileNoteForUid(uid);
-            if (!String.IsNullOrEmpty(oldNotes) && String.IsNullOrEmpty(newNotes))
-            {
-                notesDraft = oldNotes;
-                _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
-            }
+            //var oldNotes = _serverManager.GetNoteForUid(uid);
+            //var newNotes = _serverManager.GetProfileNoteForUid(uid);
+            //if (!String.IsNullOrEmpty(oldNotes) && String.IsNullOrEmpty(newNotes))
+            //{
+            //    notesDraft = oldNotes;
+            //    _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
+            //}
 
-            var changed = ProfileBuilder.DrawNotes(_theme, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{uid}",
-                heading: "Note (only visible to you)", placeholder: "Click to add a note", maxLen: 200, lines: 2);
+            //var changed = ProfileBuilder.DrawNotes(_theme, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{uid}",
+            //    heading: "Note (only visible to you)", placeholder: "Click to add a note", maxLen: 200, lines: 2);
 
-            if (changed)
-                _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
+            //if (changed)
+            //    _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
 
             var watermarkColor = profile.Theme.AccentV4;
             watermarkColor.W = 0.3f;
             ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 7f);
 
             DrawPairingSyncshells(_theme, profile.Theme.TextPrimaryV4, 14f);
+
+            if (psProfile.IsNSFW && !_mareConfigService.Current.ProfileSkipNsfwWarning)
+            {
+                if (!_confirmNsfwWarning)
+                {
+                    ProfileBuilder.DrawBackgroundWindow(new(0.04f, 0.18f, 0.24f, 0.92f), radiusPx, 0f);
+
+                    const string buttonText = "Show NSFW Profile";
+
+                    var style = ImGui.GetStyle();
+                    Vector2 buttonSize = new(ImGui.CalcTextSize(buttonText).X + style.FramePadding.X * 2f, ImGui.GetFrameHeight());
+                    Vector2 contentMin2 = ImGui.GetWindowContentRegionMin();
+                    Vector2 contentMax2 = ImGui.GetWindowContentRegionMax();
+                    Vector2 contentSize2 = contentMax2 - contentMin2;
+                    Vector2 centeredPos = contentMin2 + (contentSize2 - buttonSize) * 0.5f;
+
+                    ImGui.SetCursorPos(centeredPos);
+                    if (ImGui.Button(buttonText, buttonSize))
+                    {
+                        _confirmNsfwWarning = true;
+                    }
+                    UiSharedService.AttachToolTip("Disable warning in settings");
+                }
+            }
+
+            if (DrawCloseButton("##close_profile", profile.Theme.TextPrimaryV4, 14f))
+            {
+                IsOpen = false;
+            }
         }
         catch (Exception ex)
         {

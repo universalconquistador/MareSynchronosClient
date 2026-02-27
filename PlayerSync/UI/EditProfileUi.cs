@@ -53,7 +53,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     private ProfileV1 _liveProfile = new();
     private string _descriptionText = string.Empty;
 
-    private bool _isNsfw;
+    private bool _isNsfw = false;
 
     private static readonly string[] InterestOptions =
     [
@@ -212,9 +212,10 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                         Disabled: false, IsNSFW: null, ProfilePictureBase64: null, Description: _descriptionText));
             _hasProfileLoaded = true;
         }
-        else if (IsProfileLoaded(raw) && !IsNewProfile(raw))
+        else if (!_hasProfileLoaded && IsProfileLoaded(raw) && !IsNewProfile(raw))
         {
             _hasProfileLoaded = true;
+            _isNsfw = psProfile.IsNSFW;
         }
 
         // Split editor & preview into 2 columns
@@ -347,8 +348,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             _dirty = true;
 
             // update on server to keep the same API surface
-            _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
-                Disabled: false, IsNSFW: _isNsfw, ProfilePictureBase64: null, Description: null));
+            //_ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
+            //    Disabled: false, IsNSFW: _isNsfw, ProfilePictureBase64: null, Description: null));
         }
         _uiSharedService.DrawHelpText("If your profile description or image can be considered NSFW, toggle this to ON");
 
@@ -444,7 +445,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                     _descriptionText = MareProfileManager.ProfileHandler.WriteJson(editorProfile, Formatting.None); // 1.14.1.0
 
                     _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
-                        Disabled: false, IsNSFW: null, ProfilePictureBase64: null, Description: _descriptionText));
+                        Disabled: false, IsNSFW: _isNsfw, ProfilePictureBase64: null, Description: _descriptionText));
 
                     if (_pfpHasChanged)
                     {

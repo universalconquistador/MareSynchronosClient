@@ -7,34 +7,13 @@ namespace MareSynchronos.UI.ModernUi;
 
 public static class UiText
 {
-    public static void ThemedText(UiTheme theme, string text, UiTextStyle style = UiTextStyle.Body, Vector4? color = null)
+    public static void HeaderText(UiTheme theme, string text, Vector4 textColor, Vector4 shadowColor)
     {
-        var fontHandle = style switch
-        {
-            UiTextStyle.Heading => theme.FontHeading,
-            UiTextStyle.Small => theme.FontSmall,
-            _ => theme.FontBody
-        };
+        if (theme.FontHeading == null) return;
 
-        IDisposable? fontScope = null;
-        if (fontHandle != null)
-            fontScope = fontHandle.Push();
-
-        try
+        using (theme.FontHeading.Push())
         {
-            if (color != null)
-            {
-                using var textColorScope = ImRaii.PushColor(ImGuiCol.Text, color.Value);
-                ImGui.TextUnformatted(text);
-            }
-            else
-            {
-                ImGui.TextUnformatted(text);
-            }
-        }
-        finally
-        {
-            fontScope?.Dispose();
+            UiText.DrawTextShadowed(text, textColor, shadowColor);
         }
     }
 
