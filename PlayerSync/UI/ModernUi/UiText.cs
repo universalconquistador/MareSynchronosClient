@@ -2,12 +2,14 @@
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using System.Numerics;
+using System.Reflection.Metadata;
+using System.Runtime.InteropServices;
 
 namespace MareSynchronos.UI.ModernUi;
 
 public static class UiText
 {
-    public static void ThemedText(UiTheme theme, string text, UiTextStyle style = UiTextStyle.Body, Vector4? color = null)
+    public static void ThemedText(UiTheme theme, string text, Vector4 textColor, Vector4 shadowColor, UiTextStyle style = UiTextStyle.Body)
     {
         var fontHandle = style switch
         {
@@ -22,15 +24,7 @@ public static class UiText
 
         try
         {
-            if (color != null)
-            {
-                using var textColorScope = ImRaii.PushColor(ImGuiCol.Text, color.Value);
-                ImGui.TextUnformatted(text);
-            }
-            else
-            {
-                ImGui.TextUnformatted(text);
-            }
+            UiText.DrawTextShadowed(text, textColor, shadowColor);
         }
         finally
         {

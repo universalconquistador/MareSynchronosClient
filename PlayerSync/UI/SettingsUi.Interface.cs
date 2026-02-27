@@ -51,6 +51,7 @@ public partial class SettingsUi
         var showOfflineSeparate = _configService.Current.ShowOfflineUsersSeparately;
         var showProfiles = _configService.Current.ProfilesShow;
         var showNsfwProfiles = _configService.Current.ProfilesAllowNsfw;
+        var skipNsfwWarning = _configService.Current.ProfileSkipNsfwWarning;
         var profileDelay = _configService.Current.ProfileDelay;
         var profileOnRight = _configService.Current.ProfilePopoutRight;
         var preferNotesInsteadOfName = _configService.Current.PreferNotesOverNamesForVisible;
@@ -202,7 +203,6 @@ public partial class SettingsUi
             _uiShared.DrawHelpText("Delay until the profile should be displayed");
             if (!showProfiles) ImGui.EndDisabled();
         }
-        
         if (ImGui.Checkbox("Show profiles marked as NSFW", ref showNsfwProfiles))
         {
             Mediator.Publish(new ClearProfileDataMessage());
@@ -210,6 +210,18 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Will show profiles that have the NSFW tag enabled");
+        using (ImRaii.Disabled(!showNsfwProfiles))
+        {
+            using (ImRaii.PushIndent(2))
+            {
+                if (ImGui.Checkbox("Profile Roulette", ref skipNsfwWarning))
+                {
+                    _configService.Current.ProfileSkipNsfwWarning = skipNsfwWarning;
+                    _configService.Save();
+                }
+                _uiShared.DrawHelpText("Will not show NSFW warning before displaying a profile.");
+            }
+        }
         if (ImGui.Checkbox("Mystery Setting", ref mysterySetting))
         {
             _configService.Current.MysterySetting = mysterySetting;

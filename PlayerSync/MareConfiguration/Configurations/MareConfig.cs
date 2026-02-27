@@ -39,6 +39,7 @@ public class MareConfig : IMareConfiguration
     public float ProfileDelay { get; set; } = 1.5f;
     public bool ProfilePopoutRight { get; set; } = false;
     public bool ProfilesAllowNsfw { get; set; } = false;
+    public bool ProfileSkipNsfwWarning { get; set; } = false;
     public bool ProfilesShow { get; set; } = true;
     public bool ShowSyncshellUsersInVisible { get; set; } = true;
     public bool ShowCharacterNameInsteadOfNotesForVisible { get; set; } = false;
