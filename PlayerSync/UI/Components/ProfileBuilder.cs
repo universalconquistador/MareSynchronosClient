@@ -131,7 +131,7 @@ public static class ProfileBuilder
         var pad = UiScale.ScaledFloat(theme.PanelPad);
 
         ImGui.SetCursorPos(new(pad, pad));
-        UiText.ThemedText(theme, displayName, profile.Theme.TextPrimaryV4, profile.Theme.AccentV4, UiTextStyle.Heading);
+        UiText.HeaderText(theme, displayName, profile.Theme.TextPrimaryV4, profile.Theme.AccentV4);
 
         var pronouns = profile.Pronouns.Trim();
         var bulletGap = UiScale.ScaledFloat(6f);
@@ -188,7 +188,7 @@ public static class ProfileBuilder
         var interestsHeight = MeasureInterestsHeight(theme, profile);
         var aboutMeHeight = MeasureAboutHeight(theme, profile);
 
-        var calculated = contentSize.Y - interestsHeight - aboutMeHeight - 150 * ImGuiHelpers.GlobalScale;
+        var calculated = contentSize.Y - interestsHeight - aboutMeHeight - 80 * ImGuiHelpers.GlobalScale;
 
         return calculated;
     }
