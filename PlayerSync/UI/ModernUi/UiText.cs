@@ -2,33 +2,18 @@
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using System.Numerics;
-using System.Reflection.Metadata;
-using System.Runtime.InteropServices;
 
 namespace MareSynchronos.UI.ModernUi;
 
 public static class UiText
 {
-    public static void ThemedText(UiTheme theme, string text, Vector4 textColor, Vector4 shadowColor, UiTextStyle style = UiTextStyle.Body)
+    public static void HeaderText(UiTheme theme, string text, Vector4 textColor, Vector4 shadowColor)
     {
-        var fontHandle = style switch
-        {
-            UiTextStyle.Heading => theme.FontHeading,
-            UiTextStyle.Small => theme.FontSmall,
-            _ => theme.FontBody
-        };
+        if (theme.FontHeading == null) return;
 
-        IDisposable? fontScope = null;
-        if (fontHandle != null)
-            fontScope = fontHandle.Push();
-
-        try
+        using (theme.FontHeading.Push())
         {
             UiText.DrawTextShadowed(text, textColor, shadowColor);
-        }
-        finally
-        {
-            fontScope?.Dispose();
         }
     }
 
