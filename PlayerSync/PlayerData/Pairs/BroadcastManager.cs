@@ -357,8 +357,10 @@ namespace MareSynchronos.PlayerData.Pairs
             {
                 Logger.LogError(ex, "Exception attempting to poll broadcasts!");
             }
-
-            _pollingBroadcasts = 0;
+            finally
+            {
+                _pollingBroadcasts = 0;
+            }
         }
     }
 }
