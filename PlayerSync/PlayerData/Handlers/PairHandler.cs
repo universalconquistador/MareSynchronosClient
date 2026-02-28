@@ -49,6 +49,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private bool _isVisible;
     private Guid _penumbraCollection;
     private bool _redrawOnNextApplication = false;
+    private int _isRedrawVanillaRunning = 0;
 
     // science
     //private static readonly ConcurrentDictionary<string, SemaphoreSlim> _actorLocks = new(StringComparer.Ordinal);
@@ -119,7 +120,11 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate();
             _applicationCancellationTokenSource = _applicationCancellationTokenSource?.CancelRecreate();
         });
-        //Mediator.Subscribe<PenumbraResourceLoadMessage>(this, OnPenumbraResourceLoaded);
+
+        if (!_configService.Current.DebugDisableSoundIndicators)
+            Mediator.Subscribe<PenumbraResourceLoadMessage>(this, OnPenumbraResourceLoaded);
+
+        Mediator.Subscribe<GlamourerChangedMessage>(this, (msg) => _ = CheckForVanillaLoadingOfPair(msg.Address));
 
         LastAppliedDataBytes = -1;
     }
@@ -199,18 +204,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             return;
         }
 
-        bool filterBiDiPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
-        bool isDirectPaired = Pair.IndividualPairStatus == IndividualPairStatus.Bidirectional;
-        bool overrideFilterPair = !filterBiDiPairs && isDirectPaired;
-
-        bool overrideFilterUid = _configService.Current.UIDsToOverrideFilter.Contains(Pair.UserData.UID, StringComparer.OrdinalIgnoreCase)
-            || _configService.Current.UIDsToOverrideFilter.Contains(Pair.UserData.Alias, StringComparer.OrdinalIgnoreCase);
-
-        if (_configService.Current.FilterMods && !overrideFilterPair && !overrideFilterUid)
-        {
-            Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while filtering is enabled, returning", applicationBase, this);
+        if (CheckForVanillaLoadingOfPair(_charaHandler.Address))
             return;
-        }
 
         Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
             "Applying Character Data")));
@@ -269,6 +264,39 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             {
                 Pair.LastLoadedSoundSinceRedraw = DateTimeOffset.UtcNow;
             }
+        }
+    }
+
+    public async Task ReloadAndLockVanillaState(nint address, Guid applicationBase)
+    {
+        if (Interlocked.Exchange(ref _isRedrawVanillaRunning, 1) == 1)
+            return;
+
+        try
+        {
+            Logger.LogInformation("[BASE-{appbase}] Filter task started for {player}", applicationBase, this);
+
+            // grab a temp character handler since Glamourer will just pass a nint anyway
+            using GameObjectHandler tempHandler = await _gameObjectHandlerFactory.Create(ObjectKind.Player, () => address, isWatched: false).ConfigureAwait(false);
+
+            // revert their Glamourer state, this will unlock and "revert" to their new vanilla
+            await _ipcManager.Glamourer.RevertAsync(Logger, tempHandler, applicationBase, CancellationToken.None).ConfigureAwait(false);
+
+            // grab their new vanilla glam state
+            var charState = await _ipcManager.Glamourer.GetCharacterCustomizationAsync(tempHandler.Address).ConfigureAwait(false);
+            
+            // apply the glamourer state and lock the target
+            await _ipcManager.Glamourer.ApplyAllAsync(Logger, tempHandler, charState, Guid.NewGuid(), CancellationToken.None).ConfigureAwait(false);
+
+            Logger.LogInformation("[BASE-{appbase}] Filter task completed for {player}", applicationBase, this);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "[BASE-{appbase}] Filter task failed for {player}", applicationBase, this);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _isRedrawVanillaRunning, 0);
         }
     }
 
@@ -886,5 +914,34 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         st.Stop();
         Logger.LogDebug("[BASE-{appBase}] ModdedPaths calculated in {time}ms, missing files: {count}, total files: {total}", applicationBase, st.ElapsedMilliseconds, missingFiles.Count, moddedDictionary.Keys.Count);
         return [.. missingFiles];
+    }
+
+    private bool CheckForVanillaLoadingOfPair(nint address)
+    {
+        if (address == nint.Zero)
+            return false;
+
+        if (_charaHandler != null && _charaHandler.Address != address)
+            return false;
+
+        var applicationBase = Guid.NewGuid();
+
+        bool filterBiDiPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
+        bool isDirectPaired = Pair.IndividualPairStatus == IndividualPairStatus.Bidirectional;
+        bool overrideFilterPair = !filterBiDiPairs && isDirectPaired;
+
+        bool overrideFilterUid = _configService.Current.UIDsToOverrideFilter.Contains(Pair.UserData.UID, StringComparer.OrdinalIgnoreCase)
+            || _configService.Current.UIDsToOverrideFilter.Contains(Pair.UserData.Alias, StringComparer.OrdinalIgnoreCase);
+
+        if (_configService.Current.FilterMods && !overrideFilterPair && !overrideFilterUid)
+        {
+            Logger.LogInformation("[BASE-{appbase}] Filtering enabled; scheduling penumbra/glamourer apply for {player}", applicationBase, this);
+
+            _ = ReloadAndLockVanillaState(address, applicationBase);
+
+            return true;
+        }
+
+        return false;
     }
 }

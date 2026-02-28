@@ -82,6 +82,15 @@ public partial class SettingsUi
             + "Keeping LOD enabled can lead to more crashes. Use at your own risk.");
 
         ImGuiHelpers.ScaledDummy(5);
+        bool disableSoundIndicators = _configService.Current.DebugDisableSoundIndicators;
+        if (ImGui.Checkbox("Disable sound indicators", ref disableSoundIndicators))
+        {
+            _configService.Current.DebugDisableSoundIndicators = disableSoundIndicators;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("You must reconnect to the service for this to take effect for existing pairs.");
+
+        ImGuiHelpers.ScaledDummy(5);
         bool throttleUploads = _configService.Current.DebugThrottleUploads;
         if (ImGui.Checkbox("Throttle uploads to be very very slow", ref throttleUploads))
         {
