@@ -408,7 +408,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     {
                         ImGui.SetClipboardText(pair.UserData.UID);
                     }
-                    UiSharedService.AttachToolTip("Click to copy");
+                    if (ImGui.IsItemClicked(ImGuiMouseButton.Middle))
+                    {
+                        Mediator.Publish(new ProfileOpenStandaloneMessage(pair));
+                    }
+                    UiSharedService.AttachToolTip("Left click to copy UID" + UiSharedService.TooltipSeparator + 
+                        "Middle mouse button to open user profile");
 
                     // Alias/vanity Column
                     ImGui.TableSetColumnIndex(2);
