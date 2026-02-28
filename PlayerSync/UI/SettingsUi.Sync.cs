@@ -354,7 +354,7 @@ public partial class SettingsUi
         Ui.DrawHorizontalRule(_theme);
         // Overrides
 
-        if (ImGui.Checkbox("Include filtering on direct pairs", ref filterDirectPairs))
+        if (ImGui.Checkbox("Include filtering of direct pairs", ref filterDirectPairs))
         {
             _configService.Current.DoFilteringBidirectionDirectPairs = filterDirectPairs;
             _configService.Save();
