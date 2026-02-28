@@ -1,4 +1,5 @@
 using MareSynchronos.API.Data;
+using MareSynchronos.API.Data.Enum;
 using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
@@ -35,6 +36,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private readonly PluginWarningNotificationService _pluginWarningNotificationManager;
     private readonly ICompressedAlternateManager _compressedAlternateManager;
     private readonly PlayerPerformanceConfigService _performanceConfig;
+    private readonly MareConfigService _configService;
     private CancellationTokenSource? _applicationCancellationTokenSource = new();
     private Guid _applicationId;
     private Task? _applicationTask;
@@ -60,6 +62,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         PlayerPerformanceService playerPerformanceService,
         ServerConfigurationManager serverConfigManager,
         ICompressedAlternateManager compressedAlternateManager,
+        MareConfigService configService,
         PlayerPerformanceConfigService performanceConfig) : base(logger, mediator)
     {
         Pair = pair;
@@ -74,6 +77,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _serverConfigManager = serverConfigManager;
         _compressedAlternateManager = compressedAlternateManager;
         _performanceConfig = performanceConfig;
+        _configService = configService;
         _penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
 
         Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => FrameworkUpdate());
@@ -115,7 +119,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate();
             _applicationCancellationTokenSource = _applicationCancellationTokenSource?.CancelRecreate();
         });
-        Mediator.Subscribe<PenumbraResourceLoadMessage>(this, OnPenumbraResourceLoaded);
+        //Mediator.Subscribe<PenumbraResourceLoadMessage>(this, OnPenumbraResourceLoaded);
 
         LastAppliedDataBytes = -1;
     }
@@ -192,6 +196,19 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
                 "Cannot apply character data: you are in GPose, a Cutscene or Penumbra/Glamourer is not available")));
             Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning", applicationBase, this);
+            return;
+        }
+
+        bool filterBiDiPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
+        bool isDirectPaired = Pair.IndividualPairStatus == IndividualPairStatus.Bidirectional;
+        bool overrideFilterPair = !filterBiDiPairs && isDirectPaired;
+
+        bool overrideFilterUid = _configService.Current.UIDsToOverrideFilter.Contains(Pair.UserData.UID, StringComparer.OrdinalIgnoreCase)
+            || _configService.Current.UIDsToOverrideFilter.Contains(Pair.UserData.Alias, StringComparer.OrdinalIgnoreCase);
+
+        if (_configService.Current.FilterMods && !overrideFilterPair && !overrideFilterUid)
+        {
+            Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while filtering is enabled, returning", applicationBase, this);
             return;
         }
 

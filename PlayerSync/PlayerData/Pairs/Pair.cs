@@ -69,13 +69,13 @@ public class Pair
         SeStringBuilder seStringBuilder2 = new();
         SeStringBuilder seStringBuilder3 = new();
         SeStringBuilder seStringBuilder4 = new();
-        SeStringBuilder seStringBuilder5 = new();
+        //SeStringBuilder seStringBuilder5 = new();
         SeStringBuilder seStringBuilder6 = new();
         var openProfileSeString = seStringBuilder.AddText("Open Profile").Build();
         var reapplyDataSeString = seStringBuilder2.AddText("Reapply Last Data").Build();
         var cyclePauseState = seStringBuilder3.AddText("Cycle Pause State").Build();
         var changePermissions = seStringBuilder4.AddText("Change Permissions").Build();
-        var pairIndividually = seStringBuilder5.AddText("Pair Individually").Build();
+        //var pairIndividually = seStringBuilder5.AddText("Pair Individually").Build();
         var pauseForever = seStringBuilder6.AddText("Keep Paused").Build();
         args.AddMenuItem(new MenuItem()
         {
@@ -114,17 +114,17 @@ public class Pair
         });
 
         // Only show the option to pair if we don't already have a pairing
-        if (IndividualPairStatus == IndividualPairStatus.None)
-        {
-            args.AddMenuItem(new MenuItem()
-            {
-                Name = pairIndividually,
-                OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
-                UseDefaultPrefix = false,
-                PrefixChar = 'P',
-                PrefixColor = 530
-            });
-        }
+        //if (IndividualPairStatus == IndividualPairStatus.None)
+        //{
+        //    args.AddMenuItem(new MenuItem()
+        //    {
+        //        Name = pairIndividually,
+        //        OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
+        //        UseDefaultPrefix = false,
+        //        PrefixChar = 'P',
+        //        PrefixColor = 530
+        //    });
+        //}
 
         // This kind of acts like a blacklist feature
         args.AddMenuItem(new MenuItem()
@@ -173,7 +173,6 @@ public class Pair
         if (CachedPlayer == null) return;
         if (LastReceivedCharacterData == null) return;
 
-        // Is this how permissions are applied?
         CachedPlayer.ApplyCharacterData(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
     }
 
@@ -280,11 +279,19 @@ public class Pair
         bool disableIndividualVFX = (UserPair.OtherPermissions.IsDisableVFX() || UserPair.OwnPermissions.IsDisableVFX() || _configService.Current.FilterVfx);
         bool disableIndividualSounds = (UserPair.OtherPermissions.IsDisableSounds() || UserPair.OwnPermissions.IsDisableSounds() || _configService.Current.FilterSounds);
 
+        bool filterBiDiPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
+        bool isDirectPaired = UserPair.IndividualPairStatus == IndividualPairStatus.Bidirectional;
+        bool overrideFilterPair = !filterBiDiPairs && isDirectPaired;
+
+        bool overrideFilterUid = _configService.Current.UIDsToOverrideFilter.Contains(UserPair.User.UID, StringComparer.OrdinalIgnoreCase) 
+            || _configService.Current.UIDsToOverrideFilter.Contains(UserPair.User.Alias, StringComparer.OrdinalIgnoreCase);
+
         _logger.LogTrace("Disable: Sounds: {disableIndividualSounds}, Anims: {disableIndividualAnims}; " +
             "VFX: {disableGroupSounds}",
             disableIndividualSounds, disableIndividualAnimations, disableIndividualVFX);
 
-        if (disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX)
+        bool hasDisabled = disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX;
+        if (hasDisabled && !overrideFilterUid && !overrideFilterPair)
         {
             _logger.LogTrace("Data cleaned up: Animations disabled: {disableAnimations}, Sounds disabled: {disableSounds}, VFX disabled: {disableVFX}",
                 disableIndividualAnimations, disableIndividualSounds, disableIndividualVFX);

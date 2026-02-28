@@ -239,12 +239,14 @@ public class TopTabMenu : IMediatorSubscriber
         ImGui.SetNextItemWidth(availableXWidth - buttonSize - spacingX);
         ImGui.InputTextWithHint("##otheruid", "Other players UID/Alias", ref _pairToAdd, 20);
         ImGui.SameLine();
-        var alreadyExisting = _pairManager.DirectPairs.Exists(p => string.Equals(p.UserData.UID, _pairToAdd, StringComparison.Ordinal) || string.Equals(p.UserData.Alias, _pairToAdd, StringComparison.Ordinal));
+        var alreadyExistingUid = _pairManager.DirectPairs.Exists(p => string.Equals(p.UserData.UID, _pairToAdd, StringComparison.Ordinal) && p.IndividualPairStatus == IndividualPairStatus.Bidirectional);
+        var alreadyExistingAlias = _pairManager.DirectPairs.Exists(p => string.Equals(p.UserData.Alias, _pairToAdd, StringComparison.Ordinal) && p.IndividualPairStatus == IndividualPairStatus.Bidirectional);
+        bool alreadyExisting = alreadyExistingUid || alreadyExistingAlias;
         using (ImRaii.Disabled(alreadyExisting || string.IsNullOrEmpty(_pairToAdd)))
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.UserPlus, "Add"))
             {
-                _ = _apiController.UserAddPair(new(new(_pairToAdd)), false);
+                _ = _apiController.UserMakePairRequest(new(UserData: new(_pairToAdd)));
                 _pairToAdd = string.Empty;
             }
         }
@@ -356,7 +358,7 @@ public class TopTabMenu : IMediatorSubscriber
 
     private void DrawGlobalIndividualButtons(float availableXWidth, float spacingX)
     {
-        var buttonX = (availableXWidth - (spacingX * 3)) / 4f;
+        var buttonX = (availableXWidth - (spacingX * 3)) / 5f;
         var buttonY = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Pause).Y;
         var buttonSize = new Vector2(buttonX, buttonY);
 
@@ -460,6 +462,16 @@ public class TopTabMenu : IMediatorSubscriber
                 perm.SetDisableVFX(true);
                 return perm;
             });
+
+        ImGui.SameLine();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            if (ImGui.Button(FontAwesomeIcon.Envelope.ToIconString(), buttonSize))
+            {
+                _mareMediator.Publish(new UiToggleMessage(typeof(PairingRequestsUi)));
+            }
+        }
+        UiSharedService.AttachToolTip("Open Pair Requests UI");
     }
 
     private void DrawGlobalSyncshellButtons(float availableXWidth, float spacingX)
@@ -616,7 +628,7 @@ public class TopTabMenu : IMediatorSubscriber
             ImGui.SameLine();
         }
 
-        using (ImRaii.Disabled(_pairManager.GroupPairs.Select(k => k.Key).Distinct().Count() >= _apiController.ServerInfo.MaxGroupsJoinedByUser))
+        using (ImRaii.Disabled(_pairManager.GroupPairs.Select(k => k.Key).Distinct().Count(s => !s.PublicData.IsZoneSync) >= _apiController.ServerInfo.MaxGroupsJoinedByUser))
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Users, "Join existing Syncshell", buttonX))
             {

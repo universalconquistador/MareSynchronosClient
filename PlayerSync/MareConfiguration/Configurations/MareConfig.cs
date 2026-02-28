@@ -24,7 +24,7 @@ public class MareConfig : IMareConfiguration
     public NotificationLocation ErrorNotification { get; set; } = NotificationLocation.Both;
     public string ExportFolder { get; set; } = string.Empty;
     public bool FileScanPaused { get; set; } = false;
-    public NotificationLocation InfoNotification { get; set; } = NotificationLocation.Toast;
+    public NotificationLocation InfoNotification { get; set; } = NotificationLocation.Both;
     public bool InitialScanComplete { get; set; } = false;
     public LogLevel LogLevel { get; set; } = LogLevel.Information;
     public bool LogPerformance { get; set; } = false;
@@ -39,6 +39,7 @@ public class MareConfig : IMareConfiguration
     public float ProfileDelay { get; set; } = 1.5f;
     public bool ProfilePopoutRight { get; set; } = false;
     public bool ProfilesAllowNsfw { get; set; } = false;
+    public bool ProfileSkipNsfwWarning { get; set; } = false;
     public bool ProfilesShow { get; set; } = true;
     public bool ShowSyncshellUsersInVisible { get; set; } = true;
     public bool ShowCharacterNameInsteadOfNotesForVisible { get; set; } = false;
@@ -76,8 +77,12 @@ public class MareConfig : IMareConfiguration
     public bool FilterAnimations { get; set; } = false;
     public bool FilterSounds { get; set; } = false;
     public bool FilterVfx { get; set; } = false;
+    public bool FilterMods { get; set; } = false;
+    public bool DoFilteringBidirectionDirectPairs { get; set; } = true;
+    public List<string> UIDsToOverrideFilter { get; set; } = new();
     public bool OverrideCdnTimeZone { get; set; } = false;
     public string OverrideCdnTimeZoneId { get; set; } = string.Empty;
+    public bool IgnoreWarningOverrideCdnTimeZone { get; set; } = false;
     public bool ShowSoundSourceIndicator { get; set; } = true;
     public bool ShowPairedIndicator { get; set; } = false;
     public bool ShowPermsInsteadOfFCTags { get; set; } = false;
@@ -89,4 +94,5 @@ public class MareConfig : IMareConfiguration
     public bool MysterySetting {  get; set; } = false;
     public bool InitialSetupOptions { get; set; } = false;
     public bool FirstTimeSetupComplete { get; set; } = false;
+    public bool DisableSyncDuringDuty { get; set; } = false;
 }

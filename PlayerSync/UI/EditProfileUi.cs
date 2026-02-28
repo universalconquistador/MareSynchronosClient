@@ -38,6 +38,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     private IDalamudTextureWrap? _pfpTextureWrap;
     private IDalamudTextureWrap? _supporterTextureWrap;
+    private IDalamudTextureWrap? _playerSyncWatermark;
     private byte[] _lastProfilePicture = [];
     private byte[] _lastSupporterPicture = [];
     private Task? _profileImageDownloadTask;
@@ -52,7 +53,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     private ProfileV1 _liveProfile = new();
     private string _descriptionText = string.Empty;
 
-    private bool _isNsfw;
+    private bool _isNsfw = false;
 
     private static readonly string[] InterestOptions =
     [
@@ -71,8 +72,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         SizeConstraints = new()
         {
-            MinimumSize = new(1000, 800),
-            MaximumSize = new(1000, 800),
+            MinimumSize = new(1000, 840),
+            MaximumSize = new(1000, 840),
         };
 
         _apiController = apiController;
@@ -98,28 +99,13 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             IsOpen = false;
         });
 
-        //Mediator.Subscribe<ClearProfileDataMessage>(this, (msg) =>
-        //{
-        //    if (msg.UserData == null || string.Equals(msg.UserData.UID, _apiController.UID, StringComparison.Ordinal))
-        //    {
-        //        _pfpTextureWrap?.Dispose();
-        //        _pfpTextureWrap = null;
-
-        //        _supporterTextureWrap?.Dispose();
-        //        _supporterTextureWrap = null;
-
-        //        _lastProfilePicture = [];
-        //        _lastSupporterPicture = [];
-        //    }
-        //});
-
         _theme.FontHeading = _uiSharedService.HeaderFont;
         _theme.FontBody = _uiSharedService.GameFont;
     }
 
     private UserData Self => new(_apiController.UID);
 
-    private bool IsDevServer => _apiController.ServerInfo.FileServerAddress.ToString().Contains("dev");
+    private IDalamudTextureWrap Watermark => _playerSyncWatermark ??= _uiSharedService.LoadImage(_mareProfileManager.PlayerSyncWatermark);
 
     private static bool IsProfileLoaded(string? raw)
     {
@@ -154,6 +140,9 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     {
         base.OnOpen();
 
+        if (!_apiController.IsConnected)
+            return;
+
         if (_pfpTextureWrap != null)
             return;
 
@@ -172,6 +161,10 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         _pfpTextureWrap?.Dispose();
         _pfpTextureWrap = null;
+        _playerSyncWatermark?.Dispose();
+        _playerSyncWatermark = null;
+
+        _lastProfilePicture = [];
 
         _profileImageDownloadTask = null;
         _pfpHasChanged = false;
@@ -187,6 +180,12 @@ public class EditProfileUi : WindowMediatorSubscriberBase
     protected override void DrawInternal()
     {
         using var windowStyle = _theme.PushWindowStyle();
+
+        if (!_apiController.IsConnected)
+        {
+            UiSharedService.ColorTextWrapped("Must be connected to the service to use this feature.", ImGuiColors.DalamudYellow);
+            return;
+        }
 
         var psProfile = _mareProfileManager.GetMareProfile(Self);
 
@@ -213,9 +212,10 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                         Disabled: false, IsNSFW: null, ProfilePictureBase64: null, Description: _descriptionText));
             _hasProfileLoaded = true;
         }
-        else if (IsProfileLoaded(raw) && !IsNewProfile(raw))
+        else if (!_hasProfileLoaded && IsProfileLoaded(raw) && !IsNewProfile(raw))
         {
             _hasProfileLoaded = true;
+            _isNsfw = psProfile.IsNSFW;
         }
 
         // Split editor & preview into 2 columns
@@ -249,7 +249,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         try
         {
             // match standalone profile size
-            var targetSize = new Vector2(400f, 700f) * ImGuiHelpers.GlobalScale;
+            var targetSize = new Vector2(400f, 711f) * ImGuiHelpers.GlobalScale;
             var availableRegion = ImGui.GetContentRegionAvail();
             var inner = new Vector2(MathF.Min(targetSize.X, availableRegion.X), MathF.Min(targetSize.Y, availableRegion.Y));
 
@@ -337,7 +337,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         }
 
         ImGui.Separator();
-        ImGui.TextUnformatted("Profile Picture");
+        ImGui.TextUnformatted("Profile Picture - 9:16 aspect ratio (1920x1080) jpg/png up to 4MiB");
         DrawProfilePictureUpload();
 
         ImGui.Separator();
@@ -348,21 +348,10 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             _dirty = true;
 
             // update on server to keep the same API surface
-            _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
-                Disabled: false, IsNSFW: _isNsfw, ProfilePictureBase64: null, Description: null));
+            //_ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
+            //    Disabled: false, IsNSFW: _isNsfw, ProfilePictureBase64: null, Description: null));
         }
         _uiSharedService.DrawHelpText("If your profile description or image can be considered NSFW, toggle this to ON");
-
-        if (editorProfile.IsSupporter)
-        {
-            ImGui.SameLine();
-            var enableSupporter = editorProfile.EnableSupporterElements;
-            if (ImGui.Checkbox("Supporter Frame", ref enableSupporter))
-            {
-                editorProfile.EnableSupporterElements = enableSupporter;
-                _dirty = true;
-            }
-        }
 
         ImGui.Separator();
 
@@ -409,7 +398,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         var aboutMe = editorProfile.AboutMe;
         ImGui.TextUnformatted("About Me");
         ImGui.SetNextItemWidth(-1);
-        if (ImGui.InputTextMultiline("##aboutme", ref aboutMe, 2048, new Vector2(-1, ImGui.GetTextLineHeight() * 5f)))
+        if (ImGui.InputTextMultiline("##aboutme", ref aboutMe, 2048, new Vector2(-1, ImGui.GetTextLineHeight() * 5.75f)))
         {
             editorProfile.AboutMe = aboutMe;
             _dirty = true;
@@ -432,11 +421,11 @@ public class EditProfileUi : WindowMediatorSubscriberBase
             ImGui.Spacing();
         }
 
-        ImGui.TextWrapped("!!! AVOID: Any profile image that can be considered highly illegal or obscene " +
-            "(bestiality, anything that could be considered a sexual act with a minor), as well as " +
-            "slurs of any kind in the description that can be considered highly offensive. " +
-            "In case of valid reports from other users, this could lead to a ban from PlayerSync.");
-        ImGui.TextWrapped("If your profile picture or profile description could be considered NSFW, enable the toggle for it.");
+        ImGui.TextWrapped("AVOID: Offensive imagery and slurs of any kind. Profiles and images should not contain anything " +
+            "that can be considered highly illegal or obscene (sexual acts with minors, bestiality, etc...) " +
+            "In the case of valid reports from other users, this could lead to a ban from Playersync. " +
+            "Absolutley NO personal information of youself or others (images, text info, etc.)");
+        ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "If your profile picture or profile description could be considered NSFW, enable the toggle for it.");
 
         ImGui.Spacing();
 
@@ -453,19 +442,12 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                 }
                 else
                 {
-                    if (IsDevServer)
-                    {
-                        _descriptionText = MareProfileManager.ProfileHandler.WriteJson(editorProfile, Formatting.None);
-                    }
-                    else
-                    {
-                        _descriptionText = editorProfile.AboutMe.Trim();
-                    }
+                    _descriptionText = MareProfileManager.ProfileHandler.WriteJson(editorProfile, Formatting.None); // 1.14.1.0
 
                     _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
-                        Disabled: false, IsNSFW: null, ProfilePictureBase64: null, Description: _descriptionText));
+                        Disabled: false, IsNSFW: _isNsfw, ProfilePictureBase64: null, Description: _descriptionText));
 
-                    if (_pfpHasChanged && IsDevServer)
+                    if (_pfpHasChanged)
                     {
                         var profileImageType = UiSharedService.GetProfileImageTypeValue(ProfileImageType.Profile)!;
                         _ = _fileImageTransferHandler.UploadProfileImagePngAsync(profileImageType, _lastProfilePicture, CancellationToken.None);
@@ -556,13 +538,8 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
     private void DrawPreview()
     {
-        const float bannerHeightPx = 250f;
-        const float headerFillPx = bannerHeightPx * 0.5f;
         const float radiusPx = 24f;
-        var bannerHeight = UiScale.ScaledFloat(bannerHeightPx);
-        var windowWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
         var colorPrimary = _liveProfile.Theme.PrimaryV4;
-        var colorSecondary = _liveProfile.Theme.SecondaryV4;
         var colorAccent = _liveProfile.Theme.AccentV4;
         var displayName = !string.IsNullOrWhiteSpace(_liveProfile.PreferredName) ? _liveProfile.PreferredName : _apiController.DisplayName;
 
@@ -570,14 +547,20 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         using var windowStyle = _theme.PushWindowStyle();
 
-        ProfileBuilder.DrawGradientWindow(colorSecondary, colorPrimary, headerFillPx, radiusPx, colorAccent, 3.0f, 0.0f);
-        ProfileBuilder.DrawAvatar(_theme, _pfpTextureWrap, _supporterTextureWrap, colorAccent, colorPrimary, out var nameMin, out var nameMax, bannerHeightPx);
-        ProfileBuilder.DrawNameInfo(_theme, displayName, _apiController.UID, _liveProfile, true, nameMin, nameMax);
+        ProfileBuilder.DrawBackgroundImage(_theme, _pfpTextureWrap);
+        ProfileBuilder.DrawGradient(_liveProfile.Theme.SecondaryV4, _liveProfile.Theme.PrimaryV4);
+        ProfileBuilder.DrawWindowBorder(colorAccent, radiusPx, 3.0f, 0.0f);
+        ProfileBuilder.DrawNameInfo(_theme, displayName, _apiController.UID, _liveProfile);
 
-        ImGui.Dummy(new Vector2(windowWidth, bannerHeight));
+        var gapHeight = ProfileBuilder.CalculateGapHeight(_theme, _liveProfile);
+        ImGui.SetCursorPos(new(_theme.PanelPadding, gapHeight));
 
         ProfileBuilder.DrawInterests(_theme, _liveProfile);
         ProfileBuilder.DrawAboutMe(_theme, _liveProfile);
+
+        var watermarkColor = _liveProfile.Theme.AccentV4;
+        watermarkColor.W = 0.3f;
+        ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 7f);
     }
 
     private void UpdateSelfImages(MareProfileData psProfile)
@@ -619,7 +602,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.FileUpload, "Select new profile picture", width))
         {
-            _fileDialogManager.OpenFileDialog("Select new Profile picture", ".png", (success, file) =>
+            _fileDialogManager.OpenFileDialog("Select new Profile picture", ".png,.jpg,.jpeg", (success, file) =>
             {
                 if (!success) return;
 
@@ -628,11 +611,11 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                     try
                     {
                         // set the pfp size/shape values
-                        const int MaxUploadBytes = 2 * 1024 * 1024;
+                        const int MaxUploadBytes = 4 * 1024 * 1024;
                         const float AspectW = 9f;
                         const float AspectH = 16f;
-                        const int MaxOutputHeight = 512;
-                        const int MaxOutputWidth = 512;
+                        const int MaxOutputHeight = 1920;
+                        const int MaxOutputWidth = 1080;
 
                         var fileContent = File.ReadAllBytes(file);
 
@@ -642,10 +625,34 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                             return;
                         }
 
+                        bool isJpgImage = false;
                         await using (var ms = new MemoryStream(fileContent, writable: false))
                         {
                             var format = await Image.DetectFormatAsync(ms).ConfigureAwait(false);
-                            if (format == null || !format.FileExtensions.Contains("png", StringComparer.OrdinalIgnoreCase))
+                            if (format == null)
+                            {
+                                _showFileDialogError = true;
+                                return;
+                            }
+
+                            isJpgImage = format.FileExtensions.Contains("jpg", StringComparer.OrdinalIgnoreCase) 
+                                || format.FileExtensions.Contains("jpeg", StringComparer.OrdinalIgnoreCase);
+
+                            var isPngImage = format.FileExtensions.Contains("png", StringComparer.OrdinalIgnoreCase);
+
+                            if (!isPngImage && !isJpgImage)
+                            {
+                                _showFileDialogError = true;
+                                return;
+                            }
+                        }
+
+                        // convert it so we're not dealing with a lot of file types
+                        if (isJpgImage)
+                        {
+                            // maybe make this a background task?
+                            fileContent = ImageTools.ConvertJpegToPng(fileContent);
+                            if (fileContent.Length < 8)
                             {
                                 _showFileDialogError = true;
                                 return;
@@ -654,13 +661,27 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
                         // crop to aspect + resize
                         var processedPng = RescaleProfilePic(fileContent, AspectW, AspectH, MaxOutputWidth, MaxOutputHeight);
+                        if (processedPng.Length < 8)
+                        {
+                            _showFileDialogError = true;
+                            return;
+                        }
 
-                        _showFileDialogError = false;
+                        // swap-safe update our local preview profile image
+                        var newTextureWrap = _uiSharedService.LoadImage(processedPng);
+                        if (newTextureWrap == null)
+                        {
+                            _showFileDialogError = true;
+                            return;
+                        }
 
                         // update our local preview profile image
-                        _pfpTextureWrap?.Dispose();
-                        _pfpTextureWrap = _uiSharedService.LoadImage(processedPng);
+                        var oldTextureWrap = _pfpTextureWrap;
+                        _pfpTextureWrap = newTextureWrap;
                         _lastProfilePicture = processedPng;
+                        oldTextureWrap?.Dispose();
+
+                        _showFileDialogError = false;
 
                         // flag the profile image as needing to be uploaded/saved to the server
                         _pfpHasChanged = true;
@@ -688,7 +709,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         UiSharedService.AttachToolTip("Delete your currently uploaded profile picture");
 
         if (_showFileDialogError)
-            UiSharedService.ColorTextWrapped("Upload failed. Please select a PNG file up to 2MiB.", ImGuiColors.DalamudRed);
+            UiSharedService.ColorTextWrapped("Upload failed. Please select a PNG or JPG/JPEG file up to 4MiB.", ImGuiColors.DalamudRed);
     }
 
     private static byte[] RescaleProfilePic(byte[] pngBytes, float aspectWidth, float aspectHeight, int maxOutWidth, int maxOutHeight)

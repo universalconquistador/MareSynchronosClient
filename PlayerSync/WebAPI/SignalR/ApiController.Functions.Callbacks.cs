@@ -183,6 +183,13 @@ public partial class ApiController
         return Task.CompletedTask;
     }
 
+    public Task Client_UserUpdatePreferences(UserPreferencesDto dto)
+    {
+        Logger.LogDebug("Client_UserUpdatePreferences: {dto}", dto);
+        _connectionDto!.UserPreferences = dto;
+        return Task.CompletedTask;
+    }
+
     public Task Client_UserUpdateOtherPairPermissions(UserPermissionsDto dto)
     {
         Logger.LogDebug("Client_UserUpdateOtherPairPermissions: {dto}", dto);
@@ -242,6 +249,12 @@ public partial class ApiController
     public Task Client_BroadcastListeningChanged(bool isListening)
     {
         ExecuteSafely(() => Mediator.Publish(new BroadcastListeningChanged(isListening)));
+        return Task.CompletedTask;
+    }
+
+    public Task Client_UpdatePairRequests(UserPairRequestsDto dto)
+    {
+        ExecuteSafely(() => Mediator.Publish(new PairRequestsUpdate(dto)));
         return Task.CompletedTask;
     }
 
@@ -330,6 +343,12 @@ public partial class ApiController
         _mareHub!.On(nameof(Client_UserUpdateDefaultPermissions), act);
     }
 
+    public void OnUserUpdatePreferences(Action<UserPreferencesDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_UserUpdatePreferences), act);
+    }
+
     public void OnUserReceiveCharacterData(Action<OnlineUserCharaDataDto> act)
     {
         if (_initialized) return;
@@ -412,6 +431,12 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_BroadcastListeningChanged), act);
+    }
+
+    public void OnUpdatePairRequests(Action<UserPairRequestsDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_UpdatePairRequests), act);
     }
 
     private void ExecuteSafely(Action act)

@@ -108,6 +108,15 @@ public partial class SettingsUi
                 _configService.Current.OverrideCdnTimeZoneId = zone?.Id ?? string.Empty;
                 _configService.Save();
             }, !string.IsNullOrEmpty(_configService.Current.OverrideCdnTimeZoneId) ? TimeZoneInfo.FindSystemTimeZoneById(_configService.Current.OverrideCdnTimeZoneId) : null);
+
+            bool ignoreCdnOverrideWarning = _configService.Current.IgnoreWarningOverrideCdnTimeZone;
+            if (ImGui.Checkbox("Ignore CDN Override Warning", ref ignoreCdnOverrideWarning))
+            {
+                _configService.Current.IgnoreWarningOverrideCdnTimeZone = ignoreCdnOverrideWarning;
+                _configService.Save();
+            }
+            _uiShared.DrawHelpText("Only ignore the warnings if you know for sure you must use an override to access the PlayerSync file services." + UiSharedService.TooltipSeparator
+                + "Leaving the override enabled may result in suboptimal load times. Keep the warning enabled as a reminder if you are using the override temporarily.");
         }
     }
 

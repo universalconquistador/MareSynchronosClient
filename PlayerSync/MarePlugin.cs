@@ -84,23 +84,16 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
     private readonly MareConfigService _mareConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly IServiceScopeFactory _serviceScopeFactory;
-    private readonly GroupZoneSyncManager _groupZoneSyncManager;
-    private readonly NamePlateManagerService _namePlateManagerService;
     private IServiceScope? _runtimeServiceScope;
     private Task? _launchTask = null;
 
-    public MarePlugin(ILogger<MarePlugin> logger, MareConfigService mareConfigService,
-        ServerConfigurationManager serverConfigurationManager,
-        DalamudUtilService dalamudUtil,
-        IServiceScopeFactory serviceScopeFactory, MareMediator mediator,
-        GroupZoneSyncManager groupZoneSyncManager, NamePlateManagerService namePlateManagerService) : base(logger, mediator)
+    public MarePlugin(ILogger<MarePlugin> logger, MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, 
+        DalamudUtilService dalamudUtil, IServiceScopeFactory serviceScopeFactory, MareMediator mediator) : base(logger, mediator)
     {
         _mareConfigService = mareConfigService;
         _serverConfigurationManager = serverConfigurationManager;
         _dalamudUtil = dalamudUtil;
         _serviceScopeFactory = serviceScopeFactory;
-        _groupZoneSyncManager = groupZoneSyncManager;
-        _namePlateManagerService = namePlateManagerService;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -181,6 +174,9 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
             _runtimeServiceScope.ServiceProvider.GetRequiredService<TransientResourceManager>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<VisibleUserDataDistributor>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<NotificationService>();
+            _runtimeServiceScope.ServiceProvider.GetRequiredService<NamePlateManagerService>();
+            _runtimeServiceScope.ServiceProvider.GetRequiredService<GroupZoneSyncManager>();
+            _runtimeServiceScope.ServiceProvider.GetRequiredService<PairRequestManager>();
 
 #if !DEBUG
             if (_mareConfigService.Current.LogLevel != LogLevel.Information)

@@ -1,25 +1,24 @@
 ﻿using Dalamud.Game.Gui.NamePlate;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
-using MareSynchronos.API.Dto.Group;
-using MareSynchronos.PlayerData.Pairs;
-using Microsoft.Extensions.Logging;
-using System.Collections.Immutable;
-using MareSynchronos.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using MareSynchronos.MareConfiguration;
 using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.API.Dto.Group;
+using MareSynchronos.MareConfiguration;
+using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using System.Collections.Immutable;
 
 namespace PlayerSync.Services
 {
-    public class NamePlateManagerService : MediatorSubscriberBase, IDisposable
+    public class NamePlateManagerService : DisposableMediatorSubscriberBase, IHostedService
     {
         private readonly INamePlateGui _namePlateGui;
         private readonly PairManager _pairs;
         private readonly ILogger<NamePlateManagerService> _logger;
-        private readonly DalamudUtilService _dalamudUtil;
         private readonly MareConfigService _configService;
         private DateTime _lastUpdate = DateTime.MinValue;
         private ImmutableList<Pair> _cachedVisiblePairs = ImmutableList<Pair>.Empty;
@@ -27,26 +26,33 @@ namespace PlayerSync.Services
         private const ushort UiColorId = 41;
 
         public NamePlateManagerService(ILogger<NamePlateManagerService> logger, MareMediator mediator, INamePlateGui namePlateGui, 
-            PairManager pairManager, DalamudUtilService dalamudUtilService, MareConfigService mareConfigService) : base(logger, mediator)
+            PairManager pairManager, MareConfigService mareConfigService) : base(logger, mediator)
         {
             _namePlateGui = namePlateGui;
             _pairs = pairManager;
             _logger = logger;
-            _dalamudUtil = dalamudUtilService;
             _configService = mareConfigService;
+        }
 
-            _namePlateGui.OnNamePlateUpdate += UpdateNamePlate;
-
-            Mediator.Subscribe<RedrawNameplateMessage>(this, (_) => _namePlateGui.RequestRedraw());
-
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
             _logger.LogDebug("NamePlaterManager started.");
+            _namePlateGui.OnNamePlateUpdate += UpdateNamePlate;
+            Mediator.Subscribe<RedrawNameplateMessage>(this, (_) => _namePlateGui.RequestRedraw());
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogTrace("Stopping NamePlateManager");
+            _namePlateGui.OnNamePlateUpdate -= UpdateNamePlate;
+            return Task.CompletedTask;
         }
 
         private static ImmutableList<Pair> ImmutablePairList(IEnumerable<KeyValuePair<Pair, List<GroupFullInfoDto>>> u) => u.Select(k => k.Key).ToImmutableList();
 
         private void UpdateNamePlate(INamePlateUpdateContext context, IReadOnlyList<INamePlateUpdateHandler> handlers)
         {
-            // We could probably make this into an IHostedService and just stop/start the service, unsure.
             if (!(_configService.Current.ShowPairedIndicator 
                 || _configService.Current.ShowPermsInsteadOfFCTags 
                 || _configService.Current.ShowSoundSourceIndicator
@@ -78,6 +84,7 @@ namespace PlayerSync.Services
                 var color = _configService.Current.NameHighlightColor;
                 var fcTagBuilder = new SeStringBuilder();
 
+                // disabled for now since people said it was crashing
                 if (_configService.Current.ShowPermsInsteadOfFCTags && false)
                 {
                     var permsSelf = pair.UserPair.OwnPermissions;
@@ -122,12 +129,6 @@ namespace PlayerSync.Services
                     handle.EdgeColor = textGlow;
                 }
             }
-        }
-
-        public void Dispose()
-        {
-            _logger.LogTrace("Disposing of NamePlateManager");
-            _namePlateGui.OnNamePlateUpdate -= UpdateNamePlate;
         }
 
         private unsafe static bool IsFriend(INamePlateUpdateHandler handler) => ((Character*)handler.PlayerCharacter!.Address)->IsFriend;

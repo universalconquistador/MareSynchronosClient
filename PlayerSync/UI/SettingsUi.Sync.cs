@@ -6,12 +6,15 @@ using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.ModernUi;
+using MareSynchronos.WebAPI.SignalR.Utils;
 using System.Numerics;
 
 namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
+    private string _uidToAddForIgnorePairRequest = string.Empty;
+    private int _selectedIgnoreEntry = -1;
     private UiNav.Tab<SyncTabs>? _selectedTabSync;
 
     private IReadOnlyList<UiNav.Tab<SyncTabs>>? _syncTabs;
@@ -19,6 +22,8 @@ public partial class SettingsUi
     [
         new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
         new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),
+        new(SyncTabs.Pairs, "Pair Requests", DrawPairRequests),
+        new(SyncTabs.Duty, "Duty Pause", DrawDutyPause),
         new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
         new(SyncTabs.Permissions, "Permissions", GoToPermissions),
     ];
@@ -27,6 +32,8 @@ public partial class SettingsUi
     {
         Zone,
         Broadcast,
+        Pairs,
+        Duty,
         Filter,
         Permissions
     }
@@ -194,11 +201,112 @@ public partial class SettingsUi
                 : "Click to turn ON broadcast features." + UiSharedService.TooltipSeparator + "Shows Syncshells broadcasting in your location for easy joining."
         );
     }
+
+    private void DrawPairRequests()
+    {
+        _uiShared.BigText("Pair Requests");
+        ImGuiHelpers.ScaledDummy(2);
+
+        UiSharedService.TextWrapped("This setting will allow other PlayerSync users to send you a requst to pair directly.");
+        UiSharedService.TextWrapped("If this setting is disabled, you can still pair normally by entering their UID/Vanity code.");
+        ImGuiHelpers.ScaledDummy(5f);
+
+        if (_apiController.IsConnected)
+        {
+            var pref = _apiController.UserPreferences!;
+            var prefEnablePairRequests = pref.IsEnablePairRequests;
+            if (ImGui.Checkbox("Allow Pair Requests", ref prefEnablePairRequests))
+            {
+                pref.IsEnablePairRequests = prefEnablePairRequests;
+                _ = _apiController.UserUpdatePreferences(pref);
+            }
+            ImGuiHelpers.ScaledDummy(5f);
+
+            _uiShared.BigText("Ignored UIDs");
+            UiSharedService.TextWrapped("You will not be notified of pair requests for ignored UIDs.");
+            ImGui.Dummy(new Vector2(10));
+            ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+            ImGui.InputText("##ignoreuid", ref _uidToAddForIgnorePairRequest, 20);
+            ImGui.SameLine();
+            using (ImRaii.Disabled(string.IsNullOrEmpty(_uidToAddForIgnorePairRequest)))
+            {
+                if (_uiShared.IconTextButton(FontAwesomeIcon.Plus, "Add UID to ignore list"))
+                {
+                    if (!_serverConfigurationManager.IsUidBlacklistedForPairRequest(_uidToAddForIgnorePairRequest))
+                    {
+                        _serverConfigurationManager.AddPairingRequestBlacklistUid(_uidToAddForIgnorePairRequest);
+                    }
+                    _uidToAddForIgnorePairRequest = string.Empty;
+                }
+            }
+            _uiShared.DrawHelpText("Hint: UIDs are case sensitive.");
+            var ignoreUidList = _serverConfigurationManager.GetAllBlacklistUidForPairRequest();
+            ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+            using (var lb = ImRaii.ListBox("Pair Request Ignore List"))
+            {
+                if (lb)
+                {
+                    for (int i = 0; i < ignoreUidList.Count; i++)
+                    {
+                        bool shouldBeSelected = _selectedIgnoreEntry == i;
+                        if (ImGui.Selectable(ignoreUidList[i] + "##" + i, shouldBeSelected))
+                        {
+                            _selectedIgnoreEntry = i;
+                        }
+                    }
+                }
+            }
+            using (ImRaii.Disabled(_selectedIgnoreEntry == -1))
+            {
+                if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete selected UID"))
+                {
+                    _serverConfigurationManager.RemovePairingRequestBlacklistUid(ignoreUidList[_selectedIgnoreEntry]);
+                    _selectedIgnoreEntry = -1;
+                }
+            }
+        }
+        else
+        {
+            UiSharedService.ColorTextWrapped("Pair Requests Settings unavailable for this service. " +
+                "You need to connect to this service to change these settings since they are stored on the service.", ImGuiColors.DalamudYellow);
+        }
+    }
+
+    private void DrawDutyPause()
+    {
+        bool disableSyncDuringDuty = _configService.Current.DisableSyncDuringDuty;
+        bool IsBoundByDuty = _dalamudUtilService.IsBoundByDuty;
+        bool isConnectingOrConnected = _apiController.ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting;
+
+        _uiShared.BigText("Duty Pause");
+        ImGuiHelpers.ScaledDummy(2);
+        UiSharedService.TextWrapped("This option will disconnect from the service upon entering a duty and reconnect when you leave the instance.");
+        ImGuiHelpers.ScaledDummy(5f);
+        if (ImGui.Checkbox("Auto disconnect when bound by duty", ref disableSyncDuringDuty))
+        {
+            if (isConnectingOrConnected && !_serverConfigurationManager.CurrentServer.FullPause && IsBoundByDuty && disableSyncDuringDuty)
+            {
+                Mediator.Publish(new PauseSyncMessage());
+                Mediator.Publish(new HaltScanMessage(nameof(IsBoundByDuty)));
+            }
+            else if (!isConnectingOrConnected && _serverConfigurationManager.CurrentServer.FullPause && IsBoundByDuty && !disableSyncDuringDuty)
+            {
+                Mediator.Publish(new ResumeSyncMessage());
+                Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByDuty)));
+            }
+
+            _configService.Current.DisableSyncDuringDuty = disableSyncDuringDuty;
+            _configService.Save();
+        }
+    }
+
     private void DrawSyncFilter()
     {
         bool filterSounds = _configService.Current.FilterSounds;
         bool filterVfx = _configService.Current.FilterVfx;
         bool filterAnimations = _configService.Current.FilterAnimations;
+        bool filterMods = _configService.Current.FilterMods;
+        bool filterDirectPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
 
         _uiShared.BigText("Filtering");
         ImGuiHelpers.ScaledDummy(2);
@@ -227,6 +335,97 @@ public partial class SettingsUi
             Mediator.Publish(new ChangeFilterMessage());
         }
         _uiShared.DrawHelpText("This setting will prevent modded animations from being displayed.");
+
+        Ui.DrawHorizontalRule(_theme);
+
+        if (ImGui.Checkbox("Filter out all sync data (make others appear vanilla)", ref filterMods))
+        {
+            _configService.Current.FilterMods = filterMods;
+            _configService.Save();
+            Mediator.Publish(new NotificationMessage("Filter All Mods", "You must disconnect and reconnect from the service for this" +
+                " filter feature to take effect.", NotificationType.Warning));
+        }
+        _uiShared.DrawHelpText("This setting will prevent all mods from other players from loading." + UiSharedService.TooltipSeparator +
+            "Note: This does NOT prevent others from seeing your mods.");
+        UiSharedService.ColorTextWrapped("This does NOT prevent others from seeing your mods.", ImGuiColors.DalamudYellow);
+        UiSharedService.ColorTextWrapped("You MUST disconnect + reconnect to the service when turning this feature on or off in " +
+            "order to take effect.", ImGuiColors.DalamudRed);
+
+        Ui.DrawHorizontalRule(_theme);
+        // Overrides
+
+        if (ImGui.Checkbox("Include filtering on direct pairs", ref filterDirectPairs))
+        {
+            _configService.Current.DoFilteringBidirectionDirectPairs = filterDirectPairs;
+            _configService.Save();
+            if (filterAnimations || filterSounds || filterVfx)
+                Mediator.Publish(new ChangeFilterMessage());
+        }
+
+        _uiShared.BigText("Override UIDs");
+        ImGuiHelpers.ScaledDummy(2);
+
+        UiSharedService.TextWrapped("The entries in the list below will not have filtering applied.");
+        UiSharedService.ColorTextWrapped("This will attempt to cycle pause state on a pair when adding or removing them from the list.", ImGuiColors.DalamudYellow);
+        ImGui.Dummy(new Vector2(10));
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        ImGui.InputText("##filteroverrideuids", ref _uidToAddForOverrideFilter, 20);
+        ImGui.SameLine();
+        using (ImRaii.Disabled(string.IsNullOrEmpty(_uidToAddForOverrideFilter)))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Plus, "Add UID/Vanity ID to overrides"))
+            {
+                if (!_configService.Current.UIDsToOverrideFilter.Contains(_uidToAddForOverrideFilter, StringComparer.Ordinal))
+                {
+                    var pairToCycle = _pairManager.GetOnlineUserPairs().FirstOrDefault(u => string.Equals(u.UserData.UID, _uidToAddForOverrideFilter, StringComparison.OrdinalIgnoreCase) 
+                        || string.Equals(u.UserData.Alias, _uidToAddForOverrideFilter, StringComparison.OrdinalIgnoreCase));
+
+                    if (pairToCycle != null && pairToCycle.IsVisible)
+                    {
+                        _ = _apiController.CyclePauseAsync(pairToCycle.UserData);
+                    }
+
+                    _configService.Current.UIDsToOverrideFilter.Add(_uidToAddForOverrideFilter);
+                    _configService.Save();
+                }
+                _uidToAddForOverrideFilter = string.Empty;
+            }
+        }
+        _uiShared.DrawHelpText("Hint: UIDs are case sensitive.");
+        var overrideList = _configService.Current.UIDsToOverrideFilter;
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        using (var lb = ImRaii.ListBox("UID Filter Overrides"))
+        {
+            if (lb)
+            {
+                for (int i = 0; i < overrideList.Count; i++)
+                {
+                    bool shouldBeSelected = _selectedOverrideFilterEntry == i;
+                    if (ImGui.Selectable(overrideList[i] + "##" + i, shouldBeSelected))
+                    {
+                        _selectedOverrideFilterEntry = i;
+                    }
+                }
+            }
+        }
+        using (ImRaii.Disabled(_selectedOverrideFilterEntry == -1))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Delete selected UID"))
+            {
+                var pairId = _configService.Current.UIDsToOverrideFilter[_selectedOverrideFilterEntry];
+                var pairToCycle = _pairManager.GetOnlineUserPairs().FirstOrDefault(u => string.Equals(u.UserData.UID, pairId, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(u.UserData.Alias, pairId, StringComparison.OrdinalIgnoreCase));
+
+                if (pairToCycle != null && pairToCycle.IsVisible)
+                {
+                    _ = _apiController.CyclePauseAsync(pairToCycle.UserData);
+                }
+
+                _configService.Current.UIDsToOverrideFilter.RemoveAt(_selectedOverrideFilterEntry);
+                _selectedOverrideFilterEntry = -1;
+                _configService.Save();
+            }
+        }
     }
 
     private void GoToPermissions()

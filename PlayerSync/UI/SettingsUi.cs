@@ -59,9 +59,11 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private int _selectedEntry = -1;
     private int _selectedHeightEntry = -1;
     private int _selectedOverrideEntry = -1;
+    private int _selectedOverrideFilterEntry = -1;
     private string _uidToAddForIgnore = string.Empty;
     private string _uidToAddForHeightIgnore = string.Empty;
     private string _uidToAddForOverride = string.Empty;
+    private string _uidToAddForOverrideFilter = string.Empty;
     private CancellationTokenSource? _validationCts;
     private Task<List<FileCacheEntity>>? _validationTask;
     private bool _wasOpen = false;
@@ -271,12 +273,14 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
     private void UiSharedService_GposeStart()
     {
+        if (_dalamudUtilService.IsBoundByDuty) return; // make this better
         _wasOpen = IsOpen;
         IsOpen = false;
     }
 
     private void UiSharedService_GposeEnd()
     {
+        if (_dalamudUtilService.IsBoundByDuty) return; // make this betters
         IsOpen = _wasOpen;
     }
 

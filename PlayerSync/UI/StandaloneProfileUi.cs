@@ -2,8 +2,10 @@
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -22,30 +24,36 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     private readonly MareProfileManager _mareProfileManager;
     private readonly PairManager _pairManager;
     private readonly ServerConfigurationManager _serverManager;
+    private readonly MareConfigService _mareConfigService;
     private readonly UiSharedService _uiSharedService;
     private readonly FileImageTransferHandler _fileImageTransferHandler;
+    private readonly PairRequestManager _pairRequestManager;
 
     private byte[]? _lastProfilePicture;
     private byte[] _lastSupporterPicture = [];
     private IDalamudTextureWrap? _supporterTextureWrap;
     private IDalamudTextureWrap? _textureWrap;
+    private IDalamudTextureWrap? _playerSyncWatermark;
     private Task? _profileImageDownloadTask;
     private CancellationTokenSource? _profileImageDownloadCts;
     private bool _editingNotes;
     private readonly UiTheme _theme;
+    private bool _confirmNsfwWarning = false;
 
     public StandaloneProfileUi(ILogger<StandaloneProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
-        ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair,
-        PerformanceCollectorService performanceCollector, UiTheme theme, FileImageTransferHandler fileImageTransferHandler)
+        ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair, MareConfigService mareConfigService,
+        PerformanceCollectorService performanceCollector, UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairRequestManager pairRequestManager)
         : base(logger, mediator, "PlayerSync Profile of " + pair.UserData.AliasOrUID + "##PlayerSyncStandaloneProfileUI" + pair.UserData.AliasOrUID, performanceCollector)
     {
         _uiSharedService = uiBuilder;
         _serverManager = serverManager;
+        _mareConfigService = mareConfigService;
         _mareProfileManager = mareProfileManager;
         _theme = theme;
         Pair = pair;
         _pairManager = pairManager;
         _fileImageTransferHandler = fileImageTransferHandler;
+        _pairRequestManager = pairRequestManager;
 
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar 
             | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoBackground;
@@ -54,8 +62,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(400, 700),
-            MaximumSize = new Vector2(400, 700),
+            MinimumSize = new Vector2(400, 711),
+            MaximumSize = new Vector2(400, 711),
         };
 
         _theme.FontHeading = _uiSharedService.HeaderFont;
@@ -65,6 +73,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     }
 
     public Pair Pair { get; init; }
+
+    private IDalamudTextureWrap Watermark => _playerSyncWatermark ??= _uiSharedService.LoadImage(_mareProfileManager.PlayerSyncWatermark);
 
     public override void PreDraw()
     {
@@ -102,11 +112,34 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             imageBytes => _lastProfilePicture = imageBytes);
     }
 
+    public override void OnClose()
+    {
+        _profileImageDownloadCts?.CancelDispose();
+        _profileImageDownloadCts = null;
+
+        _textureWrap?.Dispose();
+        _textureWrap = null;
+        _playerSyncWatermark?.Dispose();
+        _playerSyncWatermark = null;
+
+        _lastProfilePicture = null;
+
+        _profileImageDownloadTask = null;
+
+        Mediator.Publish(new RemoveWindowMessage(this));
+        _mareProfileManager.RemoveMareProfile(Pair.UserData);
+
+        base.OnClose();
+    }
+
     protected override void DrawInternal()
     {
         // close window if we click off of it
-        if (!ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
-            IsOpen = false;
+        //if (!ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
+        //    IsOpen = false;
+
+        // user might unpair us, pause, etc.
+        if (!Pair.IsPaired) IsOpen = false;
 
         // get profile data
         var psProfile = _mareProfileManager.GetMareProfile(Pair.UserData);
@@ -116,7 +149,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         {
             _textureWrap ??= _uiSharedService.LoadImage(psProfile.ImageData.Value);
 
-            if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted)
+            if (_lastProfilePicture != null && _profileImageDownloadTask != null && _profileImageDownloadTask.IsCompleted && _lastProfilePicture.Length > 0)
             {
                 if (_mareProfileManager.IsProfileMarkedNsfwOrAllowed(psProfile, Pair.UserData))
                 {
@@ -150,16 +183,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             _logger.LogError(ex, "Error downloading/creating profile texture wrap.");
         }
 
-        bool supporter = profile.IsSupporter;
-
-        const float bannerHeightPx = 250f;
-        const float headerFillPx = bannerHeightPx * 0.5f;
         const float radiusPx = 24f;
-
-        var bannerHeight = UiScale.ScaledFloat(bannerHeightPx);
-        var windowWidth = Math.Max(1f, ImGui.GetContentRegionAvail().X);
         var colorPrimary = profile.Theme.PrimaryV4;
-        var colorSecondary = profile.Theme.SecondaryV4;
         var colorAccent = profile.Theme.AccentV4;
         var profileName = profile.PreferredName != "" ? profile.PreferredName : Pair.UserData.AliasOrUID;
 
@@ -167,47 +192,97 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         try
         {
-            ProfileBuilder.DrawBackgroundWindow(colorPrimary, radiusPx);
-            ProfileBuilder.DrawGradientWindow(colorSecondary, colorPrimary, headerFillPx, radiusPx, colorAccent, 3.0f, insetPx: 0.0f);
-            ProfileBuilder.DrawAvatar(_theme, _textureWrap, _supporterTextureWrap, colorAccent, colorPrimary, out var nameMin, out var nameMax, bannerHeightPx);
-            ProfileBuilder.DrawNameInfo(_theme, profileName, Pair.UserData.UID, profile, true, nameMin, nameMax);
+            var uid = Pair.UserData.UID;
 
-            // force spacing for ImGui
-            ImGui.Dummy(new Vector2(windowWidth, bannerHeight));
+            var windowPos = ImGui.GetWindowPos();
+            var contentMin = windowPos + ImGui.GetWindowContentRegionMin();
+            var contentMax = windowPos + ImGui.GetWindowContentRegionMax();
+            var contentSize = contentMax - contentMin;
+
+            ProfileBuilder.DrawBackgroundWindow(colorPrimary, radiusPx);
+            ProfileBuilder.DrawBackgroundImage(_theme, _textureWrap);
+            ProfileBuilder.DrawGradient(profile.Theme.SecondaryV4, profile.Theme.PrimaryV4);
+            ProfileBuilder.DrawWindowBorder(colorAccent, radiusPx, 3.0f, 0.0f);
+            ProfileBuilder.DrawNameInfo(_theme, profileName, uid, profile);
+
+            var isDirectlyPaired = Pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional;
+            var pairIcon = isDirectlyPaired ? FontAwesomeIcon.UserCheck : FontAwesomeIcon.UserPlus;
+            var hoverText = isDirectlyPaired ? "Directly paired" : $"Click to send {Pair.PlayerName} a direct pair request.";
+            if (DrawTopRightIconButton("##pair_status", pairIcon, profile.Theme.TextPrimaryV4, 1, 14f, 8f, !isDirectlyPaired, hoverText))
+            {
+                if (isDirectlyPaired) return;
+
+                _pairRequestManager.SendPairRequest(userData: Pair.UserData);
+            }
+            
+            var gapHeight = ProfileBuilder.CalculateGapHeight(_theme, profile);
+            var pad = _theme.PanelPad * ImGuiHelpers.GlobalScale;
+
+            ImGui.SetCursorPos(new(pad, gapHeight));
 
             ProfileBuilder.DrawInterests(_theme, profile);
             ProfileBuilder.DrawAboutMe(_theme, profile);
 
-            var oldNotes = _serverManager.GetNoteForUid(Pair.UserData.UID);
-            var newNotes = _serverManager.GetProfileNoteForUid(Pair.UserData.UID);
-            if (!String.IsNullOrEmpty(oldNotes) && String.IsNullOrEmpty(newNotes))
+            //ImGui.SetCursorPos(new(pad, contentSize.Y - 135f * ImGuiHelpers.GlobalScale));
+
+            //var oldNotes = _serverManager.GetNoteForUid(uid);
+            //var newNotes = _serverManager.GetProfileNoteForUid(uid);
+            //if (!String.IsNullOrEmpty(oldNotes) && String.IsNullOrEmpty(newNotes))
+            //{
+            //    notesDraft = oldNotes;
+            //    _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
+            //}
+
+            //var changed = ProfileBuilder.DrawNotes(_theme, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{uid}",
+            //    heading: "Note (only visible to you)", placeholder: "Click to add a note", maxLen: 200, lines: 2);
+
+            //if (changed)
+            //    _serverManager.SetProfileNoteForUid(uid, notesDraft, save: true);
+
+            var watermarkColor = profile.Theme.AccentV4;
+            watermarkColor.W = 0.3f;
+            ProfileBuilder.DrawWatermark(Watermark, new(72, 72), watermarkColor, 7f);
+
+            DrawPairingSyncshells(_theme, profile.Theme.TextPrimaryV4, 14f);
+
+            if (psProfile.IsNSFW && !_mareConfigService.Current.ProfileSkipNsfwWarning)
             {
-                notesDraft = oldNotes;
-                _serverManager.SetProfileNoteForUid(Pair.UserData.UID, notesDraft, save: true);
+                if (!_confirmNsfwWarning)
+                {
+                    ProfileBuilder.DrawBackgroundWindow(new(0.04f, 0.18f, 0.24f, 0.92f), radiusPx, 0f);
+
+                    const string buttonText = "Show NSFW Profile";
+
+                    var style = ImGui.GetStyle();
+                    Vector2 buttonSize = new(ImGui.CalcTextSize(buttonText).X + style.FramePadding.X * 2f, ImGui.GetFrameHeight());
+                    Vector2 contentMin2 = ImGui.GetWindowContentRegionMin();
+                    Vector2 contentMax2 = ImGui.GetWindowContentRegionMax();
+                    Vector2 contentSize2 = contentMax2 - contentMin2;
+                    Vector2 centeredPos = contentMin2 + (contentSize2 - buttonSize) * 0.5f;
+
+                    ImGui.SetCursorPos(centeredPos);
+                    if (ImGui.Button(buttonText, buttonSize))
+                    {
+                        _confirmNsfwWarning = true;
+                    }
+                    UiSharedService.AttachToolTip("Disable warning in settings");
+                }
             }
 
-            var changed = ProfileBuilder.DrawNotes(_theme, profile, ref notesDraft, ref _editingNotes, id: $"##ps_notes_{Pair.UserData.UID}",
-                heading: "Note (only visible to you)", placeholder: "Click to add a note", maxLen: 200, lines: 4);
-
-            if (changed)
-                _serverManager.SetProfileNoteForUid(Pair.UserData.UID, notesDraft, save: true);
-
-            DrawPairingSyncshells(_theme, supporter ? 16f : 12f);
+            if (DrawCloseButton("##close_profile", profile.Theme.TextPrimaryV4, 14f))
+            {
+                IsOpen = false;
+            }
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Window Draw Failed");
         }
-
-        // this has to go at the very end to ensure nothing is draw over it
-        if (supporter)
-            UiFx.DrawWindowShimmerBorderFull(gold: new Vector4(1.0f, 0.85f, 0.25f, 1.0f), thicknessPx: 2f, outerInsetPx: 0f, innerInsetPx: 0f, drawInner: true);
     }
 
-    private void DrawPairingSyncshells(UiTheme theme, float marginPx = 12f)
+    private void DrawPairingSyncshells(UiTheme theme, Vector4 color, float marginPx = 12f)
     {
         var drawList = ImGui.GetWindowDrawList();
-        var style = ImGui.GetStyle();
         var restoreCursor = ImGui.GetCursorPos();
         var margin = UiScale.ScaledFloat(marginPx);
         var btn = MathF.Max(ImGui.GetFrameHeight(), UiScale.ScaledFloat(24f));
@@ -227,35 +302,13 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
         using (_uiSharedService.IconFont.Push())
         {
-            var iconSize = UiScale.ScaledFloat(24f);
-            var font = ImGui.GetFont();
-            var baseSize = ImGui.GetFontSize();
-            var baseCol = ImGui.GetColorU32(theme.TextMuted);
-            var outlineCol = ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.75f));
-            var textSize = ImGui.CalcTextSize(icon) * (iconSize / baseSize);
-            var textPadding = boxMin + (btnSize - textSize) * 0.5f;
-            var offset = UiScale.ScaledFloat(1.25f);
-
-            // background
-            drawList.AddText(font, iconSize, textPadding + new Vector2(-offset, 0), outlineCol, icon);
-            drawList.AddText(font, iconSize, textPadding + new Vector2(offset, 0), outlineCol, icon);
-            drawList.AddText(font, iconSize, textPadding + new Vector2(0, -offset), outlineCol, icon);
-            drawList.AddText(font, iconSize, textPadding + new Vector2(0, offset), outlineCol, icon);
-
-            // info icon
-            drawList.AddText(font, iconSize, textPadding, baseCol, icon);
-        }
-
-
-        using (_uiSharedService.IconFont.Push())
-        {
-            var iconSize = UiScale.ScaledFloat(24f);
+            var iconSize = UiScale.ScaledFloat(20f);
             var font = ImGui.GetFont();
             var baseSize = ImGui.GetFontSize();
             var textSize = ImGui.CalcTextSize(icon) * (iconSize / baseSize);
             var textPadding = boxMin + (btnSize - textSize) * 0.5f;
 
-            drawList.AddText(font, iconSize, textPadding, ImGui.GetColorU32(theme.TextMuted), icon);
+            drawList.AddText(font, iconSize, textPadding, ImGui.GetColorU32(color), icon);
         }
 
         if (hovered)
@@ -277,30 +330,38 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
                 if (ImGui.Begin("##ps_pair_info_tt", flags))
                 {
-                    if (Pair.UserPair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional)
+                    if (!Pair.IsOnline || Pair == null)
                     {
-                        ImGui.TextUnformatted("Directly paired");
-                        if (Pair.UserPair.OwnPermissions.IsPaused())
-                        {
-                            ImGui.SameLine();
-                            UiSharedService.ColorText("You: paused", ImGuiColors.DalamudYellow);
-                        }
-                        if (Pair.UserPair.OtherPermissions.IsPaused())
-                        {
-                            ImGui.SameLine();
-                            UiSharedService.ColorText("They: paused", ImGuiColors.DalamudYellow);
-                        }
+                        ImGui.TextUnformatted("Pair info unavailable");
                     }
-
-                    if (Pair.UserPair.Groups.Any())
+                    else 
                     {
-                        ImGui.TextUnformatted("Paired through Syncshells:");
-                        foreach (var group in Pair.UserPair.Groups)
+                        if (Pair.UserPair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional)
                         {
-                            var groupNote = _serverManager.GetNoteForGid(group);
-                            var groupName = _pairManager.GroupPairs.First(f => string.Equals(f.Key.GID, group, StringComparison.Ordinal)).Key.GroupAliasOrGID;
-                            var groupString = string.IsNullOrEmpty(groupNote) ? groupName : $"{groupNote} ({groupName})";
-                            ImGui.TextUnformatted("- " + groupString);
+                            ImGui.TextUnformatted("Directly paired");
+                            if (Pair.UserPair.OwnPermissions.IsPaused())
+                            {
+                                ImGui.SameLine();
+                                UiSharedService.ColorText("You: paused", ImGuiColors.DalamudYellow);
+                            }
+                            if (Pair.UserPair.OtherPermissions.IsPaused())
+                            {
+                                ImGui.SameLine();
+                                UiSharedService.ColorText("They: paused", ImGuiColors.DalamudYellow);
+                            }
+                        }
+
+                        if (Pair.UserPair.Groups.Any())
+                        {
+                            var groups = Pair.UserPair.Groups.Distinct(StringComparer.OrdinalIgnoreCase);
+                            ImGui.TextUnformatted("Paired through Syncshells:");
+                            foreach (var group in groups)
+                            {
+                                var groupNote = _serverManager.GetNoteForGid(group);
+                                var groupName = _pairManager.GroupPairs.First(f => string.Equals(f.Key.GID, group, StringComparison.Ordinal)).Key.GroupAliasOrGID;
+                                var groupString = string.IsNullOrEmpty(groupNote) ? groupName : $"{groupNote} ({groupName})";
+                                ImGui.TextUnformatted("- " + groupString);
+                            }
                         }
                     }
                 }
@@ -311,19 +372,83 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         ImGui.SetCursorPos(restoreCursor);
     }
 
-    public override void OnClose()
+    private static bool DrawCloseButton(string id, Vector4 color, float marginPx = 12f)
     {
-        _profileImageDownloadCts?.CancelDispose();
-        _profileImageDownloadCts = null;
+        var drawList = ImGui.GetWindowDrawList();
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+        var margin = UiScale.ScaledFloat(marginPx);
 
-        _textureWrap?.Dispose();
-        _textureWrap = null;
+        var btn = MathF.Max(ImGui.GetFrameHeight(), UiScale.ScaledFloat(24f));
+        var btnSize = new Vector2(btn, btn);
+        var buttonMin = new Vector2(windowPos.X + windowSize.X - margin - btnSize.X, windowPos.Y + margin);
 
-        _profileImageDownloadTask = null;
+        // click hitbox
+        ImGui.SetCursorScreenPos(buttonMin);
+        ImGui.InvisibleButton(id, btnSize);
 
-        Mediator.Publish(new RemoveWindowMessage(this));
-        _mareProfileManager.RemoveMareProfile(Pair.UserData);
+        var hovered = ImGui.IsItemHovered();
+        var clicked = ImGui.IsItemClicked(ImGuiMouseButton.Left);
 
-        base.OnClose();
+        if (hovered)
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+
+        var icon = FontAwesomeIcon.TimesCircle.ToIconString();
+
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var iconSize = UiScale.ScaledFloat(20f);
+            var font = ImGui.GetFont();
+            var baseSize = ImGui.GetFontSize();
+            var textSize = ImGui.CalcTextSize(icon) * (iconSize / baseSize);
+            var textPadding = buttonMin + (btnSize - textSize) * 0.5f;
+
+            drawList.AddText(font, iconSize, textPadding, ImGui.GetColorU32(color), icon);
+        }
+
+        return clicked;
     }
+
+    private static bool DrawTopRightIconButton(string id, FontAwesomeIcon icon, Vector4 color, int offsetCount, float marginPx = 12f, float gapPx = 6f,
+        bool hoverHand = false, string hoverText = "")
+    {
+        var drawList = ImGui.GetWindowDrawList();
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+        var margin = UiScale.ScaledFloat(marginPx);
+        var gap = UiScale.ScaledFloat(gapPx);
+        var btn = MathF.Max(ImGui.GetFrameHeight(), UiScale.ScaledFloat(24f));
+        var btnSize = new Vector2(btn, btn);
+        var clampedOffsetCount = Math.Max(0, offsetCount);
+        var stepX = btnSize.X + gap;
+
+        var buttonMin = new Vector2(windowPos.X + windowSize.X - margin - btnSize.X - (stepX * clampedOffsetCount), windowPos.Y + margin);
+
+        ImGui.SetCursorScreenPos(buttonMin);
+        ImGui.InvisibleButton(id, btnSize);
+        if (!String.IsNullOrWhiteSpace(hoverText))
+            UiSharedService.AttachToolTip(hoverText);
+
+        var hovered = ImGui.IsItemHovered();
+        var clicked = ImGui.IsItemClicked(ImGuiMouseButton.Left);
+
+        if (hovered && hoverHand)
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+
+        var iconString = icon.ToIconString();
+
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var iconSize = UiScale.ScaledFloat(20f);
+            var font = ImGui.GetFont();
+            var baseSize = ImGui.GetFontSize();
+            var textSize = ImGui.CalcTextSize(iconString) * (iconSize / baseSize);
+            var textPadding = buttonMin + (btnSize - textSize) * 0.5f;
+
+            drawList.AddText(font, iconSize, textPadding, ImGui.GetColorU32(color), iconString);
+        }
+
+        return clicked;
+    }
+
 }
