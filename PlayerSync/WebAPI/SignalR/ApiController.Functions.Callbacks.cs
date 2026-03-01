@@ -137,14 +137,30 @@ public partial class ApiController
     public Task Client_UserAddClientPair(UserPairDto dto)
     {
         Logger.LogDebug("Client_UserAddClientPair: {dto}", dto);
-        ExecuteSafely(() => _pairManager.AddUserPair(dto, addToLastAddedUser: true));
+        if (dto.User.UID.Equals(UID, StringComparison.Ordinal))
+        {
+            Logger.LogDebug("Client_UserAddClientPair for self!");
+        }
+        else
+        {
+            ExecuteSafely(() => _pairManager.AddUserPair(dto, addToLastAddedUser: true));
+        }
+            
         return Task.CompletedTask;
     }
 
     public Task Client_UserReceiveCharacterData(OnlineUserCharaDataDto dataDto)
     {
         Logger.LogTrace("Client_UserReceiveCharacterData: {user}", dataDto.User);
-        ExecuteSafely(() => _pairManager.ReceiveCharaData(dataDto));
+        if (dataDto.User.UID.Equals(UID, StringComparison.Ordinal))
+        {
+            Logger.LogDebug("Client_UserReceiveCharacterData for self!");
+        }
+        else
+        {
+            ExecuteSafely(() => _pairManager.ReceiveCharaData(dataDto));
+        }
+        
         return Task.CompletedTask;
     }
 
@@ -172,7 +188,14 @@ public partial class ApiController
     public Task Client_UserSendOnline(OnlineUserIdentDto dto)
     {
         Logger.LogDebug("Client_UserSendOnline: {dto}", dto);
-        ExecuteSafely(() => _pairManager.MarkPairOnline(dto));
+        if (dto.User.UID.Equals(UID, StringComparison.Ordinal))
+        {
+            Logger.LogDebug("Client_UserSendOnline for self!");
+        }
+        else
+        {
+            ExecuteSafely(() => _pairManager.MarkPairOnline(dto));
+        }
         return Task.CompletedTask;
     }
 
