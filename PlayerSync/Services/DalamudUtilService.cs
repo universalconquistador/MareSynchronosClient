@@ -670,7 +670,8 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             if (!IsAnythingDrawing && !string.IsNullOrEmpty(_lastGlobalBlockPlayer))
             {
                 _logger.LogTrace("Global draw block: END => {name}", _lastGlobalBlockPlayer);
-                Mediator.Publish(new PlayerDrawEndMessage(_lastGlobalBlockPlayer));
+                if (_configService.Current.FilterMods)
+                    Mediator.Publish(new PlayerDrawEndMessage(_lastGlobalBlockPlayer));
                 _lastGlobalBlockPlayer = string.Empty;
                 _lastGlobalBlockReason = string.Empty;
             }
