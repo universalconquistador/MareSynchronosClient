@@ -157,15 +157,9 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
         _penumbraObjectIsRedrawn.Dispose();
     }
 
-    public async Task AssignTemporaryCollectionAsync(ILogger logger, Guid collName, int idx, bool allowSelf = false)
+    public async Task AssignTemporaryCollectionAsync(ILogger logger, Guid collName, int idx)
     {
         if (!APIAvailable) return;
-
-        if (idx == 0 && !allowSelf)
-        {
-            Logger.LogError("PlayerSync asked to assign temporary collection to self.");
-            return;
-        }
 
         await _dalamudUtil.RunOnFrameworkThread(() =>
         {

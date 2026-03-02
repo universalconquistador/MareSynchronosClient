@@ -103,13 +103,9 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
         }
     }
 
-    public async Task ApplyAllAsync(ILogger logger, GameObjectHandler handler, string? customization, Guid applicationId, CancellationToken token, bool fireAndForget = false, bool allowSelf = false)
+    public async Task ApplyAllAsync(ILogger logger, GameObjectHandler handler, string? customization, Guid applicationId, CancellationToken token, bool fireAndForget = false)
     {
         if (!APIAvailable || string.IsNullOrEmpty(customization) || _dalamudUtil.IsZoning) return;
-
-        var playerAddress = await _dalamudUtil.GetPlayerPointerAsync().ConfigureAwait(false);
-        if (handler.Address == playerAddress && !allowSelf)
-            logger.LogError("PlayerSync asked to assign glamourer data to self.");
 
         await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
 

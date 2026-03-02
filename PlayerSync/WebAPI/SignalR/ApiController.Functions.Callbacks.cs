@@ -8,7 +8,6 @@ using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
-using static FFXIVClientStructs.FFXIV.Client.Game.UI.MapMarkerData.Delegates;
 
 namespace MareSynchronos.WebAPI;
 
@@ -137,30 +136,14 @@ public partial class ApiController
     public Task Client_UserAddClientPair(UserPairDto dto)
     {
         Logger.LogDebug("Client_UserAddClientPair: {dto}", dto);
-        if (dto.User.UID.Equals(UID, StringComparison.Ordinal))
-        {
-            Logger.LogDebug("Client_UserAddClientPair for self!");
-        }
-        else
-        {
-            ExecuteSafely(() => _pairManager.AddUserPair(dto, addToLastAddedUser: true));
-        }
-            
+        ExecuteSafely(() => _pairManager.AddUserPair(dto, addToLastAddedUser: true));
         return Task.CompletedTask;
     }
 
     public Task Client_UserReceiveCharacterData(OnlineUserCharaDataDto dataDto)
     {
         Logger.LogTrace("Client_UserReceiveCharacterData: {user}", dataDto.User);
-        if (dataDto.User.UID.Equals(UID, StringComparison.Ordinal))
-        {
-            Logger.LogDebug("Client_UserReceiveCharacterData for self!");
-        }
-        else
-        {
-            ExecuteSafely(() => _pairManager.ReceiveCharaData(dataDto));
-        }
-        
+        ExecuteSafely(() => _pairManager.ReceiveCharaData(dataDto));
         return Task.CompletedTask;
     }
 
@@ -188,14 +171,7 @@ public partial class ApiController
     public Task Client_UserSendOnline(OnlineUserIdentDto dto)
     {
         Logger.LogDebug("Client_UserSendOnline: {dto}", dto);
-        if (dto.User.UID.Equals(UID, StringComparison.Ordinal))
-        {
-            Logger.LogDebug("Client_UserSendOnline for self!");
-        }
-        else
-        {
-            ExecuteSafely(() => _pairManager.MarkPairOnline(dto));
-        }
+        ExecuteSafely(() => _pairManager.MarkPairOnline(dto));
         return Task.CompletedTask;
     }
 
