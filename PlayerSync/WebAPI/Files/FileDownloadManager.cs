@@ -28,6 +28,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
     private readonly object _downloadInfoLock = new object();
     private readonly List<ThrottledStream> _activeDownloadStreams;
     private static int _downloadHaltRefCount;
+    private readonly ConcurrentDictionary<string, byte> _reportedHashes = new(StringComparer.OrdinalIgnoreCase);
 
     public FileDownloadManager(ILogger<FileDownloadManager> logger, MareMediator mediator,
         FileTransferOrchestrator orchestrator,
@@ -142,7 +143,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
     private delegate void DownloadDataCallback(Span<byte> data);
 
-    private async Task DownloadFileThrottled(Uri requestUrl, string destinationFilename, IProgress<long> progress, DownloadDataCallback? callback, CancellationToken ct, bool withToken = true)
+    private async Task DownloadFileThrottled(Uri requestUrl, string destinationFilename, string fileHash, IProgress<long> progress, DownloadDataCallback? callback, CancellationToken ct, bool withToken = true)
     {
         HttpResponseMessage response = null!;
         try
@@ -200,6 +201,9 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             Logger.LogWarning(ex, "Error during download of {requestUrl}, HttpStatusCode: {code}", requestUrl, ex.StatusCode);
             if (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Unauthorized)
             {
+                if (ex.StatusCode is HttpStatusCode.NotFound)
+                    await ReportFileMissing(fileHash, ct).ConfigureAwait(false);
+
                 throw new InvalidDataException($"Http error {ex.StatusCode} (cancelled: {ct.IsCancellationRequested}): {requestUrl}", ex);
             }
 
@@ -403,7 +407,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 // Download the compressed file directly
                 downloadTracker.DownloadStatus = DownloadStatus.Downloading;
                 Logger.LogDebug("Beginning direct download of {hash} from {url}", directDownload.Hash, directDownload.DirectDownloadUrl!);
-                await DownloadFileThrottled(new Uri(directDownload.DirectDownloadUrl!), tempFilename, progress, null, token, withToken: false).ConfigureAwait(false);
+                await DownloadFileThrottled(new Uri(directDownload.DirectDownloadUrl!), tempFilename, directDownload.Hash, progress, null, token, withToken: false).ConfigureAwait(false);
             }
             catch (OperationCanceledException ex)
             {
@@ -463,6 +467,19 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
         var response = await _orchestrator.SendRequestAsync(HttpMethod.Get, MareFiles.ServerFilesGetSizesFullPath(_orchestrator.FilesCdnUri!, _orchestrator.TimeZoneUtcOffsetMinutes), hashes, ct).ConfigureAwait(false);
         return await response.Content.ReadFromJsonAsync<List<DownloadFileDto>>(cancellationToken: ct).ConfigureAwait(false) ?? [];
+    }
+
+    private async Task ReportFileMissing(string hash, CancellationToken ct)
+    {
+        if (!_reportedHashes.TryAdd(hash, 0))
+            return; // we've already reported this
+
+        if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
+
+        hash = hash.ToUpperInvariant();
+        Logger.LogWarning("Download reported a 404 error for hash {hash}, reporting it to the FileServer", hash);
+
+        await _orchestrator.SendRequestAsync(HttpMethod.Post, MareFiles.ServerFilesReportFile(_orchestrator.FilesCdnUri!), hash, ct).ConfigureAwait(false);
     }
 
     private void PersistFileToStorage(string fileHash, string filePath)
