@@ -160,10 +160,13 @@ namespace MareSynchronos.PlayerData.Pairs
         private unsafe void DalamudContextMenuOnOnOpenGameObjectContextMenu(IMenuOpenedArgs args)
         {
             // make sure we're allowed to add a menu item
-            if (args.MenuType == ContextMenuType.Inventory) return;
             if (!_configurationService.Current.EnableRightClickMenus) return;
+            if (args.MenuType == ContextMenuType.Inventory) return;
+            if (args.Target is not MenuTargetDefault) return;
+            if (args.AddonName != null) return; // This should prevent most game windows from registering
 
             var target = _dalamudUtilService.TargetAddress;
+            if (target == nint.Zero) return;
 
             // don't add menu to self
             if (_dalamudUtilService.GetPlayerPtr() == target) return;
