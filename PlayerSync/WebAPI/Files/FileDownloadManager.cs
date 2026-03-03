@@ -199,9 +199,9 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         catch (HttpRequestException ex)
         {
             Logger.LogWarning(ex, "Error during download of {requestUrl}, HttpStatusCode: {code}", requestUrl, ex.StatusCode);
-            if (ex.StatusCode == HttpStatusCode.NotFound || ex.StatusCode is HttpStatusCode.Unauthorized)
+            if (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Unauthorized)
             {
-                if (ex.StatusCode == HttpStatusCode.NotFound)
+                if (ex.StatusCode is HttpStatusCode.NotFound)
                     await ReportFileMissing(fileHash, ct).ConfigureAwait(false);
 
                 throw new InvalidDataException($"Http error {ex.StatusCode} (cancelled: {ct.IsCancellationRequested}): {requestUrl}", ex);
