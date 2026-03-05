@@ -207,7 +207,6 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<ConfigurationSaveService>();
             collection.AddSingleton<UiTheme>();
 
-            collection.AddSingleton<VersionUpdateCheckService>();
             collection.AddSingleton<CacheMonitor>();
             collection.AddSingleton<HubFactory>();
 
@@ -239,6 +238,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped<CacheCreationService>();
             collection.AddScoped<PlayerDataFactory>();
             collection.AddScoped<VisibleUserDataDistributor>();
+            collection.AddScoped<VersionUpdateCheckService>();
             collection.AddScoped((s) => new UiService(s.GetRequiredService<ILogger<UiService>>(), pluginInterface.UiBuilder, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<WindowSystem>(), s.GetServices<WindowMediatorSubscriberBase>(),
                 s.GetRequiredService<UiFactory>(),
@@ -251,7 +251,6 @@ public sealed class Plugin : IDalamudPlugin
                 pluginInterface, textureProvider, s.GetRequiredService<Dalamud.Localization>(), s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<TokenProvider>(),
                 s.GetRequiredService<MareMediator>()));
             collection.AddHostedService(p => p.GetRequiredService<ConfigurationSaveService>());
-            collection.AddHostedService(p => p.GetRequiredService<VersionUpdateCheckService>());
             collection.AddHostedService(p => p.GetRequiredService<MareMediator>());
             collection.AddHostedService(p => p.GetRequiredService<NotificationService>());
             collection.AddHostedService(p => p.GetRequiredService<NamePlateManagerService>());
