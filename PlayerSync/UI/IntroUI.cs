@@ -633,6 +633,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             Mediator.Publish(new GroupZoneSetEnableState(enableGroupZoneSyncJoining));
             _zoneSyncConfigService.Current.UserHasConfirmedWarning = true;
             _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = enableGroupZoneSyncJoining;
+            _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter[_uiShared.PlayerName] = enableGroupZoneSyncJoining;
             _zoneSyncConfigService.Save();
         }
         UiSharedService.AttachToolTip("Auto join zone-based Syncshells to see people automatically.");

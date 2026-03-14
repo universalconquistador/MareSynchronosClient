@@ -9,6 +9,7 @@ using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
+using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.WebAPI;
@@ -33,8 +34,8 @@ public class TopTabMenu : IMediatorSubscriber
     MareMediator IMediatorSubscriber.Mediator => _mareMediator;
 
     private SelectedTab _selectedTab = SelectedTab.None;
-    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, 
-        UiSharedService uiSharedService, MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService)
+    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, 
+        MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService)
     {
         _mareMediator = mareMediator;
         _apiController = apiController;
@@ -45,6 +46,8 @@ public class TopTabMenu : IMediatorSubscriber
         _serverConfigurationManager = serverConfigurationManager;
         _zoneSyncConfigService = zoneSyncConfigService;
     }
+
+    private string PlayerName => _uiSharedService.PlayerName;
 
     private enum SelectedTab
     {
@@ -295,7 +298,10 @@ public class TopTabMenu : IMediatorSubscriber
 
         // Button for ZoneSync
         bool warningAccepted = _zoneSyncConfigService.Current.UserHasConfirmedWarning;
-        bool zoneSyncEnabled = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+        bool zoneSyncEnabledConfig = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+        bool zoneSyncPerChara = _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter.ContainsKey(PlayerName);
+        bool zoneSyncEnabled = zoneSyncPerChara ? _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter[PlayerName] : zoneSyncEnabledConfig;
+
         using (ImRaii.Disabled(!warningAccepted))
         {
             using (ImRaii.Disabled(_globalControlCountdown > 0))
@@ -307,6 +313,7 @@ public class TopTabMenu : IMediatorSubscriber
                     zoneSyncEnabled = !zoneSyncEnabled;
                     _mareMediator.Publish(new GroupZoneSetEnableState(zoneSyncEnabled));
                     _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = zoneSyncEnabled;
+                    _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter[PlayerName] = zoneSyncEnabled;
                     _zoneSyncConfigService.Save();
                 }
             }
