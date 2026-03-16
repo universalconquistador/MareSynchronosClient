@@ -3,7 +3,12 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.API.Data;
+using MareSynchronos.API.Data.Validators;
+using MareSynchronos.API.Dto;
+using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Routes;
+using MareSynchronos.FileCache;
 using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
@@ -53,6 +58,21 @@ public partial class SettingsUi
     private Task<(bool Success, bool PartialSuccess, string Result)>? _secretKeysConversionTask = null;
     private CancellationTokenSource _secretKeysConversionCts = new CancellationTokenSource();
     private ServerStorage _selectedServer = null;
+    private Task<AccountInfoDto>? _retrieveAccountInfoTask;
+    private AccountInfoDto? _accountInfo;
+
+    private int _selectedUidIndex;
+    private string _selectedAliasText = "";
+    private string _selectedAliasCurrent = "";
+    private Task<(bool ok, string msg)>? _uidUpdateTask;
+    private (bool ok, string msg)? _uidResult;
+
+    private int _selectedSyncshellIndex;
+    private GroupData? _selectedSyncshell;
+    private string _selectedSyncshellAliasText = "";
+    private string _selectedSyncshellAliasCurrent = "";
+    private Task<(bool ok, string msg)>? _groupUpdateTask;
+    private (bool ok, string msg)? _groupResult;
     private async Task<(bool Success, bool partialSuccess, string Result)> ConvertSecretKeysToUIDs(ServerStorage serverStorage, CancellationToken token)
     {
         List<Authentication> failedConversions = serverStorage.Authentications.Where(u => u.SecretKeyIdx == -1 && string.IsNullOrEmpty(u.UID)).ToList();
@@ -698,6 +718,190 @@ public partial class SettingsUi
 
                 UiSharedService.SetScaledWindowSize(325);
                 ImGui.EndPopup();
+            }
+
+            Ui.DrawHorizontalRule(_theme);
+
+            _uiShared.HeaderText("Update Vanity IDs/Alias");
+
+            if (ImGui.Button("Retrieve Account Info"))
+            {
+                _retrieveAccountInfoTask = _apiController.GetAccountInfo();
+                _accountInfo = null;
+            }
+
+            ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Vanity IDs/Alias must be 5-15 characters, underscore, dash.");
+
+            ImGuiHelpers.ScaledDummy(2);
+
+            if (_retrieveAccountInfoTask is { IsCompleted: true } && _accountInfo == null)
+            {
+                if (_retrieveAccountInfoTask.IsFaulted)
+                {
+                    ImGui.TextColored(ImGuiColors.DalamudRed, _retrieveAccountInfoTask.Exception?.GetBaseException().Message ?? "Failed.");
+                }
+                else
+                {
+                    _accountInfo = _retrieveAccountInfoTask.Result;
+
+                    _selectedUidIndex = 0;
+                    var u = _accountInfo.AccountUids;
+                    if (u.Count > 0)
+                    {
+                        _selectedAliasText = u[0].Alias ?? "";
+                        _selectedAliasCurrent = u[0].Alias ?? "";
+                    }
+
+                    _selectedSyncshellIndex = 0;
+                    var g = _accountInfo.AccountGroups;
+                    if (g.Count > 0)
+                    {
+                        _selectedSyncshell = g[0];
+                        _selectedSyncshellAliasText = g[0].Alias ?? "";
+                        _selectedSyncshellAliasCurrent = g[0].Alias ?? "";
+                    }
+                }
+            }
+
+            if (_accountInfo != null)
+            {
+                var uids = _accountInfo.AccountUids;
+                if (uids.Count > 0)
+                {
+                    string UidLabel(int i) =>
+                        $"{uids[i].UID} ({(string.IsNullOrWhiteSpace(uids[i].Alias) ? "None" : uids[i].Alias)})";
+
+                    float itemWidth = ImGui.GetContentRegionAvail().X / 2f;
+                    ImGui.SetNextItemWidth(itemWidth);
+                    if (ImGui.BeginCombo("UID##uid_combo", UidLabel(_selectedUidIndex)))
+                    {
+                        for (int i = 0; i < uids.Count; i++)
+                        {
+                            bool selected = (i == _selectedUidIndex);
+                            if (ImGui.Selectable(UidLabel(i), selected))
+                            {
+                                _selectedUidIndex = i;
+                                _selectedAliasText = uids[i].Alias ?? "";
+                                _selectedAliasCurrent = uids[i].Alias ?? "";
+                            }
+                            if (selected) ImGui.SetItemDefaultFocus();
+                        }
+                        ImGui.EndCombo();
+                    }
+
+                    ImGui.SetNextItemWidth(itemWidth);
+                    ImGui.InputText("Vanity/Alias##uid_alias", ref _selectedAliasText, 15);
+
+                    bool canUpdate = 
+                        _selectedAliasText.Length >= 5 && 
+                        _selectedAliasText != _selectedAliasCurrent &&
+                        AliasValidator.IsValidAlias(_selectedAliasText);
+                    using (ImRaii.Disabled(!canUpdate || (_uidUpdateTask is { IsCompleted: false })))
+                    {
+                        if (ImGui.Button("Update UID##uid_update"))
+                            _uidUpdateTask = _apiController.UpdateAlias(userData: new(_apiController.UID, _selectedAliasText));
+                    }
+
+                    if (_uidUpdateTask is { IsCompleted: true })
+                    {
+                        if (_uidUpdateTask.IsFaulted)
+                        {
+                            var ex = _uidUpdateTask.Exception?.GetBaseException();
+                            _uidResult = (false, ex?.Message ?? "Update failed.");
+                        }
+                        else
+                        {
+                            _uidResult = _uidUpdateTask.Result;
+                            if (_uidResult.Value.ok)
+                                _selectedAliasCurrent = _selectedAliasText;
+                        }
+                        _uidUpdateTask = null;
+                    }
+
+                    if (_uidResult != null)
+                    {
+                        var color = _uidResult.Value.ok ? ImGuiColors.HealerGreen : ImGuiColors.DalamudRed;
+                        ImGui.TextColoredWrapped(color, _uidResult.Value.msg);
+                    }
+                }
+
+                ImGuiHelpers.ScaledDummy(2);
+
+                // syncshells
+                var groups = _accountInfo.AccountGroups;
+                if (groups.Count > 0)
+                {
+                    string GroupLabel(int i) =>
+                        $"{groups[i].GID} ({(string.IsNullOrWhiteSpace(groups[i].Alias) ? "None" : groups[i].Alias)})";
+
+                    if (_selectedSyncshellIndex < 0 || _selectedSyncshellIndex >= groups.Count)
+                        _selectedSyncshellIndex = 0;
+
+                    _selectedSyncshell ??= groups[_selectedSyncshellIndex];
+
+                    float itemWidth = ImGui.GetContentRegionAvail().X / 2f;
+                    ImGui.SetNextItemWidth(itemWidth);
+                    if (ImGui.BeginCombo("Syncshell##ss_combo", GroupLabel(_selectedSyncshellIndex)))
+                    {
+                        for (int i = 0; i < groups.Count; i++)
+                        {
+                            bool selected = (i == _selectedSyncshellIndex);
+                            if (ImGui.Selectable(GroupLabel(i), selected))
+                            {
+                                _selectedSyncshellIndex = i;
+                                _selectedSyncshell = groups[i];
+                                _selectedSyncshellAliasText = groups[i].Alias ?? "";
+                                _selectedSyncshellAliasCurrent = groups[i].Alias ?? "";
+                            }
+
+                            if (selected)
+                                ImGui.SetItemDefaultFocus();
+                        }
+                        ImGui.EndCombo();
+                    }
+
+                    ImGui.SetNextItemWidth(itemWidth);
+                    ImGui.InputText("Vanity/Alias##ss_alias", ref _selectedSyncshellAliasText, 15);
+
+                    bool canUpdateGroup =
+                        _selectedSyncshell != null &&
+                        _selectedSyncshellAliasText.Length >= 5 &&
+                        _selectedSyncshellAliasText != _selectedSyncshellAliasCurrent &&
+                        AliasValidator.IsValidAlias(_selectedSyncshellAliasText);
+
+                    using (ImRaii.Disabled(!canUpdateGroup || (_groupUpdateTask is { IsCompleted: false })))
+                    {
+                        if (ImGui.Button("Update Syncshell##ss_update"))
+                        {
+                            _groupUpdateTask = _apiController.UpdateAlias(
+                                groupData: new(_selectedSyncshell!.GID, _selectedSyncshellAliasText)
+                            );
+                        }
+                    }
+
+                    if (_groupUpdateTask is { IsCompleted: true })
+                    {
+                        if (_groupUpdateTask.IsFaulted)
+                        {
+                            var ex = _groupUpdateTask.Exception?.GetBaseException();
+                            _groupResult = (false, ex?.Message ?? "Update failed.");
+                        }
+                        else
+                        {
+                            _groupResult = _groupUpdateTask.Result;
+                            if (_groupResult.Value.ok)
+                                _selectedSyncshellAliasCurrent = _selectedSyncshellAliasText;
+                        }
+
+                        _groupUpdateTask = null;
+                    }
+
+                    if (_groupResult != null)
+                    {
+                        var color = _groupResult.Value.ok ? ImGuiColors.HealerGreen : ImGuiColors.DalamudRed;
+                        ImGui.TextColoredWrapped(color, _groupResult.Value.msg);
+                    }
+                }
             }
         }
     }
