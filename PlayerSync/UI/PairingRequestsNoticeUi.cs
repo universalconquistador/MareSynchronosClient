@@ -53,7 +53,7 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
 
         var drawList = ImGui.GetWindowDrawList();
         var windowRounding = pillSize.Y * 0.5f;
-        var pillColor = ImGui.GetColorU32(new Vector4(0.04f, 0.18f, 0.24f, 1.00f)); // should pull this from theme
+        var pillColor = ImGui.GetColorU32(UiSharedService.ColorRGBWave());
         drawList.AddRectFilled(pillMin, pillMax, pillColor, windowRounding, ImDrawFlags.RoundCornersAll);
 
         ImGui.SetCursorPos(Vector2.Zero);
@@ -81,6 +81,9 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
         if (ImGui.IsItemDeactivated())
             _isDraggingPill = false;
 
+        ImFontPtr AxisFont = default;
+        ImGui.PushFont(AxisFont);
+
         // text
         var labelText = "PlayerSync Pair Requests";
         var countValue = _pairRequestManager.ReceivedPendingCount;
@@ -99,6 +102,8 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
         // count
         ImGui.SetCursorScreenPos(new Vector2(pillMax.X - padX - countSize.X, centerY - (countSize.Y * 0.5f)));
         ImGui.TextUnformatted(countText);
+
+        ImGui.PopFont();
     }
 
     public override bool DrawConditions()

@@ -27,6 +27,7 @@ public class TopTabMenu : IMediatorSubscriber
     private readonly MareConfigService _mareConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
+    private readonly PairRequestManager _pairRequestManager;
     private string _filter = string.Empty;
     private int _globalControlCountdown = 0;
 
@@ -35,7 +36,7 @@ public class TopTabMenu : IMediatorSubscriber
 
     private SelectedTab _selectedTab = SelectedTab.None;
     public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, 
-        MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService)
+        MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService, PairRequestManager pairRequestManager)
     {
         _mareMediator = mareMediator;
         _apiController = apiController;
@@ -45,6 +46,7 @@ public class TopTabMenu : IMediatorSubscriber
         _mareConfigService = mareConfigService;
         _serverConfigurationManager = serverConfigurationManager;
         _zoneSyncConfigService = zoneSyncConfigService;
+        _pairRequestManager = pairRequestManager;
     }
 
     private string PlayerName => _uiSharedService.PlayerName;
@@ -471,6 +473,7 @@ public class TopTabMenu : IMediatorSubscriber
             });
 
         ImGui.SameLine();
+        var btncolor = ImRaii.PushColor(ImGuiCol.Button, UiSharedService.ColorRGBWave(), _pairRequestManager.ReceivedPendingCount > 0);
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             if (ImGui.Button(FontAwesomeIcon.Envelope.ToIconString(), buttonSize))
@@ -479,6 +482,7 @@ public class TopTabMenu : IMediatorSubscriber
             }
         }
         UiSharedService.AttachToolTip("Open Pair Requests UI");
+        btncolor?.Dispose();
     }
 
     private void DrawGlobalSyncshellButtons(float availableXWidth, float spacingX)
