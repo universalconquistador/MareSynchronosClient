@@ -71,6 +71,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     private bool _isOneDrive = false;
     private bool _isPenumbraDirectory = false;
     private bool _moodlesExists = false;
+    private bool _lociExists = false;
     private Dictionary<string, DateTime> _oauthTokenExpiry = new();
     private bool _penumbraExists = false;
     private bool _petNamesExists = false;
@@ -105,6 +106,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             _heelsExists = _ipcManager.Heels.APIAvailable;
             _honorificExists = _ipcManager.Honorific.APIAvailable;
             _moodlesExists = _ipcManager.Moodles.APIAvailable;
+            _lociExists = _ipcManager.Loci.APIAvailable;
             _petNamesExists = _ipcManager.PetNames.APIAvailable;
             _brioExists = _ipcManager.Brio.APIAvailable;
         });
@@ -855,6 +857,11 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
         ColorText("Moodles", GetBoolColor(_moodlesExists));
         AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
+        ImGui.SameLine(0, 0);
+        ImGui.TextUnformatted("/");
+        ImGui.SameLine(0, 0);
+        ColorText("Loci", GetBoolColor(_lociExists));
+        AttachToolTip($"Loci is " + (_lociExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine(0, mySpace * spacey * sglobal);
 
         //ImGui.TextUnformatted("");

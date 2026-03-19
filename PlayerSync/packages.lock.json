@@ -44,6 +44,12 @@
           "K4os.Compression.LZ4": "1.3.8"
         }
       },
+      "Loci.Api": {
+        "type": "Direct",
+        "requested": "[0.1.0, )",
+        "resolved": "0.1.0",
+        "contentHash": "eDkyUzwJS0gD9EPR/k4h1GZ5p2wCcKuWn+MGDbN/gWQI2DlgSWv/EIHmvyEtj9VdVhotFglGtvF1531c6B4Rew=="
+      },
       "Meziantou.Analyzer": {
         "type": "Direct",
         "requested": "[2.0.250, )",
