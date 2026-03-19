@@ -84,10 +84,10 @@ public abstract class DrawFolderBase : IDrawFolder
                 var itemHeight = ImGui.GetFrameHeight();
                 var scrollY = ImGui.GetScrollY();
                 var windowHeight = ImGui.GetWindowHeight();
-
+                var cursorY = ImGui.GetCursorPosY();
+                
                 foreach (var item in DrawPairs)
                 {
-                    var cursorY = ImGui.GetCursorPosY();
                     if (cursorY + itemHeight > scrollY && cursorY < scrollY + windowHeight)
                         item.DrawPairedClient();
                     else
