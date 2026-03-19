@@ -99,10 +99,19 @@ public sealed class IpcCallerLoci : IIpcCaller
     public async Task<bool> RegisterActor(nint address)
     {
         if (!APIAvailable) return false;
-        var res = await _dalamudUtil.RunOnFrameworkThread(() => _lociRegister.Invoke(address, IdentifierTag)).ConfigureAwait(false);
-        if (res is not (LociApiEc.Success or LociApiEc.NoChange))
-            _logger.LogWarning("Loci failed to register actor {ActorAddress} with Loci. Error: {ErrorCode}", address.ToString("X"), res);
-        return res is (LociApiEc.Success or LociApiEc.NoChange);
+
+        try
+        {
+            var res = await _dalamudUtil.RunOnFrameworkThread(() => _lociRegister.Invoke(address, IdentifierTag)).ConfigureAwait(false);
+            if (res is not (LociApiEc.Success or LociApiEc.NoChange))
+                _logger.LogWarning("Loci failed to register actor {ActorAddress} with Loci. Error: {ErrorCode}", address.ToString("X"), res);
+            return res is (LociApiEc.Success or LociApiEc.NoChange);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error Registering actor {ActorAddress} with Loci: ", address.ToString("X"));
+            return false;
+        }
     }
 
     /// <inheritdoc cref="LociApi.Ipc.RegisterByName"/>
