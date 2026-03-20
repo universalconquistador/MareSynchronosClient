@@ -81,23 +81,14 @@ public abstract class DrawFolderBase : IDrawFolder
             using var indent = ImRaii.PushIndent(_uiSharedService.GetIconSize(FontAwesomeIcon.EllipsisV).X + ImGui.GetStyle().ItemSpacing.X, false);
             if (DrawPairs.Any())
             {
-                var itemHeight = ImGui.GetFrameHeight();
-                var windowHeight = ImGui.GetWindowHeight();
-                var scrollY = ImGui.GetScrollY();
-                var cursorY = ImGui.GetCursorPosY();
-
-                int first = Math.Clamp((int)((scrollY - cursorY) / itemHeight), 0, DrawPairs.Count);
-                int last  = Math.Clamp((int)((scrollY + windowHeight - cursorY) / itemHeight) + 1, -1, DrawPairs.Count - 1);
-
-                if (first > 0)
-                    ImGui.SetCursorPosY(cursorY + first * itemHeight);
-
-                for (int i = first; i <= last; i++)
-                    DrawPairs[i].DrawPairedClient();
-
-                int tail = DrawPairs.Count - (last + 1);
-                if (tail > 0)
-                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + tail * itemHeight);
+                ImGuiListClipper clipper = new();
+                clipper.Begin(DrawPairs.Count);
+                while (clipper.Step())
+                {
+                    for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+                        DrawPairs[i].DrawPairedClient();
+                }
+                clipper.End();
             }
             else
             {
