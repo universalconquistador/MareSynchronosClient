@@ -19,6 +19,12 @@ public abstract class DrawFolderBase : IDrawFolder
     public int OnlinePairs => DrawPairs.Count(u => u.Pair.IsOnline);
     public int TotalPairs => _allPairs.Count;
     private bool _wasHovered = false;
+#if DEBUG
+    private double _debugAccumMs;
+    private int _debugSampleCount;
+    private double _debugDisplayMs;
+    private DateTime _debugLastUpdate = DateTime.UtcNow;
+#endif
 
     protected DrawFolderBase(string id, IImmutableList<DrawUserPair> drawPairs,
         IImmutableList<Pair> allPairs, TagHandler tagHandler, UiSharedService uiSharedService)
@@ -37,6 +43,9 @@ public abstract class DrawFolderBase : IDrawFolder
     {
         if (!RenderIfEmpty && !DrawPairs.Any()) return;
 
+#if DEBUG
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+#endif
         using var id = ImRaii.PushId("folder_" + _id);
         var color = ImRaii.PushColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBgHovered), _wasHovered);
         using (ImRaii.Child("folder__" + _id, new System.Numerics.Vector2(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetCursorPosX(), ImGui.GetFrameHeight())))
@@ -97,6 +106,20 @@ public abstract class DrawFolderBase : IDrawFolder
 
             ImGui.Separator();
         }
+#if DEBUG
+        sw.Stop();
+        _debugAccumMs += sw.Elapsed.TotalMilliseconds;
+        _debugSampleCount++;
+        if ((DateTime.UtcNow - _debugLastUpdate).TotalSeconds >= 1.0)
+        {
+            _debugDisplayMs = _debugSampleCount > 0 ? _debugAccumMs / _debugSampleCount : 0;
+            _debugAccumMs = 0;
+            _debugSampleCount = 0;
+            _debugLastUpdate = DateTime.UtcNow;
+        }
+        ImGui.SetNextItemWidth(-1);
+        ImGui.TextDisabled($"[{_id}] Draw avg: {_debugDisplayMs:F3}ms");
+#endif
     }
 
     protected abstract float DrawIcon();
