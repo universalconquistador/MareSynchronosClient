@@ -50,6 +50,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     private readonly List<string> _notUpdatedCharas = [];
     private bool _sentBetweenAreas = false;
     private Lazy<ulong> _cid;
+    private string? _playerName;
 
     public DalamudUtilService(ILogger<DalamudUtilService> logger, IClientState clientState, IObjectTable objectTable, IFramework framework,
         IGameGui gameGui, ICondition condition, IDataManager gameData, ITargetManager targetManager, IGameConfig gameConfig,
@@ -184,6 +185,15 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public bool IsLodEnabled { get; private set; }
     public MareMediator Mediator { get; }
     public float FPSCounter { get; private set; } = 0f;
+    public string PlayerName
+    {
+        get
+        {
+            if (_playerName == null)
+                _playerName = GetPlayerNameAsync().GetAwaiter().GetResult();
+            return _playerName;
+        }
+    }
 
     public IGameObject? CreateGameObject(IntPtr reference)
     {
@@ -820,6 +830,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             {
                 _logger.LogDebug("Logged out");
                 IsLoggedIn = false;
+                _playerName = null;
                 Mediator.Publish(new DalamudLogoutMessage());
             }
 

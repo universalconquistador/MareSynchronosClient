@@ -9,4 +9,5 @@ public class ZoneSyncConfig : IMareConfiguration
     public bool UserHasConfirmedWarning { get; set; } = false;
     public ZoneSyncFilter ZoneSyncFilter { get; set; } = ZoneSyncFilter.All;
     public int ZoneJoinDelayTime { get; set; } = 10;
+    public Dictionary<string, bool> ZoneSyncEnabledPerCharacter { get; set; } = new(StringComparer.Ordinal);
 }

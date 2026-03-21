@@ -12,6 +12,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 
 namespace MareSynchronos.PlayerData.Pairs;
 
@@ -127,6 +128,8 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public int GetVisibleUserCount() => _allClientPairs.Count(p => p.Value.IsVisible);
 
     public List<UserData> GetVisibleUsers() => [.. _allClientPairs.Where(p => p.Value.IsVisible).Select(p => p.Key)];
+
+    public List<Pair> GetVisiblePairs() => [.. _allClientPairs.Where(p => p.Value.IsVisible).Select(p => p.Value)];
 
     public void MarkPairOffline(UserData user)
     {

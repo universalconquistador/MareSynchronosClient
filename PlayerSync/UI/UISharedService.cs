@@ -140,7 +140,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public bool IsInGpose => _dalamudUtil.IsInGpose;
 
     public Dictionary<uint, string> JobData => _dalamudUtil.JobData.Value;
-    public string PlayerName => _dalamudUtil.GetPlayerName();
+    public string PlayerName => _dalamudUtil.PlayerName;
 
     public IFontHandle UidFont { get; init; }
     public IFontHandle HeaderFont { get; init; }

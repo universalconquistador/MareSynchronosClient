@@ -158,7 +158,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             return _configService.Current.AcceptedAgreement;
 
         if (_currentSetupPageId == IntroUiPages.Storage)
-            return _configService.Current.InitialScanComplete;
+            return _configService.Current.InitialScanComplete && !string.IsNullOrEmpty(_configService.Current.CacheFolder);
 
         if (_currentSetupPageId == IntroUiPages.Account)
             return _uiShared.ApiController.ServerAlive;
@@ -633,6 +633,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             Mediator.Publish(new GroupZoneSetEnableState(enableGroupZoneSyncJoining));
             _zoneSyncConfigService.Current.UserHasConfirmedWarning = true;
             _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = enableGroupZoneSyncJoining;
+            _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter[_uiShared.PlayerName] = enableGroupZoneSyncJoining;
             _zoneSyncConfigService.Save();
         }
         UiSharedService.AttachToolTip("Auto join zone-based Syncshells to see people automatically.");
