@@ -81,10 +81,14 @@ public abstract class DrawFolderBase : IDrawFolder
             using var indent = ImRaii.PushIndent(_uiSharedService.GetIconSize(FontAwesomeIcon.EllipsisV).X + ImGui.GetStyle().ItemSpacing.X, false);
             if (DrawPairs.Any())
             {
-                foreach (var item in DrawPairs)
+                ImGuiListClipper clipper = new();
+                clipper.Begin(DrawPairs.Count);
+                while (clipper.Step())
                 {
-                    item.DrawPairedClient();
+                    for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+                        DrawPairs[i].DrawPairedClient();
                 }
+                clipper.End();
             }
             else
             {
