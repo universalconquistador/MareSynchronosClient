@@ -2,13 +2,13 @@
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.Models;
 using MareSynchronos.UI.ModernUi;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Numerics;
 
 namespace MareSynchronos.UI;
 
@@ -16,7 +16,6 @@ public class DiagnosticsUi : WindowMediatorSubscriberBase
 {
     private readonly Progress<(DiagnosticsTestState State, string Status)> _diagnosticsProgress = new();
     private readonly HttpClient _httpClient;
-    private readonly UiSharedService _uiSharedService;
     private readonly ConcurrentQueue<(DiagnosticsTestState State, string Status)> _pendingResultTexts = new();
     private CancellationTokenSource? _diagnosticsCancellationTokenSource;
     private Task? _diagnosticsRunTask;
@@ -25,12 +24,10 @@ public class DiagnosticsUi : WindowMediatorSubscriberBase
     private string _finalResults = "";
     private readonly UiTheme _theme;
 
-    public DiagnosticsUi(ILogger<DiagnosticsUi> logger, MareMediator mediator, UiSharedService uiSharedService,
+    public DiagnosticsUi(ILogger<DiagnosticsUi> logger, MareMediator mediator, 
         PerformanceCollectorService performanceCollectorService, HttpClient httpClient, UiTheme theme)
         : base(logger, mediator, "PlayerSync Diagnostics", performanceCollectorService)
     {
-        
-        _uiSharedService = uiSharedService;
         _httpClient = httpClient;
         _theme = theme;
 
@@ -77,7 +74,12 @@ public class DiagnosticsUi : WindowMediatorSubscriberBase
 
         ImGui.TextUnformatted("Status: " + (_isDiagTaskRunning ? "Running..." : "Idle"));
 
-        ImGui.BeginChild("results", new(0, 400), true);
+        var buttonHeight = ImGui.GetFrameHeight();
+        var spacingY = ImGui.GetStyle().ItemSpacing.Y;
+        float childHeight = ImGui.GetContentRegionAvail().Y - spacingY - buttonHeight;
+        childHeight = MathF.Max(childHeight, 1f);
+
+        ImGui.BeginChild("results", new Vector2(0, childHeight), true);
 
         foreach (var result in _resultTexts)
         {

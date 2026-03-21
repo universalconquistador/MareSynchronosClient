@@ -49,6 +49,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly UiSharedService _uiSharedService;
     private readonly CharacterAnalyzer _characterAnalyzer;
     private readonly ServerConfigurationManager _serverConfigurationManager;
+    private readonly PairRequestManager _pairRequestManager;
     private List<IDrawFolder> _drawFolders;
     private DrawFolderBroadcasts? _broadcastsFolder;
     private Pair? _lastAddedUser;
@@ -66,7 +67,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         ServerConfigurationManager serverManager, MareMediator mediator, FileUploadManager fileTransferManager,
         TagHandler tagHandler, DrawEntityFactory drawEntityFactory, SelectTagForPairUi selectTagForPairUi, SelectPairForTagUi selectPairForTagUi,
         PerformanceCollectorService performanceCollectorService, IpcManager ipcManager, CharacterAnalyzer characterAnalyzer, 
-        PlayerPerformanceConfigService playerPerformanceConfig, ServerConfigurationManager serverConfigurationManager)
+        PlayerPerformanceConfigService playerPerformanceConfig, ServerConfigurationManager serverConfigurationManager, PairRequestManager pairRequestManager)
         : base(logger, mediator, "###PlayerSyncMainUI", performanceCollectorService)
     {
         _uiSharedService = uiShared;
@@ -85,7 +86,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         _ipcManager = ipcManager;
         _characterAnalyzer = characterAnalyzer;
         _serverConfigurationManager = serverConfigurationManager;
-        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _serverConfigurationManager, _zoneSyncConfigService);
+        _pairRequestManager = pairRequestManager;
+        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _serverConfigurationManager, _zoneSyncConfigService, _pairRequestManager);
 
         AllowClickthrough = false;
         TitleBarButtons = new()
