@@ -171,6 +171,10 @@ public sealed class CommandManagerService : IDisposable
         {
             _mediator.Publish(new UiToggleMessage(typeof(DiagnosticsUi)));
         }
+        else if (string.Equals(splitArgs[0], "emote", StringComparison.OrdinalIgnoreCase))
+        {
+            _mediator.Publish(new UiToggleMessage(typeof(EmoteSyncUi)));
+        }
         else if (string.Equals(splitArgs[0], "toggle", StringComparison.OrdinalIgnoreCase))
         {
             if (_apiController.ServerState == WebAPI.SignalR.Utils.ServerState.Disconnecting)

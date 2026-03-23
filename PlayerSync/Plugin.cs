@@ -11,6 +11,8 @@ using MareSynchronos.PlayerData.Factories;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.PlayerData.Services;
 using MareSynchronos.Services;
+using MareSynchronos.Services.CharaData;
+using MareSynchronos.Services.EmoteSync;
 using MareSynchronos.Services.Events;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
@@ -18,6 +20,7 @@ using MareSynchronos.UI;
 using MareSynchronos.UI.Components;
 using MareSynchronos.UI.Components.Popup;
 using MareSynchronos.UI.Handlers;
+using MareSynchronos.UI.ModernUi;
 using MareSynchronos.WebAPI;
 using MareSynchronos.WebAPI.Files;
 using MareSynchronos.WebAPI.SignalR;
@@ -25,13 +28,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NReco.Logging.File;
-using System.Net.Http.Headers;
-using System.Reflection;
-using MareSynchronos.Services.CharaData;
+using PlayerSync.FileCache;
 using PlayerSync.PlayerData.Pairs;
 using PlayerSync.Services;
-using PlayerSync.FileCache;
-using MareSynchronos.UI.ModernUi;
+using System.Net.Http.Headers;
+using System.Reflection;
 
 namespace MareSynchronos;
 
@@ -152,6 +153,8 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<ZoneSyncConfigService>(), s.GetRequiredService<PairManager>()));
             collection.AddSingleton((s) => new PairRequestManager(s.GetRequiredService<ILogger<PairRequestManager>>(), s.GetRequiredService<MareMediator>(), contextMenu, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<ServerConfigurationManager>()));
+            collection.AddSingleton((s) => new EmoteSyncManagerService(s.GetRequiredService<ILogger<EmoteSyncManagerService>>(), s.GetRequiredService<MareMediator>(), gameData, s.GetRequiredService<ApiController>(),
+                s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>()));
             collection.AddSingleton((s) => new DtrEntry(s.GetRequiredService<ILogger<DtrEntry>>(), dtrBar, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<IBroadcastManager>(), s.GetRequiredService<ApiController>()));
             collection.AddSingleton((s) => new IpcCallerPenumbra(s.GetRequiredService<ILogger<IpcCallerPenumbra>>(), pluginInterface,
@@ -222,6 +225,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped<WindowMediatorSubscriberBase, PopoutProfileUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, DataAnalysisUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, DiagnosticsUi>();
+            collection.AddScoped<WindowMediatorSubscriberBase, EmoteSyncUi>();
             collection.AddScoped<WindowMediatorSubscriberBase, JoinSyncshellUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, CreateSyncshellUI>();
             collection.AddScoped<WindowMediatorSubscriberBase, EventViewerUI>();
@@ -264,6 +268,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddHostedService(p => p.GetRequiredService<MarePlugin>());
             collection.AddHostedService(p => p.GetRequiredService<GroupZoneSyncManager>());
             collection.AddHostedService(p => p.GetRequiredService<PairRequestManager>());
+            collection.AddHostedService(p => p.GetRequiredService<EmoteSyncManagerService>());
         })
         .Build();
 
