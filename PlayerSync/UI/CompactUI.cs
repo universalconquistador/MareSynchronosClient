@@ -682,9 +682,10 @@ public class CompactUi : WindowMediatorSubscriberBase
                 groupFolders.Add(_drawEntityFactory.CreateDrawGroupFolder(group, filteredGroupPairs, allGroupPairs));
             }
         }
-
+        var totalGroupsNoZoneSync = _pairManager.Groups.Count(g => !g.Value.PublicData.IsZoneSync);
+        var totalGroupUserCanJoin = _apiController.ServerInfo.MaxGroupsJoinedByUser;
         if (_configService.Current.GroupUpSyncshells)
-            drawFolders.Add(new DrawGroupedGroupFolder(groupFolders, _tagHandler, _uiSharedService));
+            drawFolders.Add(new DrawGroupedGroupFolder(groupFolders, _tagHandler, _uiSharedService, totalGroupsNoZoneSync, totalGroupUserCanJoin));
         else
             drawFolders.AddRange(groupFolders);
 

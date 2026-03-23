@@ -2,6 +2,7 @@
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.CharaData;
+using MareSynchronos.API.Dto.Emote;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration.Models;
@@ -116,5 +117,7 @@ public record WorldChangeMessage : MessageBase;
 public record ToggleThemeEditorMessage : MessageBase;
 public record RedrawNameplateMessage : MessageBase;
 public record PairRequestsUpdate(UserPairRequestsDto Dto) : MessageBase;
+public record EmoteSyncUpdateMessage(EmoteResponseDto Dto) : MessageBase;
+public record EmoteSyncStartMessage(ScheduledEmoteActionDto Dto) : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name

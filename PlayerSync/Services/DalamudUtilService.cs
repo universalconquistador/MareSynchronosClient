@@ -573,6 +573,28 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return _playerCharas.Keys;
     }
 
+    internal unsafe List<string> GetVisibleAllianceAndPartyMembers()
+    {
+        var result = new List<string>();
+        foreach (string ident in GetVisiblePlayerIdents())
+        {
+            var (_, address) = FindPlayerByNameHash(ident);
+            if (address == 0)
+                continue;
+
+            BattleChara* playerObject = (BattleChara*)address;
+            if (playerObject == null)
+                continue;
+
+            if (playerObject->IsAllianceMember || playerObject->IsPartyMember)
+            {
+                result.Add(GetHashedCIDFromPlayerPointer(address));
+            }
+        }
+
+        return result;
+    }
+
     private unsafe void CheckCharacterForDrawing(nint address, string characterName)
     {
         var gameObj = (GameObject*)address;
