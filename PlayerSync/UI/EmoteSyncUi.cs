@@ -43,8 +43,8 @@ public class EmoteSyncUi : WindowMediatorSubscriberBase
         {
             MinimumSize = new()
             {
-                X = 400,
-                Y = 600
+                X = 300,
+                Y = 200
             }
         };
 
@@ -71,8 +71,8 @@ public class EmoteSyncUi : WindowMediatorSubscriberBase
             return;
 
         _ = _emoteSync.SendEmoteSyncJoin();
-        
-        _ = _emoteSync.SetTimeSyncEnabledAsync(true);
+
+        _ = InitializeEmoteSyncAsync();
 
         _availableEmotes = _emoteSync.GetUnlockedEmotes().OrderBy(emote => emote.SortOrder)
             .ThenBy(emote => emote.ActionName, StringComparer.OrdinalIgnoreCase).ToList();
@@ -268,6 +268,17 @@ public class EmoteSyncUi : WindowMediatorSubscriberBase
 
         ImGui.EndChild();
         ImGui.EndCombo();
+    }
+
+    private async Task InitializeEmoteSyncAsync()
+    {
+        await _emoteSync.SetTimeSyncEnabledAsync(true).ConfigureAwait(false);
+
+        string? hostName = await _emoteSync.GetCurrentLobbyHostAsync().ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(hostName))
+        {
+            await _emoteSync.TimeSync.SetGameServerHostAsync(hostName).ConfigureAwait(false);
+        }
     }
 
     public override void OnClose()

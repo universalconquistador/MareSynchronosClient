@@ -123,6 +123,14 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         _timeSyncCts?.Dispose();
     }
 
+    public async Task<string?> GetCurrentLobbyHostAsync()
+    {
+        ushort worldId = (ushort)await _dalamudUtilService.GetWorldIdAsync().ConfigureAwait(false);
+        string? dataCenterName = _dalamudUtilService.GetDataCenterNameForWorld(worldId);
+        _logger.LogTrace("Starting ping to {dc}.", dataCenterName);
+        return TimeSync.GetLobbyHostForDataCenter(dataCenterName);
+    }
+
     /// <summary>
     /// toggle for the UI to enable/disable background time sync
     /// </summary>
@@ -190,6 +198,7 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         {
             _logger.LogDebug("Skipping time sync request, not connected.");
             await SetTimeSyncEnabledAsync(false).ConfigureAwait(false);
+            await TimeSync.StopGameServerPingAsync().ConfigureAwait(false);
             return;
         }
 
@@ -242,21 +251,17 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
 
     public void ClearGroupState()
     {
-        _logger.LogTrace("ClearGroupState called, currentGroupId {id}", _currentGroupId);
         lock (_stateLock)
         {
             _currentGroupId = null;
             _leadUserUid = null;
             _groupMembers = [];
         }
-        _logger.LogTrace("ClearGroupState finished, currentGroupId {id}", _currentGroupId);
     }
 
     public async Task HandleScheduledEmoteActionAsync(ScheduledEmoteActionDto dto, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(dto);
-
-        _isRunning = true;
 
         if (!_executedEventIds.TryAdd(dto.EventId, 0))
         {
@@ -264,25 +269,39 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
             return;
         }
 
+        _isRunning = true;
+
         try
         {
-            if (!TimeSync.HasSync)
+            if (!TimeSync.TryGetDelayUntilServerUtcTicks(dto.ExecuteAtServerUtcTicks, out TimeSpan delay, compensateForGameServerLatency: true))
             {
                 _logger.LogWarning("Received scheduled emote action without time sync, executing immediately.");
                 await ExecuteScheduledAsync().ConfigureAwait(false);
                 return;
             }
 
-            TimeSpan delay = TimeSync.GetDelayUntilServerUtcTicks(dto.ExecuteAtServerUtcTicks);
+            long compensatedExecuteAtTicks = dto.ExecuteAtServerUtcTicks - TimeSync.EstimatedCompensatedGameServerOneWay.Ticks;
 
             if (delay > FinalSpinThreshold)
             {
                 await Task.Delay(delay - FinalSpinThreshold, cancellationToken).ConfigureAwait(false);
             }
 
-            while (TimeSync.GetEstimatedServerUtcTicksNow() < dto.ExecuteAtServerUtcTicks)
+            while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                if (!TimeSync.TryGetEstimatedServerUtcTicksNow(out long estimatedServerUtcTicksNow))
+                {
+                    _logger.LogWarning("Lost server time sync during scheduled emote action, executing immediately.");
+                    break;
+                }
+
+                if (estimatedServerUtcTicksNow >= compensatedExecuteAtTicks)
+                {
+                    break;
+                }
+
                 Thread.SpinWait(50);
             }
 
@@ -291,6 +310,7 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         finally
         {
             _executedEventIds.TryRemove(dto.EventId, out _);
+            _isRunning = false;
         }
     }
 
@@ -387,6 +407,7 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
 
         await SendEmoteSyncLeave().ConfigureAwait(false);
         await SetTimeSyncEnabledAsync(false).ConfigureAwait(false);
+        await TimeSync.StopGameServerPingAsync().ConfigureAwait(false);
         TimeSync.Reset();
         ClearGroupState();
     }
@@ -394,6 +415,7 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
     private async Task OnServerConnect()
     {
         await SetTimeSyncEnabledAsync(false).ConfigureAwait(false);
+        await TimeSync.StopGameServerPingAsync().ConfigureAwait(false);
         TimeSync.Reset();
         ClearGroupState();
     }
@@ -424,6 +446,21 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         {
             _logger.LogDebug("Emote time sync loop stopped.");
         }
+    }
+
+    //private unsafe void StopPlayerEmote()
+    //{
+    //    _ = _dalamudUtilService.RunOnFrameworkThread(() =>
+    //    {
+    //        var poseIndex = PlayerState.Instance()->SelectedPoses[0];
+    //        PlayerState.Instance()->SelectedPoses[0] = (byte)(poseIndex == 0 ? 6 : poseIndex - 1);
+    //    });
+    //}
+
+    private async Task ExecuteScheduledAsync()
+    {
+        //StopPlayerEmote();
+        ExecuteEmote((uint)EmoteId);
     }
 
     private unsafe void ExecuteEmote(uint id)
@@ -486,11 +523,5 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         }
 
         return emote.UnlockLink == 0 || UIState.Instance()->IsUnlockLinkUnlockedOrQuestCompleted(emote.UnlockLink);
-    }
-
-    private async Task ExecuteScheduledAsync()
-    {
-        ExecuteEmote((uint)EmoteId);
-        _isRunning = false;
     }
 }
