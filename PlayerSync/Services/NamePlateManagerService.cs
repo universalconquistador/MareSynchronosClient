@@ -3,7 +3,6 @@ using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using MareSynchronos.API.Data.Extensions;
-using MareSynchronos.API.Dto.Group;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
@@ -21,7 +20,6 @@ namespace PlayerSync.Services
         private readonly ILogger<NamePlateManagerService> _logger;
         private readonly MareConfigService _configService;
         private DateTime _lastUpdate = DateTime.MinValue;
-        private ImmutableList<Pair> _cachedVisiblePairs = ImmutableList<Pair>.Empty;
         private ImmutableDictionary<nint, Pair> _visibleByAddress = ImmutableDictionary<nint, Pair>.Empty;
         private const ushort UiColorId = 41;
 
@@ -49,8 +47,6 @@ namespace PlayerSync.Services
             return Task.CompletedTask;
         }
 
-        private static ImmutableList<Pair> ImmutablePairList(IEnumerable<KeyValuePair<Pair, List<GroupFullInfoDto>>> u) => u.Select(k => k.Key).ToImmutableList();
-
         private void UpdateNamePlate(INamePlateUpdateContext context, IReadOnlyList<INamePlateUpdateHandler> handlers)
         {
             if (!(_configService.Current.ShowPairedIndicator 
@@ -60,7 +56,7 @@ namespace PlayerSync.Services
 
             var shouldUpdate = false;
             var now = DateTime.UtcNow;
-            if ((now - _lastUpdate).TotalMilliseconds > 250)
+            if ((now - _lastUpdate).TotalMilliseconds > 500)
             {
                 _lastUpdate = now;
                 shouldUpdate = true;
@@ -68,10 +64,8 @@ namespace PlayerSync.Services
 
             if (shouldUpdate)
             {
-                var allPairs = _pairs.PairsWithGroups.ToDictionary(k => k.Key, k => k.Value);
-                bool FilterVisibleUsers(KeyValuePair<Pair, List<GroupFullInfoDto>> u) => u.Key.IsVisible;
-                _cachedVisiblePairs = ImmutablePairList(allPairs.Where(FilterVisibleUsers));
-                _visibleByAddress = _cachedVisiblePairs.Where(p => p.Address != nint.Zero).ToImmutableDictionary(p => p.Address, p => p);
+                var visiblePairs = _pairs.GetVisiblePairs();
+                _visibleByAddress = visiblePairs.Where(p => p.Address != nint.Zero).ToImmutableDictionary(p => p.Address, p => p);
             }
 
             foreach (var handle in handlers)

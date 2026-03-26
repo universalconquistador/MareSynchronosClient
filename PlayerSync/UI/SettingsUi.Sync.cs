@@ -38,6 +38,8 @@ public partial class SettingsUi
         Permissions
     }
 
+    private string PlayerName => _uiShared.PlayerName;
+
     private void DrawSyncSettings()
     {
         _lastTab = "zone";
@@ -111,19 +113,23 @@ public partial class SettingsUi
         ImGui.BeginDisabled(warningConfirmed);
 
         bool enableGroupZoneSyncJoining = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
-        using (ImRaii.Disabled(_globalControlCountdown > 0 && !enableGroupZoneSyncJoining))
+        bool zoneSyncPerChara = _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter.ContainsKey(PlayerName);
+        bool zoneSyncEnabled = zoneSyncPerChara ? _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter[PlayerName] : enableGroupZoneSyncJoining;
+
+        using (ImRaii.Disabled(_globalControlCountdown > 0 && !zoneSyncEnabled))
         {
-            if (ImGui.Checkbox("Enable automatic joining of zone-based syncshells.", ref enableGroupZoneSyncJoining))
+            if (ImGui.Checkbox("Enable automatic joining of zone-based syncshells.", ref zoneSyncEnabled))
             {
-                if (!enableGroupZoneSyncJoining)
+                if (!zoneSyncEnabled)
                 {
                     _ = GlobalControlCountdown(5);
                 }
-                Mediator.Publish(new GroupZoneSetEnableState(enableGroupZoneSyncJoining));
-                _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = enableGroupZoneSyncJoining;
+                Mediator.Publish(new GroupZoneSetEnableState(zoneSyncEnabled));
+                _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = zoneSyncEnabled;
+                _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter[PlayerName] = zoneSyncEnabled;
                 _zoneSyncConfigService.Save();
             }
-            if (_globalControlCountdown != 0 && !enableGroupZoneSyncJoining)
+            if (_globalControlCountdown != 0 && !zoneSyncEnabled)
             {
                 UiSharedService.AttachToolTip("You can enable ZoneSync again in " + _globalControlCountdown + " seconds.");
             }
@@ -133,7 +139,7 @@ public partial class SettingsUi
         ImGui.AlignTextToFramePadding();
         ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "This does not work for instanced areas.");
         ImGui.SetNextItemWidth(150 * ImGuiHelpers.GlobalScale);
-        using (ImRaii.Disabled(_globalControlCountdown > 0 && enableGroupZoneSyncJoining))
+        using (ImRaii.Disabled(_globalControlCountdown > 0 && zoneSyncEnabled))
         {
             _uiShared.DrawCombo("###zonefilter", [ZoneSyncFilter.All, ZoneSyncFilter.ResidentialOnly, ZoneSyncFilter.TownOnly, ZoneSyncFilter.ResidentialTown],
             (s) => s switch
@@ -147,13 +153,13 @@ public partial class SettingsUi
             {
                 _zoneSyncConfigService.Current.ZoneSyncFilter = s;
                 _zoneSyncConfigService.Save();
-                if (enableGroupZoneSyncJoining)
+                if (zoneSyncEnabled)
                 {
                     _ = GlobalControlCountdown(5);
                 }
                 Mediator.Publish(new GroupZoneSyncUpdateMessage());
             }, _zoneSyncConfigService.Current.ZoneSyncFilter);
-            if (_globalControlCountdown != 0 && enableGroupZoneSyncJoining)
+            if (_globalControlCountdown != 0 && zoneSyncEnabled)
             {
                 UiSharedService.AttachToolTip("Wait a moment before changing ");
             }

@@ -1,5 +1,6 @@
 ﻿using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto;
+using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.Services;
 using MareSynchronos.Services.ServerConfiguration;
@@ -43,6 +44,18 @@ public partial class ApiController
         CheckConnection();
         await _mareHub!.SendAsync(nameof(UserDelete)).ConfigureAwait(false);
         await CreateConnectionsAsync().ConfigureAwait(false);
+    }
+
+    public async Task<AccountInfoDto> GetAccountInfo()
+    {
+        CheckConnection();
+        return await _mareHub!.InvokeAsync<AccountInfoDto>(nameof(GetAccountInfo)).ConfigureAwait(false);
+    }
+
+    public async Task<(bool, string)> UpdateAlias(UserData? userData = null, GroupData? groupData = null)
+    {
+        CheckConnection();
+        return await _mareHub!.InvokeAsync<(bool, string)>(nameof(UpdateAlias), userData, groupData).ConfigureAwait(false);
     }
 
     public async Task<List<OnlineUserIdentDto>> UserGetOnlinePairs(CensusDataDto? censusDataDto)
