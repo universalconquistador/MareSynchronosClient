@@ -2,6 +2,7 @@
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.CharaData;
+using MareSynchronos.API.Dto.Emote;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration.Models;
@@ -257,6 +258,18 @@ public partial class ApiController
         return Task.CompletedTask;
     }
 
+    public Task Client_UpdateEmoteSyncUsers(EmoteResponseDto dto)
+    {
+        ExecuteSafely(() => Mediator.Publish(new EmoteSyncUpdateMessage(dto)));
+        return Task.CompletedTask;
+    }
+
+    public Task Client_StartEmoteSyncGroup(ScheduledEmoteActionDto dto)
+    {
+        ExecuteSafely(() => Mediator.Publish(new EmoteSyncStartMessage(dto)));
+        return Task.CompletedTask;
+    }
+
     public void OnGroupChangePermissions(Action<GroupPermissionDto> act)
     {
         if (_initialized) return;
@@ -436,6 +449,18 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_UpdatePairRequests), act);
+    }
+
+    public void OnUpdateEmoteSyncUsers(Action<EmoteResponseDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_UpdateEmoteSyncUsers), act);
+    }
+
+    public void OnStartEmoteSyncGroup(Action<ScheduledEmoteActionDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_StartEmoteSyncGroup), act);
     }
 
     private void ExecuteSafely(Action act)
