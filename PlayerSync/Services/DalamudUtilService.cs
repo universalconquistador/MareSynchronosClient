@@ -76,6 +76,14 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 .Where(w => !w.Name.IsEmpty && w.DataCenter.RowId != 0 && (w.IsPublic || char.IsUpper(w.Name.ToString()[0])))
                 .ToDictionary(w => (ushort)w.RowId, w => w.Name.ToString());
         });
+        WorldToDataCenterData = new(() =>
+        {
+            return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
+                .Where(w => !w.Name.IsEmpty && w.DataCenter.RowId != 0 && (w.IsPublic || char.IsUpper(w.Name.ToString()[0])))
+                .ToDictionary(
+                    w => (ushort)w.RowId,
+                    w => w.DataCenter.Value.Name.ToString());
+        });
         JobData = new(() =>
         {
             return gameData.GetExcelSheet<ClassJob>(Dalamud.Game.ClientLanguage.English)!
@@ -180,6 +188,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public uint ClassJobId => _classJobId!.Value;
     public Lazy<Dictionary<uint, string>> JobData { get; private set; }
     public Lazy<Dictionary<ushort, string>> WorldData { get; private set; }
+    public Lazy<Dictionary<ushort, string>> WorldToDataCenterData { get; private set; }
     public Lazy<Dictionary<uint, string>> TerritoryData { get; private set; }
     public Lazy<Dictionary<uint, (Map Map, string MapName)>> MapData { get; private set; }
     public bool IsLodEnabled { get; private set; }
@@ -414,6 +423,11 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public async Task<LocationInfo> GetMapDataAsync()
     {
         return await RunOnFrameworkThread(GetMapData).ConfigureAwait(false);
+    }
+
+    public string? GetDataCenterNameForWorld(ushort worldId)
+    {
+        return WorldToDataCenterData.Value.TryGetValue(worldId, out var dataCenterName) ? dataCenterName : null;
     }
 
     public async Task<uint> GetWorldIdAsync()
