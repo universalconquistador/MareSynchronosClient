@@ -23,7 +23,6 @@ public sealed class EmoteTimeSyncService : IDisposable
 
     private long _estimatedServerUtcTicksAtLastSync;
     private long _localStopwatchTicksAtLastSync;
-    private long _lastRoundTripTicks = long.MaxValue;
     private bool _hasSync;
 
     private string? _gameServerHost;
@@ -34,72 +33,6 @@ public sealed class EmoteTimeSyncService : IDisposable
     private long _gameServerJitterTicks;
 
     private sealed record TimeSyncSample(long OffsetTicks, long RoundTripTicks);
-
-    public bool HasSync
-    {
-        get
-        {
-            lock (_timeLock)
-            {
-                return _hasSync;
-            }
-        }
-    }
-
-    public bool HasGameLatencySample
-    {
-        get
-        {
-            lock (_gameLatencyLock)
-            {
-                return _gameServerRttSamples.Count > 0;
-            }
-        }
-    }
-
-    public string? CurrentGameServerHost
-    {
-        get
-        {
-            lock (_gameLatencyLock)
-            {
-                return _gameServerHost;
-            }
-        }
-    }
-
-    public TimeSpan LastRoundTrip
-    {
-        get
-        {
-            lock (_timeLock)
-            {
-                return _lastRoundTripTicks == long.MaxValue ? TimeSpan.Zero : TimeSpan.FromTicks(_lastRoundTripTicks);
-            }
-        }
-    }
-
-    public TimeSpan AverageGameServerRoundTrip
-    {
-        get
-        {
-            lock (_gameLatencyLock)
-            {
-                return TimeSpan.FromTicks(_averageGameServerRttTicks);
-            }
-        }
-    }
-
-    public TimeSpan EstimatedGameServerJitter
-    {
-        get
-        {
-            lock (_gameLatencyLock)
-            {
-                return TimeSpan.FromTicks(_gameServerJitterTicks);
-            }
-        }
-    }
 
     public TimeSpan EstimatedCompensatedGameServerOneWay
     {
@@ -119,7 +52,6 @@ public sealed class EmoteTimeSyncService : IDisposable
             _timeSyncSamples.Clear();
             _estimatedServerUtcTicksAtLastSync = 0;
             _localStopwatchTicksAtLastSync = 0;
-            _lastRoundTripTicks = long.MaxValue;
             _hasSync = false;
         }
 
@@ -177,7 +109,7 @@ public sealed class EmoteTimeSyncService : IDisposable
         {
             try
             {
-                oldCts.Cancel();
+                await oldCts.CancelAsync().ConfigureAwait(false);
             }
             finally
             {
@@ -193,6 +125,7 @@ public sealed class EmoteTimeSyncService : IDisposable
             }
             catch (OperationCanceledException)
             {
+                // swallow
             }
         }
 
@@ -248,11 +181,9 @@ public sealed class EmoteTimeSyncService : IDisposable
             }
 
             long averageOffsetTicks = (long)selectedSamples.Average(sample => sample.OffsetTicks);
-            long averageRoundTripTicks = (long)selectedSamples.Average(sample => sample.RoundTripTicks);
 
             _estimatedServerUtcTicksAtLastSync = clientReceiveUtcTicks + averageOffsetTicks;
             _localStopwatchTicksAtLastSync = clientReceiveStopwatchTicks;
-            _lastRoundTripTicks = averageRoundTripTicks;
             _hasSync = true;
         }
     }
@@ -355,6 +286,7 @@ public sealed class EmoteTimeSyncService : IDisposable
             }
             catch (OperationCanceledException)
             {
+                // swallow
             }
         }
 
@@ -380,9 +312,11 @@ public sealed class EmoteTimeSyncService : IDisposable
             }
             catch (PingException)
             {
+                // we don't really care, it's going to either work or not
             }
             catch (Exception) when (!cancellationToken.IsCancellationRequested)
             {
+                // we don't really care, it's going to either work or not
             }
 
             TimeSpan remainingDelay = GamePingInterval - intervalStopwatch.Elapsed;

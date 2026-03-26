@@ -277,7 +277,7 @@ public class EmoteSyncUi : WindowMediatorSubscriberBase
         string? hostName = await _emoteSync.GetCurrentLobbyHostAsync().ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(hostName))
         {
-            await _emoteSync.TimeSync.SetGameServerHostAsync(hostName).ConfigureAwait(false);
+            await _emoteSync.SetGameServerHostAsync(hostName).ConfigureAwait(false);
         }
     }
 

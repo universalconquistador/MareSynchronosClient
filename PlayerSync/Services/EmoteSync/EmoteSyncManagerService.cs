@@ -11,8 +11,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using static FFXIVClientStructs.FFXIV.Client.UI.Misc.RaptureHotbarModule;
 
 namespace MareSynchronos.Services.EmoteSync;
 
@@ -29,12 +27,12 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
 
     private readonly object _stateLock = new();
 
+    EmoteTimeSyncService _timeSync = new();
     private CancellationTokenSource? _timeSyncCts;
     private Task? _timeSyncTask;
     private bool _timeSyncEnabled;
 
     private string? _currentGroupId;
-    private string? _leadUserUid;
     private Dictionary<string, bool> _groupMembers = [];
     private readonly ConcurrentDictionary<Guid, byte> _executedEventIds = new();
     private bool _isRunning = false;
@@ -44,13 +42,12 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
     {
         _logger = logger;
         _apiController = apiController;
-        TimeSync = new EmoteTimeSyncService();
         _dalamudUtilService = dalamudUtilService;
         _pairManager = pairManager;
         _gameData = gameData;
     }
 
-    public EmoteTimeSyncService TimeSync { get; }
+    public record EmoteAction(int ActionId, string ActionName, ushort SortOrder);
 
     public bool IsTimeSyncEnabled
     {
@@ -63,9 +60,6 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         }
     }
 
-    public bool HasTimeSync => TimeSync.HasSync;
-    public TimeSpan LastRoundTrip => TimeSync.LastRoundTrip;
-
     public string? CurrentGroupId
     {
         get
@@ -73,17 +67,6 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
             lock (_stateLock)
             {
                 return _currentGroupId;
-            }
-        }
-    }
-
-    public string? LeadUserUid
-    {
-        get
-        {
-            lock (_stateLock)
-            {
-                return _leadUserUid;
             }
         }
     }
@@ -128,7 +111,12 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         ushort worldId = (ushort)await _dalamudUtilService.GetWorldIdAsync().ConfigureAwait(false);
         string? dataCenterName = _dalamudUtilService.GetDataCenterNameForWorld(worldId);
         _logger.LogTrace("Starting ping to {dc}.", dataCenterName);
-        return TimeSync.GetLobbyHostForDataCenter(dataCenterName);
+        return _timeSync.GetLobbyHostForDataCenter(dataCenterName);
+    }
+
+    public async Task SetGameServerHostAsync(string? host)
+    {
+        await _timeSync.SetGameServerHostAsync(host).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -189,7 +177,7 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
             }
         }
 
-        TimeSync.Reset();
+        _timeSync.Reset();
     }
 
     public async Task RequestTimeSyncNowAsync()
@@ -198,7 +186,7 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         {
             _logger.LogDebug("Skipping time sync request, not connected.");
             await SetTimeSyncEnabledAsync(false).ConfigureAwait(false);
-            await TimeSync.StopGameServerPingAsync().ConfigureAwait(false);
+            await _timeSync.StopGameServerPingAsync().ConfigureAwait(false);
             return;
         }
 
@@ -218,34 +206,11 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
             long clientReceiveUtcTicks = DateTime.UtcNow.Ticks;
             long clientReceiveStopwatchTicks = Stopwatch.GetTimestamp();
 
-            TimeSync.AcceptSample(response, clientReceiveUtcTicks, clientReceiveStopwatchTicks);
+            _timeSync.AcceptSample(response, clientReceiveUtcTicks, clientReceiveStopwatchTicks);
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Failed to synchronize emote server time.");
-        }
-    }
-
-    public void ApplyGroupUpdate(EmoteResponseDto dto)
-    {
-        ArgumentNullException.ThrowIfNull(dto);
-
-        lock (_stateLock)
-        {
-            if (dto.EmoteGroupMembers.Count == 0)
-            {
-                _currentGroupId = null;
-                _leadUserUid = null;
-                _groupMembers = [];
-            }
-            else
-            {
-                _currentGroupId = dto.EmoteLeadUser.UID;
-                _leadUserUid = dto.EmoteLeadUser.UID;
-                _groupMembers = dto.EmoteGroupMembers;
-            }
-                
-            _logger.LogDebug("Emote join users: {users}", string.Join(", ", _groupMembers.Keys.ToList()));
         }
     }
 
@@ -254,66 +219,14 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         lock (_stateLock)
         {
             _currentGroupId = null;
-            _leadUserUid = null;
             _groupMembers = [];
         }
     }
 
-    public async Task HandleScheduledEmoteActionAsync(ScheduledEmoteActionDto dto, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(dto);
-
-        if (!_executedEventIds.TryAdd(dto.EventId, 0))
-        {
-            _logger.LogDebug("Ignoring duplicate scheduled emote event {eventId}.", dto.EventId);
-            return;
-        }
-
-        _isRunning = true;
-
-        try
-        {
-            if (!TimeSync.TryGetDelayUntilServerUtcTicks(dto.ExecuteAtServerUtcTicks, out TimeSpan delay, compensateForGameServerLatency: true))
-            {
-                _logger.LogWarning("Received scheduled emote action without time sync, executing immediately.");
-                await ExecuteScheduledAsync().ConfigureAwait(false);
-                return;
-            }
-
-            long compensatedExecuteAtTicks = dto.ExecuteAtServerUtcTicks - TimeSync.EstimatedCompensatedGameServerOneWay.Ticks;
-
-            if (delay > FinalSpinThreshold)
-            {
-                await Task.Delay(delay - FinalSpinThreshold, cancellationToken).ConfigureAwait(false);
-            }
-
-            while (true)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (!TimeSync.TryGetEstimatedServerUtcTicksNow(out long estimatedServerUtcTicksNow))
-                {
-                    _logger.LogWarning("Lost server time sync during scheduled emote action, executing immediately.");
-                    break;
-                }
-
-                if (estimatedServerUtcTicksNow >= compensatedExecuteAtTicks)
-                {
-                    break;
-                }
-
-                Thread.SpinWait(50);
-            }
-
-            await ExecuteScheduledAsync().ConfigureAwait(false);
-        }
-        finally
-        {
-            _executedEventIds.TryRemove(dto.EventId, out _);
-            _isRunning = false;
-        }
-    }
-
+    /// <summary>
+    /// Send an EmoteSync group join to the server. The first player in an alliance/party to issue the command becomes the group leader
+    /// </summary>
+    /// <returns></returns>
     public async Task SendEmoteSyncJoin()
     {
         var visibleAllianceAndPartyMembers = _dalamudUtilService.GetVisibleAllianceAndPartyMembers() ?? [];
@@ -344,6 +257,10 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         await _apiController.UserEmoteSyncAction(dto).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Send a EmoteSync group leave message to the server, this leaves the group
+    /// </summary>
+    /// <returns></returns>
     public async Task SendEmoteSyncLeave()
     {
         if (!_apiController.IsConnected) return;
@@ -356,6 +273,11 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         await _apiController.UserEmoteSyncAction(dto).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Send a ready message to the server for your player status
+    /// </summary>
+    /// <param name="isReady"></param>
+    /// <returns></returns>
     public async Task SendEmoteSyncReadyStatus(bool isReady)
     {
         EmoteActionDto dto = new()
@@ -367,6 +289,10 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         await _apiController.UserEmoteSyncAction(dto).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Send a start message for the EmoteSync group to the server, can only be executed by the group leader
+    /// </summary>
+    /// <returns></returns>
     public async Task SendEmoteSyncStart()
     {
         EmoteActionDto dto = new()
@@ -377,6 +303,11 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         await _apiController.UserEmoteSyncAction(dto).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Remove a player from a EmoteSync group, can only be executed the group leader
+    /// </summary>
+    /// <param name="uid"></param>
+    /// <returns></returns>
     public async Task KickUserFromGroup(string uid)
     {
         EmoteActionDto dto = new()
@@ -386,6 +317,97 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         };
 
         await _apiController.UserEmoteSyncAction(dto).ConfigureAwait(false);
+    }
+
+    public List<EmoteAction> GetUnlockedEmotes()
+    {
+        return _gameData.GetExcelSheet<Emote>().Where(IsUnlocked).Select(GetEmoteAction).ToList();
+    }
+
+    /// <summary>
+    /// This is called from a server group update dto
+    /// </summary>
+    /// <param name="dto"></param>
+    private void ApplyGroupUpdate(EmoteResponseDto dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        lock (_stateLock)
+        {
+            if (dto.EmoteGroupMembers.Count == 0)
+            {
+                _currentGroupId = null;
+                _groupMembers = [];
+            }
+            else
+            {
+                _currentGroupId = dto.EmoteLeadUser.UID;
+                _groupMembers = dto.EmoteGroupMembers;
+            }
+
+            _logger.LogDebug("Emote join users: {users}", string.Join(", ", _groupMembers.Keys.ToList()));
+        }
+    }
+
+    /// <summary>
+    /// This is called from the server to start a client emote sync
+    /// </summary>
+    /// <param name="dto"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    private async Task HandleScheduledEmoteActionAsync(ScheduledEmoteActionDto dto, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        if (!_executedEventIds.TryAdd(dto.EventId, 0))
+        {
+            _logger.LogDebug("Ignoring duplicate scheduled emote event {eventId}.", dto.EventId);
+            return;
+        }
+
+        _isRunning = true;
+
+        try
+        {
+            if (!_timeSync.TryGetDelayUntilServerUtcTicks(dto.ExecuteAtServerUtcTicks, out TimeSpan delay, compensateForGameServerLatency: true))
+            {
+                _logger.LogWarning("Received scheduled emote action without time sync, executing immediately.");
+                await ExecuteScheduledAsync().ConfigureAwait(false);
+                return;
+            }
+
+            long compensatedExecuteAtTicks = dto.ExecuteAtServerUtcTicks - _timeSync.EstimatedCompensatedGameServerOneWay.Ticks;
+
+            if (delay > FinalSpinThreshold)
+            {
+                await Task.Delay(delay - FinalSpinThreshold, cancellationToken).ConfigureAwait(false);
+            }
+
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!_timeSync.TryGetEstimatedServerUtcTicksNow(out long estimatedServerUtcTicksNow))
+                {
+                    _logger.LogWarning("Lost server time sync during scheduled emote action, executing immediately.");
+                    break;
+                }
+
+                if (estimatedServerUtcTicksNow >= compensatedExecuteAtTicks)
+                {
+                    break;
+                }
+
+                Thread.SpinWait(50);
+            }
+
+            await ExecuteScheduledAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _executedEventIds.TryRemove(dto.EventId, out _);
+            _isRunning = false;
+        }
     }
 
     public async Task Reset()
@@ -407,16 +429,16 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
 
         await SendEmoteSyncLeave().ConfigureAwait(false);
         await SetTimeSyncEnabledAsync(false).ConfigureAwait(false);
-        await TimeSync.StopGameServerPingAsync().ConfigureAwait(false);
-        TimeSync.Reset();
+        await _timeSync.StopGameServerPingAsync().ConfigureAwait(false);
+        _timeSync.Reset();
         ClearGroupState();
     }
 
     private async Task OnServerConnect()
     {
         await SetTimeSyncEnabledAsync(false).ConfigureAwait(false);
-        await TimeSync.StopGameServerPingAsync().ConfigureAwait(false);
-        TimeSync.Reset();
+        await _timeSync.StopGameServerPingAsync().ConfigureAwait(false);
+        _timeSync.Reset();
         ClearGroupState();
     }
 
@@ -448,18 +470,8 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
         }
     }
 
-    //private unsafe void StopPlayerEmote()
-    //{
-    //    _ = _dalamudUtilService.RunOnFrameworkThread(() =>
-    //    {
-    //        var poseIndex = PlayerState.Instance()->SelectedPoses[0];
-    //        PlayerState.Instance()->SelectedPoses[0] = (byte)(poseIndex == 0 ? 6 : poseIndex - 1);
-    //    });
-    //}
-
     private async Task ExecuteScheduledAsync()
     {
-        //StopPlayerEmote();
         ExecuteEmote((uint)EmoteId);
     }
 
@@ -474,14 +486,7 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
             return;
         }
 
-        _ = _dalamudUtilService.RunOnFrameworkThread(() => ExecuteHotbarAction(HotbarSlotType.Emote, id));
-    }
-
-    public record EmoteAction(int ActionId, string ActionName, ushort SortOrder);
-
-    public List<EmoteAction> GetUnlockedEmotes()
-    {
-        return _gameData.GetExcelSheet<Emote>().Where(IsUnlocked).Select(GetEmoteAction).ToList();
+        _ = _dalamudUtilService.RunOnFrameworkThread(() => ExecuteEmoteById((ushort)id));
     }
 
     private static EmoteAction GetEmoteAction(Emote emote)
@@ -491,26 +496,17 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
 
     private Emote? GetEmoteById(uint id) => _gameData.Excel.GetSheet<Emote>().GetRowOrDefault(id);
 
-    // Code borrowed from https://github.com/KazWolfe/XIVDeck by KazWolfe
-    private unsafe void ExecuteHotbarAction(HotbarSlotType commandType, uint commandId)
+    private static unsafe void ExecuteEmoteById(ushort id)
     {
-        var hotbarModulePtr = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->GetUIModule()->GetRaptureHotbarModule();
-        var slot = new HotbarSlot
+        var emoteManager = FFXIVClientStructs.FFXIV.Client.Game.Control.EmoteManager.Instance();
+        if (emoteManager->CanExecuteEmote(id))
         {
-            CommandType = commandType,
-            CommandId = commandId
-        };
-
-        var ptr = Marshal.AllocHGlobal(Marshal.SizeOf(slot));
-        Marshal.StructureToPtr(slot, ptr, false);
-
-        hotbarModulePtr->ExecuteSlot((HotbarSlot*)ptr);
-
-        Marshal.FreeHGlobal(ptr);
+            emoteManager->ExecuteEmote(id);
+        }
     }
 
     // Code borrowed from https://github.com/KazWolfe/XIVDeck by KazWolfe
-    public static unsafe bool IsUnlocked(Emote emote)
+    private static unsafe bool IsUnlocked(Emote emote)
     {
         if (emote.EmoteCategory.RowId == 0 || emote.Order == 0) return false;
 
