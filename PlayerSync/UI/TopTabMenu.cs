@@ -27,7 +27,7 @@ public class TopTabMenu : IMediatorSubscriber
     private readonly MareConfigService _mareConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
-    private readonly PairRequestManager _pairRequestManager;
+    private readonly PairInviteManager _pairRequestManager;
     private string _filter = string.Empty;
     private int _globalControlCountdown = 0;
 
@@ -36,7 +36,7 @@ public class TopTabMenu : IMediatorSubscriber
 
     private SelectedTab _selectedTab = SelectedTab.None;
     public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, 
-        MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService, PairRequestManager pairRequestManager)
+        MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService, PairInviteManager pairRequestManager)
     {
         _mareMediator = mareMediator;
         _apiController = apiController;

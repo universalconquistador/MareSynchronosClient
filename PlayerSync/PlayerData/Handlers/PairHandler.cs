@@ -65,7 +65,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         ServerConfigurationManager serverConfigManager,
         ICompressedAlternateManager compressedAlternateManager,
         MareConfigService configService,
-        PlayerPerformanceConfigService performanceConfig) : base(logger, mediator)
+        PlayerPerformanceConfigService performanceConfig)
+        : base(logger, mediator)
     {
         Pair = pair;
         _gameObjectHandlerFactory = gameObjectHandlerFactory;
@@ -131,6 +132,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             if (msg.PlayerName == Pair.PlayerName && _isVanillaEnforced)
                 CheckForVanillaLoadingOfPair();
         });
+        mediator.Subscribe<OpenContextMenuMessage>(this, (msg) => _ = _dalamudUtil.OpenContextMenuAsync(msg.AgentPtr));
+
+        //_dalamudContextMenu.OnMenuOpened += DalamudContextMenuOnOnOpenGameObjectContextMenu;
 
         LastAppliedDataBytes = -1;
     }
@@ -282,6 +286,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
+
+        //_dalamudContextMenu.OnMenuOpened -= DalamudContextMenuOnOnOpenGameObjectContextMenu;
 
         SetUploading(isUploading: false);
         var name = PlayerName;

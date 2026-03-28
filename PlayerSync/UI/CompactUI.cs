@@ -49,7 +49,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly UiSharedService _uiSharedService;
     private readonly CharacterAnalyzer _characterAnalyzer;
     private readonly ServerConfigurationManager _serverConfigurationManager;
-    private readonly PairRequestManager _pairRequestManager;
+    private readonly PairInviteManager _pairRequestManager;
     private List<IDrawFolder> _drawFolders;
     private DrawFolderBroadcasts? _broadcastsFolder;
     private Pair? _lastAddedUser;
@@ -67,7 +67,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         ServerConfigurationManager serverManager, MareMediator mediator, FileUploadManager fileTransferManager,
         TagHandler tagHandler, DrawEntityFactory drawEntityFactory, SelectTagForPairUi selectTagForPairUi, SelectPairForTagUi selectPairForTagUi,
         PerformanceCollectorService performanceCollectorService, IpcManager ipcManager, CharacterAnalyzer characterAnalyzer, 
-        PlayerPerformanceConfigService playerPerformanceConfig, ServerConfigurationManager serverConfigurationManager, PairRequestManager pairRequestManager)
+        PlayerPerformanceConfigService playerPerformanceConfig, ServerConfigurationManager serverConfigurationManager, PairInviteManager pairRequestManager)
         : base(logger, mediator, "###PlayerSyncMainUI", performanceCollectorService)
     {
         _uiSharedService = uiShared;

@@ -576,6 +576,17 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return _gameGui.WorldToScreen(obj.Position, out var screenPos) ? screenPos : Vector2.Zero;
     }
 
+    public async Task OpenContextMenuAsync(IntPtr agentPtr)
+    {
+        await RunOnFrameworkThread(() => OpenContextMenu(agentPtr)).ConfigureAwait(false);
+    }
+
+    public unsafe void OpenContextMenu(IntPtr agentPtr)
+    {
+        var agentContext = (AgentContext*)agentPtr;
+        agentContext->OpenContextMenu();
+    }
+
     internal (string Name, nint Address) FindPlayerByNameHash(string ident)
     {
         _playerCharas.TryGetValue(ident, out var result);

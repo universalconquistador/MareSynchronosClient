@@ -27,7 +27,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     private readonly MareConfigService _mareConfigService;
     private readonly UiSharedService _uiSharedService;
     private readonly FileImageTransferHandler _fileImageTransferHandler;
-    private readonly PairRequestManager _pairRequestManager;
+    private readonly PairInviteManager _pairRequestManager;
 
     private byte[]? _lastProfilePicture;
     private byte[] _lastSupporterPicture = [];
@@ -42,7 +42,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
     public StandaloneProfileUi(ILogger<StandaloneProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
         ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair, MareConfigService mareConfigService,
-        PerformanceCollectorService performanceCollector, UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairRequestManager pairRequestManager)
+        PerformanceCollectorService performanceCollector, UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairInviteManager pairRequestManager)
         : base(logger, mediator, "PlayerSync Profile of " + pair.UserData.AliasOrUID + "##PlayerSyncStandaloneProfileUI" + pair.UserData.AliasOrUID, performanceCollector)
     {
         _uiSharedService = uiBuilder;

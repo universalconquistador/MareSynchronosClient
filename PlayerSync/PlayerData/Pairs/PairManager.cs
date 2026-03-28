@@ -22,28 +22,24 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private readonly ConcurrentDictionary<GroupData, GroupFullInfoDto> _allGroups = new(GroupDataComparer.Instance);
     private readonly MareConfigService _configurationService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
-    private readonly IContextMenu _dalamudContextMenu;
     private readonly PairFactory _pairFactory;
     private Lazy<List<Pair>> _directPairsInternal;
     private Lazy<Dictionary<GroupFullInfoDto, List<Pair>>> _groupPairsInternal;
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
 
     public PairManager(ILogger<PairManager> logger, PairFactory pairFactory,
-                MareConfigService configurationService, ServerConfigurationManager serverConfigurationManager, MareMediator mediator,
-                IContextMenu dalamudContextMenu) : base(logger, mediator)
+                MareConfigService configurationService, ServerConfigurationManager serverConfigurationManager, MareMediator mediator)
+        : base(logger, mediator)
     {
         _pairFactory = pairFactory;
         _configurationService = configurationService;
         _serverConfigurationManager = serverConfigurationManager;
-        _dalamudContextMenu = dalamudContextMenu;
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPairs());
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => ReapplyPairData());
         Mediator.Subscribe<ChangeFilterMessage>(this, (_) => ReapplyPairData());
         _directPairsInternal = DirectPairsLazy();
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
-
-        _dalamudContextMenu.OnMenuOpened += DalamudContextMenuOnOnOpenGameObjectContextMenu;
     }
 
     public List<Pair> DirectPairs => _directPairsInternal.Value;
@@ -345,20 +341,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     {
         base.Dispose(disposing);
 
-        _dalamudContextMenu.OnMenuOpened -= DalamudContextMenuOnOnOpenGameObjectContextMenu;
+        
 
         DisposePairs();
-    }
-
-    private void DalamudContextMenuOnOnOpenGameObjectContextMenu(Dalamud.Game.Gui.ContextMenu.IMenuOpenedArgs args)
-    {
-        if (args.MenuType == Dalamud.Game.Gui.ContextMenu.ContextMenuType.Inventory) return;
-        if (!_configurationService.Current.EnableRightClickMenus) return;
-
-        foreach (var pair in _allClientPairs.Where((p => p.Value.IsVisible)))
-        {
-            pair.Value.AddContextMenu(args);
-        }
     }
 
     private Lazy<List<Pair>> DirectPairsLazy() => new(() => _allClientPairs.Select(k => k.Value)
