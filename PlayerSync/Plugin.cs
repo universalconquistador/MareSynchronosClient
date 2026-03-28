@@ -93,7 +93,6 @@ public sealed class Plugin : IDalamudPlugin
         {
             collection.AddSingleton(new WindowSystem("PlayerSync"));
             collection.AddSingleton<FileDialogManager>();
-            collection.AddSingleton<IContextMenu>(_ => contextMenu);
             collection.AddSingleton(new Dalamud.Localization("PlayerSync.Localization.", "", useEmbedded: true));
 
             // add mare related singletons
