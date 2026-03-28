@@ -164,7 +164,7 @@ namespace MareSynchronos.PlayerData.Handlers
             {
                 Name = new SeStringBuilder().AddText("Return").Build(),
                 IsReturn = true,
-                OnClicked = (a) => Mediator.Publish(new OpenContextMenuMessage(clickedArgs.AgentPtr))
+                OnClicked = _ => _dalamudUtilService.OpenContextMenu(clickedArgs.AgentPtr)
             });
 
             clickedArgs.OpenSubmenu(new SeStringBuilder().AddText("PlayerSync Pair Data").Build(), menuItems);
@@ -217,7 +217,7 @@ namespace MareSynchronos.PlayerData.Handlers
                 {
                     Name = new SeStringBuilder().AddText("Return").Build(),
                     IsReturn = true,
-                    OnClicked = (a) => Mediator.Publish(new OpenContextMenuMessage(clickedArgs.AgentPtr))
+                    OnClicked = _ => _dalamudUtilService.OpenContextMenu(clickedArgs.AgentPtr)
                 });
 
             clickedArgs.OpenSubmenu(new SeStringBuilder().AddText("Invite to Syncshell").Build(), menuItems);
@@ -289,7 +289,7 @@ namespace MareSynchronos.PlayerData.Handlers
             {
                 Name = new SeStringBuilder().AddText("Return").Build(),
                 IsReturn = true,
-                OnClicked = (a) => Mediator.Publish(new OpenContextMenuMessage(clickedArgs.AgentPtr))
+                OnClicked = _ => _dalamudUtilService.OpenContextMenu(clickedArgs.AgentPtr)
             });
 
             clickedArgs.OpenSubmenu(new SeStringBuilder().AddText("Add to Overrides").Build(), menuItems);
@@ -318,7 +318,7 @@ namespace MareSynchronos.PlayerData.Handlers
             {
                 Name = new SeStringBuilder().AddText("Return").Build(),
                 IsReturn = true,
-                OnClicked = (a) => Mediator.Publish(new OpenContextMenuMessage(clickedArgs.AgentPtr))
+                OnClicked = _ => _dalamudUtilService.OpenContextMenu(clickedArgs.AgentPtr)
             });
 
             clickedArgs.OpenSubmenu(new SeStringBuilder().AddText("Add to Pair Group").Build(), menuItems);
