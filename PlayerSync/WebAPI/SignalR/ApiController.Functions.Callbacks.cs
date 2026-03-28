@@ -254,7 +254,13 @@ public partial class ApiController
 
     public Task Client_UpdatePairRequests(UserPairRequestsDto dto)
     {
-        ExecuteSafely(() => Mediator.Publish(new PairRequestsUpdate(dto)));
+        ExecuteSafely(() => Mediator.Publish(new PairRequestsUpdateMessage(dto)));
+        return Task.CompletedTask;
+    }
+
+    public Task Client_UpdateGroupInvites(GroupJoinInvitesDto dto)
+    {
+        ExecuteSafely(() => Mediator.Publish(new UpdateGroupInvitesMessage(dto)));
         return Task.CompletedTask;
     }
 
@@ -449,6 +455,12 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_UpdatePairRequests), act);
+    }
+
+    public void OnUpdateGroupInvites(Action<GroupJoinInvitesDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_UpdateGroupInvites), act);
     }
 
     public void OnUpdateEmoteSyncUsers(Action<EmoteResponseDto> act)

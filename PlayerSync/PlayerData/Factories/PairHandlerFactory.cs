@@ -54,8 +54,9 @@ public class PairHandlerFactory
 
     public PairHandler Create(Pair pair)
     {
-        return new PairHandler(_loggerFactory.CreateLogger<PairHandler>(), pair, _gameObjectHandlerFactory,
-            _ipcManager, _fileDownloadManagerFactory.Create(), _pluginWarningNotificationManager, _dalamudUtilService, _hostApplicationLifetime,
-            _fileCacheManager, _mareMediator, _playerPerformanceService, _serverConfigManager, _compressedAlternateManager, _mareConfigService, _performanceConfig);
+        return new PairHandler(_loggerFactory.CreateLogger<PairHandler>(), pair, _gameObjectHandlerFactory,_ipcManager, 
+            _fileDownloadManagerFactory.Create(), _pluginWarningNotificationManager, _dalamudUtilService, _hostApplicationLifetime,
+            _fileCacheManager, _mareMediator, _playerPerformanceService, _serverConfigManager, _compressedAlternateManager, 
+            _mareConfigService, _performanceConfig);
     }
 }

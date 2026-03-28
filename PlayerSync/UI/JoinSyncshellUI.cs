@@ -22,6 +22,8 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
     private string _desiredSyncshellToJoin = string.Empty;
     private string? _prefillSyncshellToJoin = null;
     private GroupJoinInfoDto? _groupJoinInfo = null;
+    private GroupJoinInfoDto? _groupJoinInviteInfo = null;
+    private string _groupJoinInvitePassword = string.Empty;
     private DefaultPermissionsDto _ownPermissions = null!;
     private string _previousPassword = string.Empty;
     private string _syncshellPassword = string.Empty;
@@ -54,7 +56,11 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
             _desiredPasswordless = message.ExpectPasswordless;
             _isGuestModeEnabled = message.IsGuestModeEnabled;
         });
-
+        Mediator.Subscribe<PreloadJoinSyncshellDtoMessage>(this, message =>
+        {
+            _groupJoinInviteInfo = message.Dto;
+            _groupJoinInvitePassword = message.Password;
+        });
         Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;
     }
 
@@ -82,6 +88,19 @@ internal class JoinSyncshellUI : WindowMediatorSubscriberBase
         _previousPassword = string.Empty;
         _groupJoinInfo = null;
         _ownPermissions = _apiController.DefaultPermissions.DeepClone()!;
+
+        if (_groupJoinInviteInfo != null)
+        {
+            _groupJoinInfo = _groupJoinInviteInfo;
+            _previousPassword = _groupJoinInvitePassword;
+        }
+    }
+
+    public override void OnClose()
+    {
+        _groupJoinInviteInfo = null;
+        _groupJoinInvitePassword = string.Empty;
+        base.OnClose();
     }
 
     protected override void DrawInternal()
