@@ -139,6 +139,14 @@ public class ServerConfigurationManager
         }
     }
 
+    public string CurrentPlayerName
+    {
+        get
+        {
+            return _dalamudUtil.GetPlayerNameAsync().GetAwaiter().GetResult();
+        }
+    }
+
     public (string OAuthToken, string UID)? GetOAuth2(out bool hasMulti, int serverIdx = -1)
     {
         ServerStorage? currentServer;
