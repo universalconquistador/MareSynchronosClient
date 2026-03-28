@@ -98,7 +98,6 @@ public record TargetPairMessage(Pair Pair) : MessageBase;
 public record CombatOrPerformanceStartMessage : MessageBase;
 public record CombatOrPerformanceEndMessage : MessageBase;
 public record EventMessage(Event Event) : MessageBase;
-public record OpenContextMenuMessage(IntPtr AgentPtr) : MessageBase;
 public record PenumbraDirectoryChangedMessage(string? ModDirectory) : MessageBase;
 public record PenumbraRedrawCharacterMessage(ICharacter Character) : SameThreadMessage;
 public record GameObjectHandlerCreatedMessage(GameObjectHandler GameObjectHandler, bool OwnedObject) : SameThreadMessage;
