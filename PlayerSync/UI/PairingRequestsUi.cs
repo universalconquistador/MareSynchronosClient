@@ -15,18 +15,20 @@ namespace MareSynchronos.UI;
 
 public class PairingRequestsUi : WindowMediatorSubscriberBase
 {
-    private readonly PairRequestManager _pairRequestManager;
+    private readonly PairInviteManager _pairRequestManager;
     private readonly ServerConfigurationManager _serverConfigurationManager;
+    private readonly PairManager _pairManager;
     private readonly UiTheme _theme;
     private bool _userClickedSomething = false;
 
     public PairingRequestsUi(ILogger<PairingRequestsUi> logger, MareMediator mediator,
         PerformanceCollectorService performanceCollectorService, PlayerPerformanceConfigService playerPerformanceConfig,
-        UiTheme theme, PairRequestManager pairRequestManager, ServerConfigurationManager serverConfigurationManager)
+        UiTheme theme, PairInviteManager pairRequestManager, ServerConfigurationManager serverConfigurationManager, PairManager pairManager)
         : base(logger, mediator, "PlayerSync Pair Requests", performanceCollectorService)
     {
         _pairRequestManager = pairRequestManager;
         _serverConfigurationManager = serverConfigurationManager;
+        _pairManager = pairManager;
         _theme = theme;
 
         Flags = ImGuiWindowFlags.NoResize;
@@ -61,13 +63,13 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
 
     private void DrawPendingRequests()
     {
-        var pendingIncomingRequests = _pairRequestManager.GetReceivedPendingRequests();
+        var pendingIncomingRequests = _pairRequestManager.GetPendingRequests();
+        var pendingIncomingInvites = _pairRequestManager.GetPendingGroupInvites();
 
         var style = ImGui.GetStyle();
         float globalScale = ImGuiHelpers.GlobalScale;
 
-        // max UID width is 10 "W"
-        float uidColumnWidth = ImGui.CalcTextSize(new string('W', 10)).X +  style.CellPadding.X * 2f + 12f * globalScale;
+        float uidColumnWidth = ImGui.CalcTextSize(new string('W', 12)).X +  style.CellPadding.X * 2f + 12f * globalScale;
 
         float acceptButtonWidth = ImGui.CalcTextSize("Accept").X + style.FramePadding.X * 2f;
         float dismissButtonWidth = ImGui.CalcTextSize("Dismiss").X + style.FramePadding.X * 2f;
@@ -93,7 +95,7 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
 
         ImGui.TableSetupScrollFreeze(0, 1);
 
-        ImGui.TableSetupColumn("Requestor UID", ImGuiTableColumnFlags.WidthFixed, uidColumnWidth);
+        ImGui.TableSetupColumn("Pair/Group ID", ImGuiTableColumnFlags.WidthFixed, uidColumnWidth);
         ImGui.TableSetupColumn("Requestor Name", ImGuiTableColumnFlags.WidthStretch, 1.0f);
         ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, actionsColumnWidth);
 
@@ -148,6 +150,77 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
             if (ImGui.Button($"Ignore Player##{requestorUid}"))
             {
                 _pairRequestManager.SendPairRejection(new UserData(requestorUid));
+                _serverConfigurationManager.AddPairingRequestBlacklistUid(requestorUid);
+                _userClickedSomething = true;
+            }
+            UiSharedService.AttachToolTip("Ignoring a player will block their requests to you." + UiSharedService.TooltipSeparator +
+                "Unblock requests in Settings -> Sync Settings -> Pair Requests.");
+
+            if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
+            {
+                var rowIndex = ImGui.TableGetRowIndex();
+                var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
+                ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
+            }
+        }
+
+        foreach (var invite in pendingIncomingInvites)
+        {
+            float rowStartHeightStart = ImGui.GetCursorPosY();
+
+            var groupName = invite.GroupAliasOrGID;
+            var requestorUid = invite.InvitingUser?.UID ?? String.Empty;
+            var requestorName = _pairManager.GetPairByUID(requestorUid)?.PlayerName ?? invite.InvitingUser?.AliasOrUID ?? "Unknown";
+            var inviteId = invite.RequestId;
+
+            ImGui.TableNextRow();
+
+            // UID
+            ImGui.TableNextColumn();
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(groupName);
+            if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+            if (ImGui.IsItemClicked())
+            {
+                ImGui.SetClipboardText(invite.Group.AliasOrGID);
+            }
+            UiSharedService.AttachToolTip("Click to copy");
+
+            // Name
+            ImGui.TableNextColumn();
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(requestorName);
+            if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+            if (ImGui.IsItemClicked())
+            {
+                ImGui.SetClipboardText(invite.Group.AliasOrGID);
+            }
+            UiSharedService.AttachToolTip("Click to copy");
+
+            // Actions
+            ImGui.TableNextColumn();
+            ImGui.AlignTextToFramePadding();
+
+            if (ImGui.Button($"Accept##{inviteId}"))
+            {
+                _pairRequestManager.SendGroupInviteJoin(inviteId);
+                _userClickedSomething = true;
+            }
+
+            ImGui.SameLine();
+
+            if (ImGui.Button($"Dismiss##{inviteId}"))
+            {
+                _pairRequestManager.SendRejectGroupInvite(inviteId);
+                _userClickedSomething = true;
+            }
+            UiSharedService.AttachToolTip("Silently drop this request without notifying the player who sent the invite.");
+
+            ImGui.SameLine();
+
+            if (ImGui.Button($"Ignore Player##{inviteId}-{requestorUid}"))
+            {
+                _pairRequestManager.SendRejectGroupInvite(inviteId);
                 _serverConfigurationManager.AddPairingRequestBlacklistUid(requestorUid);
                 _userClickedSomething = true;
             }

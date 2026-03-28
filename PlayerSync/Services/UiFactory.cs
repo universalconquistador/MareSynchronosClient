@@ -25,13 +25,13 @@ public class UiFactory
     private readonly IBroadcastManager _broadcastManager;
     private readonly UiTheme _theme;
     private readonly FileImageTransferHandler _fileImageTransferHandler;
-    private readonly PairRequestManager _pairRequestManager;
+    private readonly PairInviteManager _pairRequestManager;
     private readonly MareConfigService _mareConfigService;
 
     public UiFactory(ILoggerFactory loggerFactory, MareMediator mareMediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, ServerConfigurationManager serverConfigManager,
         MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService, 
-        UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairRequestManager pairRequestManager, MareConfigService mareConfigService)
+        UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairInviteManager pairRequestManager, MareConfigService mareConfigService)
     {
         _loggerFactory = loggerFactory;
         _mareMediator = mareMediator;

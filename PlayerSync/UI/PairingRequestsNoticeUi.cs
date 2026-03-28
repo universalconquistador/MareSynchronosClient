@@ -11,10 +11,10 @@ namespace MareSynchronos.UI;
 public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
 {
     private bool _isDraggingPill;
-    private readonly PairRequestManager _pairRequestManager;
+    private readonly PairInviteManager _pairRequestManager;
 
     public PairingRequestsNoticeUi(ILogger<PairingRequestsNoticeUi> logger, MareMediator mediator, PerformanceCollectorService performanceCollectorService,
-        PairRequestManager pairRequestManager) : base(logger, mediator, "PlayerSync Pending Pair Notice", performanceCollectorService)
+        PairInviteManager pairRequestManager) : base(logger, mediator, "PlayerSync Pending Pair Notice", performanceCollectorService)
     {
         _pairRequestManager = pairRequestManager;
 
@@ -86,7 +86,7 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
 
         // text
         var labelText = "PlayerSync Pair Requests";
-        var countValue = _pairRequestManager.ReceivedPendingCount;
+        var countValue = _pairRequestManager.ReceivedPendingCount + _pairRequestManager.ReceivedGroupInviteCount;
         var countText = countValue.ToString();
 
         var labelSize = ImGui.CalcTextSize(labelText);
@@ -108,8 +108,11 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
 
     public override bool DrawConditions()
     {
-        if (_pairRequestManager.ReceivedPendingCount == 0) return false;
+        if (_pairRequestManager.ReceivedPendingCount == 0 && 
+            _pairRequestManager.ReceivedGroupInviteCount == 0) return false;
+
         if (!IsOpen) return false;
+
         return true;
     }
 
