@@ -7,7 +7,6 @@ using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
-using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -23,13 +22,12 @@ namespace MareSynchronos.PlayerData.Handlers
         private readonly PairManager _pairManager;
         private readonly ApiController _apiController;
         private readonly ServerConfigurationManager _serverConfigurationManager;
-        private readonly TagHandler _tagHandler;
         private readonly PairInviteManager _inviteManager;
         private readonly PlayerPerformanceConfigService _performanceConfigService;
 
         public PairContextMenuHandler(ILogger<PairContextMenuHandler> logger, MareMediator mediator, IContextMenu dalamudContextMenu,
             MareConfigService mareConfigService, DalamudUtilService dalamudUtilService, PairManager pairManager,
-            ApiController apiController, ServerConfigurationManager serverConfigurationManager, TagHandler tagHandler,
+            ApiController apiController, ServerConfigurationManager serverConfigurationManager,
             PairInviteManager pairInviteManager, PlayerPerformanceConfigService playerPerformanceConfigService) : base(logger, mediator)
         {
             _dalamudContextMenu = dalamudContextMenu;
@@ -38,7 +36,6 @@ namespace MareSynchronos.PlayerData.Handlers
             _pairManager = pairManager;
             _apiController = apiController;
             _serverConfigurationManager = serverConfigurationManager;
-            _tagHandler = tagHandler;
             _inviteManager = pairInviteManager;
             _performanceConfigService = playerPerformanceConfigService;
         }
@@ -84,7 +81,7 @@ namespace MareSynchronos.PlayerData.Handlers
                 UseDefaultPrefix = false,
                 PrefixChar = 'P',
                 PrefixColor = 530,
-                Priority = -1,
+                //Priority = -1, // you can move this to the top with -1
             });
 
             args.AddMenuItem(new MenuItem()
@@ -111,16 +108,6 @@ namespace MareSynchronos.PlayerData.Handlers
             {
                 Name = new SeStringBuilder().AddText("Add to Overrides").Build(),
                 OnClicked = (args) => DrawAddToOverridesContenxtSubmenu(pair, args),
-                IsSubmenu = true,
-                UseDefaultPrefix = false,
-                PrefixChar = 'P',
-                PrefixColor = 530
-            });
-
-            args.AddMenuItem(new MenuItem()
-            {
-                Name = new SeStringBuilder().AddText("Add to Pair Group").Build(),
-                OnClicked = (args) => DrawAddToPairGroupContenxtSubmenu(pair, args),
                 IsSubmenu = true,
                 UseDefaultPrefix = false,
                 PrefixChar = 'P',
@@ -202,15 +189,26 @@ namespace MareSynchronos.PlayerData.Handlers
                 .OrderBy(group => group.Key.GID)
                 .ToList();
 
-            foreach (var syncshell in finalSyncshells)
+            if (finalSyncshells.Count == 0)
             {
-                var shell = syncshell.Value.Group;
-                var alias = String.IsNullOrWhiteSpace(shell.Alias) ? "" : $" ({shell.Alias})";
                 menuItems.Add(new MenuItem()
                 {
-                    Name = new SeStringBuilder().AddText($"{shell.GID}{alias}").Build(),
-                    OnClicked = _ => _inviteManager.SendGroupInvite(new(syncshell.Key, pair.UserData))
+                    Name = new SeStringBuilder().AddText("No Syncshells with invite access").Build(),
+                    IsEnabled = false
                 });
+            }
+            else
+            {
+                foreach (var syncshell in finalSyncshells)
+                {
+                    var shell = syncshell.Value.Group;
+                    var alias = String.IsNullOrWhiteSpace(shell.Alias) ? "" : $" ({shell.Alias})";
+                    menuItems.Add(new MenuItem()
+                    {
+                        Name = new SeStringBuilder().AddText($"{shell.GID}{alias}").Build(),
+                        OnClicked = _ => _inviteManager.SendGroupInvite(new(syncshell.Key, pair.UserData))
+                    });
+                }
             }
 
             menuItems.Add(new MenuItem()
@@ -231,7 +229,7 @@ namespace MareSynchronos.PlayerData.Handlers
 
             menuItems.Add(new MenuItem()
             {
-                Name = new SeStringBuilder().AddText("Filtering").Build(),
+                Name = new SeStringBuilder().AddText("Mod Filtering").Build(),
                 OnClicked = _ =>
                 {
                     if (!_configurationService.Current.UIDsToOverrideFilter.Contains(pairUID, StringComparer.Ordinal))
@@ -293,35 +291,6 @@ namespace MareSynchronos.PlayerData.Handlers
             });
 
             clickedArgs.OpenSubmenu(new SeStringBuilder().AddText("Add to Overrides").Build(), menuItems);
-        }
-
-        private void DrawAddToPairGroupContenxtSubmenu(Pair pair, IMenuItemClickedArgs clickedArgs)
-        {
-            var menuItems = new List<MenuItem>();
-
-            foreach (var tag in _tagHandler.GetAllTagsSorted())
-            {
-                if (_tagHandler.HasTag(pair.UserData.UID, tag)) continue;
-
-                menuItems.Add(new MenuItem()
-                {
-                    Name = new SeStringBuilder().AddText(tag).Build(),
-                    OnClicked = _ => 
-                    {
-                        _tagHandler.AddTagToPairedUid(pair.UserData.UID, tag);
-                        Mediator.Publish(new CyclePauseMessage(pair.UserData));
-                    }
-                });
-            }
-
-            menuItems.Add(new MenuItem()
-            {
-                Name = new SeStringBuilder().AddText("Return").Build(),
-                IsReturn = true,
-                OnClicked = _ => _dalamudUtilService.OpenContextMenu(clickedArgs.AgentPtr)
-            });
-
-            clickedArgs.OpenSubmenu(new SeStringBuilder().AddText("Add to Pair Group").Build(), menuItems);
         }
     }
 }
