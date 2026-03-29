@@ -50,6 +50,9 @@ public record PenumbraResourceLoadMessage(IntPtr GameObject, string GamePath, st
 public record CustomizePlusMessage(nint? Address) : MessageBase;
 public record HonorificMessage(string NewHonorificTitle) : MessageBase;
 public record MoodlesMessage(IntPtr Address) : MessageBase;
+public record LociReadyMessage : MessageBase;
+public record LociDisposedMessage : MessageBase;
+public record LociUpdateMessage(IntPtr Address) : MessageBase;
 public record PetNamesReadyMessage : MessageBase;
 public record PetNamesMessage(string PetNicknamesData) : MessageBase;
 public record HonorificReadyMessage : MessageBase;
