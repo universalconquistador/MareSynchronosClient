@@ -42,6 +42,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private CharacterData? _cachedData = null;
     private GameObjectHandler? _charaHandler;
     private readonly Dictionary<ObjectKind, Guid?> _customizeIds = [];
+    private readonly Dictionary<ObjectKind, bool> _lociRegistrations = [];
     private CombatData? _dataReceivedInDowntime;
     private CancellationTokenSource? _downloadCancellationTokenSource = new();
     private bool _forceApplyMods = false;
@@ -408,7 +409,31 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                         break;
 
                     case PlayerChanges.Moodles:
-                        await _ipcManager.Moodles.SetStatusAsync(handler.Address, charaData.MoodlesData).ConfigureAwait(false);
+                        // If we have Loci, but not Moodles, and get Moodles data when LociData does not exist, convert to LociData and apply as a fallback.
+                        var useFallback = !_ipcManager.Moodles.APIAvailable && _ipcManager.Loci.APIAvailable;
+                        if (useFallback && (!charaData.LociData.TryGetValue(changes.Key, out var lociData) || string.IsNullOrEmpty(lociData)))
+                        {
+                            var converted = _ipcManager.Loci.ConvertToLociData(charaData.MoodlesData);
+                            if (!_lociRegistrations.GetValueOrDefault(changes.Key, false))
+                            {
+                                _lociRegistrations[changes.Key] = await _ipcManager.Loci.RegisterActor(handler.Address).ConfigureAwait(false);
+                            }
+                            await _ipcManager.Loci.SetActorManager(handler.Address, converted).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await _ipcManager.Moodles.SetStatusAsync(handler.Address, charaData.MoodlesData).ConfigureAwait(false);
+                        }
+                        break;
+
+                    case PlayerChanges.Loci:
+                        // Ensure registry
+                        if (!_lociRegistrations.GetValueOrDefault(changes.Key, false))
+                        {
+                            _lociRegistrations[changes.Key] = await _ipcManager.Loci.RegisterActor(handler.Address).ConfigureAwait(false);
+                        }
+                        var lociDataToApply = charaData.LociData.GetValueOrDefault(changes.Key, string.Empty);
+                        await _ipcManager.Loci.SetActorManager(handler.Address, lociDataToApply).ConfigureAwait(false);
                         break;
 
                     case PlayerChanges.PetNames:
@@ -699,6 +724,17 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             await _ipcManager.PetNames.SetPlayerData(PlayerCharacter, _cachedData.PetNamesData).ConfigureAwait(false);
         });
 
+        Mediator.Subscribe<LociReadyMessage>(this, async _ =>
+        {
+            if (_cachedData is null) return;
+            if (!_cachedData.LociData.TryGetValue(ObjectKind.Player, out var data) || string.IsNullOrEmpty(data)) return;
+            if (_charaHandler.Address == nint.Zero) return;
+            Logger.LogTrace("Reapplying Loci data for {this}", this);
+            if (await _ipcManager.Loci.RegisterActor(_charaHandler.Address).ConfigureAwait(false))
+                _lociRegistrations[ObjectKind.Player] = true;
+            await _ipcManager.Loci.SetActorManager(_charaHandler.Address, data).ConfigureAwait(false);
+        });
+
         _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection, _charaHandler.GetGameObject()!.ObjectIndex).GetAwaiter().GetResult();
     }
 
@@ -733,6 +769,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             await _ipcManager.Moodles.RevertStatusAsync(address).ConfigureAwait(false);
             Logger.LogDebug("[{applicationId}] Restoring Pet Nicknames for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
             await _ipcManager.PetNames.ClearPlayerData(address).ConfigureAwait(false);
+            Logger.LogDebug("[{applicationId}] Unregistering Loci for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
+            await _ipcManager.Loci.UnregisterActor(address).ConfigureAwait(false);
         }
         else if (objectKind == ObjectKind.MinionOrMount)
         {
@@ -741,6 +779,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             {
                 await _ipcManager.CustomizePlus.RevertByIdAsync(customizeId).ConfigureAwait(false);
                 using GameObjectHandler tempHandler = await _gameObjectHandlerFactory.Create(ObjectKind.MinionOrMount, () => minionOrMount, isWatched: false).ConfigureAwait(false);
+                await _ipcManager.Loci.UnregisterBuddy(name, tempHandler.Name).ConfigureAwait(false);
                 await _ipcManager.Glamourer.RevertAsync(Logger, tempHandler, applicationId, cancelToken).ConfigureAwait(false);
                 await _ipcManager.Penumbra.RedrawAsync(Logger, tempHandler, applicationId, cancelToken).ConfigureAwait(false);
             }
@@ -752,6 +791,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             {
                 await _ipcManager.CustomizePlus.RevertByIdAsync(customizeId).ConfigureAwait(false);
                 using GameObjectHandler tempHandler = await _gameObjectHandlerFactory.Create(ObjectKind.Pet, () => pet, isWatched: false).ConfigureAwait(false);
+                await _ipcManager.Loci.UnregisterBuddy(name, tempHandler.Name).ConfigureAwait(false);
                 await _ipcManager.Glamourer.RevertAsync(Logger, tempHandler, applicationId, cancelToken).ConfigureAwait(false);
                 await _ipcManager.Penumbra.RedrawAsync(Logger, tempHandler, applicationId, cancelToken).ConfigureAwait(false);
             }
@@ -763,6 +803,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             {
                 await _ipcManager.CustomizePlus.RevertByIdAsync(customizeId).ConfigureAwait(false);
                 using GameObjectHandler tempHandler = await _gameObjectHandlerFactory.Create(ObjectKind.Pet, () => companion, isWatched: false).ConfigureAwait(false);
+                await _ipcManager.Loci.UnregisterBuddy(name, tempHandler.Name).ConfigureAwait(false);
                 await _ipcManager.Glamourer.RevertAsync(Logger, tempHandler, applicationId, cancelToken).ConfigureAwait(false);
                 await _ipcManager.Penumbra.RedrawAsync(Logger, tempHandler, applicationId, cancelToken).ConfigureAwait(false);
             }
