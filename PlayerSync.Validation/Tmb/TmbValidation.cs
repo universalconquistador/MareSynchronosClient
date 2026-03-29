@@ -42,6 +42,7 @@ public static class TmbValidation
                         }
 
                         // TODO: The path is not supposed to be a full game path, it's just a segment like "cbem_sp12_2lp". How do we turn this into a full game path to validate?
+                        // Verify with MotionTimeline sheet
                         if (validatePath != null && !validatePath.Invoke(path))
                         {
                             failure = TMB002;
@@ -58,7 +59,7 @@ public static class TmbValidation
 
     private static string? GetOffsetStringValue(TmbEntry entry, string fieldName)
     {
-        // Ugh sure wish I didn't have to do this
+        // Ugh sure wish I didn't have to do this. Why are all the properties of track entries private????
         var entryType = entry.GetType();
         var field = entryType.GetField(fieldName, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         var offsetString = (TmbOffsetString?)field?.GetValue(entry);
