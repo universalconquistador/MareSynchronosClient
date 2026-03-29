@@ -144,7 +144,8 @@ namespace MareSynchronos.PlayerData.Pairs
                 if (_configurationService.Current.ShowPairingRequestNotification)
                 {
                     var msg = name != "Unknown" ? $"Player {name} ({req.Requestor.AliasOrUID}) " : $"UID/Alias {req.Requestor.AliasOrUID} ";
-                    Mediator.Publish(new NotificationMessage("New Pair Request", msg + "has sent you a request to pair directly.", MareConfiguration.Models.NotificationType.Info));
+                    Mediator.Publish(new NotificationMessage("New Pair Request", msg + "has sent you a request to pair directly.", 
+                        MareConfiguration.Models.NotificationType.Info, isInviteRequest: true));
                 }
             }
 
@@ -326,7 +327,7 @@ namespace MareSynchronos.PlayerData.Pairs
                     var msg = name != "Unknown" ? $"Player {name} ({inv.InvitingUser.AliasOrUID}) " : $"UID/Alias {inv.InvitingUser.AliasOrUID} ";
                     var alias = inv.GroupAlias == null ? "." : $" ({inv.GroupAlias}).";
                     Mediator.Publish(new NotificationMessage("Syncshell Invite", msg + "has sent you an invite to join Syncshell " +
-                        $"{inv.GID}" + alias, MareConfiguration.Models.NotificationType.Info));
+                        $"{inv.GID}" + alias, MareConfiguration.Models.NotificationType.Info, isInviteRequest: true));
                 }
             }
 
