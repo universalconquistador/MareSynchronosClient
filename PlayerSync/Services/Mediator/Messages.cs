@@ -1,5 +1,4 @@
 ﻿using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Game.Text.SeStringHandling;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.CharaData;
