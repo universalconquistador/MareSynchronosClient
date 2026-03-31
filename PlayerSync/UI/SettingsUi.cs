@@ -160,7 +160,9 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         Storage,
         Transfers,
         Service,
-        Debug
+        Vanity,
+        Debug,
+        About
     }
 
     private List<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SettingsNav>> Items)>? _navItems;
@@ -187,7 +189,9 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         ("Service", new List<UiNav.NavItem<SettingsNav>>
         {
             new(SettingsNav.Service, "Service Settings", DrawServiceSettings, FontAwesomeIcon.Server),
+            new(SettingsNav.Vanity, "Vanity/Alias", DrawVanitySettings, FontAwesomeIcon.PersonHalfDress),
             new(SettingsNav.Debug, "Debug", DrawDebugSettings, FontAwesomeIcon.Bug),
+            new(SettingsNav.About, "About", DrawAboutSettings, FontAwesomeIcon.QuestionCircle),
         }),
     };
 
