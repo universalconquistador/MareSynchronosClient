@@ -95,7 +95,7 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
         switch (msg.Type)
         {
             case NotificationType.Info:
-                if (!msg.isInviteRequest)
+                if (!msg.IsInviteRequest)
                     PrintInfoChat(msg.Message);
                 else
                     PrintPairRequestChat(msg.Message);

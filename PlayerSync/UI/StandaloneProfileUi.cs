@@ -43,7 +43,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     public StandaloneProfileUi(ILogger<StandaloneProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
         ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair, MareConfigService mareConfigService,
         PerformanceCollectorService performanceCollector, UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairInviteManager pairRequestManager)
-        : base(logger, mediator, "PlayerSync Profile of " + pair.UserData.AliasOrUID + "##PlayerSyncStandaloneProfileUI" + pair.UserData.AliasOrUID, performanceCollector)
+        : base(logger, mediator, "PlayerSync Profile of " + pair.UserData.AliasOrUID + "##PlayerSyncStandaloneProfileUI" + pair.UserData.UID, performanceCollector)
     {
         _uiSharedService = uiBuilder;
         _serverManager = serverManager;
@@ -59,6 +59,10 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
             | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoBackground;
 
         SizeCondition = ImGuiCond.FirstUseEver;
+
+        var viewport = ImGui.GetMainViewport();
+        Position = viewport.WorkPos + (viewport.WorkSize / 2f) - new Vector2(200f, 355.5f);
+        PositionCondition = ImGuiCond.FirstUseEver;
 
         SizeConstraints = new WindowSizeConstraints
         {
@@ -101,13 +105,14 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     {
         base.OnOpen();
 
+        BringToFront();
+
         if (_textureWrap != null)
             return;
 
         _profileImageDownloadCts = _profileImageDownloadCts.CancelRecreate();
         var cancellationToken = _profileImageDownloadCts.Token;
 
-        // let download run in background
         _profileImageDownloadTask = _fileImageTransferHandler.DownloadProfileImageAsync(Pair.UserData.UID, cancellationToken,
             imageBytes => _lastProfilePicture = imageBytes);
     }
@@ -144,7 +149,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         // get profile data
         var psProfile = _mareProfileManager.GetMareProfile(Pair.UserData);
         var profile = MareProfileManager.ProfileHandler.Read(psProfile.Description);
-        var notesDraft = _serverManager.GetProfileNoteForUid(Pair.UserData.UID) ?? "";
+        //var notesDraft = _serverManager.GetProfileNoteForUid(Pair.UserData.UID) ?? "";
         try
         {
             _textureWrap ??= _uiSharedService.LoadImage(psProfile.ImageData.Value);
