@@ -246,6 +246,16 @@ public static class VariousExtensions
                 charaDataToUpdate[objectKind].Add(PlayerChanges.Moodles);
             }
 
+            var oldLociData = oldData.LociData.GetValueOrDefault(objectKind, string.Empty);
+            var newLociData = newData.LociData.GetValueOrDefault(objectKind, string.Empty);
+
+            bool lociDataDifferent = !string.Equals(oldLociData, newLociData, StringComparison.Ordinal);
+            if (lociDataDifferent || (forceApplyCustomization && !string.IsNullOrEmpty(newLociData)))
+            {
+                logger.LogDebug("[BASE-{appBase}] Updating {object}/{kind} (Diff loci data) => {change}", applicationBase, cachedPlayer, objectKind, PlayerChanges.Loci);
+                charaDataToUpdate[objectKind].Add(PlayerChanges.Loci);
+            }
+
             bool petNamesDataDifferent = !string.Equals(oldData.PetNamesData, newData.PetNamesData, StringComparison.Ordinal);
             if (petNamesDataDifferent || (forceApplyCustomization && !string.IsNullOrEmpty(newData.PetNamesData)))
             {

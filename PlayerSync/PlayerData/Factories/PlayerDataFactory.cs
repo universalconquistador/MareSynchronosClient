@@ -198,12 +198,16 @@ public class PlayerDataFactory
         Task<string> getHeelsOffset = _ipcManager.Heels.GetOffsetAsync();
         Task<string> getGlamourerData = _ipcManager.Glamourer.GetCharacterCustomizationAsync(playerRelatedObject.Address);
         Task<string?> getCustomizeData = _ipcManager.CustomizePlus.GetScaleAsync(playerRelatedObject.Address);
+        Task<string> getLociData = _ipcManager.Loci.GetActorManager(playerRelatedObject.Address);
         Task<string> getHonorificTitle = _ipcManager.Honorific.GetTitle();
         fragment.GlamourerString = await getGlamourerData.ConfigureAwait(false);
         _logger.LogDebug("Glamourer is now: {data}", fragment.GlamourerString);
         var customizeScale = await getCustomizeData.ConfigureAwait(false);
         fragment.CustomizePlusScale = customizeScale ?? string.Empty;
         _logger.LogDebug("Customize is now: {data}", fragment.CustomizePlusScale);
+        fragment.LociData = await getLociData.ConfigureAwait(false);
+        _logger.LogDebug("Loci is now: {data}", fragment.LociData);
+
 
         if (objectKind == ObjectKind.Player)
         {

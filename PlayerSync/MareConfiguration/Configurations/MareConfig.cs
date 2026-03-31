@@ -106,4 +106,5 @@ public class MareConfig : IMareConfiguration
         ContextMenuItemId.AddToOverrides,
         ContextMenuItemId.None
    };
+    public bool ShowProfileIconByNames { get; set; } = true;
 }

@@ -32,7 +32,8 @@ public class PluginWarningNotificationService
                 ShownHeelsWarning = _mareConfigService.Current.DisableOptionalPluginWarnings,
                 ShownHonorificWarning = _mareConfigService.Current.DisableOptionalPluginWarnings,
                 ShownMoodlesWarning = _mareConfigService.Current.DisableOptionalPluginWarnings,
-                ShowPetNicknamesWarning = _mareConfigService.Current.DisableOptionalPluginWarnings
+                ShowPetNicknamesWarning = _mareConfigService.Current.DisableOptionalPluginWarnings,
+                ShowLociWarning = _mareConfigService.Current.DisableOptionalPluginWarnings
             };
         }
 
@@ -54,7 +55,8 @@ public class PluginWarningNotificationService
             warning.ShownHonorificWarning = true;
         }
 
-        if (changes.Contains(PlayerChanges.Moodles) && !warning.ShownMoodlesWarning && !_ipcManager.Moodles.APIAvailable)
+        // If we have Loci we can supress this warning as we are able to do a conversion process with it
+        if (changes.Contains(PlayerChanges.Moodles) && !warning.ShownMoodlesWarning && !_ipcManager.Moodles.APIAvailable && !_ipcManager.Loci.APIAvailable)
         {
             missingPluginsForData.Add("Moodles");
             warning.ShownMoodlesWarning = true;
@@ -64,6 +66,12 @@ public class PluginWarningNotificationService
         {
             missingPluginsForData.Add("PetNicknames");
             warning.ShowPetNicknamesWarning = true;
+        }
+
+        if (changes.Contains(PlayerChanges.Loci) && !warning.ShowLociWarning && !_ipcManager.Loci.APIAvailable)
+        {
+            missingPluginsForData.Add("Loci");
+            warning.ShowLociWarning = true;
         }
 
         if (missingPluginsForData.Any())

@@ -50,6 +50,9 @@ public record PenumbraResourceLoadMessage(IntPtr GameObject, string GamePath, st
 public record CustomizePlusMessage(nint? Address) : MessageBase;
 public record HonorificMessage(string NewHonorificTitle) : MessageBase;
 public record MoodlesMessage(IntPtr Address) : MessageBase;
+public record LociReadyMessage : MessageBase;
+public record LociDisposedMessage : MessageBase;
+public record LociUpdateMessage(IntPtr Address) : MessageBase;
 public record PetNamesReadyMessage : MessageBase;
 public record PetNamesMessage(string PetNicknamesData) : MessageBase;
 public record HonorificReadyMessage : MessageBase;
@@ -57,7 +60,7 @@ public record TransientResourceChangedMessage(IntPtr Address) : MessageBase;
 public record HaltScanMessage(string Source) : MessageBase;
 public record ResumeScanMessage(string Source) : MessageBase;
 public record NotificationMessage
-    (string Title, string Message, NotificationType Type, TimeSpan? TimeShownOnScreen = null, bool isInviteRequest = false) : MessageBase;
+    (string Title, string Message, NotificationType Type, TimeSpan? TimeShownOnScreen = null, bool IsInviteRequest = false) : MessageBase;
 public record CreateCacheForObjectMessage(GameObjectHandler ObjectToCreateFor) : SameThreadMessage;
 public record ClearCacheForObjectMessage(GameObjectHandler ObjectToCreateFor) : SameThreadMessage;
 public record CharacterDataCreatedMessage(CharacterData CharacterData) : SameThreadMessage;
@@ -76,7 +79,6 @@ public record PrefillJoinSyncshellParameters(string GroupId, bool ExpectPassword
 public record PreloadJoinSyncshellDtoMessage(GroupJoinInfoDto Dto, string Password) : MessageBase;
 public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading) : MessageBase;
 public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;
-//public record UserAddPairMessage(UserData UserData) : MessageBase;
 public record UserPairStickyPauseAndRemoveMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
 public record PauseMessage(UserData UserData, PauseReason Reason) : MessageBase;
