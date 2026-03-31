@@ -100,10 +100,10 @@ public class MareConfig : IMareConfiguration
     public ContextMenuItemId[] ContextMenuOrder { get; set; } = new ContextMenuItemId[5]
    {
         ContextMenuItemId.OpenProfile,
-        ContextMenuItemId.PauseForever,
         ContextMenuItemId.PairData,
         ContextMenuItemId.InviteToSyncshell,
-        ContextMenuItemId.AddToOverrides
+        ContextMenuItemId.AddToOverrides,
+       ContextMenuItemId.PauseForever
    };
     public bool[] SPriority { get; set; } = new bool[5];
     public bool ShowProfileIconByNames { get; set; } = true;
