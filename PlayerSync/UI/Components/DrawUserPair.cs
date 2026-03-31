@@ -70,6 +70,7 @@ public class DrawUserPair
             var posX = ImGui.GetCursorPosX();
             var rightSide = DrawRightSide();
             DrawName(posX, rightSide);
+            _displayHandler.DrawProfileIcon(_pair);
         }
         _wasHovered = ImGui.IsItemHovered();
         color.Dispose();

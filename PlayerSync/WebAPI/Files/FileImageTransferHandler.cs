@@ -40,9 +40,9 @@ public class FileImageTransferHandler
 
             setImageBytes(imageBytes);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            //
+            _logger.LogError(ex, "Download cancelled for profile image for {uid}", uid);
         }
         catch (Exception ex)
         {
@@ -85,12 +85,23 @@ public class FileImageTransferHandler
     {
         var requestUri = MareFiles.ServerFilesProfileImageDownload(_fileTransferOrchestrator.FilesCdnUri!, uid);
 
-        using var response = await _fileTransferOrchestrator.SendRequestAsync(HttpMethod.Get, requestUri, ct, withToken: true).ConfigureAwait(false);
+        try
+        {
+            using var response = await _fileTransferOrchestrator.SendRequestAsync(HttpMethod.Get, requestUri, ct, withToken: true).ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-            return new ProfileImagesDto();
+            _logger.LogDebug(response.StatusCode.ToString());
 
-        var dto = await response.Content.ReadFromJsonAsync<ProfileImagesDto>(cancellationToken: ct).ConfigureAwait(false);
-        return dto ?? new ProfileImagesDto();
+            if (!response.IsSuccessStatusCode)
+                return new ProfileImagesDto();
+
+            var dto = await response.Content.ReadFromJsonAsync<ProfileImagesDto>(cancellationToken: ct).ConfigureAwait(false);
+            return dto ?? new ProfileImagesDto();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in fetching profile link for {uid}", uid);
+        }
+
+        return new ProfileImagesDto();
     }
 }

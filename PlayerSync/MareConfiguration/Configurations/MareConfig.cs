@@ -96,4 +96,5 @@ public class MareConfig : IMareConfiguration
     public bool FirstTimeSetupComplete { get; set; } = false;
     public bool DisableSyncDuringDuty { get; set; } = false;
     public bool DebugDisableSoundIndicators { get; set; } = false;
+    public bool ShowProfileIconByNames { get; set; } = true;
 }
