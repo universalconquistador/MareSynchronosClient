@@ -14,6 +14,27 @@ using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.PlayerData.Handlers
 {
+    public enum ContextMenuItemId
+    {
+        None = 0,
+        OpenProfile,
+        PauseForever,
+        PairData,
+        InviteToSyncshell,
+        AddToOverrides,
+    }
+    public static class ContextMenuSettings
+    {
+        public static ContextMenuItemId[] Order { get; set; } = new ContextMenuItemId[6]
+        {
+        ContextMenuItemId.OpenProfile,
+        ContextMenuItemId.PauseForever,
+        ContextMenuItemId.PairData,
+        ContextMenuItemId.InviteToSyncshell,
+        ContextMenuItemId.AddToOverrides,
+        ContextMenuItemId.None
+        };
+    }
     public class PairContextMenuHandler : DisposableMediatorSubscriberBase, IHostedService
     {
         private readonly IContextMenu _dalamudContextMenu;
@@ -74,55 +95,73 @@ namespace MareSynchronos.PlayerData.Handlers
         {
             if (!pair.HasCachedPlayer || (args.Target is not MenuTargetDefault target) || target.TargetObjectId != pair.PlayerCharacterId || pair.IsPaused) return;
 
-            args.AddMenuItem(new MenuItem()
+            foreach (var itemS in _configurationService.Current.ContextMenuOrder)
             {
-                Name = new SeStringBuilder().AddText("Open Profile").Build(),
-                OnClicked = (a) => Mediator.Publish(new ProfileOpenStandaloneMessage(pair)),
-                UseDefaultPrefix = false,
-                PrefixChar = 'P',
-                PrefixColor = 530,
-                //Priority = -1, // you can move this to the top with -1
-            });
+                if (itemS == ContextMenuItemId.None) continue;
 
-            args.AddMenuItem(new MenuItem()
-            {
-                Name = new SeStringBuilder().AddText("Pair Data").Build(),
-                OnClicked = (args) => DrawPairDataContenxtSubmenu(pair, args),
-                IsSubmenu = true,
-                UseDefaultPrefix = false,
-                PrefixChar = 'P',
-                PrefixColor = 530
-            });
+                switch (itemS)
+                {
+                    case ContextMenuItemId.OpenProfile:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Open Profile").Build(),
+                            OnClicked = (a) => Mediator.Publish(new ProfileOpenStandaloneMessage(pair)),
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 530,
+                            //Priority = -1, // you can move this to the top with -1
+                        });
+                        break;
 
-            args.AddMenuItem(new MenuItem()
-            {
-                Name = new SeStringBuilder().AddText("Invite to Syncshell").Build(),
-                OnClicked = (args) => DrawSyncshellInviteContenxtSubmenu(pair, args),
-                IsSubmenu = true,
-                UseDefaultPrefix = false,
-                PrefixChar = 'P',
-                PrefixColor = 530
-            });
+                    case ContextMenuItemId.PairData:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Pair Data").Build(),
+                            OnClicked = (args) => DrawPairDataContenxtSubmenu(pair, args),
+                            IsSubmenu = true,
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 530
+                        });
+                        break;
 
-            args.AddMenuItem(new MenuItem()
-            {
-                Name = new SeStringBuilder().AddText("Add to Overrides").Build(),
-                OnClicked = (args) => DrawAddToOverridesContenxtSubmenu(pair, args),
-                IsSubmenu = true,
-                UseDefaultPrefix = false,
-                PrefixChar = 'P',
-                PrefixColor = 530
-            });
+                    case ContextMenuItemId.InviteToSyncshell:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Invite to Syncshell").Build(),
+                            OnClicked = (args) => DrawSyncshellInviteContenxtSubmenu(pair, args),
+                            IsSubmenu = true,
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 530
+                        });
+                        break;
 
-            // This kind of acts like a blacklist feature
-            args.AddMenuItem(new MenuItem()
-            {
-                Name = new SeStringBuilder().AddText("Keep Paused").Build(),
-                OnClicked = (a) => Mediator.Publish(new UserPairStickyPauseAndRemoveMessage(pair.UserData)),
-                UseDefaultPrefix = false,
-                PrefixChar = 'P',
-                PrefixColor = 17
-            });
+                    case ContextMenuItemId.AddToOverrides:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Add to Overrides").Build(),
+                            OnClicked = (args) => DrawAddToOverridesContenxtSubmenu(pair, args),
+                            IsSubmenu = true,
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 530
+                        });
+                        break;
+
+                    // This kind of acts like a blacklist feature
+                    case ContextMenuItemId.PauseForever:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Keep Paused").Build(),
+                            OnClicked = (a) => Mediator.Publish(new UserPairStickyPauseAndRemoveMessage(pair.UserData)),
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 17
+                        });
+                        break;
+                }
+            }
         }
 
         private void DrawPairDataContenxtSubmenu(Pair pair, IMenuItemClickedArgs clickedArgs)

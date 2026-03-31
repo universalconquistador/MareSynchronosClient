@@ -8,6 +8,7 @@ using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.ModernUi;
 using System.Numerics;
+using MareSynchronos.PlayerData.Handlers;
 
 namespace MareSynchronos.UI;
 
@@ -25,6 +26,7 @@ public partial class SettingsUi
         new(InterfaceTabs.Game, "Game UI", DrawInterfaceGameUi),
         new(InterfaceTabs.Notes, "Notes", DrawInterfaceNotes),
         new(InterfaceTabs.Notifications, "Notifications", DrawInterfaceNotifications),
+        new(InterfaceTabs.ContextMenu, "Context Menu", DrawInterfaceContext),
     ];
 
     private enum InterfaceTabs
@@ -32,7 +34,8 @@ public partial class SettingsUi
         Ui,
         Game,
         Notes,
-        Notifications
+        Notifications,
+        ContextMenu
     }
 
     private void DrawInterfaceSettings()
@@ -539,5 +542,74 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will only show online notifications (type: Info) for pairs where you have set an individual note.");
+    }
+    private void DrawInterfaceContext()
+    {
+        if (!string.Equals(_lastTab, "General", StringComparison.OrdinalIgnoreCase))
+        {
+            _notesSuccessfullyApplied = null;
+        }
+
+        _lastTab = "General";
+
+        _uiShared.BigText("Context Menu Options Order");
+        ImGui.NewLine();
+        ImGui.TextUnformatted("Options that will display when right clicking on a character");
+        ImGui.TextUnformatted("This only affect the main context menu, sub menus are not affected.");
+
+        ImGuiHelpers.ScaledDummy(2);
+        ImGui.Separator();
+        ImGuiHelpers.ScaledDummy(2);
+
+        string GetLabel(ContextMenuItemId id) => id switch
+        {
+            ContextMenuItemId.None => "Do Not Show",
+            ContextMenuItemId.OpenProfile => "Open Profile",
+            ContextMenuItemId.PauseForever => "Keep Paused",
+            ContextMenuItemId.PairData => "Pair Data",
+            ContextMenuItemId.InviteToSyncshell => "Invite To SyncShell",
+            ContextMenuItemId.AddToOverrides => "Add to Overrides",
+            _ => id.ToString()
+        };
+
+        for (int ss = 0; ss < 5; ss++)
+        {
+            var currentconfig = _configService.Current.ContextMenuOrder[ss];
+            var optionS = _configService.Current.ContextMenuOrder;
+
+            ImGui.PushItemWidth(300);
+            if (ImGui.BeginCombo($"Context Menu Option {ss + 1}", GetLabel(currentconfig)))
+            {
+                foreach (ContextMenuItemId Sopt in Enum.GetValues<ContextMenuItemId>())
+                {
+                    if (ImGui.Selectable(GetLabel(Sopt), Sopt == currentconfig))
+                    {
+                        if (Sopt == ContextMenuItemId.None)
+                        {
+                            optionS[ss] = ContextMenuItemId.None;
+                        }
+                        else
+                        {
+                            int contextSwap = Array.IndexOf(optionS, Sopt);
+                            if (contextSwap >= 0 && contextSwap != ss &&
+                                optionS[contextSwap] != ContextMenuItemId.None)
+                            {
+                                optionS[contextSwap] = currentconfig;
+                            }
+                            optionS[ss] = Sopt;
+                        }
+                    }
+                }
+                ImGui.EndCombo();
+            }
+            ImGui.PopItemWidth();
+        }
+
+        ImGuiHelpers.ScaledDummy(10);
+        if (ImGui.Button("Save Current Config"))
+        {
+            _configService.Current.ContextMenuOrder = [.. _configService.Current.ContextMenuOrder.Take(5)];
+            _configService.Save();
+        }
     }
 }
