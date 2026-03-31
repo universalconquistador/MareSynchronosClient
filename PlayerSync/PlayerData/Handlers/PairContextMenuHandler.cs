@@ -34,6 +34,7 @@ namespace MareSynchronos.PlayerData.Handlers
         ContextMenuItemId.AddToOverrides,
         ContextMenuItemId.None
         };
+        public static bool[] SPriority { get; set; } = new bool[6];
     }
     public class PairContextMenuHandler : DisposableMediatorSubscriberBase, IHostedService
     {
@@ -95,10 +96,12 @@ namespace MareSynchronos.PlayerData.Handlers
         {
             if (!pair.HasCachedPlayer || (args.Target is not MenuTargetDefault target) || target.TargetObjectId != pair.PlayerCharacterId || pair.IsPaused) return;
 
-            foreach (var itemS in _configurationService.Current.ContextMenuOrder)
+            for (int ss = 0; ss < _configurationService.Current.ContextMenuOrder.Length; ss++)
             {
+                var itemS = _configurationService.Current.ContextMenuOrder[ss];
                 if (itemS == ContextMenuItemId.None) continue;
 
+                int pri = _configurationService.Current.SPriority[ss] ? -1 : 0;
                 switch (itemS)
                 {
                     case ContextMenuItemId.OpenProfile:
@@ -109,6 +112,7 @@ namespace MareSynchronos.PlayerData.Handlers
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
                             PrefixColor = 530,
+                            Priority = pri,
                             //Priority = -1, // you can move this to the top with -1
                         });
                         break;
@@ -121,7 +125,8 @@ namespace MareSynchronos.PlayerData.Handlers
                             IsSubmenu = true,
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
-                            PrefixColor = 530
+                            PrefixColor = 530,
+                            Priority = pri,
                         });
                         break;
 
@@ -133,7 +138,8 @@ namespace MareSynchronos.PlayerData.Handlers
                             IsSubmenu = true,
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
-                            PrefixColor = 530
+                            PrefixColor = 530,
+                            Priority = pri,
                         });
                         break;
 
@@ -145,7 +151,8 @@ namespace MareSynchronos.PlayerData.Handlers
                             IsSubmenu = true,
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
-                            PrefixColor = 530
+                            PrefixColor = 530,
+                            Priority = pri,
                         });
                         break;
 
@@ -157,7 +164,8 @@ namespace MareSynchronos.PlayerData.Handlers
                             OnClicked = (a) => Mediator.Publish(new UserPairStickyPauseAndRemoveMessage(pair.UserData)),
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
-                            PrefixColor = 17
+                            PrefixColor = 17,
+                            Priority = pri,
                         });
                         break;
                 }

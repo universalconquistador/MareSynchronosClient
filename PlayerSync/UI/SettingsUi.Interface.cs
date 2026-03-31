@@ -570,8 +570,8 @@ public partial class SettingsUi
             var currentconfig = _configService.Current.ContextMenuOrder[ss];
             var optionS = _configService.Current.ContextMenuOrder;
 
-            ImGui.PushItemWidth(300);
-            if (ImGui.BeginCombo($"Context Menu Option {ss + 1}", GetLabel(currentconfig)))
+            ImGui.PushItemWidth(225 * ImGui.GetIO().FontGlobalScale);//scales properly now.
+            if (ImGui.BeginCombo($"Context Menu Option {ss + 1}##{ss}", GetLabel(currentconfig)))
             {
                 foreach (ContextMenuItemId Sopt in Enum.GetValues<ContextMenuItemId>())
                 {
@@ -596,12 +596,13 @@ public partial class SettingsUi
                 ImGui.EndCombo();
             }
             ImGui.PopItemWidth();
+            ImGui.SameLine(0,40 * ImGui.GetIO().FontGlobalScale);
+            ImGui.Checkbox($"Put Command On Top##{ss}", ref _configService.Current.SPriority[ss]);
         }
 
         ImGuiHelpers.ScaledDummy(10);
         if (ImGui.Button("Save Current Config"))
         {
-            _configService.Current.ContextMenuOrder = [.. _configService.Current.ContextMenuOrder.Take(5)];
             _configService.Save();
         }
     }
