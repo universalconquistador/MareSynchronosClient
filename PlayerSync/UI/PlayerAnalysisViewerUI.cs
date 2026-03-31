@@ -415,6 +415,22 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     UiSharedService.AttachToolTip("Left click to copy UID" + UiSharedService.TooltipSeparator + 
                         "Middle mouse button to open user profile");
 
+                    if (!(!pair.HasProfile || pair.IsPaused || pair.UserPair.OtherPermissions.IsPaused() || pair.IsOneSidedPair))
+                    {
+                        ImGui.SameLine();
+                        ImGui.AlignTextToFramePadding();
+
+                        _uiSharedService.IconText(FontAwesomeIcon.Portrait);
+
+                        UiSharedService.AttachToolTip("Open Profile");
+
+                        if (ImGui.IsItemHovered())
+                            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+
+                        if (ImGui.IsItemClicked())
+                            Mediator.Publish(new ProfileOpenStandaloneMessage(pair));
+                    }                    
+
                     // Alias/vanity Column
                     ImGui.TableSetColumnIndex(2);
                     ImGui.AlignTextToFramePadding();

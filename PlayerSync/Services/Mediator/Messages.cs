@@ -60,7 +60,7 @@ public record TransientResourceChangedMessage(IntPtr Address) : MessageBase;
 public record HaltScanMessage(string Source) : MessageBase;
 public record ResumeScanMessage(string Source) : MessageBase;
 public record NotificationMessage
-    (string Title, string Message, NotificationType Type, TimeSpan? TimeShownOnScreen = null, bool isInviteRequest = false) : MessageBase;
+    (string Title, string Message, NotificationType Type, TimeSpan? TimeShownOnScreen = null, bool IsInviteRequest = false) : MessageBase;
 public record CreateCacheForObjectMessage(GameObjectHandler ObjectToCreateFor) : SameThreadMessage;
 public record ClearCacheForObjectMessage(GameObjectHandler ObjectToCreateFor) : SameThreadMessage;
 public record CharacterDataCreatedMessage(CharacterData CharacterData) : SameThreadMessage;
@@ -79,7 +79,6 @@ public record PrefillJoinSyncshellParameters(string GroupId, bool ExpectPassword
 public record PreloadJoinSyncshellDtoMessage(GroupJoinInfoDto Dto, string Password) : MessageBase;
 public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading) : MessageBase;
 public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;
-//public record UserAddPairMessage(UserData UserData) : MessageBase;
 public record UserPairStickyPauseAndRemoveMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
 public record PauseMessage(UserData UserData, PauseReason Reason) : MessageBase;

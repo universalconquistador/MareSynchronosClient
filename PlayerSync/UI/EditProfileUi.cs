@@ -337,7 +337,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         }
 
         ImGui.Separator();
-        ImGui.TextUnformatted("Profile Picture - 9:16 aspect ratio (1920x1080) jpg/png up to 4MiB");
+        ImGui.TextUnformatted("Profile Picture - 9:16 aspect ratio (1080x1920) jpg/png up to 4MiB");
         DrawProfilePictureUpload();
 
         ImGui.Separator();

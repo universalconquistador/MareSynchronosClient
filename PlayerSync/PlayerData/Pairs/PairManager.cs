@@ -142,7 +142,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     {
         if (!_allClientPairs.ContainsKey(dto.User)) throw new InvalidOperationException("No user found for " + dto);
 
-        Mediator.Publish(new ClearProfileDataMessage(dto.User));
+        //Mediator.Publish(new ClearProfileDataMessage(dto.User));
 
         var pair = _allClientPairs[dto.User];
         if (pair.HasCachedPlayer)
