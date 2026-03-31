@@ -5,10 +5,10 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.MareConfiguration.Models;
+using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.ModernUi;
 using System.Numerics;
-using MareSynchronos.PlayerData.Handlers;
 
 namespace MareSynchronos.UI;
 
@@ -553,32 +553,36 @@ public partial class SettingsUi
         _lastTab = "General";
 
         _uiShared.BigText("Context Menu Options Order");
-        ImGui.NewLine();
-        ImGui.TextUnformatted("Options that will display when right clicking on a character");
-        ImGui.TextUnformatted("This only affect the main context menu, sub menus are not affected.");
+        ImGuiHelpers.ScaledDummy(2);
 
-        ImGuiHelpers.ScaledDummy(2);
-        ImGui.Separator();
-        ImGuiHelpers.ScaledDummy(2);
+        ImGui.TextWrapped("These options will display when right clicking another PlayerSync player.");
+        ImGui.TextWrapped("This only affect the main context menu, sub menus are not affected.");
+
+        ImGui.Dummy(new Vector2(10));
 
         string GetLabel(ContextMenuItemId id) => id switch
         {
             ContextMenuItemId.None => "Do Not Show",
             ContextMenuItemId.OpenProfile => "Open Profile",
             ContextMenuItemId.PauseForever => "Keep Paused",
-            ContextMenuItemId.PairData => "Pair Data",
-            ContextMenuItemId.InviteToSyncshell => "Invite To SyncShell",
-            ContextMenuItemId.AddToOverrides => "Add to Overrides",
+            ContextMenuItemId.PairData => "Pair Data (Submenu)",
+            ContextMenuItemId.InviteToSyncshell => "Invite To SyncShell (Submenu)",
+            ContextMenuItemId.AddToOverrides => "Add to Overrides (Submenu)",
+            ContextMenuItemId.ReapplyLastData => "Reapply Last Data",
+            ContextMenuItemId.ChangePermissions => "Change Permissions",
+            ContextMenuItemId.CyclePauseState => "Cycle Pause State",
             _ => id.ToString()
         };
+
+        bool hasChanges = false;
 
         for (int ss = 0; ss < 5; ss++)
         {
             var currentconfig = _configService.Current.ContextMenuOrder[ss];
             var optionS = _configService.Current.ContextMenuOrder;
 
-            ImGui.PushItemWidth(300);
-            if (ImGui.BeginCombo($"Context Menu Option {ss + 1}", GetLabel(currentconfig)))
+            ImGui.PushItemWidth(240 * ImGui.GetIO().FontGlobalScale);//scales properly now.
+            if (ImGui.BeginCombo($"Context Menu Option {ss + 1}##{ss}", GetLabel(currentconfig)))
             {
                 foreach (ContextMenuItemId Sopt in Enum.GetValues<ContextMenuItemId>())
                 {
@@ -598,17 +602,22 @@ public partial class SettingsUi
                             }
                             optionS[ss] = Sopt;
                         }
+
+                        hasChanges = true;
                     }
                 }
                 ImGui.EndCombo();
             }
             ImGui.PopItemWidth();
+            ImGui.SameLine(0,40 * ImGui.GetIO().FontGlobalScale);
+            if (ImGui.Checkbox($"Put Command On Top##{ss}", ref _configService.Current.SPriority[ss]))
+            {
+                hasChanges = true;
+            }
         }
 
-        ImGuiHelpers.ScaledDummy(10);
-        if (ImGui.Button("Save Current Config"))
+        if (hasChanges)
         {
-            _configService.Current.ContextMenuOrder = [.. _configService.Current.ContextMenuOrder.Take(5)];
             _configService.Save();
         }
     }
