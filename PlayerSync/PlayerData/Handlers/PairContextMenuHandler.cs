@@ -1,6 +1,7 @@
 ﻿using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
+using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
@@ -22,7 +23,11 @@ namespace MareSynchronos.PlayerData.Handlers
         PairData,
         InviteToSyncshell,
         AddToOverrides,
+        ReapplyLastData,
+        ChangePermissions,
+        CyclePauseState,
     }
+
     public static class ContextMenuSettings
     {
         public static ContextMenuItemId[] Order { get; set; } = new ContextMenuItemId[6]
@@ -36,6 +41,7 @@ namespace MareSynchronos.PlayerData.Handlers
         };
         public static bool[] SPriority { get; set; } = new bool[6];
     }
+
     public class PairContextMenuHandler : DisposableMediatorSubscriberBase, IHostedService
     {
         private readonly IContextMenu _dalamudContextMenu;
@@ -165,6 +171,42 @@ namespace MareSynchronos.PlayerData.Handlers
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
                             PrefixColor = 17,
+                            Priority = pri,
+                        });
+                        break;
+
+                    case ContextMenuItemId.ReapplyLastData:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Reapply Last Data").Build(),
+                            OnClicked = (a) => pair.ApplyLastReceivedData(forced: true),
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 530,
+                            Priority = pri,
+                        });
+                        break;
+
+                    case ContextMenuItemId.ChangePermissions:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Change Permissions").Build(),
+                            OnClicked = (a) => Mediator.Publish(new OpenPermissionWindow(pair)),
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 530,
+                            Priority = pri,
+                        });
+                        break;
+
+                    case ContextMenuItemId.CyclePauseState:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Cycle Pause State").Build(),
+                            OnClicked = (a) => Mediator.Publish(new CyclePauseMessage(pair.UserData)),
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 530,
                             Priority = pri,
                         });
                         break;
