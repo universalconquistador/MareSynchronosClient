@@ -11,4 +11,5 @@ public enum PlayerChanges
     ForcedRedraw = 8,
     Moodles = 9,
     PetNames = 10,
+    Loci = 11,
 }

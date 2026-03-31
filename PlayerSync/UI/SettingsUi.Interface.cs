@@ -68,6 +68,7 @@ public partial class SettingsUi
         var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
         var showCompactStats = _configService.Current.ShowCompactStats;
         var mysterySetting = _configService.Current.MysterySetting;
+        var showProfileIcon = _configService.Current.ShowProfileIconByNames;
 
         _uiShared.BigText("PlayerSync UI");
         ImGuiHelpers.ScaledDummy(2);
@@ -225,6 +226,12 @@ public partial class SettingsUi
                 _uiShared.DrawHelpText("Will not show NSFW warning before displaying a profile.");
             }
         }
+        if (ImGui.Checkbox("Show profile indicator by player UID/names", ref showProfileIcon))
+        {
+            _configService.Current.ShowProfileIconByNames = showProfileIcon;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Shows a portrain icon by player entries in the main UI if they have a profile picture set.");
         if (ImGui.Checkbox("Mystery Setting", ref mysterySetting))
         {
             _configService.Current.MysterySetting = mysterySetting;

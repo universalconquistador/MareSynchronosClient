@@ -7,4 +7,5 @@ public record OptionalPluginWarning
     public bool ShownHonorificWarning { get; set; } = false;
     public bool ShownMoodlesWarning { get; set; } = false;
     public bool ShowPetNicknamesWarning { get; set; } = false;
+    public bool ShowLociWarning { get; set; } = false;
 }

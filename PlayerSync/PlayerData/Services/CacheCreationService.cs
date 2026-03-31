@@ -122,6 +122,17 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             }
         });
 
+        Mediator.Subscribe<LociUpdateMessage>(this, (msg) =>
+        {
+            if (_isZoning) return;
+            var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
+            if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType))
+            {
+                Logger.LogDebug("Received Loci change for {kind}", changedType);
+                AddCacheToCreate(changedType.Key);
+            }
+        });
+
         Mediator.Subscribe<PetNamesMessage>(this, (msg) =>
         {
             if (_isZoning) return;

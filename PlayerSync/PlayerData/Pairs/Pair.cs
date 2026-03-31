@@ -22,6 +22,7 @@ public class Pair
     private readonly MareConfigService _configService;
     private CancellationTokenSource _applicationCts = new();
     private OnlineUserIdentDto? _onlineUserIdentDto = null;
+    private bool? _hasProfile = null;
 
     public Pair(ILogger<Pair> logger, UserFullPairDto userPair, PairHandlerFactory cachedPlayerFactory,
         MareMediator mediator, ServerConfigurationManager serverConfigurationManager, MareConfigService mareConfigService)
@@ -50,6 +51,7 @@ public class Pair
     public int LastAppliedCompressedAlternates { get; set; } = -1;
     public DateTimeOffset? LastLoadedSoundSinceRedraw { get; set; } = null;
     public string Ident => _onlineUserIdentDto?.Ident ?? string.Empty;
+   
     public nint Address => CachedPlayer?.PlayerCharacter ?? nint.Zero;
     
     public UserData UserData => UserPair.User;
@@ -57,6 +59,8 @@ public class Pair
     public UserFullPairDto UserPair { get; set; }
     private PairHandler? CachedPlayer { get; set; }
     public unsafe uint PlayerCharacterId => CachedPlayer?.PlayerCharacterId ?? uint.MaxValue;
+
+    public bool HasProfile => UserPair.User.HasProfile ?? false;
 
     public void ApplyData(OnlineUserCharaDataDto data)
     {

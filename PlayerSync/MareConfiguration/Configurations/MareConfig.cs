@@ -106,4 +106,5 @@ public class MareConfig : IMareConfiguration
         ContextMenuItemId.AddToOverrides
    };
     public bool[] SPriority { get; set; } = new bool[5];
+    public bool ShowProfileIconByNames { get; set; } = true;
 }
