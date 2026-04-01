@@ -143,6 +143,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         //if (!ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
         //    IsOpen = false;
 
+        if (!_uiSharedService.ApiController.IsConnected) IsOpen = false;
+
         // user might unpair us, pause, etc.
         if (!Pair.IsPaired) IsOpen = false;
 
