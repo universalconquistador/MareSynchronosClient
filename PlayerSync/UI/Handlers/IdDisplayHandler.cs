@@ -7,7 +7,6 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
-using Serilog.Core;
 
 namespace MareSynchronos.UI.Handlers;
 
@@ -187,9 +186,10 @@ public class IdDisplayHandler
 
     public void DrawProfileIcon(Pair pair)
     {
-        if (pair.IsPaused || pair.UserPair.OtherPermissions.IsPaused() || pair.IsOneSidedPair) return;
-        if (!_mareConfigService.Current.ShowProfileIconByNames) return;
-        if (!pair.HasProfile) return;
+        if (!_mareConfigService.Current.ShowProfileIconByNames) return; // player doesn't want to show icon
+        if (!pair.HasProfile) return; // pair doesn't have a profile set yet, don't show icon
+        if (pair.IsPaused || pair.UserPair.OtherPermissions.IsPaused()) return; // paused, don't show icon
+        if (!pair.UserPair.Groups.Any() && pair.IsOneSidedPair) return; // we don't share a syncshell and one-sided pair
 
         ImGui.SameLine();
         ImGui.AlignTextToFramePadding();
