@@ -60,7 +60,20 @@ public class Pair
     private PairHandler? CachedPlayer { get; set; }
     public unsafe uint PlayerCharacterId => CachedPlayer?.PlayerCharacterId ?? uint.MaxValue;
 
-    public bool HasProfile => UserPair.User.HasProfile ?? false;
+    public bool HasProfile
+    {
+        get
+        {
+            if (_hasProfile is null) 
+                return UserPair.User.HasProfile ?? false;
+
+            return _hasProfile.Value;
+        }
+        set
+        {
+            _hasProfile = value;
+        }
+    }
 
     public void ApplyData(OnlineUserCharaDataDto data)
     {
