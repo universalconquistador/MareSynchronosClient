@@ -50,6 +50,13 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
         };
     }
 
+    public override void PreDraw()
+    {
+        UiSharedService.CenterOnOpen(true);
+
+        base.PreDraw();
+    }
+
     protected override void DrawInternal()
     {
         // basically close the window if the user accepted/rejected the final requets

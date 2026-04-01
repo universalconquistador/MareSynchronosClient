@@ -149,6 +149,14 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public Dictionary<ushort, string> WorldData => _dalamudUtil.WorldData.Value;
     public uint WorldId => _dalamudUtil.GetHomeWorldId();
 
+    public static void CenterOnOpen(bool firstTimeOnly = false)
+    {
+        var viewport = ImGui.GetMainViewport();
+        var center = viewport.WorkPos + (viewport.WorkSize * 0.5f);
+
+        ImGui.SetNextWindowPos(center, firstTimeOnly ? ImGuiCond.FirstUseEver : ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+    }
+
     public static void AttachToolTip(string text)
     {
         if (!ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))

@@ -325,7 +325,7 @@ namespace MareSynchronos.PlayerData.Pairs
                 if (_configurationService.Current.ShowPairingRequestNotification)
                 {
                     var msg = name != "Unknown" ? $"Player {name} ({inv.InvitingUser.AliasOrUID}) " : $"UID/Alias {inv.InvitingUser.AliasOrUID} ";
-                    var alias = inv.GroupAlias == null ? "." : $" ({inv.GroupAlias}).";
+                    var alias =  string.IsNullOrWhiteSpace(inv.GroupAlias) ? "." : $" ({inv.GroupAlias}).";
                     Mediator.Publish(new NotificationMessage("Syncshell Invite", msg + "has sent you an invite to join Syncshell " +
                         $"{inv.GID}" + alias, MareConfiguration.Models.NotificationType.Info, IsInviteRequest: true));
                 }
