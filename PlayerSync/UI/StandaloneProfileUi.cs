@@ -82,6 +82,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
     public override void PreDraw()
     {
+        UiSharedService.CenterOnOpen(true);
+
         base.PreDraw();
 
         var r = UiScale.ScaledFloat(24f);
