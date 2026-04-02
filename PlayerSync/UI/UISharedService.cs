@@ -1269,4 +1269,34 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         var rainbow = HsvToRgb(hue, 1.0f, 1.0f);
         return rainbow;
     }
+
+    private static readonly Vector4[] PlayerSyncLogoPalette =
+    [
+        new Vector4(0.01f, 0.12f, 0.20f, 1.00f),
+        new Vector4(0.10f, 0.28f, 0.40f, 1.00f),
+        new Vector4(0.25f, 0.55f, 0.69f, 1.00f),
+        //new Vector4(0.45f, 0.76f, 0.87f, 1.00f),
+        //new Vector4(0.30f, 0.40f, 0.49f, 1.00f),
+        new Vector4(0.01f, 0.12f, 0.20f, 1.00f),
+    ];
+
+    public static Vector4 ColorPlayerSyncWave(float cycleDurationSeconds = 6.0f)
+    {
+        if (cycleDurationSeconds <= 0f)
+        {
+            cycleDurationSeconds = 6.0f;
+        }
+
+        float currentTime = (float)ImGui.GetTime() / cycleDurationSeconds;
+        float normalizedTime = currentTime - MathF.Floor(currentTime);
+
+        float palettePosition = normalizedTime * (PlayerSyncLogoPalette.Length - 1);
+        int startColorIndex = (int)MathF.Floor(palettePosition);
+        int endColorIndex = Math.Min(startColorIndex + 1, PlayerSyncLogoPalette.Length - 1);
+
+        float blendAmount = palettePosition - startColorIndex;
+        float smoothedBlendAmount = blendAmount * blendAmount * (3f - (2f * blendAmount));
+
+        return Vector4.Lerp(PlayerSyncLogoPalette[startColorIndex], PlayerSyncLogoPalette[endColorIndex], smoothedBlendAmount);
+    }
 }
