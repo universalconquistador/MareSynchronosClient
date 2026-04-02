@@ -141,12 +141,9 @@ namespace MareSynchronos.PlayerData.Pairs
 
                 _serverConfigurationManager.AddPendingRequestForIdent(req.RequestorIdent, name);
 
-                if (_configurationService.Current.ShowPairingRequestNotification)
-                {
-                    var msg = name != "Unknown" ? $"Player {name} ({req.Requestor.AliasOrUID}) " : $"UID/Alias {req.Requestor.AliasOrUID} ";
-                    Mediator.Publish(new NotificationMessage("New Pair Request", msg + "has sent you a request to pair directly.", 
-                        MareConfiguration.Models.NotificationType.Info, IsInviteRequest: true));
-                }
+                var msg = name != "Unknown" ? $"Player {name} ({req.Requestor.AliasOrUID}) " : $"UID/Alias {req.Requestor.AliasOrUID} ";
+                Mediator.Publish(new NotificationMessage("New Pair Request", msg + "has sent you a request to pair directly.",
+                    MareConfiguration.Models.NotificationType.Invite));
             }
 
             // clean up the local ident cache
@@ -322,13 +319,10 @@ namespace MareSynchronos.PlayerData.Pairs
                 var thisPair = _pairManager.GetPairByUID(inv.InvitingUser!.UID);
                 string name = thisPair?.PlayerName ?? "Unknown";
 
-                if (_configurationService.Current.ShowPairingRequestNotification)
-                {
-                    var msg = name != "Unknown" ? $"Player {name} ({inv.InvitingUser.AliasOrUID}) " : $"UID/Alias {inv.InvitingUser.AliasOrUID} ";
-                    var alias =  string.IsNullOrWhiteSpace(inv.GroupAlias) ? "." : $" ({inv.GroupAlias}).";
-                    Mediator.Publish(new NotificationMessage("Syncshell Invite", msg + "has sent you an invite to join Syncshell " +
-                        $"{inv.GID}" + alias, MareConfiguration.Models.NotificationType.Info, IsInviteRequest: true));
-                }
+                var msg = name != "Unknown" ? $"Player {name} ({inv.InvitingUser.AliasOrUID}) " : $"UID/Alias {inv.InvitingUser.AliasOrUID} ";
+                var alias = string.IsNullOrWhiteSpace(inv.GroupAlias) ? "." : $" ({inv.GroupAlias}).";
+                Mediator.Publish(new NotificationMessage("Syncshell Invite", msg + "has sent you an invite to join Syncshell " +
+                    $"{inv.GID}" + alias, MareConfiguration.Models.NotificationType.Invite));
             }
 
             _pendingGroupInvites = incomingGroupInvites.ToList();

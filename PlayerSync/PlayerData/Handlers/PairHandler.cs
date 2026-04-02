@@ -409,18 +409,21 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                         break;
 
                     case PlayerChanges.Moodles:
-                        // If we have Loci, but not Moodles, and get Moodles data when LociData does not exist, convert to LociData and apply as a fallback.
-                        var useFallback = !_ipcManager.Moodles.APIAvailable && _ipcManager.Loci.APIAvailable;
-                        if (useFallback && (!charaData.LociData.TryGetValue(changes.Key, out var lociData) || string.IsNullOrEmpty(lociData)))
-                        {
-                            var converted = _ipcManager.Loci.ConvertToLociData(charaData.MoodlesData);
-                            if (!_lociRegistrations.GetValueOrDefault(changes.Key, false))
-                            {
-                                _lociRegistrations[changes.Key] = await _ipcManager.Loci.RegisterActor(handler.Address).ConfigureAwait(false);
-                            }
-                            await _ipcManager.Loci.SetActorManager(handler.Address, converted).ConfigureAwait(false);
-                        }
-                        else
+                        //
+                        // TEMP: Disabling Moodles->Loci compatibility until we get the go-ahead from Cordelia to add the corresponding Loci->Moodles compatibility.
+                        //
+                        //// If we have Loci, but not Moodles, and get Moodles data when LociData does not exist, convert to LociData and apply as a fallback.
+                        //var useFallback = !_ipcManager.Moodles.APIAvailable && _ipcManager.Loci.APIAvailable;
+                        //if (useFallback && (!charaData.LociData.TryGetValue(changes.Key, out var lociData) || string.IsNullOrEmpty(lociData)))
+                        //{
+                        //    var converted = _ipcManager.Loci.ConvertToLociData(charaData.MoodlesData);
+                        //    if (!_lociRegistrations.GetValueOrDefault(changes.Key, false))
+                        //    {
+                        //        _lociRegistrations[changes.Key] = await _ipcManager.Loci.RegisterActor(handler.Address).ConfigureAwait(false);
+                        //    }
+                        //    await _ipcManager.Loci.SetActorManager(handler.Address, converted).ConfigureAwait(false);
+                        //}
+                        //else
                         {
                             await _ipcManager.Moodles.SetStatusAsync(handler.Address, charaData.MoodlesData).ConfigureAwait(false);
                         }

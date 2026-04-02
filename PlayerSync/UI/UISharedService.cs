@@ -863,13 +863,26 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         AttachToolTip($"Honorific is " + (_honorificExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine(0, mySpace * spacey * sglobal);
 
-        ColorText("Moodles", GetBoolColor(_moodlesExists));
-        AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
-        ImGui.SameLine(0, 0);
-        ImGui.TextUnformatted("/");
-        ImGui.SameLine(0, 0);
-        ColorText("Loci", GetBoolColor(_lociExists));
-        AttachToolTip($"Loci is " + (_lociExists ? "available and up to date." : "unavailable or not up to date."));
+        if (_moodlesExists && !_lociExists)
+        {
+            ColorText("Moodles", GetBoolColor(_moodlesExists));
+            AttachToolTip("Moodles is available and up to date.");
+        }
+        else if (_lociExists && !_moodlesExists)
+        {
+            ColorText("Loci", GetBoolColor(_lociExists));
+            AttachToolTip("Loci is available and up to date.");
+        }
+        else if (_moodlesExists && _lociExists)
+        {
+            ColorText("Moodles / Loci", GetBoolColor(false));
+            AttachToolTip("Moodles and Loci are both installed and enabled. This is not supported - only one or the other should be enabled at a time.");
+        }
+        else
+        {
+            ColorText("Moodles / Loci", GetBoolColor(false));
+            AttachToolTip("Neither Moodles nor Loci are enabled.");
+        }
         ImGui.SameLine(0, mySpace * spacey * sglobal);
 
         //ImGui.TextUnformatted("");
@@ -1255,5 +1268,35 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         float hue = (time * 0.25f) % 1.0f;
         var rainbow = HsvToRgb(hue, 1.0f, 1.0f);
         return rainbow;
+    }
+
+    private static readonly Vector4[] PlayerSyncLogoPalette =
+    [
+        new Vector4(0.01f, 0.12f, 0.20f, 1.00f),
+        new Vector4(0.10f, 0.28f, 0.40f, 1.00f),
+        new Vector4(0.25f, 0.55f, 0.69f, 1.00f),
+        //new Vector4(0.45f, 0.76f, 0.87f, 1.00f),
+        //new Vector4(0.30f, 0.40f, 0.49f, 1.00f),
+        new Vector4(0.01f, 0.12f, 0.20f, 1.00f),
+    ];
+
+    public static Vector4 ColorPlayerSyncWave(float cycleDurationSeconds = 6.0f)
+    {
+        if (cycleDurationSeconds <= 0f)
+        {
+            cycleDurationSeconds = 6.0f;
+        }
+
+        float currentTime = (float)ImGui.GetTime() / cycleDurationSeconds;
+        float normalizedTime = currentTime - MathF.Floor(currentTime);
+
+        float palettePosition = normalizedTime * (PlayerSyncLogoPalette.Length - 1);
+        int startColorIndex = (int)MathF.Floor(palettePosition);
+        int endColorIndex = Math.Min(startColorIndex + 1, PlayerSyncLogoPalette.Length - 1);
+
+        float blendAmount = palettePosition - startColorIndex;
+        float smoothedBlendAmount = blendAmount * blendAmount * (3f - (2f * blendAmount));
+
+        return Vector4.Lerp(PlayerSyncLogoPalette[startColorIndex], PlayerSyncLogoPalette[endColorIndex], smoothedBlendAmount);
     }
 }
