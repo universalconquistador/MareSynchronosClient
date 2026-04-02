@@ -115,7 +115,7 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
             float rowStartHeightStart = ImGui.GetCursorPosY();
 
             var requestorUid = request.Requestor.UID;
-            var requestorName = _serverConfigurationManager.GetPendingRequestNameForIdent(request.RequestorIdent) ?? "Unknown";
+            var requestorName = _serverConfigurationManager.GetPendingRequestNameForIdent(request.RequestorIdent) ?? request.Requestor.AliasOrUID;
 
             ImGui.TableNextRow();
 
