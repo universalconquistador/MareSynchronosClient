@@ -19,8 +19,6 @@ namespace PlayerSync.Services
         private readonly PairManager _pairs;
         private readonly ILogger<NamePlateManagerService> _logger;
         private readonly MareConfigService _configService;
-        private DateTime _lastUpdate = DateTime.MinValue;
-        private ImmutableDictionary<nint, Pair> _visibleByAddress = ImmutableDictionary<nint, Pair>.Empty;
         private const ushort UiColorId = 41;
 
         public NamePlateManagerService(ILogger<NamePlateManagerService> logger, MareMediator mediator, INamePlateGui namePlateGui, 
@@ -54,19 +52,8 @@ namespace PlayerSync.Services
                 || _configService.Current.ShowSoundSourceIndicator
                 || _configService.Current.ShowNameHighlights)) return;
 
-            var shouldUpdate = false;
-            var now = DateTime.UtcNow;
-            if ((now - _lastUpdate).TotalMilliseconds > 500)
-            {
-                _lastUpdate = now;
-                shouldUpdate = true;
-            }
-
-            if (shouldUpdate)
-            {
-                var visiblePairs = _pairs.GetVisiblePairs();
-                _visibleByAddress = visiblePairs.Where(p => p.Address != nint.Zero).ToImmutableDictionary(p => p.Address, p => p);
-            }
+            var visiblePairs = _pairs.GetVisiblePairs();
+            var visibleByAddress = visiblePairs.Where(p => p.Address != nint.Zero).ToImmutableDictionary(p => p.Address, p => p);
 
             foreach (var handle in handlers)
             {
@@ -74,12 +61,11 @@ namespace PlayerSync.Services
                 var addr = handle.PlayerCharacter?.Address ?? nint.Zero;
                 if (addr == nint.Zero) continue;
                 if (handle.PlayerCharacter?.ObjectIndex is null or 0) continue;
-                if (!_visibleByAddress.TryGetValue(addr, out var pair)) continue;
+                if (!visibleByAddress.TryGetValue(addr, out var pair)) continue;
                 var color = _configService.Current.NameHighlightColor;
                 var fcTagBuilder = new SeStringBuilder();
 
-                // disabled for now since people said it was crashing
-                if (_configService.Current.ShowPermsInsteadOfFCTags && false)
+                if (_configService.Current.ShowPermsInsteadOfFCTags)
                 {
                     var permsSelf = pair.UserPair.OwnPermissions;
                     var permsOther = pair.UserPair.OtherPermissions;
