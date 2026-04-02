@@ -1,6 +1,7 @@
 ﻿using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.UI;
 using Microsoft.Extensions.Logging;
+using MareSynchronos.PlayerData.Handlers;
 
 namespace MareSynchronos.MareConfiguration.Configurations;
 
@@ -96,4 +97,14 @@ public class MareConfig : IMareConfiguration
     public bool FirstTimeSetupComplete { get; set; } = false;
     public bool DisableSyncDuringDuty { get; set; } = false;
     public bool DebugDisableSoundIndicators { get; set; } = false;
+    public ContextMenuItemId[] ContextMenuOrder { get; set; } = new ContextMenuItemId[5]
+   {
+        ContextMenuItemId.OpenProfile,
+        ContextMenuItemId.PairData,
+        ContextMenuItemId.InviteToSyncshell,
+        ContextMenuItemId.AddToOverrides,
+       ContextMenuItemId.PauseForever
+   };
+    public bool[] SPriority { get; set; } = new bool[5];
+    public bool ShowProfileIconByNames { get; set; } = true;
 }

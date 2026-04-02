@@ -1,5 +1,6 @@
 ﻿using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto;
+using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.Services;
 using MareSynchronos.Services.ServerConfiguration;
@@ -43,6 +44,18 @@ public partial class ApiController
         CheckConnection();
         await _mareHub!.SendAsync(nameof(UserDelete)).ConfigureAwait(false);
         await CreateConnectionsAsync().ConfigureAwait(false);
+    }
+
+    public async Task<AccountInfoDto> GetAccountInfo()
+    {
+        CheckConnection();
+        return await _mareHub!.InvokeAsync<AccountInfoDto>(nameof(GetAccountInfo)).ConfigureAwait(false);
+    }
+
+    public async Task<(bool, string)> UpdateAlias(UserData? userData = null, GroupData? groupData = null)
+    {
+        CheckConnection();
+        return await _mareHub!.InvokeAsync<(bool, string)>(nameof(UpdateAlias), userData, groupData).ConfigureAwait(false);
     }
 
     public async Task<List<OnlineUserIdentDto>> UserGetOnlinePairs(CensusDataDto? censusDataDto)
@@ -104,19 +117,19 @@ public partial class ApiController
     public async Task UserSetProfile(UserProfileDto userDescription)
     {
         if (!IsConnected) return;
-        await _mareHub!.InvokeAsync(nameof(UserSetProfile), userDescription).ConfigureAwait(false);
+        await _mareHub!.SendAsync(nameof(UserSetProfile), userDescription).ConfigureAwait(false);
     }
 
     public async Task UserUpdateDefaultPermissions(DefaultPermissionsDto defaultPermissionsDto)
     {
         CheckConnection();
-        await _mareHub!.InvokeAsync(nameof(UserUpdateDefaultPermissions), defaultPermissionsDto).ConfigureAwait(false);
+        await _mareHub!.SendAsync(nameof(UserUpdateDefaultPermissions), defaultPermissionsDto).ConfigureAwait(false);
     }
 
     public async Task UserUpdatePreferences(UserPreferencesDto userPreferencesDto)
     {
         CheckConnection();
-        await _mareHub!.InvokeAsync(nameof(UserUpdatePreferences), userPreferencesDto).ConfigureAwait(false);
+        await _mareHub!.SendAsync(nameof(UserUpdatePreferences), userPreferencesDto).ConfigureAwait(false);
     }
 
     public async Task UserMakePairRequest(UserPairRequestDto request)
@@ -145,13 +158,25 @@ public partial class ApiController
     private async Task UserMakePairRequestInternal(UserPairRequestDto request)
     {
         CheckConnection();
-        await _mareHub!.InvokeAsync(nameof(UserMakePairRequest), request).ConfigureAwait(false);
+        await _mareHub!.SendAsync(nameof(UserMakePairRequest), request).ConfigureAwait(false);
     }
 
     public async Task UserRejectPairRequest(UserPairRequestDto request)
     {
         CheckConnection();
-        await _mareHub!.InvokeAsync(nameof(UserRejectPairRequest), request).ConfigureAwait(false);
+        await _mareHub!.SendAsync(nameof(UserRejectPairRequest), request).ConfigureAwait(false);
+    }
+
+    public async Task GroupUserInvite(GroupPairDto dto)
+    {
+        CheckConnection();
+        await _mareHub!.SendAsync(nameof(GroupUserInvite), dto).ConfigureAwait(false);
+    }
+
+    public async Task GroupUserRejectInvite(GroupJoinInviteDto dto)
+    {
+        CheckConnection();
+        await _mareHub!.SendAsync(nameof(GroupUserRejectInvite), dto).ConfigureAwait(false);
     }
 
     private async Task PushCharacterDataInternal(CharacterData character, List<UserData> visibleCharacters)

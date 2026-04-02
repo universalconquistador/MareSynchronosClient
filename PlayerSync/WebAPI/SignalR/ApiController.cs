@@ -520,6 +520,9 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
         OnBroadcastListeningChanged(isListening => _ = Client_BroadcastListeningChanged(isListening));
         OnUpdatePairRequests(dto => _ = Client_UpdatePairRequests(dto));
+        OnUpdateGroupInvites(dto => _ = Client_UpdateGroupInvites(dto));
+        OnUpdateEmoteSyncUsers(dto => _ = Client_UpdateEmoteSyncUsers(dto));
+        OnStartEmoteSyncGroup(dto => _ = Client_StartEmoteSyncGroup(dto));
 
         _healthCheckTokenSource?.Cancel();
         _healthCheckTokenSource?.Dispose();

@@ -50,6 +50,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     private readonly List<string> _notUpdatedCharas = [];
     private bool _sentBetweenAreas = false;
     private Lazy<ulong> _cid;
+    private string? _playerName;
 
     public DalamudUtilService(ILogger<DalamudUtilService> logger, IClientState clientState, IObjectTable objectTable, IFramework framework,
         IGameGui gameGui, ICondition condition, IDataManager gameData, ITargetManager targetManager, IGameConfig gameConfig,
@@ -74,6 +75,14 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
                 .Where(w => !w.Name.IsEmpty && w.DataCenter.RowId != 0 && (w.IsPublic || char.IsUpper(w.Name.ToString()[0])))
                 .ToDictionary(w => (ushort)w.RowId, w => w.Name.ToString());
+        });
+        WorldToDataCenterData = new(() =>
+        {
+            return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
+                .Where(w => !w.Name.IsEmpty && w.DataCenter.RowId != 0 && (w.IsPublic || char.IsUpper(w.Name.ToString()[0])))
+                .ToDictionary(
+                    w => (ushort)w.RowId,
+                    w => w.DataCenter.Value.Name.ToString());
         });
         JobData = new(() =>
         {
@@ -179,11 +188,21 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public uint ClassJobId => _classJobId!.Value;
     public Lazy<Dictionary<uint, string>> JobData { get; private set; }
     public Lazy<Dictionary<ushort, string>> WorldData { get; private set; }
+    public Lazy<Dictionary<ushort, string>> WorldToDataCenterData { get; private set; }
     public Lazy<Dictionary<uint, string>> TerritoryData { get; private set; }
     public Lazy<Dictionary<uint, (Map Map, string MapName)>> MapData { get; private set; }
     public bool IsLodEnabled { get; private set; }
     public MareMediator Mediator { get; }
     public float FPSCounter { get; private set; } = 0f;
+    public string PlayerName
+    {
+        get
+        {
+            if (_playerName == null)
+                _playerName = GetPlayerNameAsync().GetAwaiter().GetResult();
+            return _playerName;
+        }
+    }
 
     public IGameObject? CreateGameObject(IntPtr reference)
     {
@@ -406,6 +425,11 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return await RunOnFrameworkThread(GetMapData).ConfigureAwait(false);
     }
 
+    public string? GetDataCenterNameForWorld(ushort worldId)
+    {
+        return WorldToDataCenterData.Value.TryGetValue(worldId, out var dataCenterName) ? dataCenterName : null;
+    }
+
     public async Task<uint> GetWorldIdAsync()
     {
         return await RunOnFrameworkThread(GetWorldId).ConfigureAwait(false);
@@ -552,6 +576,12 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return _gameGui.WorldToScreen(obj.Position, out var screenPos) ? screenPos : Vector2.Zero;
     }
 
+    public unsafe void OpenContextMenu(IntPtr agentPtr)
+    {
+        var agentContext = (AgentContext*)agentPtr;
+        agentContext->OpenContextMenu();
+    }
+
     internal (string Name, nint Address) FindPlayerByNameHash(string ident)
     {
         _playerCharas.TryGetValue(ident, out var result);
@@ -561,6 +591,28 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     internal IEnumerable<string> GetVisiblePlayerIdents()
     {
         return _playerCharas.Keys;
+    }
+
+    internal unsafe List<string> GetVisibleAllianceAndPartyMembers()
+    {
+        var result = new List<string>();
+        foreach (string ident in GetVisiblePlayerIdents())
+        {
+            var (_, address) = FindPlayerByNameHash(ident);
+            if (address == 0)
+                continue;
+
+            BattleChara* playerObject = (BattleChara*)address;
+            if (playerObject == null)
+                continue;
+
+            if (playerObject->IsAllianceMember || playerObject->IsPartyMember)
+            {
+                result.Add(GetHashedCIDFromPlayerPointer(address));
+            }
+        }
+
+        return result;
     }
 
     private unsafe void CheckCharacterForDrawing(nint address, string characterName)
@@ -820,6 +872,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             {
                 _logger.LogDebug("Logged out");
                 IsLoggedIn = false;
+                _playerName = null;
                 Mediator.Publish(new DalamudLogoutMessage());
             }
 

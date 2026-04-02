@@ -1,6 +1,7 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
@@ -181,6 +182,27 @@ public class IdDisplayHandler
             }
             UiSharedService.AttachToolTip("Hit ENTER to save\nRight click to cancel");
         }
+    }
+
+    public void DrawProfileIcon(Pair pair)
+    {
+        if (!_mareConfigService.Current.ShowProfileIconByNames) return; // player doesn't want to show icon
+        if (!pair.HasProfile) return; // pair doesn't have a profile set yet, don't show icon
+        if (pair.IsPaused || pair.UserPair.OtherPermissions.IsPaused()) return; // paused, don't show icon
+        if (!pair.UserPair.Groups.Any() && pair.IsOneSidedPair) return; // we don't share a syncshell and one-sided pair
+
+        ImGui.SameLine();
+        ImGui.AlignTextToFramePadding();
+
+        _uiSharedService.IconText(FontAwesomeIcon.Portrait);
+
+        UiSharedService.AttachToolTip("Open Profile");
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+
+        if (ImGui.IsItemClicked())
+            _mediator.Publish(new ProfileOpenStandaloneMessage(pair));
     }
 
     public (bool isGid, string text) GetGroupText(GroupFullInfoDto group)

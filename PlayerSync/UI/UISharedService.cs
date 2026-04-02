@@ -71,6 +71,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     private bool _isOneDrive = false;
     private bool _isPenumbraDirectory = false;
     private bool _moodlesExists = false;
+    private bool _lociExists = false;
     private Dictionary<string, DateTime> _oauthTokenExpiry = new();
     private bool _penumbraExists = false;
     private bool _petNamesExists = false;
@@ -105,6 +106,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             _heelsExists = _ipcManager.Heels.APIAvailable;
             _honorificExists = _ipcManager.Honorific.APIAvailable;
             _moodlesExists = _ipcManager.Moodles.APIAvailable;
+            _lociExists = _ipcManager.Loci.APIAvailable;
             _petNamesExists = _ipcManager.PetNames.APIAvailable;
             _brioExists = _ipcManager.Brio.APIAvailable;
         });
@@ -140,12 +142,20 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public bool IsInGpose => _dalamudUtil.IsInGpose;
 
     public Dictionary<uint, string> JobData => _dalamudUtil.JobData.Value;
-    public string PlayerName => _dalamudUtil.GetPlayerName();
+    public string PlayerName => _dalamudUtil.PlayerName;
 
     public IFontHandle UidFont { get; init; }
     public IFontHandle HeaderFont { get; init; }
     public Dictionary<ushort, string> WorldData => _dalamudUtil.WorldData.Value;
     public uint WorldId => _dalamudUtil.GetHomeWorldId();
+
+    public static void CenterOnOpen(bool firstTimeOnly = false)
+    {
+        var viewport = ImGui.GetMainViewport();
+        var center = viewport.WorkPos + (viewport.WorkSize * 0.5f);
+
+        ImGui.SetNextWindowPos(center, firstTimeOnly ? ImGuiCond.FirstUseEver : ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+    }
 
     public static void AttachToolTip(string text)
     {
@@ -855,6 +865,11 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
         ColorText("Moodles", GetBoolColor(_moodlesExists));
         AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
+        ImGui.SameLine(0, 0);
+        ImGui.TextUnformatted("/");
+        ImGui.SameLine(0, 0);
+        ColorText("Loci", GetBoolColor(_lociExists));
+        AttachToolTip($"Loci is " + (_lociExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine(0, mySpace * spacey * sglobal);
 
         //ImGui.TextUnformatted("");

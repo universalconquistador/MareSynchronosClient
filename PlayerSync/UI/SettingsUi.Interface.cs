@@ -5,6 +5,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.MareConfiguration.Models;
+using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.ModernUi;
 using System.Numerics;
@@ -25,6 +26,7 @@ public partial class SettingsUi
         new(InterfaceTabs.Game, "Game UI", DrawInterfaceGameUi),
         new(InterfaceTabs.Notes, "Notes", DrawInterfaceNotes),
         new(InterfaceTabs.Notifications, "Notifications", DrawInterfaceNotifications),
+        new(InterfaceTabs.ContextMenu, "Context Menu", DrawInterfaceContext),
     ];
 
     private enum InterfaceTabs
@@ -32,7 +34,8 @@ public partial class SettingsUi
         Ui,
         Game,
         Notes,
-        Notifications
+        Notifications,
+        ContextMenu
     }
 
     private void DrawInterfaceSettings()
@@ -65,6 +68,7 @@ public partial class SettingsUi
         var showAnalysisColor = _configService.Current.ShowAnalysisCompactUiColor;
         var showCompactStats = _configService.Current.ShowCompactStats;
         var mysterySetting = _configService.Current.MysterySetting;
+        var showProfileIcon = _configService.Current.ShowProfileIconByNames;
 
         _uiShared.BigText("PlayerSync UI");
         ImGuiHelpers.ScaledDummy(2);
@@ -222,6 +226,12 @@ public partial class SettingsUi
                 _uiShared.DrawHelpText("Will not show NSFW warning before displaying a profile.");
             }
         }
+        if (ImGui.Checkbox("Show profile indicator by player UID/names", ref showProfileIcon))
+        {
+            _configService.Current.ShowProfileIconByNames = showProfileIcon;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Shows a portrain icon by player entries in the main UI if they have a profile picture set.");
         if (ImGui.Checkbox("Mystery Setting", ref mysterySetting))
         {
             _configService.Current.MysterySetting = mysterySetting;
@@ -532,5 +542,83 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will only show online notifications (type: Info) for pairs where you have set an individual note.");
+    }
+    private void DrawInterfaceContext()
+    {
+        if (!string.Equals(_lastTab, "General", StringComparison.OrdinalIgnoreCase))
+        {
+            _notesSuccessfullyApplied = null;
+        }
+
+        _lastTab = "General";
+
+        _uiShared.BigText("Context Menu Options Order");
+        ImGuiHelpers.ScaledDummy(2);
+
+        ImGui.TextWrapped("These options will display when right clicking another PlayerSync player.");
+        ImGui.TextWrapped("This only affect the main context menu, sub menus are not affected.");
+
+        ImGui.Dummy(new Vector2(10));
+
+        string GetLabel(ContextMenuItemId id) => id switch
+        {
+            ContextMenuItemId.None => "Do Not Show",
+            ContextMenuItemId.OpenProfile => "Open Profile",
+            ContextMenuItemId.PauseForever => "Keep Paused",
+            ContextMenuItemId.PairData => "Pair Data (Submenu)",
+            ContextMenuItemId.InviteToSyncshell => "Invite To SyncShell (Submenu)",
+            ContextMenuItemId.AddToOverrides => "Add to Overrides (Submenu)",
+            ContextMenuItemId.ReapplyLastData => "Reapply Last Data",
+            ContextMenuItemId.ChangePermissions => "Change Permissions",
+            ContextMenuItemId.CyclePauseState => "Cycle Pause State",
+            _ => id.ToString()
+        };
+
+        bool hasChanges = false;
+
+        for (int ss = 0; ss < 5; ss++)
+        {
+            var currentconfig = _configService.Current.ContextMenuOrder[ss];
+            var optionS = _configService.Current.ContextMenuOrder;
+
+            ImGui.PushItemWidth(240 * ImGui.GetIO().FontGlobalScale);//scales properly now.
+            if (ImGui.BeginCombo($"Context Menu Option {ss + 1}##{ss}", GetLabel(currentconfig)))
+            {
+                foreach (ContextMenuItemId Sopt in Enum.GetValues<ContextMenuItemId>())
+                {
+                    if (ImGui.Selectable(GetLabel(Sopt), Sopt == currentconfig))
+                    {
+                        if (Sopt == ContextMenuItemId.None)
+                        {
+                            optionS[ss] = ContextMenuItemId.None;
+                        }
+                        else
+                        {
+                            int contextSwap = Array.IndexOf(optionS, Sopt);
+                            if (contextSwap >= 0 && contextSwap != ss &&
+                                optionS[contextSwap] != ContextMenuItemId.None)
+                            {
+                                optionS[contextSwap] = currentconfig;
+                            }
+                            optionS[ss] = Sopt;
+                        }
+
+                        hasChanges = true;
+                    }
+                }
+                ImGui.EndCombo();
+            }
+            ImGui.PopItemWidth();
+            ImGui.SameLine(0,40 * ImGui.GetIO().FontGlobalScale);
+            if (ImGui.Checkbox($"Put Command On Top##{ss}", ref _configService.Current.SPriority[ss]))
+            {
+                hasChanges = true;
+            }
+        }
+
+        if (hasChanges)
+        {
+            _configService.Save();
+        }
     }
 }

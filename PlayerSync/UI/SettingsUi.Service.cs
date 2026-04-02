@@ -3,6 +3,8 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.API.Data;
+using MareSynchronos.API.Dto;
 using MareSynchronos.API.Routes;
 using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.MareConfiguration.Models;
@@ -35,7 +37,7 @@ public partial class SettingsUi
     {
         Service,
         Permissions,
-        Account
+        Account,
     }
 
     private void DrawServiceSettings()
@@ -53,6 +55,23 @@ public partial class SettingsUi
     private Task<(bool Success, bool PartialSuccess, string Result)>? _secretKeysConversionTask = null;
     private CancellationTokenSource _secretKeysConversionCts = new CancellationTokenSource();
     private ServerStorage _selectedServer = null;
+    private Task<AccountInfoDto>? _retrieveAccountInfoTask;
+    private AccountInfoDto? _accountInfo;
+
+    private string _selectedAliasText = "";
+    private string _selectedAliasCurrent = "";
+    private Task<(bool ok, string msg)>? _uidUpdateTask;
+    private (bool ok, string msg)? _uidResult;
+
+    private GroupData? _selectedSyncshell;
+    private string _selectedSyncshellAliasText = "";
+    private string _selectedSyncshellAliasCurrent = "";
+    private Task<(bool ok, string msg)>? _groupUpdateTask;
+    private (bool ok, string msg)? _groupResult;
+    private string? _selectedUid;
+    private string? _selectedSyncshellGid;
+    private int _currentServer = -1;
+
     private async Task<(bool Success, bool partialSuccess, string Result)> ConvertSecretKeysToUIDs(ServerStorage serverStorage, CancellationToken token)
     {
         List<Authentication> failedConversions = serverStorage.Authentications.Where(u => u.SecretKeyIdx == -1 && string.IsNullOrEmpty(u.UID)).ToList();

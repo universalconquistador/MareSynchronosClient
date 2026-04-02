@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Authors></Authors>
     <Company></Company>
-    <Version>1.14.1.10</Version>
+    <Version>1.14.1.24</Version>
     <Description></Description>
     <Copyright></Copyright>
     <PackageProjectUrl>https://github.com/MareSynchronos/client</PackageProjectUrl>
@@ -46,6 +46,7 @@
     <PackageReference Include="NReco.Logging.File" Version="1.2.2" />
     <PackageReference Include="Penumbra.Api" Version="5.13.0" />
     <PackageReference Include="Penumbra.String" Version="1.0.7" />
+    <PackageReference Include="Loci.Api" Version="0.1.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="SonarAnalyzer.CSharp" Version="10.15.0.120848">
       <PrivateAssets>all</PrivateAssets>
