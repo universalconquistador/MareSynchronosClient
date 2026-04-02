@@ -259,6 +259,7 @@ public partial class SettingsUi
         var highlightNameColor = _configService.Current.NameHighlightColor;
         var permColorsEnabled = _configService.Current.PermsColorsEnabled;
         var permsColorsDisabled = _configService.Current.PermsColorsDisabled;
+        var showColorWaveNotification = _configService.Current.EnableColorWaveNotification;
 
         _uiShared.BigText("Game UI");
         ImGuiHelpers.ScaledDummy(2);
@@ -391,6 +392,12 @@ public partial class SettingsUi
                 }
             }
         }
+        if (ImGui.Checkbox("Use color wave for request notification", ref showColorWaveNotification))
+        {
+            _configService.Current.EnableColorWaveNotification = showColorWaveNotification;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This will cause the pair request notification button to cycle colors.");
     }
 
     private void DrawInterfaceNotes()
