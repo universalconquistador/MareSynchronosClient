@@ -863,13 +863,26 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         AttachToolTip($"Honorific is " + (_honorificExists ? "available and up to date." : "unavailable or not up to date."));
         ImGui.SameLine(0, mySpace * spacey * sglobal);
 
-        ColorText("Moodles", GetBoolColor(_moodlesExists));
-        AttachToolTip($"Moodles is " + (_moodlesExists ? "available and up to date." : "unavailable or not up to date."));
-        ImGui.SameLine(0, 0);
-        ImGui.TextUnformatted("/");
-        ImGui.SameLine(0, 0);
-        ColorText("Loci", GetBoolColor(_lociExists));
-        AttachToolTip($"Loci is " + (_lociExists ? "available and up to date." : "unavailable or not up to date."));
+        if (_moodlesExists && !_lociExists)
+        {
+            ColorText("Moodles", GetBoolColor(_moodlesExists));
+            AttachToolTip("Moodles is available and up to date.");
+        }
+        else if (_lociExists && !_moodlesExists)
+        {
+            ColorText("Loci", GetBoolColor(_lociExists));
+            AttachToolTip("Loci is available and up to date.");
+        }
+        else if (_moodlesExists && _lociExists)
+        {
+            ColorText("Moodles / Loci", GetBoolColor(false));
+            AttachToolTip("Moodles and Loci are both installed and enabled. This is not supported - only one or the other should be enabled at a time.");
+        }
+        else
+        {
+            ColorText("Moodles / Loci", GetBoolColor(false));
+            AttachToolTip("Neither Moodles nor Loci are enabled.");
+        }
         ImGui.SameLine(0, mySpace * spacey * sglobal);
 
         //ImGui.TextUnformatted("");
