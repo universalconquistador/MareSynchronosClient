@@ -578,7 +578,7 @@ public partial class SettingsUi
             ContextMenuItemId.OpenProfile => "Open Profile",
             ContextMenuItemId.PauseForever => "Keep Paused",
             ContextMenuItemId.PairData => "Pair Data (Submenu)",
-            ContextMenuItemId.InviteToSyncshell => "Invite To SyncShell (Submenu)",
+            ContextMenuItemId.InviteToSyncshell => "Invite To Syncshell (Submenu)",
             ContextMenuItemId.AddToOverrides => "Add to Overrides (Submenu)",
             ContextMenuItemId.ReapplyLastData => "Reapply Last Data",
             ContextMenuItemId.ChangePermissions => "Change Permissions",
