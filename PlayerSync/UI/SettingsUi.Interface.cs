@@ -456,7 +456,6 @@ public partial class SettingsUi
     {
         var disableOptionalPluginWarnings = _configService.Current.DisableOptionalPluginWarnings;
         var syncConflictNotifs = _configService.Current.ShowSyncConflictNotifications;
-        var pairingRequestNotifs = _configService.Current.ShowPairingRequestNotification;
         var broadcastNotifs = _configService.Current.ShowAvailableBroadcastsNotification;
         var onlineNotifs = _configService.Current.ShowOnlineNotifications;
         var onlineNotifsPairsOnly = _configService.Current.ShowOnlineNotificationsOnlyForIndividualPairs;
@@ -502,6 +501,18 @@ public partial class SettingsUi
                               + Environment.NewLine + "'Chat' will print Error notifications in chat"
                               + Environment.NewLine + "'Toast' will show Error toast notifications in the bottom right corner"
                               + Environment.NewLine + "'Both' will show chat as well as the toast notification");
+        ImGui.SetNextItemWidth(400);
+        _uiShared.DrawCombo("Pair Request Notification Display##settingsUi", (NotificationLocation[])Enum.GetValues(typeof(NotificationLocation)), (i) => i.ToString(),
+        (i) =>
+        {
+            _configService.Current.PairRequestNotification = i;
+            _configService.Save();
+        }, _configService.Current.PairRequestNotification);
+        _uiShared.DrawHelpText("The location where \"Pair Request\" notifications will display."
+                              + Environment.NewLine + "'Nowhere' will not show any Pair Request notifications"
+                              + Environment.NewLine + "'Chat' will print Pair Request notifications in chat"
+                              + Environment.NewLine + "'Toast' will show Pair Request toast notifications in the bottom right corner"
+                              + Environment.NewLine + "'Both' will show chat as well as the toast notification");
 
         ImGuiHelpers.ScaledDummy(5);
         if (ImGui.Checkbox("Disable optional plugin warnings", ref disableOptionalPluginWarnings))
@@ -513,12 +524,6 @@ public partial class SettingsUi
         if (ImGui.Checkbox("Enable sync conflict notifications", ref syncConflictNotifs))
         {
             _configService.Current.ShowSyncConflictNotifications = syncConflictNotifs;
-            _configService.Save();
-        }
-        _uiShared.DrawHelpText("Enabling this will show chat notifications when loading PlayerSync with a potentially conflicting plugin.");
-        if (ImGui.Checkbox("Enable pairing request notifications", ref pairingRequestNotifs))
-        {
-            _configService.Current.ShowPairingRequestNotification = pairingRequestNotifs;
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner when a player sends a request to pair directly.");
