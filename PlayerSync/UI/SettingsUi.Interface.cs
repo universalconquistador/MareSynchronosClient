@@ -568,7 +568,7 @@ public partial class SettingsUi
         ImGuiHelpers.ScaledDummy(2);
 
         ImGui.TextWrapped("These options will display when right clicking another PlayerSync player.");
-        ImGui.TextWrapped("This only affect the main context menu, sub menus are not affected.");
+        ImGui.TextWrapped("This only affects the main context menu, sub menus are not affected.");
 
         ImGui.Dummy(new Vector2(10));
 
