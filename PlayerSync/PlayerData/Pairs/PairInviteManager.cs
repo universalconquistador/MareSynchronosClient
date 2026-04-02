@@ -145,7 +145,7 @@ namespace MareSynchronos.PlayerData.Pairs
                 {
                     var msg = name != "Unknown" ? $"Player {name} ({req.Requestor.AliasOrUID}) " : $"UID/Alias {req.Requestor.AliasOrUID} ";
                     Mediator.Publish(new NotificationMessage("New Pair Request", msg + "has sent you a request to pair directly.", 
-                        MareConfiguration.Models.NotificationType.Info, IsInviteRequest: true));
+                        MareConfiguration.Models.NotificationType.Invite));
                 }
             }
 
@@ -327,7 +327,7 @@ namespace MareSynchronos.PlayerData.Pairs
                     var msg = name != "Unknown" ? $"Player {name} ({inv.InvitingUser.AliasOrUID}) " : $"UID/Alias {inv.InvitingUser.AliasOrUID} ";
                     var alias =  string.IsNullOrWhiteSpace(inv.GroupAlias) ? "." : $" ({inv.GroupAlias}).";
                     Mediator.Publish(new NotificationMessage("Syncshell Invite", msg + "has sent you an invite to join Syncshell " +
-                        $"{inv.GID}" + alias, MareConfiguration.Models.NotificationType.Info, IsInviteRequest: true));
+                        $"{inv.GID}" + alias, MareConfiguration.Models.NotificationType.Invite));
                 }
             }
 

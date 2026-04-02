@@ -95,10 +95,7 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
         switch (msg.Type)
         {
             case NotificationType.Info:
-                if (!msg.IsInviteRequest)
-                    PrintInfoChat(msg.Message);
-                else
-                    PrintPairRequestChat(msg.Message);
+                PrintInfoChat(msg.Message);
                 break;
 
             case NotificationType.Warning:
@@ -107,6 +104,10 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
 
             case NotificationType.Error:
                 PrintErrorChat(msg.Message);
+                break;
+
+            case NotificationType.Invite:
+                PrintPairRequestChat(msg.Message);
                 break;
         }
     }
@@ -129,6 +130,10 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
 
             case NotificationType.Error:
                 ShowNotificationLocationBased(msg, _configurationService.Current.ErrorNotification);
+                break;
+
+            case NotificationType.Invite:
+                ShowNotificationLocationBased(msg, NotificationLocation.Both);
                 break;
         }
     }
