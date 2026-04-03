@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -12,11 +13,13 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
 {
     private bool _isDraggingPill;
     private readonly PairInviteManager _pairRequestManager;
+    private readonly MareConfigService _configService;
 
     public PairingRequestsNoticeUi(ILogger<PairingRequestsNoticeUi> logger, MareMediator mediator, PerformanceCollectorService performanceCollectorService,
-        PairInviteManager pairRequestManager) : base(logger, mediator, "PlayerSync Pending Pair Notice", performanceCollectorService)
+        PairInviteManager pairRequestManager, MareConfigService mareConfigService) : base(logger, mediator, "PlayerSync Pending Pair Notice", performanceCollectorService)
     {
         _pairRequestManager = pairRequestManager;
+        _configService = mareConfigService;
 
         SizeConstraints = new WindowSizeConstraints()
         {
@@ -53,7 +56,9 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
 
         var drawList = ImGui.GetWindowDrawList();
         var windowRounding = pillSize.Y * 0.5f;
-        var pillColor = ImGui.GetColorU32(UiSharedService.ColorRGBWave());
+        var pillColor = _configService.Current.EnableColorWaveNotification
+            ? ImGui.GetColorU32(UiSharedService.ColorPlayerSyncWave(4f))
+            : ImGui.GetColorU32(new Vector4(0.01f, 0.12f, 0.20f, 1.00f));
         drawList.AddRectFilled(pillMin, pillMax, pillColor, windowRounding, ImDrawFlags.RoundCornersAll);
 
         ImGui.SetCursorPos(Vector2.Zero);

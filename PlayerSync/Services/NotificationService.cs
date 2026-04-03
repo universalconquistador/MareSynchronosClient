@@ -133,7 +133,7 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
                 break;
 
             case NotificationType.Invite:
-                ShowNotificationLocationBased(msg, NotificationLocation.Both);
+                ShowNotificationLocationBased(msg, _configurationService.Current.PairRequestNotification);
                 break;
         }
     }
@@ -167,6 +167,7 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
             NotificationType.Error => Dalamud.Interface.ImGuiNotification.NotificationType.Error,
             NotificationType.Warning => Dalamud.Interface.ImGuiNotification.NotificationType.Warning,
             NotificationType.Info => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
+            NotificationType.Invite => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
             _ => Dalamud.Interface.ImGuiNotification.NotificationType.Info
         };
 

@@ -259,6 +259,7 @@ public partial class SettingsUi
         var highlightNameColor = _configService.Current.NameHighlightColor;
         var permColorsEnabled = _configService.Current.PermsColorsEnabled;
         var permsColorsDisabled = _configService.Current.PermsColorsDisabled;
+        var showColorWaveNotification = _configService.Current.EnableColorWaveNotification;
 
         _uiShared.BigText("Game UI");
         ImGuiHelpers.ScaledDummy(2);
@@ -391,6 +392,12 @@ public partial class SettingsUi
                 }
             }
         }
+        if (ImGui.Checkbox("Use color wave for request notification", ref showColorWaveNotification))
+        {
+            _configService.Current.EnableColorWaveNotification = showColorWaveNotification;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This will cause the pair request notification button to cycle colors.");
     }
 
     private void DrawInterfaceNotes()
@@ -449,7 +456,6 @@ public partial class SettingsUi
     {
         var disableOptionalPluginWarnings = _configService.Current.DisableOptionalPluginWarnings;
         var syncConflictNotifs = _configService.Current.ShowSyncConflictNotifications;
-        var pairingRequestNotifs = _configService.Current.ShowPairingRequestNotification;
         var broadcastNotifs = _configService.Current.ShowAvailableBroadcastsNotification;
         var onlineNotifs = _configService.Current.ShowOnlineNotifications;
         var onlineNotifsPairsOnly = _configService.Current.ShowOnlineNotificationsOnlyForIndividualPairs;
@@ -495,6 +501,18 @@ public partial class SettingsUi
                               + Environment.NewLine + "'Chat' will print Error notifications in chat"
                               + Environment.NewLine + "'Toast' will show Error toast notifications in the bottom right corner"
                               + Environment.NewLine + "'Both' will show chat as well as the toast notification");
+        ImGui.SetNextItemWidth(400);
+        _uiShared.DrawCombo("Pair Request Notification Display##settingsUi", (NotificationLocation[])Enum.GetValues(typeof(NotificationLocation)), (i) => i.ToString(),
+        (i) =>
+        {
+            _configService.Current.PairRequestNotification = i;
+            _configService.Save();
+        }, _configService.Current.PairRequestNotification);
+        _uiShared.DrawHelpText("The location where \"Pair Request\" notifications will display."
+                              + Environment.NewLine + "'Nowhere' will not show any Pair Request notifications"
+                              + Environment.NewLine + "'Chat' will print Pair Request notifications in chat"
+                              + Environment.NewLine + "'Toast' will show Pair Request toast notifications in the bottom right corner"
+                              + Environment.NewLine + "'Both' will show chat as well as the toast notification");
 
         ImGuiHelpers.ScaledDummy(5);
         if (ImGui.Checkbox("Disable optional plugin warnings", ref disableOptionalPluginWarnings))
@@ -503,24 +521,21 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will not show any \"Warning\" labeled messages for missing optional plugins.");
+
         if (ImGui.Checkbox("Enable sync conflict notifications", ref syncConflictNotifs))
         {
             _configService.Current.ShowSyncConflictNotifications = syncConflictNotifs;
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will show chat notifications when loading PlayerSync with a potentially conflicting plugin.");
-        if (ImGui.Checkbox("Enable pairing request notifications", ref pairingRequestNotifs))
-        {
-            _configService.Current.ShowPairingRequestNotification = pairingRequestNotifs;
-            _configService.Save();
-        }
-        _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner when a player sends a request to pair directly.");
+
         if (ImGui.Checkbox("Enable broadcast notifications", ref broadcastNotifs))
         {
             _configService.Current.ShowAvailableBroadcastsNotification = broadcastNotifs;
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner the first time a broadcast is available in your zone.");
+
         if (ImGui.Checkbox("Enable online notifications", ref onlineNotifs))
         {
             _configService.Current.ShowOnlineNotifications = onlineNotifs;
@@ -536,6 +551,7 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will only show online notifications (type: Info) for individual pairs.");
+
         if (ImGui.Checkbox("Notify only for named pairs", ref onlineNotifsNamedOnly))
         {
             _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs = onlineNotifsNamedOnly;
@@ -556,7 +572,7 @@ public partial class SettingsUi
         ImGuiHelpers.ScaledDummy(2);
 
         ImGui.TextWrapped("These options will display when right clicking another PlayerSync player.");
-        ImGui.TextWrapped("This only affect the main context menu, sub menus are not affected.");
+        ImGui.TextWrapped("This only affects the main context menu, sub menus are not affected.");
 
         ImGui.Dummy(new Vector2(10));
 
@@ -566,7 +582,7 @@ public partial class SettingsUi
             ContextMenuItemId.OpenProfile => "Open Profile",
             ContextMenuItemId.PauseForever => "Keep Paused",
             ContextMenuItemId.PairData => "Pair Data (Submenu)",
-            ContextMenuItemId.InviteToSyncshell => "Invite To SyncShell (Submenu)",
+            ContextMenuItemId.InviteToSyncshell => "Invite To Syncshell (Submenu)",
             ContextMenuItemId.AddToOverrides => "Add to Overrides (Submenu)",
             ContextMenuItemId.ReapplyLastData => "Reapply Last Data",
             ContextMenuItemId.ChangePermissions => "Change Permissions",
