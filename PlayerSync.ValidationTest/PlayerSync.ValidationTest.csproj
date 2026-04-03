@@ -1,0 +1,40 @@
+﻿<Project Sdk="Dalamud.NET.Sdk/14.0.1">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseVSTest>true</UseVSTest>
+    <Platforms>x64</Platforms>
+    <Use_DalamudPackager>false</Use_DalamudPackager>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Lumina" Version="7.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PlayerSync.Validation\PlayerSync.Validation.csproj" />
+    <PackageReference Include="MSTest" Version="4.1.0" />
+    <Reference Update="Dalamud">
+      <Private>True</Private>
+    </Reference>
+    <Reference Update="FFXIVClientStructs">
+      <Private>True</Private>
+    </Reference>
+    <Reference Update="Lumina">
+      <Private>True</Private>
+    </Reference>
+    <Reference Update="Lumina.Excel">
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="TestFiles\*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

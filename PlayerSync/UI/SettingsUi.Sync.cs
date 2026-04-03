@@ -311,6 +311,7 @@ public partial class SettingsUi
         bool filterSounds = _configService.Current.FilterSounds;
         bool filterVfx = _configService.Current.FilterVfx;
         bool filterAnimations = _configService.Current.FilterAnimations;
+        bool filterInvalidFiles = _configService.Current.EnableValidationChecks;
         bool filterMods = _configService.Current.FilterMods;
         bool filterDirectPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
 
@@ -344,6 +345,13 @@ public partial class SettingsUi
 
         Ui.DrawHorizontalRule(_theme);
 
+        if (ImGui.Checkbox("Filter out broken files that are likely to cause the game to crash", ref filterInvalidFiles))
+        {
+            _configService.Current.EnableValidationChecks = filterInvalidFiles;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Checks incoming files for issues that are known to cause crashes." + UiSharedService.TooltipSeparator +
+            "Files filtered to prevent crashing will be noted as Warnings in the Dalamud log.");
         if (ImGui.Checkbox("Filter out all sync data (make others appear vanilla)", ref filterMods))
         {
             _configService.Current.FilterMods = filterMods;

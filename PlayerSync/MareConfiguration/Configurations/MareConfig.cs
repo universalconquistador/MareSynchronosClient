@@ -98,15 +98,16 @@ public class MareConfig : IMareConfiguration
     public bool DisableSyncDuringDuty { get; set; } = false;
     public bool DebugDisableSoundIndicators { get; set; } = false;
     public ContextMenuItemId[] ContextMenuOrder { get; set; } = new ContextMenuItemId[5]
-   {
+    {
         ContextMenuItemId.OpenProfile,
         ContextMenuItemId.PairData,
         ContextMenuItemId.InviteToSyncshell,
         ContextMenuItemId.AddToOverrides,
-       ContextMenuItemId.PauseForever
-   };
+        ContextMenuItemId.PauseForever
+    };
     public bool[] SPriority { get; set; } = new bool[5];
     public bool ShowProfileIconByNames { get; set; } = true;
+    public bool EnableValidationChecks { get; set; } = true;
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
 }
