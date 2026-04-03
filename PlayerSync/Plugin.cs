@@ -32,6 +32,7 @@ using NReco.Logging.File;
 using PlayerSync.FileCache;
 using PlayerSync.PlayerData.Pairs;
 using PlayerSync.Services;
+using PlayerSync.Validation;
 using System.Net.Http.Headers;
 using System.Reflection;
 
@@ -74,6 +75,8 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
 
+        FileValidation.Initialize(pluginInterface);
+
         _host = new HostBuilder()
         .UseContentRoot(pluginInterface.ConfigDirectory.FullName)
         .ConfigureLogging(lb =>
@@ -94,6 +97,8 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton(new WindowSystem("PlayerSync"));
             collection.AddSingleton<FileDialogManager>();
             collection.AddSingleton(new Dalamud.Localization("PlayerSync.Localization.", "", useEmbedded: true));
+
+            collection.AddSingleton<IDataManager>(gameData);
 
             // add mare related singletons
             collection.AddSingleton<MareMediator>();
