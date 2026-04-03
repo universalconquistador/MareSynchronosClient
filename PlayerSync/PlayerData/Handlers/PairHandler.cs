@@ -585,41 +585,44 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         //await gate.WaitAsync(token).ConfigureAwait(false);
 
         // Proactively check the incoming files for specific known sources of crashes
-        foreach (var file in moddedPaths.ToArray()) // .ToArray() so we can modify the dictionary as we loop through it
+        if (_configService.Current.EnableValidationChecks)
         {
-            if (file.Key.Hash == null)
+            foreach (var file in moddedPaths.ToArray()) // .ToArray() so we can modify the dictionary as we loop through it
             {
-                continue;
-            }
-
-            var extension = Path.GetExtension(file.Key.GamePath);
-            var filePath = file.Value;
-
-            if (filePath != null)
-            {
-                try
+                if (file.Key.Hash == null)
                 {
-                    var bytes = await File.ReadAllBytesAsync(filePath);
-                    var validationMessages = FileValidation.ValidateFile(_dataManager.Excel, bytes, extension, path => path.Contains('/') && (_dataManager.FileExists(path) || charaData.FileReplacements.Values.SelectMany(value => value).Any(replacement => replacement.GamePaths.Contains(path)))).ToArray();
+                    continue;
+                }
 
-                    if (validationMessages.Length > 0)
+                var extension = Path.GetExtension(file.Key.GamePath);
+                var filePath = file.Value;
+
+                if (filePath != null)
+                {
+                    try
                     {
-                        var messageString = string.Join(", ", validationMessages.Select(message => $"[{message.ID}]: {message.Title} ({message.Level})"));
+                        var bytes = await File.ReadAllBytesAsync(filePath);
+                        var validationMessages = FileValidation.ValidateFile(_dataManager.Excel, bytes, extension, path => path.Contains('/') && (_dataManager.FileExists(path) || charaData.FileReplacements.Values.SelectMany(value => value).Any(replacement => replacement.GamePaths.Contains(path)))).ToArray();
 
-                        if (validationMessages.Any(message => message.Level == MessageLevel.Crash))
+                        if (validationMessages.Length > 0)
                         {
-                            Logger.LogWarning("{uid} ({name}): File {hash} to be used as {gamePath} looks like it could crash game and will be ignored. \n  {description}", Pair.UserData.UID, PlayerName, file.Key.Hash, file.Key.GamePath, messageString);
-                            moddedPaths.Remove(file.Key);
-                        }
-                        else
-                        {
-                            Logger.LogInformation("{uid} ({name}): File {hash} to be used as {gamePath} looks like it might have some mistakes, but will still be used. \n  {description}", Pair.UserData.UID, PlayerName, file.Key.Hash, file.Key.GamePath, messageString);
+                            var messageString = string.Join(", ", validationMessages.Select(message => $"[{message.ID}]: {message.Title} ({message.Level})"));
+
+                            if (validationMessages.Any(message => message.Level == MessageLevel.Crash))
+                            {
+                                Logger.LogWarning("{uid} ({name}): File {hash} to be used as {gamePath} looks like it could crash game and will be ignored. \n  {description}", Pair.UserData.UID, PlayerName, file.Key.Hash, file.Key.GamePath, messageString);
+                                moddedPaths.Remove(file.Key);
+                            }
+                            else
+                            {
+                                Logger.LogInformation("{uid} ({name}): File {hash} to be used as {gamePath} looks like it might have some mistakes, but will still be used. \n  {description}", Pair.UserData.UID, PlayerName, file.Key.Hash, file.Key.GamePath, messageString);
+                            }
                         }
                     }
-                }
-                catch (IOException ex)
-                {
-                    Logger.LogWarning(ex, "Couldn't read downloaded file {filePath} for validation!", filePath);
+                    catch (IOException ex)
+                    {
+                        Logger.LogWarning(ex, "Couldn't read downloaded file {filePath} for validation!", filePath);
+                    }
                 }
             }
         }
