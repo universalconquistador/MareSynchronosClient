@@ -521,18 +521,21 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will not show any \"Warning\" labeled messages for missing optional plugins.");
+
         if (ImGui.Checkbox("Enable sync conflict notifications", ref syncConflictNotifs))
         {
             _configService.Current.ShowSyncConflictNotifications = syncConflictNotifs;
             _configService.Save();
         }
-        _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner when a player sends a request to pair directly.");
+        _uiShared.DrawHelpText("Enabling this will show chat notifications when loading PlayerSync with a potentially conflicting plugin.");
+
         if (ImGui.Checkbox("Enable broadcast notifications", ref broadcastNotifs))
         {
             _configService.Current.ShowAvailableBroadcastsNotification = broadcastNotifs;
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner the first time a broadcast is available in your zone.");
+
         if (ImGui.Checkbox("Enable online notifications", ref onlineNotifs))
         {
             _configService.Current.ShowOnlineNotifications = onlineNotifs;
@@ -548,6 +551,7 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will only show online notifications (type: Info) for individual pairs.");
+
         if (ImGui.Checkbox("Notify only for named pairs", ref onlineNotifsNamedOnly))
         {
             _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs = onlineNotifsNamedOnly;
