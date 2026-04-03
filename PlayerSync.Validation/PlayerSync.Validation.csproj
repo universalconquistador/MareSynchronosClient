@@ -11,13 +11,4 @@
     <ProjectReference Include="..\Dalamud-VFXEditor\VFXEditor\VFXEditor.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Update="Dalamud">
-      <Private>True</Private>
-    </Reference>
-    <Reference Update="FFXIVClientStructs">
-      <Private>True</Private>
-    </Reference>
-  </ItemGroup>
-
 </Project>
