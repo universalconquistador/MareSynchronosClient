@@ -21,9 +21,9 @@ jobs:
       - name: Download Dalamud binaries
         run: curl --output /home/runner/dalamud-distrib.zip -L "https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/latest.zip"
       - name: Extract Dalamud binaries
-        run: unzip /home/runner/dalamud-distrib.zip -d /home/runner/dalamud-distrib
+        run: unzip /home/runner/dalamud-distrib.zip -d /home/runner/.xlcore/dalamud/Hooks/dev
       - name: List dalamud files
-        run: ls /home/runner/dalamud-distrib
+        run: ls /home/runner/.xlcore/dalamud/Hooks/dev
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
         env:
-          DALAMUD_HOME: /home/runner/dalamud-distrib
+          DALAMUD_HOME: /home/runner/.xlcore/dalamud/Hooks/dev
       - name: Prepare artifact
         run: unzip PlayerSync/bin/x64/Release/MareSempiterne/latest.zip -d PlayerSync/bin/x64/Release/MareSempiterne/MareSempiterne
       - uses: actions/upload-artifact@v4
