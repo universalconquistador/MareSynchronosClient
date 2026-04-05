@@ -558,6 +558,8 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will only show online notifications (type: Info) for pairs where you have set an individual note.");
+        ident?.Dispose();
+        disabled?.Dispose();
 
         if (_apiController.IsConnected)
         {
@@ -568,7 +570,7 @@ public partial class SettingsUi
                 pref.IsEnableLifestreamInvites = prefAllowLifestreamInvites;
                 _ = _apiController.UserUpdatePreferences(pref);
             }
-            _uiShared.DrawHelpText("This setting has no meaningful effect if you do not have Lifestream installed.");
+            _uiShared.DrawHelpText("This setting has no meaningful effect if you don't have Lifestream installed.");
         }
     }
 
