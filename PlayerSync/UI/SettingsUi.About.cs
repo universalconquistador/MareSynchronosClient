@@ -57,5 +57,17 @@ public partial class SettingsUi
         {
             Util.OpenLink("https://www.patreon.com/PlayerSync");
         }
+
+        ImGuiHelpers.ScaledDummy(2);
+        ImGui.Separator();
+        ImGuiHelpers.ScaledDummy(2);
+
+        using (_uiShared.HeaderFont.Push())
+        {
+            ImGui.TextUnformatted($"PlayerSync version: {_uiShared.Version}");
+            ImGui.TextUnformatted($"Max joinable Syncshells: {_uiShared.ApiController.ServerInfo.MaxGroupsJoinedByUser.ToString()}");
+            ImGui.TextUnformatted($"Max users per Syncshell: {_uiShared.ApiController.ServerInfo.MaxGroupUserCount.ToString()}");
+            ImGui.TextUnformatted($"Max MCDO slots available: {_uiShared.ApiController.ServerInfo.MaxCharaDataVanity.ToString()}");
+        }
     }
 }

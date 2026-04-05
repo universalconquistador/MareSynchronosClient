@@ -27,6 +27,7 @@ using MareSynchronos.WebAPI.SignalR;
 using Microsoft.Extensions.Logging;
 using System.IdentityModel.Tokens.Jwt;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -76,6 +77,8 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     private bool _penumbraExists = false;
     private bool _petNamesExists = false;
     private int _serverSelectionIndex = -1;
+    private string? _version = null;
+
     public UiSharedService(ILogger<UiSharedService> logger, IpcManager ipcManager, ApiController apiController,
         CacheMonitor cacheMonitor, FileDialogManager fileDialogManager,
         MareConfigService configService, DalamudUtilService dalamudUtil, IDalamudPluginInterface pluginInterface,
@@ -129,6 +132,8 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         GameFont = _pluginInterface.UiBuilder.FontAtlas.NewGameFontHandle(new(GameFontFamilyAndSize.Axis12));
         IconFont = _pluginInterface.UiBuilder.IconFontFixedWidthHandle;
     }
+
+    public string Version => _version ??= Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty;
 
     public static string DoubleNewLine => Environment.NewLine + Environment.NewLine;
     public ApiController ApiController => _apiController;
