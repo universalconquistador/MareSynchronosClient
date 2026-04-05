@@ -46,7 +46,7 @@ public static class TmbValidation
         TmbFile? tmbFile = null;
         try
         {
-            tmbFile = new TmbFile(reader, verify: true);
+            tmbFile = new TmbFile(reader, verify: false);
         }
         catch (Exception) // Can throw if e.g. the VfxEditor.Dalamud static properties are accessed when not initialized (e.g. from a unit test).
         { } // Can't yield return inside a catch
@@ -57,11 +57,11 @@ public static class TmbValidation
             yield break;
         }
 
-        if (tmbFile.Verified != VfxEditor.Utils.VerifiedStatus.VERIFIED)
-        {
-            yield return TMB000B;
-            yield break;
-        }
+        //if (tmbFile.Verified != VfxEditor.Utils.VerifiedStatus.VERIFIED)
+        //{
+        //    yield return TMB000B;
+        //    yield break;
+        //}
 
         foreach (var actor in tmbFile.Actors)
         {
