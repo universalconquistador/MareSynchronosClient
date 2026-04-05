@@ -1,16 +1,20 @@
 ﻿using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
-using MareSynchronos.API.Data;
+using MareSynchronos.API.Data.AdditionalTypes;
+using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.API.Dto;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 
 namespace MareSynchronos.PlayerData.Handlers
@@ -90,6 +94,9 @@ namespace MareSynchronos.PlayerData.Handlers
         {
             if (args.MenuType == ContextMenuType.Inventory) return;
             if (!_configurationService.Current.EnableRightClickMenus) return;
+
+            if (string.Equals(args.AddonName, "ChatLog", StringComparison.OrdinalIgnoreCase))
+                AddUserPairChatContextMenu(args);
 
             var target = _dalamudUtilService.TargetAddress;
             var pairs = _pairManager.GetVisiblePairs();
@@ -380,6 +387,28 @@ namespace MareSynchronos.PlayerData.Handlers
             });
 
             clickedArgs.OpenSubmenu(new SeStringBuilder().AddText("Add to Overrides").Build(), menuItems);
+        }
+
+        private void AddUserPairChatContextMenu(IMenuOpenedArgs args)
+        {
+            if (args.Target is not MenuTargetDefault target)
+                return;
+
+            Logger.LogTrace("ChatLog menu target: {1} {2}", target.TargetName, target.TargetContentId);
+
+            var cid = target.TargetContentId.ToString().GetHash256();
+
+            var pair = _pairManager.GetPairByCID(cid);
+            if (pair == null || pair.IsPaused) return;
+
+            args.AddMenuItem(new MenuItem()
+            {
+                Name = new SeStringBuilder().AddText("Send Lifestream Location Invite").Build(),
+                OnClicked = (__) => _ = _apiController.SendLifestreamInviteToPair(pair),
+                UseDefaultPrefix = false,
+                PrefixChar = 'P',
+                PrefixColor = 530,
+            });
         }
     }
 }
