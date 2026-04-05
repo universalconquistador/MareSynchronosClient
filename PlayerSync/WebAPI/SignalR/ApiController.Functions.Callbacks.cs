@@ -275,6 +275,12 @@ public partial class ApiController
         return Task.CompletedTask;
     }
 
+    public Task Client_ProcessJsonDataType(JsonDataTypeDto dto)
+    {
+        ExecuteSafely(() => Mediator.Publish(new JsonDataTypeMessage(dto)));
+        return Task.CompletedTask;
+    }
+
     public void OnGroupChangePermissions(Action<GroupPermissionDto> act)
     {
         if (_initialized) return;
@@ -472,6 +478,12 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_StartEmoteSyncGroup), act);
+    }
+
+    public void OnProcessJsonDataType(Action<JsonDataTypeDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_ProcessJsonDataType), act);
     }
 
     private void ExecuteSafely(Action act)

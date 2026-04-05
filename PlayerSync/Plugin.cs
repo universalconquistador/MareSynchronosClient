@@ -161,6 +161,8 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<ServerConfigurationManager>()));
             collection.AddSingleton((s) => new EmoteSyncManagerService(s.GetRequiredService<ILogger<EmoteSyncManagerService>>(), s.GetRequiredService<MareMediator>(), gameData, s.GetRequiredService<ApiController>(),
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>()));
+            collection.AddSingleton((s) => new JsonDataTypeHandlerService(s.GetRequiredService<ILogger<JsonDataTypeHandlerService>>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<MareConfigService>(),
+                s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<IpcManager>(), chatGui));
             collection.AddSingleton((s) => new PairContextMenuHandler(s.GetRequiredService<ILogger<PairContextMenuHandler>>(), s.GetRequiredService<MareMediator>(), contextMenu, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<ServerConfigurationManager>(), 
                 s.GetRequiredService<PairInviteManager>(), s.GetRequiredService<PlayerPerformanceConfigService>()));
@@ -184,10 +186,12 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<DalamudUtilService>()));
             collection.AddSingleton((s) => new IpcCallerLoci(s.GetRequiredService<ILogger<IpcCallerLoci>>(), pluginInterface,
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<MareMediator>()));
+            collection.AddSingleton((s) => new IpcCallerLifestream(s.GetRequiredService<ILogger<IpcCallerLifestream>>(), pluginInterface,
+                s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<MareMediator>()));
             collection.AddSingleton((s) => new IpcManager(s.GetRequiredService<ILogger<IpcManager>>(), s.GetRequiredService<MareMediator>(),
                 s.GetRequiredService<IpcCallerPenumbra>(), s.GetRequiredService<IpcCallerGlamourer>(), s.GetRequiredService<IpcCallerCustomize>(),
                 s.GetRequiredService<IpcCallerHeels>(), s.GetRequiredService<IpcCallerHonorific>(), s.GetRequiredService<IpcCallerMoodles>(),
-                s.GetRequiredService<IpcCallerPetNames>(), s.GetRequiredService<IpcCallerBrio>(), s.GetRequiredService<IpcCallerLoci>()));
+                s.GetRequiredService<IpcCallerPetNames>(), s.GetRequiredService<IpcCallerBrio>(), s.GetRequiredService<IpcCallerLoci>(), s.GetRequiredService<IpcCallerLifestream>()));
             collection.AddSingleton((s) => new NotificationService(s.GetRequiredService<ILogger<NotificationService>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<DalamudUtilService>(),
                 notificationManager, chatGui, s.GetRequiredService<MareConfigService>()));
@@ -281,6 +285,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddHostedService(p => p.GetRequiredService<PairInviteManager>());
             collection.AddHostedService(p => p.GetRequiredService<EmoteSyncManagerService>());
             collection.AddHostedService(p => p.GetRequiredService<PairContextMenuHandler>());
+            collection.AddHostedService(p => p.GetRequiredService<JsonDataTypeHandlerService>());
         })
         .Build();
 

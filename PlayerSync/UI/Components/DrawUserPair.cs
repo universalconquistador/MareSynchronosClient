@@ -3,6 +3,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
@@ -172,6 +173,15 @@ public class DrawUserPair
     {
         ImGui.TextUnformatted("Individual Pair Functions");
         var entryUID = _pair.UserData.AliasOrUID;
+
+        if (_pair.IndividualPairStatus == IndividualPairStatus.Bidirectional)
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plane, "Lifestream Invite", _menuWidth, true))
+            {
+                _ = _apiController.SendLifestreamInviteToPair(_pair);
+            }
+        }
+        UiSharedService.AttachToolTip("This will only notify the user if they have Lifestream installed.");
 
         if (_pair.IndividualPairStatus != API.Data.Enum.IndividualPairStatus.None)
         {
