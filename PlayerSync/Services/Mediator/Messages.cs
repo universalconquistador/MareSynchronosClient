@@ -123,5 +123,6 @@ public record PairRequestsUpdateMessage(UserPairRequestsDto Dto) : MessageBase;
 public record UpdateGroupInvitesMessage(GroupJoinInvitesDto Dto) : MessageBase;
 public record EmoteSyncUpdateMessage(EmoteResponseDto Dto) : MessageBase;
 public record EmoteSyncStartMessage(ScheduledEmoteActionDto Dto) : MessageBase;
+public record JsonDataTypeMessage(JsonDataTypeDto Dto) : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name
