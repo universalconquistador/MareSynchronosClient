@@ -68,7 +68,7 @@ public class PluginWarningNotificationService
             warning.ShowPetNicknamesWarning = true;
         }
 
-        if (changes.Contains(PlayerChanges.Loci) && !warning.ShowLociWarning && !_ipcManager.Loci.APIAvailable)
+        if (changes.Contains(PlayerChanges.Loci) && !warning.ShowLociWarning && !_ipcManager.Loci.APIAvailable && !_ipcManager.Moodles.APIAvailable)
         {
             missingPluginsForData.Add("Loci");
             warning.ShowLociWarning = true;
