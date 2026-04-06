@@ -1,8 +1,10 @@
 ﻿using MareSynchronos.FileCache;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.PlayerData.Services;
 using MareSynchronos.Services;
+using MareSynchronos.Services.EmoteSync;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using Microsoft.Extensions.DependencyInjection;
@@ -173,10 +175,14 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
             _runtimeServiceScope.ServiceProvider.GetRequiredService<CacheCreationService>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<TransientResourceManager>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<VisibleUserDataDistributor>();
+            _runtimeServiceScope.ServiceProvider.GetRequiredService<VersionUpdateCheckService>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<NotificationService>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<NamePlateManagerService>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<GroupZoneSyncManager>();
-            _runtimeServiceScope.ServiceProvider.GetRequiredService<PairRequestManager>();
+            _runtimeServiceScope.ServiceProvider.GetRequiredService<PairInviteManager>();
+            _runtimeServiceScope.ServiceProvider.GetRequiredService<EmoteSyncManagerService>();
+            _runtimeServiceScope.ServiceProvider.GetRequiredService<PairContextMenuHandler>();
+            _runtimeServiceScope.ServiceProvider.GetRequiredService<JsonDataTypeHandlerService>();
 
 #if !DEBUG
             if (_mareConfigService.Current.LogLevel != LogLevel.Information)

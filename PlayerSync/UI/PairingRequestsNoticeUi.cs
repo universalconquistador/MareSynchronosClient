@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -11,12 +12,14 @@ namespace MareSynchronos.UI;
 public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
 {
     private bool _isDraggingPill;
-    private readonly PairRequestManager _pairRequestManager;
+    private readonly PairInviteManager _pairRequestManager;
+    private readonly MareConfigService _configService;
 
     public PairingRequestsNoticeUi(ILogger<PairingRequestsNoticeUi> logger, MareMediator mediator, PerformanceCollectorService performanceCollectorService,
-        PairRequestManager pairRequestManager) : base(logger, mediator, "PlayerSync Pending Pair Notice", performanceCollectorService)
+        PairInviteManager pairRequestManager, MareConfigService mareConfigService) : base(logger, mediator, "PlayerSync Pending Pair Notice", performanceCollectorService)
     {
         _pairRequestManager = pairRequestManager;
+        _configService = mareConfigService;
 
         SizeConstraints = new WindowSizeConstraints()
         {
@@ -53,7 +56,9 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
 
         var drawList = ImGui.GetWindowDrawList();
         var windowRounding = pillSize.Y * 0.5f;
-        var pillColor = ImGui.GetColorU32(new Vector4(0.04f, 0.18f, 0.24f, 1.00f)); // should pull this from theme
+        var pillColor = _configService.Current.EnableColorWaveNotification
+            ? ImGui.GetColorU32(UiSharedService.ColorPlayerSyncWave(4f))
+            : ImGui.GetColorU32(new Vector4(0.01f, 0.12f, 0.20f, 1.00f));
         drawList.AddRectFilled(pillMin, pillMax, pillColor, windowRounding, ImDrawFlags.RoundCornersAll);
 
         ImGui.SetCursorPos(Vector2.Zero);
@@ -81,9 +86,12 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
         if (ImGui.IsItemDeactivated())
             _isDraggingPill = false;
 
+        ImFontPtr AxisFont = default;
+        ImGui.PushFont(AxisFont);
+
         // text
         var labelText = "PlayerSync Pair Requests";
-        var countValue = _pairRequestManager.ReceivedPendingCount;
+        var countValue = _pairRequestManager.ReceivedPendingCount + _pairRequestManager.ReceivedGroupInviteCount;
         var countText = countValue.ToString();
 
         var labelSize = ImGui.CalcTextSize(labelText);
@@ -99,12 +107,17 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
         // count
         ImGui.SetCursorScreenPos(new Vector2(pillMax.X - padX - countSize.X, centerY - (countSize.Y * 0.5f)));
         ImGui.TextUnformatted(countText);
+
+        ImGui.PopFont();
     }
 
     public override bool DrawConditions()
     {
-        if (_pairRequestManager.ReceivedPendingCount == 0) return false;
+        if (_pairRequestManager.ReceivedPendingCount == 0 && 
+            _pairRequestManager.ReceivedGroupInviteCount == 0) return false;
+
         if (!IsOpen) return false;
+
         return true;
     }
 

@@ -2,6 +2,7 @@
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.CharaData;
+using MareSynchronos.API.Dto.Emote;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration.Models;
@@ -112,11 +113,10 @@ public partial class ApiController
         if (pair == null) return Task.CompletedTask;
         var player = string.IsNullOrEmpty(pair.PlayerName) ? dto.User.AliasOrUID : pair.PlayerName;
         Logger.LogDebug("Got a request to pair from {uid} mapping to {player}.", dto.User.UID, player);
-        if (_mareConfigService.Current.ShowPairingRequestNotification)
-        {
-            Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
+
+        Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
                 $"Player {player} would like to pair. To accept, right click their character, or use the triple-dot menu next to their name, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(15)));
-        }
+
         return Task.CompletedTask;
     }
 
@@ -253,7 +253,31 @@ public partial class ApiController
 
     public Task Client_UpdatePairRequests(UserPairRequestsDto dto)
     {
-        ExecuteSafely(() => Mediator.Publish(new PairRequestsUpdate(dto)));
+        ExecuteSafely(() => Mediator.Publish(new PairRequestsUpdateMessage(dto)));
+        return Task.CompletedTask;
+    }
+
+    public Task Client_UpdateGroupInvites(GroupJoinInvitesDto dto)
+    {
+        ExecuteSafely(() => Mediator.Publish(new UpdateGroupInvitesMessage(dto)));
+        return Task.CompletedTask;
+    }
+
+    public Task Client_UpdateEmoteSyncUsers(EmoteResponseDto dto)
+    {
+        ExecuteSafely(() => Mediator.Publish(new EmoteSyncUpdateMessage(dto)));
+        return Task.CompletedTask;
+    }
+
+    public Task Client_StartEmoteSyncGroup(ScheduledEmoteActionDto dto)
+    {
+        ExecuteSafely(() => Mediator.Publish(new EmoteSyncStartMessage(dto)));
+        return Task.CompletedTask;
+    }
+
+    public Task Client_ProcessJsonDataType(JsonDataTypeDto dto)
+    {
+        ExecuteSafely(() => Mediator.Publish(new JsonDataTypeMessage(dto)));
         return Task.CompletedTask;
     }
 
@@ -436,6 +460,30 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_UpdatePairRequests), act);
+    }
+
+    public void OnUpdateGroupInvites(Action<GroupJoinInvitesDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_UpdateGroupInvites), act);
+    }
+
+    public void OnUpdateEmoteSyncUsers(Action<EmoteResponseDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_UpdateEmoteSyncUsers), act);
+    }
+
+    public void OnStartEmoteSyncGroup(Action<ScheduledEmoteActionDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_StartEmoteSyncGroup), act);
+    }
+
+    public void OnProcessJsonDataType(Action<JsonDataTypeDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_ProcessJsonDataType), act);
     }
 
     private void ExecuteSafely(Action act)

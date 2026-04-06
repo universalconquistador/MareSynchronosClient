@@ -1,9 +1,11 @@
 ﻿using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Plugin.Services;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NotificationType = MareSynchronos.MareConfiguration.Models.NotificationType;
@@ -16,6 +18,7 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
     private readonly INotificationManager _notificationManager;
     private readonly IChatGui _chatGui;
     private readonly MareConfigService _configurationService;
+    DalamudLinkPayload? _inviteTogglePayload = null;
 
     public NotificationService(ILogger<NotificationService> logger, MareMediator mediator,
         DalamudUtilService dalamudUtilService,
@@ -31,11 +34,17 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
     public Task StartAsync(CancellationToken cancellationToken)
     {
         Mediator.Subscribe<NotificationMessage>(this, ShowNotification);
+
+        _inviteTogglePayload = _chatGui.AddChatLinkHandler(0, (_, _) => Mediator.Publish(new UiToggleMessage(typeof(PairingRequestsUi))));
+
         return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
+        _chatGui.RemoveChatLinkHandler();
+        _inviteTogglePayload = null;
+
         return Task.CompletedTask;
     }
 
@@ -57,6 +66,30 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
         _chatGui.Print(se.BuiltString);
     }
 
+    private void PrintPairRequestChat(string? message)
+    {
+        SeStringBuilder se = new SeStringBuilder();
+
+        if (_inviteTogglePayload != null)
+        {
+            se
+            .AddText("[PlayerSync] Info: ")
+            .AddItalics(message ?? string.Empty)
+            .AddText(" ")
+            .Add(_inviteTogglePayload)
+            .AddUiForeground("Click here to view invites.", 37)
+            .AddUiForegroundOff()
+            .Add(RawPayload.LinkTerminator)
+            .Build();
+        }
+        else
+        {
+            se.AddText("[PlayerSync] Info: ").AddItalics(message ?? string.Empty);
+        }
+        
+        _chatGui.Print(se.BuiltString);
+    }
+
     private void ShowChat(NotificationMessage msg)
     {
         switch (msg.Type)
@@ -71,6 +104,10 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
 
             case NotificationType.Error:
                 PrintErrorChat(msg.Message);
+                break;
+
+            case NotificationType.Invite:
+                PrintPairRequestChat(msg.Message);
                 break;
         }
     }
@@ -93,6 +130,10 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
 
             case NotificationType.Error:
                 ShowNotificationLocationBased(msg, _configurationService.Current.ErrorNotification);
+                break;
+
+            case NotificationType.Invite:
+                ShowNotificationLocationBased(msg, _configurationService.Current.PairRequestNotification);
                 break;
         }
     }
@@ -126,6 +167,7 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
             NotificationType.Error => Dalamud.Interface.ImGuiNotification.NotificationType.Error,
             NotificationType.Warning => Dalamud.Interface.ImGuiNotification.NotificationType.Warning,
             NotificationType.Info => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
+            NotificationType.Invite => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
             _ => Dalamud.Interface.ImGuiNotification.NotificationType.Info
         };
 

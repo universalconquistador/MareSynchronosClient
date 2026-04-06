@@ -29,8 +29,8 @@ public class CreateSyncshellUI : WindowMediatorSubscriberBase
         _theme = theme;
         SizeConstraints = new()
         {
-            MinimumSize = new(550, 350),
-            MaximumSize = new(550, 350)
+            MinimumSize = new(550, 370),
+            MaximumSize = new(550, 370)
         };
 
         Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse;

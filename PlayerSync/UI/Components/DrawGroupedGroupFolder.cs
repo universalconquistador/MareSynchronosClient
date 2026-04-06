@@ -13,16 +13,20 @@ public class DrawGroupedGroupFolder : IDrawFolder
     private readonly TagHandler _tagHandler;
     private readonly UiSharedService _uiSharedService;
     private bool _wasHovered = false;
+    private int _joinedGroups = 0;
+    private int _maxJoinGroups = 0;
 
     public IImmutableList<DrawUserPair> DrawPairs => throw new NotSupportedException();
     public int OnlinePairs => _groups.SelectMany(g => g.DrawPairs).Where(g => g.Pair.IsOnline).DistinctBy(g => g.Pair.UserData.UID).Count();
     public int TotalPairs => _groups.Sum(g => g.TotalPairs);
 
-    public DrawGroupedGroupFolder(IEnumerable<IDrawFolder> groups, TagHandler tagHandler, UiSharedService uiSharedService)
+    public DrawGroupedGroupFolder(IEnumerable<IDrawFolder> groups, TagHandler tagHandler, UiSharedService uiSharedService, int joinedGroups, int maxJoinGroups)
     {
         _groups = groups;
         _tagHandler = tagHandler;
         _uiSharedService = uiSharedService;
+        _maxJoinGroups = maxJoinGroups;
+        _joinedGroups = joinedGroups;
     }
 
     public void Draw()
@@ -60,7 +64,7 @@ public class DrawGroupedGroupFolder : IDrawFolder
                 TotalPairs + " pairs combined in all of your joined syncshells");
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("All Syncshells");
+            ImGui.TextUnformatted($"All Syncshells {_joinedGroups.ToString()}/{_maxJoinGroups.ToString()}");
         }
         color.Dispose();
         _wasHovered = ImGui.IsItemHovered();

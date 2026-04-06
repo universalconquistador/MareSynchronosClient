@@ -128,7 +128,22 @@ public class ServerConfigurationManager
                 _configService.Save();
             }
 
+            // some how users are getting their configs messed up
+            if (_configService.Current.CurrentServer >= _configService.Current.ServerStorage.Count)
+            {
+                _configService.Current.CurrentServer = 0;
+                _configService.Save();
+            }
+
             return _configService.Current.CurrentServer;
+        }
+    }
+
+    public string CurrentPlayerName
+    {
+        get
+        {
+            return _dalamudUtil.GetPlayerNameAsync().GetAwaiter().GetResult();
         }
     }
 

@@ -25,6 +25,7 @@ public sealed class CommandManagerService : IDisposable
     private readonly PerformanceCollectorService _performanceCollectorService;
     private readonly CacheMonitor _cacheMonitor;
     private readonly ServerConfigurationManager _serverConfigurationManager;
+    private readonly ZoneSyncConfigService _zoneSyncConfigService;
 
     private readonly IChatGui _chat;
     private readonly IPluginLog _log;
@@ -42,6 +43,7 @@ public sealed class CommandManagerService : IDisposable
         ApiController apiController,
         MareMediator mediator,
         MareConfigService mareConfigService,
+        ZoneSyncConfigService zoneSyncConfigService,
         IChatGui chat,
         IPluginLog log)
     {
@@ -52,6 +54,7 @@ public sealed class CommandManagerService : IDisposable
         _apiController = apiController;
         _mediator = mediator;
         _mareConfigService = mareConfigService;
+        _zoneSyncConfigService = zoneSyncConfigService;
         _chat = chat;
         _log = log;
 
@@ -108,6 +111,10 @@ public sealed class CommandManagerService : IDisposable
         $"\t {alias} toggle on|off - Connects or disconnects to PlayerSync respectively" + Environment.NewLine +
         $"\t {alias} gpose - Opens the PlayerSync Character Data Hub window" + Environment.NewLine +
         $"\t {alias} analyze - Opens the PlayerSync Character Data Analysis window" + Environment.NewLine +
+        $"\t {alias} broadcast - Toggles the Syncshell Broadcast feature" + Environment.NewLine +
+        $"\t {alias} broadcast on|off - Enables or disables the Syncshell Broadcast feature" + Environment.NewLine +
+        $"\t {alias} zonesync - Toggles the ZoneSync feature" + Environment.NewLine +
+        $"\t {alias} zonesync on|off - Enables or disables the ZoneSync feature" + Environment.NewLine +
         $"\t {alias} settings - Opens the PlayerSync Settings window";
 
     // Build the help string for the secondary if both commands are available
@@ -171,6 +178,10 @@ public sealed class CommandManagerService : IDisposable
         {
             _mediator.Publish(new UiToggleMessage(typeof(DiagnosticsUi)));
         }
+        else if (string.Equals(splitArgs[0], "emote", StringComparison.OrdinalIgnoreCase))
+        {
+            _mediator.Publish(new UiToggleMessage(typeof(EmoteSyncUi)));
+        }
         else if (string.Equals(splitArgs[0], "toggle", StringComparison.OrdinalIgnoreCase))
         {
             if (_apiController.ServerState == WebAPI.SignalR.Utils.ServerState.Disconnecting)
@@ -224,6 +235,65 @@ public sealed class CommandManagerService : IDisposable
         {
             _mediator.Publish(new UiToggleMessage(typeof(DataAnalysisUi)));
         }
+
+        else if (string.Equals(splitArgs[0], "broadcast", StringComparison.OrdinalIgnoreCase))
+        {
+            bool originalStatus = _mareConfigService.Current.ListenForBroadcasts;
+            _mareConfigService.Current.ListenForBroadcasts = !_mareConfigService.Current.ListenForBroadcasts;
+
+            var setListening = splitArgs.Length > 1 ? splitArgs[1] : "";
+            if (!string.IsNullOrWhiteSpace(setListening))
+            {
+                if (string.Equals(setListening, "on", StringComparison.OrdinalIgnoreCase))
+                    _mareConfigService.Current.ListenForBroadcasts = true;
+                else if (string.Equals(setListening, "off", StringComparison.OrdinalIgnoreCase))
+                    _mareConfigService.Current.ListenForBroadcasts = false;
+            }
+
+            if (originalStatus != _mareConfigService.Current.ListenForBroadcasts)
+            {
+                _mareConfigService.Save();
+                _mediator.Publish(new BroadcastListeningChanged(_mareConfigService.Current.ListenForBroadcasts));
+            }
+            string status = _mareConfigService.Current.ListenForBroadcasts ? "on" : "off";
+            string chatMsg = $"[PlayerSync] Syncshell Broadcast feature is {status}.";
+            _chat.Print(chatMsg);
+        }
+
+        else if (string.Equals(splitArgs[0], "zonesync", StringComparison.OrdinalIgnoreCase))
+        {
+            bool originalStatus = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+            _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = !_zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+
+            var joinZoneSync = splitArgs.Length > 1 ? splitArgs[1] : "";
+            if (!string.IsNullOrWhiteSpace(joinZoneSync))
+            {
+                if (string.Equals(joinZoneSync, "on", StringComparison.OrdinalIgnoreCase))
+                    _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = true;
+                else if (string.Equals(joinZoneSync, "off", StringComparison.OrdinalIgnoreCase))
+                    _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = false;
+            }
+
+            string status = "";
+            if (originalStatus != _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining)
+            {
+                var character = _serverConfigurationManager.CurrentPlayerName;
+                _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter[character] = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+                _zoneSyncConfigService.Save();
+                _mediator.Publish(new GroupZoneSetEnableState(_zoneSyncConfigService.Current.EnableGroupZoneSyncJoining));
+                status = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining ? "on (waiting a moment before sending a join...)" : "off (leaving Zone Syncshell...)";
+            }
+            else
+            {
+                status = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining ? "on." : "off.";
+            }
+
+            string chatMsg = $"[PlayerSync] ZoneSync feature is {status}";
+
+            _chat.Print(chatMsg);
+        }
+
+
         else if (string.Equals(splitArgs[0], "settings", StringComparison.OrdinalIgnoreCase))
         {
             _mediator.Publish(new UiToggleMessage(typeof(SettingsUi)));

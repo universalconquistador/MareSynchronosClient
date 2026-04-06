@@ -9,6 +9,7 @@ public class CharacterData
     public Dictionary<ObjectKind, string> CustomizePlusScale { get; set; } = [];
     public Dictionary<ObjectKind, HashSet<FileReplacement>> FileReplacements { get; set; } = [];
     public Dictionary<ObjectKind, string> GlamourerString { get; set; } = [];
+    public Dictionary<ObjectKind, string> LociData { get; set; } = [];
     public string HeelsData { get; set; } = string.Empty;
     public string HonorificData { get; set; } = string.Empty;
     public string ManipulationString { get; set; } = string.Empty;
@@ -38,6 +39,7 @@ public class CharacterData
             CustomizePlusScale[kind] = fragment.CustomizePlusScale;
             FileReplacements[kind] = fragment.FileReplacements;
             GlamourerString[kind] = fragment.GlamourerString;
+            LociData[kind] = fragment.LociData;
         }
     }
 
@@ -65,6 +67,7 @@ public class CharacterData
         {
             FileReplacements = fileReplacements,
             GlamourerData = GlamourerString.ToDictionary(d => d.Key, d => d.Value),
+            LociData = LociData.ToDictionary(d => d.Key, d => d.Value),
             ManipulationData = ManipulationString,
             HeelsData = HeelsData,
             CustomizePlusData = CustomizePlusScale.ToDictionary(d => d.Key, d => d.Value),

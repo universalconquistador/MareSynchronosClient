@@ -206,10 +206,6 @@ public class EditProfileUi : WindowMediatorSubscriberBase
 
         if (IsProfileLoaded(raw) && IsNewProfile(raw))
         {
-            // first time profile/nothing on server
-            _descriptionText = MareProfileManager.ProfileHandler.WriteJson(_liveProfile, Formatting.None);
-            _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
-                        Disabled: false, IsNSFW: null, ProfilePictureBase64: null, Description: _descriptionText));
             _hasProfileLoaded = true;
         }
         else if (!_hasProfileLoaded && IsProfileLoaded(raw) && !IsNewProfile(raw))
@@ -337,7 +333,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
         }
 
         ImGui.Separator();
-        ImGui.TextUnformatted("Profile Picture - 9:16 aspect ratio (1920x1080) jpg/png up to 4MiB");
+        ImGui.TextUnformatted("Profile Picture - 9:16 aspect ratio (1080x1920) jpg/png up to 4MiB");
         DrawProfilePictureUpload();
 
         ImGui.Separator();
@@ -444,6 +440,7 @@ public class EditProfileUi : WindowMediatorSubscriberBase
                 {
                     _descriptionText = MareProfileManager.ProfileHandler.WriteJson(editorProfile, Formatting.None); // 1.14.1.0
 
+                    // still trigger this even if it's only the pfp that has changed so we can notify other pairs
                     _ = _apiController.UserSetProfile(new UserProfileDto(new UserData(_apiController.UID),
                         Disabled: false, IsNSFW: _isNsfw, ProfilePictureBase64: null, Description: _descriptionText));
 

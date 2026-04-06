@@ -2,6 +2,7 @@
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.CharaData;
+using MareSynchronos.API.Dto.Emote;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration.Models;
@@ -49,6 +50,9 @@ public record PenumbraResourceLoadMessage(IntPtr GameObject, string GamePath, st
 public record CustomizePlusMessage(nint? Address) : MessageBase;
 public record HonorificMessage(string NewHonorificTitle) : MessageBase;
 public record MoodlesMessage(IntPtr Address) : MessageBase;
+public record LociReadyMessage : MessageBase;
+public record LociDisposedMessage : MessageBase;
+public record LociUpdateMessage(IntPtr Address) : MessageBase;
 public record PetNamesReadyMessage : MessageBase;
 public record PetNamesMessage(string PetNicknamesData) : MessageBase;
 public record HonorificReadyMessage : MessageBase;
@@ -72,9 +76,9 @@ public record UiToggleMessage(Type UiType) : MessageBase;
 public record CloseWindowMessage : MessageBase;
 public record ToggleCollapseMessage : MessageBase;
 public record PrefillJoinSyncshellParameters(string GroupId, bool ExpectPasswordless, bool IsGuestModeEnabled) : MessageBase;
+public record PreloadJoinSyncshellDtoMessage(GroupJoinInfoDto Dto, string Password) : MessageBase;
 public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading) : MessageBase;
 public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;
-//public record UserAddPairMessage(UserData UserData) : MessageBase;
 public record UserPairStickyPauseAndRemoveMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
 public record PauseMessage(UserData UserData, PauseReason Reason) : MessageBase;
@@ -115,6 +119,10 @@ public record GroupZoneSyncUpdateMessage : MessageBase;
 public record WorldChangeMessage : MessageBase;
 public record ToggleThemeEditorMessage : MessageBase;
 public record RedrawNameplateMessage : MessageBase;
-public record PairRequestsUpdate(UserPairRequestsDto Dto) : MessageBase;
+public record PairRequestsUpdateMessage(UserPairRequestsDto Dto) : MessageBase;
+public record UpdateGroupInvitesMessage(GroupJoinInvitesDto Dto) : MessageBase;
+public record EmoteSyncUpdateMessage(EmoteResponseDto Dto) : MessageBase;
+public record EmoteSyncStartMessage(ScheduledEmoteActionDto Dto) : MessageBase;
+public record JsonDataTypeMessage(JsonDataTypeDto Dto) : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name

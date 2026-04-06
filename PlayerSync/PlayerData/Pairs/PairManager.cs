@@ -12,6 +12,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 
 namespace MareSynchronos.PlayerData.Pairs;
 
@@ -21,28 +22,24 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private readonly ConcurrentDictionary<GroupData, GroupFullInfoDto> _allGroups = new(GroupDataComparer.Instance);
     private readonly MareConfigService _configurationService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
-    private readonly IContextMenu _dalamudContextMenu;
     private readonly PairFactory _pairFactory;
     private Lazy<List<Pair>> _directPairsInternal;
     private Lazy<Dictionary<GroupFullInfoDto, List<Pair>>> _groupPairsInternal;
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
 
     public PairManager(ILogger<PairManager> logger, PairFactory pairFactory,
-                MareConfigService configurationService, ServerConfigurationManager serverConfigurationManager, MareMediator mediator,
-                IContextMenu dalamudContextMenu) : base(logger, mediator)
+                MareConfigService configurationService, ServerConfigurationManager serverConfigurationManager, MareMediator mediator)
+        : base(logger, mediator)
     {
         _pairFactory = pairFactory;
         _configurationService = configurationService;
         _serverConfigurationManager = serverConfigurationManager;
-        _dalamudContextMenu = dalamudContextMenu;
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPairs());
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => ReapplyPairData());
         Mediator.Subscribe<ChangeFilterMessage>(this, (_) => ReapplyPairData());
         _directPairsInternal = DirectPairsLazy();
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
-
-        _dalamudContextMenu.OnMenuOpened += DalamudContextMenuOnOnOpenGameObjectContextMenu;
     }
 
     public List<Pair> DirectPairs => _directPairsInternal.Value;
@@ -70,6 +67,17 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public Pair? GetPairByUID(string uid)
     {
         var existingPair = _allClientPairs.FirstOrDefault(f => f.Key.UID == uid);
+        if (!Equals(existingPair, default(KeyValuePair<UserData, Pair>)))
+        {
+            return existingPair.Value;
+        }
+
+        return null;
+    }
+
+    public Pair? GetPairByCID(string cid)
+    {
+        var existingPair = _allClientPairs.FirstOrDefault(f => f.Value.Ident == cid);
         if (!Equals(existingPair, default(KeyValuePair<UserData, Pair>)))
         {
             return existingPair.Value;
@@ -128,6 +136,8 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
     public List<UserData> GetVisibleUsers() => [.. _allClientPairs.Where(p => p.Value.IsVisible).Select(p => p.Key)];
 
+    public List<Pair> GetVisiblePairs() => [.. _allClientPairs.Where(p => p.Value.IsVisible).Select(p => p.Value)];
+
     public void MarkPairOffline(UserData user)
     {
         if (_allClientPairs.TryGetValue(user, out var pair))
@@ -143,7 +153,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     {
         if (!_allClientPairs.ContainsKey(dto.User)) throw new InvalidOperationException("No user found for " + dto);
 
-        Mediator.Publish(new ClearProfileDataMessage(dto.User));
+        //Mediator.Publish(new ClearProfileDataMessage(dto.User));
 
         var pair = _allClientPairs[dto.User];
         if (pair.HasCachedPlayer)
@@ -342,20 +352,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     {
         base.Dispose(disposing);
 
-        _dalamudContextMenu.OnMenuOpened -= DalamudContextMenuOnOnOpenGameObjectContextMenu;
+        
 
         DisposePairs();
-    }
-
-    private void DalamudContextMenuOnOnOpenGameObjectContextMenu(Dalamud.Game.Gui.ContextMenu.IMenuOpenedArgs args)
-    {
-        if (args.MenuType == Dalamud.Game.Gui.ContextMenu.ContextMenuType.Inventory) return;
-        if (!_configurationService.Current.EnableRightClickMenus) return;
-
-        foreach (var pair in _allClientPairs.Where((p => p.Value.IsVisible)))
-        {
-            pair.Value.AddContextMenu(args);
-        }
     }
 
     private Lazy<List<Pair>> DirectPairsLazy() => new(() => _allClientPairs.Select(k => k.Value)

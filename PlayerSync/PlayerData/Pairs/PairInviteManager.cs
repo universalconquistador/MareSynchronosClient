@@ -2,18 +2,20 @@
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
 using MareSynchronos.API.Data;
+using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.UI;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.PlayerData.Pairs
 {
-    public class PairRequestManager : DisposableMediatorSubscriberBase, IHostedService
+    public class PairInviteManager : DisposableMediatorSubscriberBase, IHostedService
     {
         private readonly IContextMenu _dalamudContextMenu;
         private readonly MareConfigService _configurationService;
@@ -22,8 +24,9 @@ namespace MareSynchronos.PlayerData.Pairs
         private readonly ApiController _apiController;
         private readonly ServerConfigurationManager _serverConfigurationManager;
         private List<UserPairRequestFullDto> _pendingPairRequests = new();
+        private List<GroupJoinInviteDto> _pendingGroupInvites = new();
 
-        public PairRequestManager(ILogger<PairRequestManager> logger, MareMediator mediator, IContextMenu dalamudContextMenu,
+        public PairInviteManager(ILogger<PairInviteManager> logger, MareMediator mediator, IContextMenu dalamudContextMenu,
             MareConfigService mareConfigService, DalamudUtilService dalamudUtilService, PairManager pairManager,
             ApiController apiController, ServerConfigurationManager serverConfigurationManager) : base(logger, mediator)
         {
@@ -39,7 +42,9 @@ namespace MareSynchronos.PlayerData.Pairs
         {
             Logger.LogDebug("Pair Request Manger started.");
             Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPendingPairRequests());
-            Mediator.Subscribe<PairRequestsUpdate>(this, (msg) => UpdatePairRequests(msg.Dto));
+            Mediator.Subscribe<PairRequestsUpdateMessage>(this, (msg) => UpdatePairRequests(msg.Dto));
+            Mediator.Subscribe<UpdateGroupInvitesMessage>(this, (msg) => UpdateGroupInvites(msg.Dto));
+
             _dalamudContextMenu.OnMenuOpened += DalamudContextMenuOnOnOpenGameObjectContextMenu;
 
             return Task.CompletedTask;
@@ -64,7 +69,16 @@ namespace MareSynchronos.PlayerData.Pairs
             }
         }
 
-        public List<UserPairRequestFullDto> GetReceivedPendingRequests()
+        public int ReceivedGroupInviteCount
+        {
+            get
+            {
+                var tempPendingGroupInvites = _pendingGroupInvites;
+                return tempPendingGroupInvites.Count;
+            }
+        }
+
+        public List<UserPairRequestFullDto> GetPendingRequests()
         {
             var tempPairRequestList = _pendingPairRequests;
             return tempPairRequestList.ToList();
@@ -127,11 +141,9 @@ namespace MareSynchronos.PlayerData.Pairs
 
                 _serverConfigurationManager.AddPendingRequestForIdent(req.RequestorIdent, name);
 
-                if (_configurationService.Current.ShowPairingRequestNotification)
-                {
-                    var msg = name != "Unknown" ? $"Player {name} ({req.Requestor.AliasOrUID}) " : $"UID/Alias {req.Requestor.AliasOrUID} ";
-                    Mediator.Publish(new NotificationMessage("New Pair Request", msg + "has sent you a request to pair directly.", MareConfiguration.Models.NotificationType.Info));
-                }
+                var msg = name != "Unknown" ? $"Player {name} ({req.Requestor.AliasOrUID}) " : $"UID/Alias {req.Requestor.AliasOrUID} ";
+                Mediator.Publish(new NotificationMessage("New Pair Request", msg + "has sent you a request to pair directly.",
+                    MareConfiguration.Models.NotificationType.Invite));
             }
 
             // clean up the local ident cache
@@ -223,6 +235,97 @@ namespace MareSynchronos.PlayerData.Pairs
         private void ClearPendingPairRequests()
         {
             _pendingPairRequests = new List<UserPairRequestFullDto>();
+            _pendingGroupInvites = new List<GroupJoinInviteDto>();
+        }
+
+        // groups/syncshells
+        public void SendGroupInvite(GroupPairDto dto)
+        {
+            Logger.LogDebug("Sending group invite for {user} to {group}", dto.UID, dto.Group.GID);
+            _ = SendGroupInviteInternal(dto);
+        }
+
+        public void SendRejectGroupInvite(string inviteId)
+        {
+            var invite = GetGroupJoinInviteDto(inviteId);
+            if (invite == null) return;
+
+            GroupJoinInviteDto dto = new(invite.RequestId, invite.Group, new(SelfUID));
+            Logger.LogDebug("Rejecting group invite request from {user} to {group} with key {key}", 
+                dto.InvitingUser?.UID ?? "Unknown", dto.Group.GID, dto.RequestId);
+
+            _ = SendRejectGroupInviteInternal(dto);
+        }
+
+        public void SendGroupInviteJoin(string inviteId)
+        {
+            var invite = GetGroupJoinInviteDto(inviteId);
+            if (invite == null) return;
+
+            GroupPasswordDto dto = new(invite.Group, invite.RequestId);
+            Logger.LogDebug("Sending join for group {group}", dto.Group.GID);
+
+            _ = SendGroupInviteJoinInternal(dto);
+        }
+
+        public List<GroupJoinInviteDto> GetPendingGroupInvites()
+        {
+            var tempGroupInvitesList = _pendingGroupInvites;
+            return tempGroupInvitesList.ToList();
+        }
+
+        private async Task SendGroupInviteInternal(GroupPairDto dto)
+        {
+            await _apiController.GroupUserInvite(dto).ConfigureAwait(false);
+        }
+
+        private async Task SendRejectGroupInviteInternal(GroupJoinInviteDto dto)
+        {
+            await _apiController.GroupUserRejectInvite(dto).ConfigureAwait(false);
+        }
+
+        private async Task SendGroupInviteJoinInternal(GroupPasswordDto dto)
+        {
+            var result = await _apiController.GroupJoin(dto).ConfigureAwait(false);
+            if (result == null) return;
+
+            Mediator.Publish(new UiToggleMessage(typeof(JoinSyncshellUI)));
+            Mediator.Publish(new PreloadJoinSyncshellDtoMessage(result, dto.Password));
+        }
+
+        private GroupJoinInviteDto? GetGroupJoinInviteDto(string inviteId)
+        {
+            return _pendingGroupInvites.FirstOrDefault(i => string.Equals(i.RequestId, inviteId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void UpdateGroupInvites(GroupJoinInvitesDto dto)
+        {
+            var incomingGroupInvites = dto?.GroupJoinInvites ?? [];
+            var existingGroupIds = new HashSet<string>(_pendingGroupInvites.Select(invite => invite.GID), StringComparer.OrdinalIgnoreCase);
+            var newInvites = incomingGroupInvites.Where(invite => existingGroupIds.Add(invite.GID)).ToList();
+
+            // handle new requests
+            foreach (var inv in newInvites)
+            {
+                if (_serverConfigurationManager.IsUidBlacklistedForPairRequest(inv.InvitingUser!.UID))
+                {
+                    SendRejectGroupInvite(inv.RequestId);
+                    incomingGroupInvites.Remove(inv);
+                    continue;
+                }
+
+                // we aren't really going to worry about someone inviting someone while they are offline
+                // if it becomes an issue later on, we'll deal with it
+                var thisPair = _pairManager.GetPairByUID(inv.InvitingUser!.UID);
+                string name = thisPair?.PlayerName ?? "Unknown";
+
+                var msg = name != "Unknown" ? $"Player {name} ({inv.InvitingUser.AliasOrUID}) " : $"UID/Alias {inv.InvitingUser.AliasOrUID} ";
+                var alias = string.IsNullOrWhiteSpace(inv.GroupAlias) ? "." : $" ({inv.GroupAlias}).";
+                Mediator.Publish(new NotificationMessage("Syncshell Invite", msg + "has sent you an invite to join Syncshell " +
+                    $"{inv.GID}" + alias, MareConfiguration.Models.NotificationType.Invite));
+            }
+
+            _pendingGroupInvites = incomingGroupInvites.ToList();
         }
     }
 }

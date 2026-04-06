@@ -2,6 +2,7 @@
 using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
@@ -26,6 +27,7 @@ public class MareProfileManager : MediatorSubscriberBase
     private const string _noDescription = "-- User has no description set --";
     private const string _nsfw = "Profile is marked NSFW. Enable NSFW profiles in the settings to view.";
     private readonly ApiController _apiController;
+    private readonly PairManager _pairManager;
     private readonly MareConfigService _mareConfigService;
     private readonly ConcurrentDictionary<UserData, MareProfileData> _mareProfiles = new(UserDataComparer.Instance);
 
@@ -34,15 +36,20 @@ public class MareProfileManager : MediatorSubscriberBase
     private readonly MareProfileData _nsfwProfileData = new(IsFlagged: false, IsNSFW: true, _mareLogoNsfw, string.Empty, _nsfw);
 
     public MareProfileManager(ILogger<MareProfileManager> logger, MareConfigService mareConfigService,
-        MareMediator mediator, ApiController apiController) : base(logger, mediator)
+        MareMediator mediator, ApiController apiController, PairManager pairManager) : base(logger, mediator)
     {
         _mareConfigService = mareConfigService;
         _apiController = apiController;
+        _pairManager = pairManager;
 
         Mediator.Subscribe<ClearProfileDataMessage>(this, (msg) =>
         {
             if (msg.UserData != null)
+            {
                 _mareProfiles.Remove(msg.UserData, out _);
+                var pair = _pairManager.GetPairByUID(msg.UserData.UID);
+                if (pair != null) pair.HasProfile = true;
+            }
             else
                 _mareProfiles.Clear();
         });

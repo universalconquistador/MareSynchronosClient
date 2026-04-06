@@ -1,6 +1,4 @@
-﻿using Dalamud.Game.Gui.ContextMenu;
-using Dalamud.Game.Text.SeStringHandling;
-using MareSynchronos.API.Data;
+﻿using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.User;
@@ -20,11 +18,11 @@ public class Pair
     private readonly PairHandlerFactory _cachedPlayerFactory;
     private readonly SemaphoreSlim _creationSemaphore = new(1);
     private readonly ILogger<Pair> _logger;
-    private readonly MareMediator _mediator;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly MareConfigService _configService;
     private CancellationTokenSource _applicationCts = new();
     private OnlineUserIdentDto? _onlineUserIdentDto = null;
+    private bool? _hasProfile = null;
 
     public Pair(ILogger<Pair> logger, UserFullPairDto userPair, PairHandlerFactory cachedPlayerFactory,
         MareMediator mediator, ServerConfigurationManager serverConfigurationManager, MareConfigService mareConfigService)
@@ -32,7 +30,6 @@ public class Pair
         _logger = logger;
         UserPair = userPair;
         _cachedPlayerFactory = cachedPlayerFactory;
-        _mediator = mediator;
         _serverConfigurationManager = serverConfigurationManager;
         _configService = mareConfigService;
     }
@@ -54,87 +51,28 @@ public class Pair
     public int LastAppliedCompressedAlternates { get; set; } = -1;
     public DateTimeOffset? LastLoadedSoundSinceRedraw { get; set; } = null;
     public string Ident => _onlineUserIdentDto?.Ident ?? string.Empty;
+   
     public nint Address => CachedPlayer?.PlayerCharacter ?? nint.Zero;
     
     public UserData UserData => UserPair.User;
 
     public UserFullPairDto UserPair { get; set; }
     private PairHandler? CachedPlayer { get; set; }
+    public unsafe uint PlayerCharacterId => CachedPlayer?.PlayerCharacterId ?? uint.MaxValue;
 
-    public void AddContextMenu(IMenuOpenedArgs args)
+    public bool HasProfile
     {
-        if (CachedPlayer == null || (args.Target is not MenuTargetDefault target) || target.TargetObjectId != CachedPlayer.PlayerCharacterId || IsPaused) return;
-
-        SeStringBuilder seStringBuilder = new();
-        SeStringBuilder seStringBuilder2 = new();
-        SeStringBuilder seStringBuilder3 = new();
-        SeStringBuilder seStringBuilder4 = new();
-        //SeStringBuilder seStringBuilder5 = new();
-        SeStringBuilder seStringBuilder6 = new();
-        var openProfileSeString = seStringBuilder.AddText("Open Profile").Build();
-        var reapplyDataSeString = seStringBuilder2.AddText("Reapply Last Data").Build();
-        var cyclePauseState = seStringBuilder3.AddText("Cycle Pause State").Build();
-        var changePermissions = seStringBuilder4.AddText("Change Permissions").Build();
-        //var pairIndividually = seStringBuilder5.AddText("Pair Individually").Build();
-        var pauseForever = seStringBuilder6.AddText("Keep Paused").Build();
-        args.AddMenuItem(new MenuItem()
+        get
         {
-            Name = openProfileSeString,
-            OnClicked = (a) => _mediator.Publish(new ProfileOpenStandaloneMessage(this)),
-            UseDefaultPrefix = false,
-            PrefixChar = 'P',
-            PrefixColor = 530
-        });
+            if (_hasProfile is null) 
+                return UserPair.User.HasProfile ?? false;
 
-        args.AddMenuItem(new MenuItem()
+            return _hasProfile.Value;
+        }
+        set
         {
-            Name = reapplyDataSeString,
-            OnClicked = (a) => ApplyLastReceivedData(forced: true),
-            UseDefaultPrefix = false,
-            PrefixChar = 'P',
-            PrefixColor = 530
-        });
-
-        args.AddMenuItem(new MenuItem()
-        {
-            Name = changePermissions,
-            OnClicked = (a) => _mediator.Publish(new OpenPermissionWindow(this)),
-            UseDefaultPrefix = false,
-            PrefixChar = 'P',
-            PrefixColor = 530
-        });
-
-        args.AddMenuItem(new MenuItem()
-        {
-            Name = cyclePauseState,
-            OnClicked = (a) => _mediator.Publish(new CyclePauseMessage(UserData)),
-            UseDefaultPrefix = false,
-            PrefixChar = 'P',
-            PrefixColor = 530
-        });
-
-        // Only show the option to pair if we don't already have a pairing
-        //if (IndividualPairStatus == IndividualPairStatus.None)
-        //{
-        //    args.AddMenuItem(new MenuItem()
-        //    {
-        //        Name = pairIndividually,
-        //        OnClicked = (a) => _mediator.Publish(new UserAddPairMessage(UserData)),
-        //        UseDefaultPrefix = false,
-        //        PrefixChar = 'P',
-        //        PrefixColor = 530
-        //    });
-        //}
-
-        // This kind of acts like a blacklist feature
-        args.AddMenuItem(new MenuItem()
-        {
-            Name = pauseForever,
-            OnClicked = (a) => _mediator.Publish(new UserPairStickyPauseAndRemoveMessage(UserData)),
-            UseDefaultPrefix = false,
-            PrefixChar = 'P',
-            PrefixColor = 17
-        });
+            _hasProfile = value;
+        }
     }
 
     public void ApplyData(OnlineUserCharaDataDto data)
