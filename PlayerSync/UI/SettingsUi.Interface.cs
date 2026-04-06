@@ -460,6 +460,7 @@ public partial class SettingsUi
         var onlineNotifs = _configService.Current.ShowOnlineNotifications;
         var onlineNotifsPairsOnly = _configService.Current.ShowOnlineNotificationsOnlyForIndividualPairs;
         var onlineNotifsNamedOnly = _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs;
+        var lifestreamInvitesDirectPairsOnly = _configService.Current.LifestreamInvitesDirectPairsOnly;
 
         _uiShared.BigText("Notifications");
         ImGuiHelpers.ScaledDummy(2);
@@ -571,6 +572,19 @@ public partial class SettingsUi
                 _ = _apiController.UserUpdatePreferences(pref);
             }
             _uiShared.DrawHelpText("This setting has no meaningful effect if you don't have Lifestream installed.");
+
+            using var ident2 = ImRaii.PushIndent(2);
+            using var disabled2 = ImRaii.Disabled(!prefAllowLifestreamInvites);
+
+            if (ImGui.Checkbox("Only allow invites from direct pairs.", ref lifestreamInvitesDirectPairsOnly))
+            {
+                _configService.Current.LifestreamInvitesDirectPairsOnly = lifestreamInvitesDirectPairsOnly;
+                _configService.Save();
+            }
+            _uiShared.DrawHelpText("Enabling this will only show Lifestream invites from users who are paired directly.");
+
+            ident2?.Dispose();
+            disabled2?.Dispose();
         }
     }
 
@@ -613,7 +627,7 @@ public partial class SettingsUi
             var optionS = _configService.Current.ContextMenuOrder;
 
             ImGui.PushItemWidth(240 * ImGui.GetIO().FontGlobalScale);//scales properly now.
-            if (ImGui.BeginCombo($"Context Menu Option {ss + 1}##{ss}", GetLabel(currentconfig)))
+            if (ImGui.BeginCombo($"Context Menu Option {ss + 1}##{ss}", GetLabel(currentconfig), ImGuiComboFlags.HeightLarge))
             {
                 foreach (ContextMenuItemId Sopt in Enum.GetValues<ContextMenuItemId>())
                 {
