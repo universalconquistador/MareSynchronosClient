@@ -380,7 +380,10 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 // time to draw table data.
                 foreach (var pair in sortedPairs)
                 {
-                    bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
+                    bool shouldHighlight = !string.IsNullOrWhiteSpace(_dalamudUtilService.TargetName)
+                        && !string.IsNullOrWhiteSpace(pair.PlayerName)
+                        && _dalamudUtilService.TargetName == pair.PlayerName;
+
                     float rowStartHeightStart = ImGui.GetCursorPosY();
 
                     ImGui.TableNextRow();
@@ -721,7 +724,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     bool ownAnimations = edit.IsDisableAnimations();
                     bool ownVfx = edit.IsDisableVFX();
                     
-                    bool shouldHighlight = _dalamudUtilService.TargetName == pair.PlayerName;
+                    bool shouldHighlight = !string.IsNullOrWhiteSpace(_dalamudUtilService.TargetName) 
+                        && !string.IsNullOrWhiteSpace(pair.PlayerName)
+                        && _dalamudUtilService.TargetName == pair.PlayerName;
 
                     // Track change for state
                     bool changed = false;

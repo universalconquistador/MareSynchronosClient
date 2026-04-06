@@ -48,7 +48,8 @@ public class MareProfileManager : MediatorSubscriberBase
             {
                 _mareProfiles.Remove(msg.UserData, out _);
                 var pair = _pairManager.GetPairByUID(msg.UserData.UID);
-                if (pair != null) pair.HasProfile = true;
+                if (pair != null && msg.UpdateProfileStatus) 
+                    pair.HasProfile = true;
             }
             else
                 _mareProfiles.Clear();
