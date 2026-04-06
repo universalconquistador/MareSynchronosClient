@@ -85,6 +85,8 @@ namespace PlayerSync.Services
             var pair = _pairManager.GetPairByUID(dto.UserData.UID);
             if (pair == null) return;
 
+            if (_configurationService.Current.LifestreamInvitesDirectPairsOnly && pair.IndividualPairStatus != IndividualPairStatus.Bidirectional) return;
+
             string psync = "[PlayerSync] ";
             string invite = string.IsNullOrWhiteSpace(pair.PlayerName) ? $"UID/Alias {pair.UserData.AliasOrUID}" : $"Player {pair.PlayerName}";
 

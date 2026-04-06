@@ -110,4 +110,5 @@ public class MareConfig : IMareConfiguration
     public bool EnableValidationChecks { get; set; } = true;
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
+    public bool LifestreamInvitesDirectPairsOnly { get; set; } = false;
 }
