@@ -75,6 +75,17 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         return null;
     }
 
+    public Pair? GetPairByCID(string cid)
+    {
+        var existingPair = _allClientPairs.FirstOrDefault(f => f.Value.Ident == cid);
+        if (!Equals(existingPair, default(KeyValuePair<UserData, Pair>)))
+        {
+            return existingPair.Value;
+        }
+
+        return null;
+    }
+
     public void AddUserPair(UserFullPairDto dto)
     {
         if (!_allClientPairs.ContainsKey(dto.User))

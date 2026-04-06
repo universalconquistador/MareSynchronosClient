@@ -64,10 +64,8 @@ public class Pair
     {
         get
         {
-            if (_hasProfile is null)
-            {
+            if (_hasProfile is null) 
                 return UserPair.User.HasProfile ?? false;
-            }
 
             return _hasProfile.Value;
         }

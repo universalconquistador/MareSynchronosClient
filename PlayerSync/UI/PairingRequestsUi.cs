@@ -50,11 +50,20 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
         };
     }
 
+    public override void PreDraw()
+    {
+        UiSharedService.CenterOnOpen(true);
+
+        base.PreDraw();
+    }
+
     protected override void DrawInternal()
     {
         // basically close the window if the user accepted/rejected the final requets
         // but don't close if they just toggle open the empty window manually
-        if (_pairRequestManager.ReceivedPendingCount == 0 && _userClickedSomething)
+        if (_pairRequestManager.ReceivedPendingCount == 0 
+            && _pairRequestManager.ReceivedGroupInviteCount == 0  
+            && _userClickedSomething)
             IsOpen = false;
 
         using var windowStyle = _theme.PushWindowStyle();
@@ -106,7 +115,7 @@ public class PairingRequestsUi : WindowMediatorSubscriberBase
             float rowStartHeightStart = ImGui.GetCursorPosY();
 
             var requestorUid = request.Requestor.UID;
-            var requestorName = _serverConfigurationManager.GetPendingRequestNameForIdent(request.RequestorIdent) ?? "Unknown";
+            var requestorName = _serverConfigurationManager.GetPendingRequestNameForIdent(request.RequestorIdent) ?? request.Requestor.AliasOrUID;
 
             ImGui.TableNextRow();
 

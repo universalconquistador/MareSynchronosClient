@@ -1,15 +1,20 @@
 ﻿using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
+using MareSynchronos.API.Data.AdditionalTypes;
+using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.API.Dto;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 
 namespace MareSynchronos.PlayerData.Handlers
@@ -22,7 +27,11 @@ namespace MareSynchronos.PlayerData.Handlers
         PairData,
         InviteToSyncshell,
         AddToOverrides,
+        ReapplyLastData,
+        ChangePermissions,
+        CyclePauseState,
     }
+
     public static class ContextMenuSettings
     {
         public static ContextMenuItemId[] Order { get; set; } = new ContextMenuItemId[6]
@@ -34,7 +43,9 @@ namespace MareSynchronos.PlayerData.Handlers
         ContextMenuItemId.AddToOverrides,
         ContextMenuItemId.None
         };
+        public static bool[] SPriority { get; set; } = new bool[6];
     }
+
     public class PairContextMenuHandler : DisposableMediatorSubscriberBase, IHostedService
     {
         private readonly IContextMenu _dalamudContextMenu;
@@ -84,6 +95,9 @@ namespace MareSynchronos.PlayerData.Handlers
             if (args.MenuType == ContextMenuType.Inventory) return;
             if (!_configurationService.Current.EnableRightClickMenus) return;
 
+            if (string.Equals(args.AddonName, "ChatLog", StringComparison.OrdinalIgnoreCase))
+                AddUserPairChatContextMenu(args);
+
             var target = _dalamudUtilService.TargetAddress;
             var pairs = _pairManager.GetVisiblePairs();
             var currentTargetPair = pairs.SingleOrDefault(u => u.Address == target);
@@ -95,10 +109,12 @@ namespace MareSynchronos.PlayerData.Handlers
         {
             if (!pair.HasCachedPlayer || (args.Target is not MenuTargetDefault target) || target.TargetObjectId != pair.PlayerCharacterId || pair.IsPaused) return;
 
-            foreach (var itemS in _configurationService.Current.ContextMenuOrder)
+            for (int ss = 0; ss < _configurationService.Current.ContextMenuOrder.Length; ss++)
             {
+                var itemS = _configurationService.Current.ContextMenuOrder[ss];
                 if (itemS == ContextMenuItemId.None) continue;
 
+                int pri = _configurationService.Current.SPriority[ss] ? -1 : 0;
                 switch (itemS)
                 {
                     case ContextMenuItemId.OpenProfile:
@@ -109,6 +125,7 @@ namespace MareSynchronos.PlayerData.Handlers
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
                             PrefixColor = 530,
+                            Priority = pri,
                             //Priority = -1, // you can move this to the top with -1
                         });
                         break;
@@ -121,7 +138,8 @@ namespace MareSynchronos.PlayerData.Handlers
                             IsSubmenu = true,
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
-                            PrefixColor = 530
+                            PrefixColor = 530,
+                            Priority = pri,
                         });
                         break;
 
@@ -133,7 +151,8 @@ namespace MareSynchronos.PlayerData.Handlers
                             IsSubmenu = true,
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
-                            PrefixColor = 530
+                            PrefixColor = 530,
+                            Priority = pri,
                         });
                         break;
 
@@ -145,7 +164,8 @@ namespace MareSynchronos.PlayerData.Handlers
                             IsSubmenu = true,
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
-                            PrefixColor = 530
+                            PrefixColor = 530,
+                            Priority = pri,
                         });
                         break;
 
@@ -157,7 +177,44 @@ namespace MareSynchronos.PlayerData.Handlers
                             OnClicked = (a) => Mediator.Publish(new UserPairStickyPauseAndRemoveMessage(pair.UserData)),
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
-                            PrefixColor = 17
+                            PrefixColor = 17,
+                            Priority = pri,
+                        });
+                        break;
+
+                    case ContextMenuItemId.ReapplyLastData:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Reapply Last Data").Build(),
+                            OnClicked = (a) => pair.ApplyLastReceivedData(forced: true),
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 530,
+                            Priority = pri,
+                        });
+                        break;
+
+                    case ContextMenuItemId.ChangePermissions:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Change Permissions").Build(),
+                            OnClicked = (a) => Mediator.Publish(new OpenPermissionWindow(pair)),
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 530,
+                            Priority = pri,
+                        });
+                        break;
+
+                    case ContextMenuItemId.CyclePauseState:
+                        args.AddMenuItem(new MenuItem()
+                        {
+                            Name = new SeStringBuilder().AddText("Cycle Pause State").Build(),
+                            OnClicked = (a) => Mediator.Publish(new CyclePauseMessage(pair.UserData)),
+                            UseDefaultPrefix = false,
+                            PrefixChar = 'P',
+                            PrefixColor = 530,
+                            Priority = pri,
                         });
                         break;
                 }
@@ -330,6 +387,28 @@ namespace MareSynchronos.PlayerData.Handlers
             });
 
             clickedArgs.OpenSubmenu(new SeStringBuilder().AddText("Add to Overrides").Build(), menuItems);
+        }
+
+        private void AddUserPairChatContextMenu(IMenuOpenedArgs args)
+        {
+            if (args.Target is not MenuTargetDefault target)
+                return;
+
+            Logger.LogTrace("ChatLog menu target: {1} {2}", target.TargetName, target.TargetContentId);
+
+            var cid = target.TargetContentId.ToString().GetHash256();
+
+            var pair = _pairManager.GetPairByCID(cid);
+            if (pair == null || pair.IsPaused) return;
+
+            args.AddMenuItem(new MenuItem()
+            {
+                Name = new SeStringBuilder().AddText("Send Lifestream Location Invite").Build(),
+                OnClicked = (__) => _ = _apiController.SendLifestreamInviteToPair(pair),
+                UseDefaultPrefix = false,
+                PrefixChar = 'P',
+                PrefixColor = 530,
+            });
         }
     }
 }

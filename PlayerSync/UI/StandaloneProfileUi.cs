@@ -82,6 +82,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
     public override void PreDraw()
     {
+        UiSharedService.CenterOnOpen(true);
+
         base.PreDraw();
 
         var r = UiScale.ScaledFloat(24f);
@@ -142,6 +144,8 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         // close window if we click off of it
         //if (!ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
         //    IsOpen = false;
+
+        if (!_uiSharedService.ApiController.IsConnected) IsOpen = false;
 
         // user might unpair us, pause, etc.
         if (!Pair.IsPaired) IsOpen = false;

@@ -60,7 +60,7 @@ public record TransientResourceChangedMessage(IntPtr Address) : MessageBase;
 public record HaltScanMessage(string Source) : MessageBase;
 public record ResumeScanMessage(string Source) : MessageBase;
 public record NotificationMessage
-    (string Title, string Message, NotificationType Type, TimeSpan? TimeShownOnScreen = null, bool IsInviteRequest = false) : MessageBase;
+    (string Title, string Message, NotificationType Type, TimeSpan? TimeShownOnScreen = null) : MessageBase;
 public record CreateCacheForObjectMessage(GameObjectHandler ObjectToCreateFor) : SameThreadMessage;
 public record ClearCacheForObjectMessage(GameObjectHandler ObjectToCreateFor) : SameThreadMessage;
 public record CharacterDataCreatedMessage(CharacterData CharacterData) : SameThreadMessage;
@@ -123,5 +123,6 @@ public record PairRequestsUpdateMessage(UserPairRequestsDto Dto) : MessageBase;
 public record UpdateGroupInvitesMessage(GroupJoinInvitesDto Dto) : MessageBase;
 public record EmoteSyncUpdateMessage(EmoteResponseDto Dto) : MessageBase;
 public record EmoteSyncStartMessage(ScheduledEmoteActionDto Dto) : MessageBase;
+public record JsonDataTypeMessage(JsonDataTypeDto Dto) : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name

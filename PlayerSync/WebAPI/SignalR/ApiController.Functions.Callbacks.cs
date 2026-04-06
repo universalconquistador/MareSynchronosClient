@@ -113,11 +113,10 @@ public partial class ApiController
         if (pair == null) return Task.CompletedTask;
         var player = string.IsNullOrEmpty(pair.PlayerName) ? dto.User.AliasOrUID : pair.PlayerName;
         Logger.LogDebug("Got a request to pair from {uid} mapping to {player}.", dto.User.UID, player);
-        if (_mareConfigService.Current.ShowPairingRequestNotification)
-        {
-            Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
+
+        Mediator.Publish(new NotificationMessage("Incoming direct pair request.",
                 $"Player {player} would like to pair. To accept, right click their character, or use the triple-dot menu next to their name, and select \"Pair individually\".", NotificationType.Info, TimeSpan.FromSeconds(15)));
-        }
+
         return Task.CompletedTask;
     }
 
@@ -273,6 +272,12 @@ public partial class ApiController
     public Task Client_StartEmoteSyncGroup(ScheduledEmoteActionDto dto)
     {
         ExecuteSafely(() => Mediator.Publish(new EmoteSyncStartMessage(dto)));
+        return Task.CompletedTask;
+    }
+
+    public Task Client_ProcessJsonDataType(JsonDataTypeDto dto)
+    {
+        ExecuteSafely(() => Mediator.Publish(new JsonDataTypeMessage(dto)));
         return Task.CompletedTask;
     }
 
@@ -473,6 +478,12 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_StartEmoteSyncGroup), act);
+    }
+
+    public void OnProcessJsonDataType(Action<JsonDataTypeDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_ProcessJsonDataType), act);
     }
 
     private void ExecuteSafely(Action act)

@@ -1,3 +1,4 @@
+using Dalamud.Plugin.Services;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.FileCache;
@@ -15,6 +16,7 @@ using MareSynchronos.WebAPI.Files;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using PlayerSync.FileCache;
+using PlayerSync.Validation;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
@@ -35,6 +37,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private readonly PluginWarningNotificationService _pluginWarningNotificationManager;
     private readonly ICompressedAlternateManager _compressedAlternateManager;
     private readonly PlayerPerformanceConfigService _performanceConfig;
+    private readonly IDataManager _dataManager;
     private readonly MareConfigService _configService;
     private CancellationTokenSource? _applicationCancellationTokenSource = new();
     private Guid _applicationId;
@@ -66,8 +69,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         ServerConfigurationManager serverConfigManager,
         ICompressedAlternateManager compressedAlternateManager,
         MareConfigService configService,
-        PlayerPerformanceConfigService performanceConfig)
-        : base(logger, mediator)
+        PlayerPerformanceConfigService performanceConfig,
+        IDataManager dataManager) : base(logger, mediator)
     {
         Pair = pair;
         _gameObjectHandlerFactory = gameObjectHandlerFactory;
@@ -81,6 +84,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _serverConfigManager = serverConfigManager;
         _compressedAlternateManager = compressedAlternateManager;
         _performanceConfig = performanceConfig;
+        _dataManager = dataManager;
         _configService = configService;
         _penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
         _isVanillaEnforced = IsVanillaEnforced();
@@ -409,18 +413,21 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                         break;
 
                     case PlayerChanges.Moodles:
-                        // If we have Loci, but not Moodles, and get Moodles data when LociData does not exist, convert to LociData and apply as a fallback.
-                        var useFallback = !_ipcManager.Moodles.APIAvailable && _ipcManager.Loci.APIAvailable;
-                        if (useFallback && (!charaData.LociData.TryGetValue(changes.Key, out var lociData) || string.IsNullOrEmpty(lociData)))
-                        {
-                            var converted = _ipcManager.Loci.ConvertToLociData(charaData.MoodlesData);
-                            if (!_lociRegistrations.GetValueOrDefault(changes.Key, false))
-                            {
-                                _lociRegistrations[changes.Key] = await _ipcManager.Loci.RegisterActor(handler.Address).ConfigureAwait(false);
-                            }
-                            await _ipcManager.Loci.SetActorManager(handler.Address, converted).ConfigureAwait(false);
-                        }
-                        else
+                        //
+                        // TEMP: Disabling Moodles->Loci compatibility until we get the go-ahead from Cordelia to add the corresponding Loci->Moodles compatibility.
+                        //
+                        //// If we have Loci, but not Moodles, and get Moodles data when LociData does not exist, convert to LociData and apply as a fallback.
+                        //var useFallback = !_ipcManager.Moodles.APIAvailable && _ipcManager.Loci.APIAvailable;
+                        //if (useFallback && (!charaData.LociData.TryGetValue(changes.Key, out var lociData) || string.IsNullOrEmpty(lociData)))
+                        //{
+                        //    var converted = _ipcManager.Loci.ConvertToLociData(charaData.MoodlesData);
+                        //    if (!_lociRegistrations.GetValueOrDefault(changes.Key, false))
+                        //    {
+                        //        _lociRegistrations[changes.Key] = await _ipcManager.Loci.RegisterActor(handler.Address).ConfigureAwait(false);
+                        //    }
+                        //    await _ipcManager.Loci.SetActorManager(handler.Address, converted).ConfigureAwait(false);
+                        //}
+                        //else
                         {
                             await _ipcManager.Moodles.SetStatusAsync(handler.Address, charaData.MoodlesData).ConfigureAwait(false);
                         }
@@ -579,6 +586,50 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         // science
         //var gate = GetActorLock(applicationBase.ToString());
         //await gate.WaitAsync(token).ConfigureAwait(false);
+
+        // Proactively check the incoming files for specific known sources of crashes
+        if (_configService.Current.EnableValidationChecks)
+        {
+            foreach (var file in moddedPaths.ToArray()) // .ToArray() so we can modify the dictionary as we loop through it
+            {
+                if (file.Key.Hash == null)
+                {
+                    continue;
+                }
+
+                var extension = Path.GetExtension(file.Key.GamePath);
+                var filePath = file.Value;
+
+                if (filePath != null)
+                {
+                    try
+                    {
+                        var bytes = await File.ReadAllBytesAsync(filePath);
+                        var validationMessages = FileValidation.ValidateFile(_dataManager.Excel, bytes, extension, path => path.Contains('/') && (_dataManager.FileExists(path) || charaData.FileReplacements.Values.SelectMany(value => value).Any(replacement => replacement.GamePaths.Contains(path)))).ToArray();
+
+                        if (validationMessages.Length > 0)
+                        {
+                            var messageString = string.Join(", ", validationMessages.Select(message => $"[{message.ID}]: {message.Title} ({message.Level})"));
+
+                            if (validationMessages.Any(message => message.Level == MessageLevel.Crash))
+                            {
+                                Logger.LogWarning("{uid} ({name}): File {hash} to be used as {gamePath} looks like it could crash game and will be ignored. \n  {description}", Pair.UserData.UID, PlayerName, file.Key.Hash, file.Key.GamePath, messageString);
+                                moddedPaths.Remove(file.Key);
+                            }
+                            else
+                            {
+                                Logger.LogInformation("{uid} ({name}): File {hash} to be used as {gamePath} looks like it might have some mistakes, but will still be used. \n  {description}", Pair.UserData.UID, PlayerName, file.Key.Hash, file.Key.GamePath, messageString);
+                            }
+                        }
+                    }
+                    catch (IOException ex)
+                    {
+                        Logger.LogWarning(ex, "Couldn't read downloaded file {filePath} for validation!", filePath);
+                    }
+                }
+            }
+        }
+
         try
         {
 

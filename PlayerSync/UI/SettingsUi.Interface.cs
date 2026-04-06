@@ -5,10 +5,10 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.MareConfiguration.Models;
+using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.ModernUi;
 using System.Numerics;
-using MareSynchronos.PlayerData.Handlers;
 
 namespace MareSynchronos.UI;
 
@@ -259,6 +259,7 @@ public partial class SettingsUi
         var highlightNameColor = _configService.Current.NameHighlightColor;
         var permColorsEnabled = _configService.Current.PermsColorsEnabled;
         var permsColorsDisabled = _configService.Current.PermsColorsDisabled;
+        var showColorWaveNotification = _configService.Current.EnableColorWaveNotification;
 
         _uiShared.BigText("Game UI");
         ImGuiHelpers.ScaledDummy(2);
@@ -391,6 +392,12 @@ public partial class SettingsUi
                 }
             }
         }
+        if (ImGui.Checkbox("Use color wave for request notification", ref showColorWaveNotification))
+        {
+            _configService.Current.EnableColorWaveNotification = showColorWaveNotification;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This will cause the pair request notification button to cycle colors.");
     }
 
     private void DrawInterfaceNotes()
@@ -449,11 +456,11 @@ public partial class SettingsUi
     {
         var disableOptionalPluginWarnings = _configService.Current.DisableOptionalPluginWarnings;
         var syncConflictNotifs = _configService.Current.ShowSyncConflictNotifications;
-        var pairingRequestNotifs = _configService.Current.ShowPairingRequestNotification;
         var broadcastNotifs = _configService.Current.ShowAvailableBroadcastsNotification;
         var onlineNotifs = _configService.Current.ShowOnlineNotifications;
         var onlineNotifsPairsOnly = _configService.Current.ShowOnlineNotificationsOnlyForIndividualPairs;
         var onlineNotifsNamedOnly = _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs;
+        var lifestreamInvitesDirectPairsOnly = _configService.Current.LifestreamInvitesDirectPairsOnly;
 
         _uiShared.BigText("Notifications");
         ImGuiHelpers.ScaledDummy(2);
@@ -495,6 +502,18 @@ public partial class SettingsUi
                               + Environment.NewLine + "'Chat' will print Error notifications in chat"
                               + Environment.NewLine + "'Toast' will show Error toast notifications in the bottom right corner"
                               + Environment.NewLine + "'Both' will show chat as well as the toast notification");
+        ImGui.SetNextItemWidth(400);
+        _uiShared.DrawCombo("Pair Request Notification Display##settingsUi", (NotificationLocation[])Enum.GetValues(typeof(NotificationLocation)), (i) => i.ToString(),
+        (i) =>
+        {
+            _configService.Current.PairRequestNotification = i;
+            _configService.Save();
+        }, _configService.Current.PairRequestNotification);
+        _uiShared.DrawHelpText("The location where \"Pair Request\" notifications will display."
+                              + Environment.NewLine + "'Nowhere' will not show any Pair Request notifications"
+                              + Environment.NewLine + "'Chat' will print Pair Request notifications in chat"
+                              + Environment.NewLine + "'Toast' will show Pair Request toast notifications in the bottom right corner"
+                              + Environment.NewLine + "'Both' will show chat as well as the toast notification");
 
         ImGuiHelpers.ScaledDummy(5);
         if (ImGui.Checkbox("Disable optional plugin warnings", ref disableOptionalPluginWarnings))
@@ -503,24 +522,21 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will not show any \"Warning\" labeled messages for missing optional plugins.");
+
         if (ImGui.Checkbox("Enable sync conflict notifications", ref syncConflictNotifs))
         {
             _configService.Current.ShowSyncConflictNotifications = syncConflictNotifs;
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will show chat notifications when loading PlayerSync with a potentially conflicting plugin.");
-        if (ImGui.Checkbox("Enable pairing request notifications", ref pairingRequestNotifs))
-        {
-            _configService.Current.ShowPairingRequestNotification = pairingRequestNotifs;
-            _configService.Save();
-        }
-        _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner when a player sends a request to pair directly.");
+
         if (ImGui.Checkbox("Enable broadcast notifications", ref broadcastNotifs))
         {
             _configService.Current.ShowAvailableBroadcastsNotification = broadcastNotifs;
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will show a small notification (type: Info) in the bottom right corner the first time a broadcast is available in your zone.");
+
         if (ImGui.Checkbox("Enable online notifications", ref onlineNotifs))
         {
             _configService.Current.ShowOnlineNotifications = onlineNotifs;
@@ -536,13 +552,42 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will only show online notifications (type: Info) for individual pairs.");
+
         if (ImGui.Checkbox("Notify only for named pairs", ref onlineNotifsNamedOnly))
         {
             _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs = onlineNotifsNamedOnly;
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will only show online notifications (type: Info) for pairs where you have set an individual note.");
+        ident?.Dispose();
+        disabled?.Dispose();
+
+        if (_apiController.IsConnected)
+        {
+            var pref = _apiController.UserPreferences!;
+            var prefAllowLifestreamInvites = pref.IsEnableLifestreamInvites;
+            if (ImGui.Checkbox("Allow Lifestream Invites", ref prefAllowLifestreamInvites))
+            {
+                pref.IsEnableLifestreamInvites = prefAllowLifestreamInvites;
+                _ = _apiController.UserUpdatePreferences(pref);
+            }
+            _uiShared.DrawHelpText("This setting has no meaningful effect if you don't have Lifestream installed.");
+
+            using var ident2 = ImRaii.PushIndent(2);
+            using var disabled2 = ImRaii.Disabled(!prefAllowLifestreamInvites);
+
+            if (ImGui.Checkbox("Only allow invites from direct pairs.", ref lifestreamInvitesDirectPairsOnly))
+            {
+                _configService.Current.LifestreamInvitesDirectPairsOnly = lifestreamInvitesDirectPairsOnly;
+                _configService.Save();
+            }
+            _uiShared.DrawHelpText("Enabling this will only show Lifestream invites from users who are paired directly.");
+
+            ident2?.Dispose();
+            disabled2?.Dispose();
+        }
     }
+
     private void DrawInterfaceContext()
     {
         if (!string.Equals(_lastTab, "General", StringComparison.OrdinalIgnoreCase))
@@ -553,32 +598,36 @@ public partial class SettingsUi
         _lastTab = "General";
 
         _uiShared.BigText("Context Menu Options Order");
-        ImGui.NewLine();
-        ImGui.TextUnformatted("Options that will display when right clicking on a character");
-        ImGui.TextUnformatted("This only affect the main context menu, sub menus are not affected.");
+        ImGuiHelpers.ScaledDummy(2);
 
-        ImGuiHelpers.ScaledDummy(2);
-        ImGui.Separator();
-        ImGuiHelpers.ScaledDummy(2);
+        ImGui.TextWrapped("These options will display when right clicking another PlayerSync player.");
+        ImGui.TextWrapped("This only affects the main context menu, sub menus are not affected.");
+
+        ImGui.Dummy(new Vector2(10));
 
         string GetLabel(ContextMenuItemId id) => id switch
         {
             ContextMenuItemId.None => "Do Not Show",
             ContextMenuItemId.OpenProfile => "Open Profile",
             ContextMenuItemId.PauseForever => "Keep Paused",
-            ContextMenuItemId.PairData => "Pair Data",
-            ContextMenuItemId.InviteToSyncshell => "Invite To SyncShell",
-            ContextMenuItemId.AddToOverrides => "Add to Overrides",
+            ContextMenuItemId.PairData => "Pair Data (Submenu)",
+            ContextMenuItemId.InviteToSyncshell => "Invite To Syncshell (Submenu)",
+            ContextMenuItemId.AddToOverrides => "Add to Overrides (Submenu)",
+            ContextMenuItemId.ReapplyLastData => "Reapply Last Data",
+            ContextMenuItemId.ChangePermissions => "Change Permissions",
+            ContextMenuItemId.CyclePauseState => "Cycle Pause State",
             _ => id.ToString()
         };
+
+        bool hasChanges = false;
 
         for (int ss = 0; ss < 5; ss++)
         {
             var currentconfig = _configService.Current.ContextMenuOrder[ss];
             var optionS = _configService.Current.ContextMenuOrder;
 
-            ImGui.PushItemWidth(300);
-            if (ImGui.BeginCombo($"Context Menu Option {ss + 1}", GetLabel(currentconfig)))
+            ImGui.PushItemWidth(240 * ImGui.GetIO().FontGlobalScale);//scales properly now.
+            if (ImGui.BeginCombo($"Context Menu Option {ss + 1}##{ss}", GetLabel(currentconfig), ImGuiComboFlags.HeightLarge))
             {
                 foreach (ContextMenuItemId Sopt in Enum.GetValues<ContextMenuItemId>())
                 {
@@ -598,17 +647,22 @@ public partial class SettingsUi
                             }
                             optionS[ss] = Sopt;
                         }
+
+                        hasChanges = true;
                     }
                 }
                 ImGui.EndCombo();
             }
             ImGui.PopItemWidth();
+            ImGui.SameLine(0,40 * ImGui.GetIO().FontGlobalScale);
+            if (ImGui.Checkbox($"Put Command On Top##{ss}", ref _configService.Current.SPriority[ss]))
+            {
+                hasChanges = true;
+            }
         }
 
-        ImGuiHelpers.ScaledDummy(10);
-        if (ImGui.Button("Save Current Config"))
+        if (hasChanges)
         {
-            _configService.Current.ContextMenuOrder = [.. _configService.Current.ContextMenuOrder.Take(5)];
             _configService.Save();
         }
     }
