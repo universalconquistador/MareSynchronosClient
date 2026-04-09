@@ -320,6 +320,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         _selectedTabSyncshellAdmin.TabAction.Invoke();
     }
 
+    private string _filterText = string.Empty;
     private void DrawUserList()
     {
         if (!_pairManager.GroupPairs.TryGetValue(GroupFullInfo, out var pairs))
@@ -328,6 +329,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         }
         else
         {
+            ImGui.InputText("Filter##userfilter", ref _filterText, 32);
             using var table = ImRaii.Table("userList#" + GroupFullInfo.Group.GID, 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.ScrollY);
             if (table)
             {
@@ -337,7 +339,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                 ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.None, 2);
                 ImGui.TableHeadersRow();
 
-                var groupedPairs = new Dictionary<Pair, GroupPairUserInfo?>(pairs.Select(p => new KeyValuePair<Pair, GroupPairUserInfo?>(p,
+                var groupedPairs = new Dictionary<Pair, GroupPairUserInfo?>(pairs.Where(p => p.UserData.UID.Contains(_filterText) || (p.UserData.Alias?.Contains(_filterText) ?? false)).Select(p => new KeyValuePair<Pair, GroupPairUserInfo?>(p,
                     GroupFullInfo.GroupPairUserInfos.TryGetValue(p.UserData.UID, out GroupPairUserInfo value) ? value : null)));
 
                 foreach (var pair in groupedPairs.OrderBy(p =>
