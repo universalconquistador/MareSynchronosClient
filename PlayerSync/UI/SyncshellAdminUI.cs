@@ -329,7 +329,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         }
         else
         {
-            ImGui.InputText("Filter##userfilter", ref _filterText, 32);
+            ImGui.SetNextItemWidth(280f * ImGuiHelpers.GlobalScale);
+            ImGui.InputText("Filter##userfilter", ref _filterText, 20);
+            ImGuiHelpers.ScaledDummy(2);
             using var table = ImRaii.Table("userList#" + GroupFullInfo.Group.GID, 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.ScrollY);
             if (table)
             {
