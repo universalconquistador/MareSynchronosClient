@@ -121,6 +121,11 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         Mediator.Subscribe<CharacterDataCreatedMessage>(this, (msg) => LastCreatedCharacterData = msg.CharacterData);
         Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.DownloadId] = msg.DownloadStatus);
         Mediator.Subscribe<DownloadFinishedMessage>(this, (msg) => _currentDownloads.TryRemove(msg.DownloadId, out _));
+        Mediator.Subscribe<ConnectedMessage>(this, (_) =>
+        {
+            _accountInfo = null;
+            _retrieveAccountInfoTask = null;
+        });
     }
 
     public CharacterData? LastCreatedCharacterData { private get; set; }
