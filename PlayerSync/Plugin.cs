@@ -227,7 +227,7 @@ public sealed class Plugin : IDalamudPlugin
 
             collection.AddSingleton<VersionUpdateCheckService>();
             collection.AddSingleton<CacheMonitor>();
-            collection.AddSingleton<HubFactory>();
+            //collection.AddSingleton<HubFactory>(); why was this added twice?
 
             // add scoped services
             collection.AddScoped<DrawEntityFactory>();
