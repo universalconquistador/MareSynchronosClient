@@ -207,12 +207,18 @@ public partial class SettingsUi
             _uiShared.DrawHelpText("Delay until the profile should be displayed");
             if (!showProfiles) ImGui.EndDisabled();
         }
-        if (ImGui.Checkbox("Show profiles marked as NSFW", ref showNsfwProfiles))
+        using (ImRaii.Disabled(!UiSharedService.CtrlPressed() && !showNsfwProfiles))
         {
-            Mediator.Publish(new ClearProfileDataMessage());
-            _configService.Current.ProfilesAllowNsfw = showNsfwProfiles;
-            _configService.Save();
+            if (ImGui.Checkbox("Show profiles marked as NSFW", ref showNsfwProfiles))
+            {
+                Mediator.Publish(new ClearProfileDataMessage());
+                _configService.Current.ProfilesAllowNsfw = showNsfwProfiles;
+                _configService.Save();
+            }
         }
+        UiSharedService.AttachToolTip("You should NOT enable this feature if you are under 18 and/or uncomfortable with NSFW content." + Environment.NewLine
+            + "Furthermore you understand only illegal NSFW content, or content breaking PlayerSync rules, is reportable for ToS abuse."
+            + UiSharedService.TooltipSeparator + "Hold CTRL to confirm you understand.");
         _uiShared.DrawHelpText("Will show profiles that have the NSFW tag enabled");
         using (ImRaii.Disabled(!showNsfwProfiles))
         {
