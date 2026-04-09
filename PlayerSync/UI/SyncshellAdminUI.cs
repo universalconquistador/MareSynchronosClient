@@ -40,6 +40,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private readonly UiTheme _theme;
     private UiNav.NavItem<SyncshellAdminNav>? _selectedNavItem;
     private readonly IReadOnlyList<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SyncshellAdminNav>> Items)> _navGroups;
+    private string _filterText = string.Empty;
 
     public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController, UiSharedService uiSharedService, 
         IBroadcastManager broadcastManager, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService, UiTheme theme)
@@ -58,16 +59,21 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         _pwChangeSuccess = true;
         IsOpen = true;
         _isProfileSaved = true;
+
         SizeConstraints = new WindowSizeConstraints()
         {
             MinimumSize = new(1020, 700),
-            MaximumSize = new(1020, 2000),
+            MaximumSize = new(1020, 700),
         };
+
+        Flags = ImGuiWindowFlags.NoResize;
+
         Mediator.Subscribe<GroupInfoChanged>(this, message =>
         {
             Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.GroupProfile?.Description ?? "", _descriptionBuffer.Span);
             Encoding.UTF8.GetBytes(message.GroupInfo.PublicData.GroupProfile?.Rules ?? "", _rulesBuffer.Span);
         });
+
         Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile?.Description ?? "", _descriptionBuffer.Span);
         Encoding.UTF8.GetBytes(GroupFullInfo.PublicData.GroupProfile?.Rules ?? "", _rulesBuffer.Span);
 
@@ -320,7 +326,6 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         _selectedTabSyncshellAdmin.TabAction.Invoke();
     }
 
-    private string _filterText = string.Empty;
     private unsafe void DrawUserList()
     {
         if (!_pairManager.GroupPairs.TryGetValue(GroupFullInfo, out var pairs))
@@ -333,10 +338,8 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         ImGui.InputText("Filter##userfilter", ref _filterText, 20);
         ImGuiHelpers.ScaledDummy(2);
 
-        using var table = ImRaii.Table(
-            "userList#" + GroupFullInfo.Group.GID,
-            4,
-            ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.ScrollY);
+        var tableSize = new Vector2(0f, ImGui.GetContentRegionAvail().Y);
+        using var table = ImRaii.Table("userList#" + GroupFullInfo.Group.GID, 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.ScrollY, tableSize);
 
         if (!table)
             return;
@@ -345,6 +348,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         ImGui.TableSetupColumn("Online/Name", ImGuiTableColumnFlags.None, 2);
         ImGui.TableSetupColumn("Flags", ImGuiTableColumnFlags.None, 1);
         ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.None, 2);
+        ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableHeadersRow();
 
         var groupedPairs = pairs
@@ -370,7 +374,8 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             .ThenBy(pairInfo => pairInfo.Pair.GetNote() ?? pairInfo.Pair.UserData.AliasOrUID, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var rowHeight = ImGui.GetTextLineHeightWithSpacing() + (ImGui.GetStyle().CellPadding.Y * 2f);
+        var style = ImGui.GetStyle();
+        var rowHeight = MathF.Max(ImGui.GetTextLineHeight(), ImGui.GetFrameHeight()) + (style.CellPadding.Y * 2f) + 1f;
 
         ImGuiListClipper clipper = new();
         clipper.Begin(groupedPairs.Count, rowHeight);
@@ -381,7 +386,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             {
                 var pair = groupedPairs[itemIndex];
 
-                ImGui.TableNextRow(ImGuiTableRowFlags.None, rowHeight);
+                ImGui.TableNextRow();
 
                 using var tableId = ImRaii.PushId("userTable_" + pair.Pair.UserData.UID);
 
