@@ -4,6 +4,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Validators;
+using MareSynchronos.API.Dto;
 using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.UI.ModernUi;
 using System.Numerics;
@@ -13,6 +14,23 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
+    private Task<AccountInfoDto>? _retrieveAccountInfoTask;
+    private AccountInfoDto? _accountInfo;
+
+    private string _selectedAliasText = "";
+    private string _selectedAliasCurrent = "";
+    private Task<(bool ok, string msg)>? _uidUpdateTask;
+    private (bool ok, string msg)? _uidResult;
+
+    private GroupData? _selectedSyncshell;
+    private string _selectedSyncshellAliasText = "";
+    private string _selectedSyncshellAliasCurrent = "";
+    private Task<(bool ok, string msg)>? _groupUpdateTask;
+    private (bool ok, string msg)? _groupResult;
+    private string? _selectedUid;
+    private string? _selectedSyncshellGid;
+    private int _currentServer = -1;
+
     private UiNav.Tab<VanityTabs>? _selectedTabVanity;
 
     private IReadOnlyList<UiNav.Tab<VanityTabs>>? _vanityTabs;

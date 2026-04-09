@@ -55,22 +55,6 @@ public partial class SettingsUi
     private Task<(bool Success, bool PartialSuccess, string Result)>? _secretKeysConversionTask = null;
     private CancellationTokenSource _secretKeysConversionCts = new CancellationTokenSource();
     private ServerStorage _selectedServer = null;
-    private Task<AccountInfoDto>? _retrieveAccountInfoTask;
-    private AccountInfoDto? _accountInfo;
-
-    private string _selectedAliasText = "";
-    private string _selectedAliasCurrent = "";
-    private Task<(bool ok, string msg)>? _uidUpdateTask;
-    private (bool ok, string msg)? _uidResult;
-
-    private GroupData? _selectedSyncshell;
-    private string _selectedSyncshellAliasText = "";
-    private string _selectedSyncshellAliasCurrent = "";
-    private Task<(bool ok, string msg)>? _groupUpdateTask;
-    private (bool ok, string msg)? _groupResult;
-    private string? _selectedUid;
-    private string? _selectedSyncshellGid;
-    private int _currentServer = -1;
 
     private async Task<(bool Success, bool partialSuccess, string Result)> ConvertSecretKeysToUIDs(ServerStorage serverStorage, CancellationToken token)
     {
