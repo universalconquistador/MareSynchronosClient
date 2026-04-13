@@ -158,7 +158,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
     public string TargetName
     {
-        get => _targetManager.Target?.Name.TextValue ?? "";
+        get => _targetManager.Target?.Name.TextValue ?? string.Empty;
     }
     public unsafe nint TargetAddress
     {

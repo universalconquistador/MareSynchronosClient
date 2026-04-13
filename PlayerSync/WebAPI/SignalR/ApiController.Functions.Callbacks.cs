@@ -199,7 +199,7 @@ public partial class ApiController
     public Task Client_UserUpdateProfile(UserDto dto)
     {
         Logger.LogDebug("Client_UserUpdateProfile: {dto}", dto);
-        ExecuteSafely(() => Mediator.Publish(new ClearProfileDataMessage(dto.User)));
+        ExecuteSafely(() => Mediator.Publish(new ClearProfileDataMessage(dto.User, true)));
         return Task.CompletedTask;
     }
 
