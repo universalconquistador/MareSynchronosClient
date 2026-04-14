@@ -135,12 +135,15 @@ public partial class SettingsUi
         _uiShared.BigText("Service");
         ImGuiHelpers.ScaledDummy(2);
         var useBackupServer = _serverConfigurationManager.EnableBackupServer;
+        ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + (550f * ImGui.GetIO().FontGlobalScale));
+        ImGui.TextColored(new Vector4(1f, 0f, 0f, 1f), "Only use Proxied Server if the PlayerSync Support Team has advised it, or if you are experiencing persistent connection issues that normal troubleshooting hasn't resolved.");
+        ImGui.PopTextWrapPos();
         if (ImGui.Checkbox("Use Proxied Server", ref useBackupServer))
         {
             _serverConfigurationManager.EnableBackupServer = useBackupServer;
             _ = _apiController.CreateConnectionsAsync();
         }
-        _uiShared.DrawHelpText("Only use this if advised by the PlayerSync support team, or if you know there is an ISP issue affecting you.");
+        //_uiShared.DrawHelpText("Only use this if advised by the PlayerSync support team, or if you know there is an ISP issue affecting you.");
 
         var idx = _uiShared.DrawServiceSelection();
         if (_lastSelectedServerIndex != idx)
