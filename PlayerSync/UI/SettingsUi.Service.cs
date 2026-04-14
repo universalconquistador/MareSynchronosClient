@@ -135,6 +135,8 @@ public partial class SettingsUi
         _uiShared.BigText("Service");
         ImGuiHelpers.ScaledDummy(2);
         var useBackupServer = _serverConfigurationManager.EnableBackupServer;
+        ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "Only use the Proxied Server option if the PlayerSync Support Team has advised it, " +
+            "or if you are experiencing persistent connection issues that normal troubleshooting hasn't resolved.");
         if (ImGui.Checkbox("Use Proxied Server", ref useBackupServer))
         {
             _serverConfigurationManager.EnableBackupServer = useBackupServer;
