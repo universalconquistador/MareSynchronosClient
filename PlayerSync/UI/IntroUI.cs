@@ -495,7 +495,8 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         }
 
         ImGuiHelpers.ScaledDummy(5);
-        ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Check \"Use Proxied Server\" if you had to use the mirror repo.");
+        ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "Only use the Proxied Server option if the PlayerSync Support Team has advised it, " +
+            "or if you are experiencing persistent connection issues that normal troubleshooting hasn't resolved.");
         var useBackupServer = _serverConfigurationManager.EnableBackupServer;
         if (ImGui.Checkbox("Use Proxied Server", ref useBackupServer))
         {
