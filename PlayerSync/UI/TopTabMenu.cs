@@ -9,7 +9,6 @@ using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
-using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.WebAPI;
@@ -311,12 +310,12 @@ public class TopTabMenu : IMediatorSubscriber
                 if (_uiSharedService.IconTextButton(zoneSyncEnabled ? FontAwesomeIcon.TimesCircle : FontAwesomeIcon.Globe,
                     zoneSyncEnabled ? "Disable ZoneSync" : "Enable ZoneSync", buttonSize))
                 {
-                    _ = GlobalControlCountdown(5);
                     zoneSyncEnabled = !zoneSyncEnabled;
                     _mareMediator.Publish(new GroupZoneSetEnableState(zoneSyncEnabled));
                     _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining = zoneSyncEnabled;
                     _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter[PlayerName] = zoneSyncEnabled;
                     _zoneSyncConfigService.Save();
+                    _ = GlobalControlCountdown(5);
                 }
             }
         }
