@@ -837,6 +837,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             if (localPlayer != null)
             {
                 _classJobId = localPlayer.ClassJob.RowId;
+                _playerName = localPlayer.Name.TextValue;
             }
 
             if (!IsInCombatOrPerforming)
