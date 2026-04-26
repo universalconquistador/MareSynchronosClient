@@ -106,12 +106,66 @@ public class Pair
         ApplyLastReceivedData();
     }
 
+    /// <summary>
+    /// Experimental
+    /// </summary>
+    /// <param name="data"></param>
+    /// <returns></returns>
+    public async Task ApplyDataAsync(OnlineUserCharaDataDto data)
+    {
+        _applicationCts = _applicationCts.CancelRecreate();
+        LastReceivedCharacterData = data.CharaData;
+
+        if (CachedPlayer == null)
+        {
+            _logger.LogDebug("Received Data for {uid} but CachedPlayer does not exist, waiting", data.User.UID);
+
+            try
+            {
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+                var appToken = _applicationCts.Token;
+                using var combined = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, appToken);
+
+                while (CachedPlayer == null && !combined.Token.IsCancellationRequested)
+                {
+                    await Task.Delay(250, combined.Token).ConfigureAwait(false);
+                }
+
+                if (combined.IsCancellationRequested)
+                {
+                    return;
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                return;
+            }
+
+            _logger.LogDebug("Applying delayed data for {uid}", data.User.UID);
+        }
+
+        await ApplyLastReceivedDataAsync().ConfigureAwait(false);
+    }
+
     public void ApplyLastReceivedData(bool forced = false)
     {
         if (CachedPlayer == null) return;
         if (LastReceivedCharacterData == null) return;
 
         CachedPlayer.ApplyCharacterData(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
+    }
+
+    /// <summary>
+    /// Experimental
+    /// </summary>
+    /// <param name="forced"></param>
+    /// <returns></returns>
+    public Task ApplyLastReceivedDataAsync(bool forced = false)
+    {
+        if (CachedPlayer == null) return Task.CompletedTask;
+        if (LastReceivedCharacterData == null) return Task.CompletedTask;
+
+        return CachedPlayer.ApplyCharacterDataAsync(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
     }
 
     public void CreateCachedPlayer(OnlineUserIdentDto? dto = null)
@@ -213,9 +267,9 @@ public class Pair
             return data;
         }
 
-        bool disableIndividualAnimations = (UserPair.OtherPermissions.IsDisableAnimations() || UserPair.OwnPermissions.IsDisableAnimations() || _configService.Current.FilterAnimations);
-        bool disableIndividualVFX = (UserPair.OtherPermissions.IsDisableVFX() || UserPair.OwnPermissions.IsDisableVFX() || _configService.Current.FilterVfx);
-        bool disableIndividualSounds = (UserPair.OtherPermissions.IsDisableSounds() || UserPair.OwnPermissions.IsDisableSounds() || _configService.Current.FilterSounds);
+        bool disableIndividualAnimations = UserPair.OtherPermissions.IsDisableAnimations() || UserPair.OwnPermissions.IsDisableAnimations();
+        bool disableIndividualVFX = UserPair.OtherPermissions.IsDisableVFX() || UserPair.OwnPermissions.IsDisableVFX();
+        bool disableIndividualSounds = UserPair.OtherPermissions.IsDisableSounds() || UserPair.OwnPermissions.IsDisableSounds();
 
         bool filterBiDiPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
         bool isDirectPaired = UserPair.IndividualPairStatus == IndividualPairStatus.Bidirectional;
@@ -225,25 +279,30 @@ public class Pair
             || _configService.Current.UIDsToOverrideFilter.Contains(UserPair.User.Alias, StringComparer.OrdinalIgnoreCase);
 
         _logger.LogTrace("Disable: Sounds: {disableIndividualSounds}, Anims: {disableIndividualAnims}; " +
-            "VFX: {disableGroupSounds}",
-            disableIndividualSounds, disableIndividualAnimations, disableIndividualVFX);
+            "VFX: {disableGroupSounds}", disableIndividualSounds, disableIndividualAnimations, disableIndividualVFX);
 
-        bool hasDisabled = disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX;
-        if (hasDisabled && !overrideFilterUid && !overrideFilterPair)
+        bool filterSounds = _configService.Current.FilterSounds;
+        bool filterAnimations = _configService.Current.FilterAnimations;
+        bool filterVfx = _configService.Current.FilterVfx;
+
+        bool hasDisabledIndevidual = disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX;
+        bool hasDisabledViaFilter = filterAnimations || filterSounds || filterVfx;
+        bool filterUserPerms = hasDisabledViaFilter && !overrideFilterUid && !overrideFilterPair;
+        if (filterUserPerms || hasDisabledIndevidual)
         {
             _logger.LogTrace("Data cleaned up: Animations disabled: {disableAnimations}, Sounds disabled: {disableSounds}, VFX disabled: {disableVFX}",
                 disableIndividualAnimations, disableIndividualSounds, disableIndividualVFX);
             foreach (var objectKind in data.FileReplacements.Select(k => k.Key))
             {
-                if (disableIndividualSounds)
+                if ((filterUserPerms && filterSounds) || disableIndividualSounds)
                     data.FileReplacements[objectKind] = data.FileReplacements[objectKind]
                         .Where(f => !f.GamePaths.Any(p => p.EndsWith("scd", StringComparison.OrdinalIgnoreCase)))
                         .ToList();
-                if (disableIndividualAnimations)
+                if ((filterUserPerms && filterAnimations) || disableIndividualAnimations)
                     data.FileReplacements[objectKind] = data.FileReplacements[objectKind]
                         .Where(f => !f.GamePaths.Any(p => p.EndsWith("tmb", StringComparison.OrdinalIgnoreCase) || p.EndsWith("pap", StringComparison.OrdinalIgnoreCase)))
                         .ToList();
-                if (disableIndividualVFX)
+                if ((filterUserPerms && filterVfx) || disableIndividualVFX)
                     data.FileReplacements[objectKind] = data.FileReplacements[objectKind]
                         .Where(f => !f.GamePaths.Any(p => p.EndsWith("atex", StringComparison.OrdinalIgnoreCase) || p.EndsWith("avfx", StringComparison.OrdinalIgnoreCase)))
                         .ToList();

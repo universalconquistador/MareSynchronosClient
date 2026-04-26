@@ -26,6 +26,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private Lazy<List<Pair>> _directPairsInternal;
     private Lazy<Dictionary<GroupFullInfoDto, List<Pair>>> _groupPairsInternal;
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
+    private PairApplyQueue? _applyQueue = null;
 
     public PairManager(ILogger<PairManager> logger, PairFactory pairFactory,
                 MareConfigService configurationService, ServerConfigurationManager serverConfigurationManager, MareMediator mediator)
@@ -40,6 +41,11 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _directPairsInternal = DirectPairsLazy();
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
+
+        if (_configurationService.Current.UseQueuedCharacterDataApplication)
+            _applyQueue = new(_configurationService.Current.MaxConcurrentApplications);
+
+        Logger.LogTrace("{class} created.", nameof(PairManager));
     }
 
     public List<Pair> DirectPairs => _directPairsInternal.Value;
@@ -48,6 +54,45 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public Dictionary<GroupData, GroupFullInfoDto> Groups => _allGroups.ToDictionary(k => k.Key, k => k.Value);
     public Pair? LastAddedUser { get; internal set; }
     public Dictionary<Pair, List<GroupFullInfoDto>> PairsWithGroups => _pairsWithGroupsInternal.Value;
+
+    public bool UseQueuedCharacterDataApplication
+    {
+        get
+        {
+            return _configurationService.Current.UseQueuedCharacterDataApplication;
+        }
+        set
+        {
+            if (value && _applyQueue == null)
+                _applyQueue = new(MaxConcurrentApplications);
+            //else if (!value)
+            //{
+            //    _applyQueue?.Dispose();
+            //    _applyQueue = null;
+            //}
+
+            _configurationService.Current.UseQueuedCharacterDataApplication = value;
+            _configurationService.Save();
+        }
+    }
+
+    public int MaxConcurrentApplications
+    {
+        get
+        {
+            return _configurationService.Current.MaxConcurrentApplications;
+        }
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+
+            if (_applyQueue != null)
+                _applyQueue.SetMaxConcurrency(value);
+
+            _configurationService.Current.MaxConcurrentApplications = value;
+            _configurationService.Save();
+        }
+    }
 
     public void AddGroup(GroupFullInfoDto dto)
     {
@@ -180,12 +225,61 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         RecreateLazy();
     }
 
+    public void ReceiveCharaDataInternal(OnlineUserCharaDataDto dto)
+    {
+        var isQueuedPath = _configurationService.Current.UseQueuedCharacterDataApplication;  // ex setting
+        if (isQueuedPath)
+            ReceiveCharaDataQueued(dto);
+        else if (_applyQueue?.PendingCount > 0 || _applyQueue?.InFlightCount > 0) // keep using the queue once disabled until empty
+            ReceiveCharaDataQueued(dto);
+        else ReceiveCharaData(dto);
+    }
+
     public void ReceiveCharaData(OnlineUserCharaDataDto dto)
     {
         if (!_allClientPairs.TryGetValue(dto.User, out var pair)) throw new InvalidOperationException("No user found for " + dto.User);
 
         Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Character Data")));
         _allClientPairs[dto.User].ApplyData(dto);
+    }
+
+    /// <summary>
+    /// Experimental
+    /// </summary>
+    /// <param name="dto"></param>
+    /// <exception cref="InvalidOperationException"></exception>
+    public void ReceiveCharaDataQueued(OnlineUserCharaDataDto dto)
+    {
+        if (!_allClientPairs.TryGetValue(dto.User, out var pair))
+            throw new InvalidOperationException("No user found for " + dto.User);
+
+        Logger.LogTrace("{class} - Pair Character Data in queue: {count}", nameof(ReceiveCharaData), _applyQueue.PendingCount.ToString());
+        Logger.LogDebug("{method} - Received character data for {pair}", nameof(ReceiveCharaData), !string.IsNullOrWhiteSpace(pair.PlayerName) ? pair.PlayerName : pair.UserData.UID);
+        Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Character Data")));
+
+        _applyQueue.Enqueue(pair.UserData.UID, async ct =>
+        {
+            try
+            {
+                Logger.LogTrace("{class} - Pair Character Data in flight: {count}", nameof(ReceiveCharaData), _applyQueue.InFlightCount.ToString());
+                Logger.LogDebug("{method} - Starting data application for {pair}", nameof(ReceiveCharaData), !string.IsNullOrWhiteSpace(pair.PlayerName) ? pair.PlayerName : pair.UserData.UID);
+                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Starting data application.")));
+
+                await pair.ApplyDataAsync(dto).ConfigureAwait(false);
+
+                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Finished data application.")));
+                Logger.LogDebug("{method} - Finished data application for {pair}", nameof(ReceiveCharaData), !string.IsNullOrWhiteSpace(pair.PlayerName) ? pair.PlayerName : pair.UserData.UID);
+                Logger.LogTrace("{class} - Pair Character Data in queue: {count}", nameof(ReceiveCharaData), _applyQueue.PendingCount.ToString());
+            }
+            catch (TaskCanceledException)
+            {
+                //
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to apply pair data.");
+            }
+        });
     }
 
     public void RemoveGroup(GroupData data)
@@ -352,7 +446,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     {
         base.Dispose(disposing);
 
-        
+        _applyQueue.Dispose();
 
         DisposePairs();
     }

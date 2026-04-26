@@ -75,7 +75,7 @@ namespace MareSynchronos.PlayerData.Pairs
         private readonly MareConfigService _mareConfigService;
 
         private DateTimeOffset _nextPeriodicPoll;
-        private readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(5);
+        private readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(15);
         private bool _sentBroadcastAvailableNotification = false;
 
         private volatile int _startingListening = 0;
