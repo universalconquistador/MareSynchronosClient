@@ -111,4 +111,9 @@ public class MareConfig : IMareConfiguration
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
     public bool LifestreamInvitesDirectPairsOnly { get; set; } = false;
+
+    // Experimentals
+    public bool UseQueuedCharacterDataApplication {  get; set; } = false;
+    public int MaxConcurrentApplications { get; set; } = 1;
+    public int CharacterIsDrawingTimeoutMilliseconds { get; set; } = 30000;
 }

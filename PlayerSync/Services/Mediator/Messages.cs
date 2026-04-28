@@ -78,7 +78,7 @@ public record ToggleCollapseMessage : MessageBase;
 public record PrefillJoinSyncshellParameters(string GroupId, bool ExpectPasswordless, bool IsGuestModeEnabled) : MessageBase;
 public record PreloadJoinSyncshellDtoMessage(GroupJoinInfoDto Dto, string Password) : MessageBase;
 public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading) : MessageBase;
-public record ClearProfileDataMessage(UserData? UserData = null) : MessageBase;
+public record ClearProfileDataMessage(UserData? UserData = null, bool UpdateProfileStatus = false) : MessageBase;
 public record UserPairStickyPauseAndRemoveMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
 public record PauseMessage(UserData UserData, PauseReason Reason) : MessageBase;

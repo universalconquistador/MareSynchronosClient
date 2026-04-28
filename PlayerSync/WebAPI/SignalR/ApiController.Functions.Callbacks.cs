@@ -143,7 +143,7 @@ public partial class ApiController
     public Task Client_UserReceiveCharacterData(OnlineUserCharaDataDto dataDto)
     {
         Logger.LogTrace("Client_UserReceiveCharacterData: {user}", dataDto.User);
-        ExecuteSafely(() => _pairManager.ReceiveCharaData(dataDto));
+        ExecuteSafely(() => _pairManager.ReceiveCharaDataInternal(dataDto));
         return Task.CompletedTask;
     }
 
@@ -199,7 +199,7 @@ public partial class ApiController
     public Task Client_UserUpdateProfile(UserDto dto)
     {
         Logger.LogDebug("Client_UserUpdateProfile: {dto}", dto);
-        ExecuteSafely(() => Mediator.Publish(new ClearProfileDataMessage(dto.User)));
+        ExecuteSafely(() => Mediator.Publish(new ClearProfileDataMessage(dto.User, true)));
         return Task.CompletedTask;
     }
 

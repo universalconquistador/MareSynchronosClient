@@ -158,7 +158,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
     public string TargetName
     {
-        get => _targetManager.Target?.Name.TextValue ?? "";
+        get => _targetManager.Target?.Name.TextValue ?? string.Empty;
     }
     public unsafe nint TargetAddress
     {
@@ -837,6 +837,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             if (localPlayer != null)
             {
                 _classJobId = localPlayer.ClassJob.RowId;
+                _playerName = localPlayer.Name.TextValue;
             }
 
             if (!IsInCombatOrPerforming)

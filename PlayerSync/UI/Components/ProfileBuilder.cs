@@ -43,7 +43,7 @@ public static class ProfileBuilder
         var inset = 3f * globalScale;
 
         var fillMin = new Vector2(leftX + inset, endY + inset);
-        var fillMax = new Vector2(rightX - inset, bottomY - inset);
+        var fillMax = new Vector2(rightX - inset, bottomY - inset * 0.5f);
 
         var min = new Vector2(windowPos.X + inset, startY - inset);
         var max = new Vector2(windowPos.X + windowSize.X - inset, endY + 5 * globalScale); // overlap a bit so no fractional pixel gaps
@@ -90,9 +90,9 @@ public static class ProfileBuilder
             return;
 
         var rounding = MathF.Max(0f, radiusPx * globalScale - inset);
-        var borderRounding = MathF.Max(0f, rounding - borderHalfThickness);
+        //var borderRounding = MathF.Max(0f, rounding - borderHalfThickness);
 
-        drawList.AddRect(borderMin, borderMax, ImGui.GetColorU32(borderColor), borderRounding, ImDrawFlags.RoundCornersAll, borderThickness);
+        drawList.AddRect(borderMin, borderMax, ImGui.GetColorU32(borderColor), rounding, ImDrawFlags.RoundCornersAll, borderThickness);
     }
 
     public static void DrawBackgroundImage(UiTheme theme, IDalamudTextureWrap? avatar, float portraitAspectW = 9f, float portraitAspectH = 16f, float insetPx = 3f)

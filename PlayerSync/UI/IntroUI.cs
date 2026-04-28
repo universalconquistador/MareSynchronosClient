@@ -235,6 +235,13 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             {
                 Ui.DrawHorizontalRule(_theme);
 
+                var rowY = ImGui.GetCursorPosY();
+
+                if (ImGui.Button("Setup Guide"))
+                {
+                    Util.OpenLink("https://docs.playersync.io/");
+                }
+
                 var idx = Array.IndexOf(_setupOrder, _currentSetupPageId);
                 var isFirst = idx <= 0;
                 var isLast = idx >= _setupOrder.Length - 1;
@@ -242,27 +249,31 @@ public partial class IntroUi : WindowMediatorSubscriberBase
                 var backLabel = "Back";
                 var nextLabel = "Next";
 
+                bool showBack = !(isFirst || _configService.Current.FirstTimeSetupComplete);
+                bool showNext = !_configService.Current.FirstTimeSetupComplete;
+
                 float ButtonWidth(string label) => ImGui.CalcTextSize(label).X + (style.FramePadding.X * 2f);
 
                 var spacing = style.ItemSpacing.X;
                 var backW = ButtonWidth(backLabel);
                 var nextW = ButtonWidth(nextLabel);
-                var totalW = (isFirst ? 0f : backW + spacing) + nextW;
+                var totalW = (showBack ? backW : 0f) + (showBack && showNext ? spacing : 0f) + (showNext ? nextW : 0f);
+
                 var max = ImGui.GetWindowContentRegionMax();
-                var y = max.Y - ImGui.GetFrameHeight() - padFooter - padBottom;
                 var x = max.X - totalW - padRight;
 
-                ImGui.SetCursorPosY(Math.Max(ImGui.GetCursorPosY(), y));
-                ImGui.SetCursorPosX(Math.Max(ImGui.GetCursorPosX(), x));
+                ImGui.SetCursorPos(new Vector2(x, rowY));
 
-                if (!(isFirst || _configService.Current.FirstTimeSetupComplete))
+                if (showBack)
                 {
                     if (ImGui.Button(backLabel))
                         PreviousPage();
-                    ImGui.SameLine();
+
+                    if (showNext)
+                        ImGui.SameLine();
                 }
 
-                if (!_configService.Current.FirstTimeSetupComplete)
+                if (showNext)
                 {
                     using (ImRaii.Disabled(!CanGoNextPage()))
                     {
@@ -414,8 +425,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         else
         {
             UiSharedService.TextWrapped("To not unnecessary download files already present on your computer, PlayerSync will have to scan your Penumbra mod directory. " +
-                                    "Additionally, a local storage folder must be set where PlayerSync will download other character files to. " +
-                                    "Once the storage folder is set and the scan complete, this page will automatically forward to registration at a service.");
+                                    "Additionally, a local storage folder must be set where PlayerSync will download other character files to. ");
             UiSharedService.TextWrapped("Note: The initial scan, depending on the amount of mods you have, might take a while. Please wait until it is completed.");
             ImGuiHelpers.ScaledDummy(5);
             UiSharedService.ColorTextWrapped("Warning: once past this step you should not delete the FileCache.csv of PlayerSync in the Plugin Configurations folder of Dalamud. " +
@@ -430,8 +440,11 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             {
                 _cacheMonitor.InvokeScan();
             }
-            ImGui.SameLine();
-            ImGui.TextUnformatted("(You must run the scan before proceeding.)");
+            if (!_configService.Current.InitialScanComplete)
+            {
+                ImGui.SameLine();
+                ImGui.TextUnformatted("(You must run the scan before proceeding.)");
+            }
         }
         else
         {
@@ -482,7 +495,8 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         }
 
         ImGuiHelpers.ScaledDummy(5);
-        ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Check \"Use Proxied Server\" if you had to use the mirror repo.");
+        ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "Only use the Proxied Server option if the PlayerSync Support Team has advised it, " +
+            "or if you are experiencing persistent connection issues that normal troubleshooting hasn't resolved.");
         var useBackupServer = _serverConfigurationManager.EnableBackupServer;
         if (ImGui.Checkbox("Use Proxied Server", ref useBackupServer))
         {
