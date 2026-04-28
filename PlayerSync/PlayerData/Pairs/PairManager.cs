@@ -446,7 +446,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     {
         base.Dispose(disposing);
 
-        _applyQueue.Dispose();
+        _applyQueue?.Dispose();
 
         DisposePairs();
     }
