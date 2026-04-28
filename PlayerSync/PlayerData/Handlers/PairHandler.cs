@@ -174,7 +174,25 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     // Maps from hash in the last applied data to compressed hash
     public ConcurrentDictionary<string, string> ActiveCompressionRedirects { get; private set; } = new ConcurrentDictionary<string, string>();
 
+    // wrapper for the internal method to preserve existing references
     public void ApplyCharacterData(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
+    {
+        _ = ApplyCharacterDataInternal(applicationBase, characterData, forceApplyCustomization, awaitCompletion: false);
+    }
+
+    /// <summary>
+    /// Experimental
+    /// </summary>
+    /// <param name="applicationBase"></param>
+    /// <param name="characterData"></param>
+    /// <param name="forceApplyCustomization"></param>
+    /// <returns></returns>
+    public Task ApplyCharacterDataAsync(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
+    {
+        return ApplyCharacterDataInternal(applicationBase, characterData, forceApplyCustomization, awaitCompletion: true);
+    }
+
+    private Task ApplyCharacterDataInternal(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization, bool awaitCompletion)
     {
         if (_dalamudUtil.IsInCombatOrPerforming)
         {
@@ -183,7 +201,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             Logger.LogDebug("[BASE-{appBase}] Received data but player is in combat or performing", applicationBase);
             _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
             SetUploading(isUploading: false);
-            return;
+            return Task.CompletedTask;
         }
 
         if (_charaHandler == null || (PlayerCharacter == IntPtr.Zero))
@@ -198,7 +216,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             _forceApplyMods = hasDiffMods || _forceApplyMods || (PlayerCharacter == IntPtr.Zero && _cachedData == null);
             _cachedData = characterData;
             Logger.LogDebug("[BASE-{appBase}] Setting data: {hash}, forceApplyMods: {force}", applicationBase, _cachedData.DataHash.Value, _forceApplyMods);
-            return;
+            return Task.CompletedTask;
         }
 
         SetUploading(isUploading: false);
@@ -210,26 +228,29 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
 
         if (_isVanillaEnforced)
-            return;
+            return Task.CompletedTask;
 
-        Logger.LogDebug("[BASE-{appbase}] Applying data for {player}, forceApplyCustomization: {forced}, forceApplyMods: {forceMods}", applicationBase, this, forceApplyCustomization, _forceApplyMods);
-        Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}", applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
+        Logger.LogDebug("[BASE-{appbase}] Applying data for {player}, forceApplyCustomization: {forced}, forceApplyMods: {forceMods}",
+            applicationBase, this, forceApplyCustomization, _forceApplyMods);
+        Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}",
+            applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
 
-        if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization) return;
+        if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization)
+            return Task.CompletedTask;
 
         if (_dalamudUtil.IsInCutscene || _dalamudUtil.IsInGpose || !_ipcManager.Penumbra.APIAvailable || !_ipcManager.Glamourer.APIAvailable)
         {
             Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
                 "Cannot apply character data: you are in GPose, a Cutscene or Penumbra/Glamourer is not available")));
-            Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning", applicationBase, this);
-            return;
+            Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning",
+                applicationBase, this);
+            return Task.CompletedTask;
         }
 
         Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
             "Applying Character Data")));
 
         _forceApplyMods |= forceApplyCustomization;
-        //_forceApplyMods = true;
 
         var charaDataToUpdate = characterData.CheckUpdatedData(applicationBase, _cachedData?.DeepClone() ?? new(), Logger, this, forceApplyCustomization, _forceApplyMods);
 
@@ -251,8 +272,182 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
         Logger.LogDebug("[BASE-{appbase}] Downloading and applying character for {name}", applicationBase, this);
 
-        DownloadAndApplyCharacter(applicationBase, characterData.DeepClone(), charaDataToUpdate);
+        var cloned = characterData.DeepClone();
+
+        if (!awaitCompletion)
+        {
+            DownloadAndApplyCharacter(applicationBase, cloned, charaDataToUpdate);
+            return Task.CompletedTask;
+        }
+
+        return QueuedDownloadAndApplyCharacterAsync(applicationBase, cloned, charaDataToUpdate);
     }
+
+    //public void ApplyCharacterData(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
+    //{
+    //    if (_dalamudUtil.IsInCombatOrPerforming)
+    //    {
+    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
+    //            "Cannot apply character data: you are in combat or performing music, deferring application")));
+    //        Logger.LogDebug("[BASE-{appBase}] Received data but player is in combat or performing", applicationBase);
+    //        _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
+    //        SetUploading(isUploading: false);
+    //        return;
+    //    }
+
+    //    if (_charaHandler == null || (PlayerCharacter == IntPtr.Zero))
+    //    {
+    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
+    //            "Cannot apply character data: Receiving Player is in an invalid state, deferring application")));
+    //        Logger.LogDebug("[BASE-{appBase}] Received data but player was in invalid state, charaHandlerIsNull: {charaIsNull}, playerPointerIsNull: {ptrIsNull}",
+    //            applicationBase, _charaHandler == null, PlayerCharacter == IntPtr.Zero);
+    //        var hasDiffMods = characterData.CheckUpdatedData(applicationBase, _cachedData, Logger,
+    //            this, forceApplyCustomization, forceApplyMods: false)
+    //            .Any(p => p.Value.Contains(PlayerChanges.ModManip) || p.Value.Contains(PlayerChanges.ModFiles));
+    //        _forceApplyMods = hasDiffMods || _forceApplyMods || (PlayerCharacter == IntPtr.Zero && _cachedData == null);
+    //        _cachedData = characterData;
+    //        Logger.LogDebug("[BASE-{appBase}] Setting data: {hash}, forceApplyMods: {force}", applicationBase, _cachedData.DataHash.Value, _forceApplyMods);
+    //        return;
+    //    }
+
+    //    SetUploading(isUploading: false);
+
+    //    if (_isVanillaEnforced && !_isLocked)
+    //    {
+    //        _isLocked = true;
+    //        CheckForVanillaLoadingOfPair();
+    //    }
+
+    //    if (_isVanillaEnforced)
+    //        return;
+
+    //    Logger.LogDebug("[BASE-{appbase}] Applying data for {player}, forceApplyCustomization: {forced}, forceApplyMods: {forceMods}", applicationBase, this, forceApplyCustomization, _forceApplyMods);
+    //    Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}", applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
+
+    //    if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization) return;
+
+    //    if (_dalamudUtil.IsInCutscene || _dalamudUtil.IsInGpose || !_ipcManager.Penumbra.APIAvailable || !_ipcManager.Glamourer.APIAvailable)
+    //    {
+    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
+    //            "Cannot apply character data: you are in GPose, a Cutscene or Penumbra/Glamourer is not available")));
+    //        Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning", applicationBase, this);
+    //        return;
+    //    }
+
+    //    Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
+    //        "Applying Character Data")));
+
+    //    _forceApplyMods |= forceApplyCustomization;
+    //    //_forceApplyMods = true;
+
+    //    var charaDataToUpdate = characterData.CheckUpdatedData(applicationBase, _cachedData?.DeepClone() ?? new(), Logger, this, forceApplyCustomization, _forceApplyMods);
+
+    //    if (_charaHandler != null && _forceApplyMods)
+    //    {
+    //        _forceApplyMods = false;
+    //    }
+
+    //    if (_redrawOnNextApplication && charaDataToUpdate.TryGetValue(ObjectKind.Player, out var player))
+    //    {
+    //        player.Add(PlayerChanges.ForcedRedraw);
+    //        _redrawOnNextApplication = false;
+    //    }
+
+    //    if (charaDataToUpdate.TryGetValue(ObjectKind.Player, out var playerChanges))
+    //    {
+    //        _pluginWarningNotificationManager.NotifyForMissingPlugins(Pair.UserData, PlayerName!, playerChanges);
+    //    }
+
+    //    Logger.LogDebug("[BASE-{appbase}] Downloading and applying character for {name}", applicationBase, this);
+
+    //    DownloadAndApplyCharacter(applicationBase, characterData.DeepClone(), charaDataToUpdate);
+    //}
+
+    ///// <summary>
+    ///// Experimental
+    ///// </summary>
+    ///// <param name="applicationBase"></param>
+    ///// <param name="characterData"></param>
+    ///// <param name="forceApplyCustomization"></param>
+    ///// <returns></returns>
+    //public async Task ApplyCharacterDataAsync(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
+    //{
+    //    if (_dalamudUtil.IsInCombatOrPerforming)
+    //    {
+    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
+    //            "Cannot apply character data: you are in combat or performing music, deferring application")));
+    //        Logger.LogDebug("[BASE-{appBase}] Received data but player is in combat or performing", applicationBase);
+    //        _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
+    //        SetUploading(isUploading: false);
+    //        return;
+    //    }
+
+    //    if (_charaHandler == null || (PlayerCharacter == IntPtr.Zero))
+    //    {
+    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
+    //            "Cannot apply character data: Receiving Player is in an invalid state, deferring application")));
+    //        Logger.LogDebug("[BASE-{appBase}] Received data but player was in invalid state, charaHandlerIsNull: {charaIsNull}, playerPointerIsNull: {ptrIsNull}",
+    //            applicationBase, _charaHandler == null, PlayerCharacter == IntPtr.Zero);
+    //        var hasDiffMods = characterData.CheckUpdatedData(applicationBase, _cachedData, Logger,
+    //            this, forceApplyCustomization, forceApplyMods: false)
+    //            .Any(p => p.Value.Contains(PlayerChanges.ModManip) || p.Value.Contains(PlayerChanges.ModFiles));
+    //        _forceApplyMods = hasDiffMods || _forceApplyMods || (PlayerCharacter == IntPtr.Zero && _cachedData == null);
+    //        _cachedData = characterData;
+    //        Logger.LogDebug("[BASE-{appBase}] Setting data: {hash}, forceApplyMods: {force}", applicationBase, _cachedData.DataHash.Value, _forceApplyMods);
+    //        return;
+    //    }
+
+    //    SetUploading(isUploading: false);
+
+    //    if (_isVanillaEnforced && !_isLocked)
+    //    {
+    //        _isLocked = true;
+    //        CheckForVanillaLoadingOfPair();
+    //    }
+
+    //    if (_isVanillaEnforced)
+    //        return;
+
+    //    Logger.LogDebug("[BASE-{appbase}] Applying data for {player}, forceApplyCustomization: {forced}, forceApplyMods: {forceMods}", applicationBase, this, forceApplyCustomization, _forceApplyMods);
+    //    Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}", applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
+
+    //    if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization) return;
+
+    //    if (_dalamudUtil.IsInCutscene || _dalamudUtil.IsInGpose || !_ipcManager.Penumbra.APIAvailable || !_ipcManager.Glamourer.APIAvailable)
+    //    {
+    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
+    //            "Cannot apply character data: you are in GPose, a Cutscene or Penumbra/Glamourer is not available")));
+    //        Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning", applicationBase, this);
+    //        return;
+    //    }
+
+    //    Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
+    //        "Applying Character Data")));
+
+    //    _forceApplyMods |= forceApplyCustomization;
+
+    //    var charaDataToUpdate = characterData.CheckUpdatedData(applicationBase, _cachedData?.DeepClone() ?? new(), Logger, this, forceApplyCustomization, _forceApplyMods);
+
+    //    if (_charaHandler != null && _forceApplyMods)
+    //    {
+    //        _forceApplyMods = false;
+    //    }
+
+    //    if (_redrawOnNextApplication && charaDataToUpdate.TryGetValue(ObjectKind.Player, out var player))
+    //    {
+    //        player.Add(PlayerChanges.ForcedRedraw);
+    //        _redrawOnNextApplication = false;
+    //    }
+
+    //    if (charaDataToUpdate.TryGetValue(ObjectKind.Player, out var playerChanges))
+    //    {
+    //        _pluginWarningNotificationManager.NotifyForMissingPlugins(Pair.UserData, PlayerName!, playerChanges);
+    //    }
+
+    //    Logger.LogDebug("[BASE-{appbase}] Downloading and applying character for {name}", applicationBase, this);
+
+    //    await QueuedDownloadAndApplyCharacterAsync(applicationBase, characterData.DeepClone(), charaDataToUpdate).ConfigureAwait(false);
+    //}
 
     public override string ToString()
     {
@@ -377,7 +572,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             }
 
             Logger.LogDebug("[{applicationId}] Applying Customization Data for {handler}", applicationId, handler);
-            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, handler, applicationId, 30000, token).ConfigureAwait(false);
+            var waitTimeMs = _configService.Current.CharacterIsDrawingTimeoutMilliseconds; // ex
+            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, handler, applicationId, waitTimeMs, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             foreach (var change in changes.Value.OrderBy(p => (int)p))
             {
@@ -479,6 +675,38 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         var downloadToken = _downloadCancellationTokenSource.Token;
 
         _ = DownloadAndApplyCharacterAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, downloadToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Experimental
+    /// </summary>
+    /// <param name="applicationBase"></param>
+    /// <param name="charaData"></param>
+    /// <param name="updatedData"></param>
+    /// <returns></returns>
+    private async Task QueuedDownloadAndApplyCharacterAsync(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData)
+    {
+        if (!updatedData.Any())
+        {
+            Logger.LogDebug("[BASE-{appBase}] Nothing to update for {obj}", applicationBase, this);
+            return;
+        }
+
+        var updateModdedPaths = updatedData.Values.Any(v => v.Any(p => p == PlayerChanges.ModFiles));
+        var updateManip = updatedData.Values.Any(v => v.Any(p => p == PlayerChanges.ModManip));
+
+        _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate() ?? new CancellationTokenSource();
+        var downloadToken = _downloadCancellationTokenSource.Token;
+
+        var beforeApplicationTask = _applicationTask;
+
+        await DownloadAndApplyCharacterAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, downloadToken).ConfigureAwait(false);
+
+        var afterApplicationTask = _applicationTask;
+        if (afterApplicationTask != null && !ReferenceEquals(afterApplicationTask, beforeApplicationTask))
+        {
+            await afterApplicationTask.ConfigureAwait(false);
+        }
     }
 
     /// <summary>

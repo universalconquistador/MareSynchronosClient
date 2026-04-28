@@ -147,6 +147,42 @@ public class ServerConfigurationManager
         }
     }
 
+    public string CurrentAuthServiceUri
+    {
+        get
+        {
+            var authServiceUri = "";
+            if (!string.IsNullOrWhiteSpace(_configService.Current.ServerStorage[CurrentServerIndex].ServerAuth))
+            {
+                authServiceUri = _configService.Current.ServerStorage[CurrentServerIndex].ServerAuth;
+            }
+            else
+            {
+                authServiceUri = ConvertToAuthUrl(_configService.Current.ServerStorage[CurrentServerIndex].ServerUri);
+            }
+
+            return authServiceUri;
+        }
+    }
+
+    public static string ConvertToAuthUrl(string input)
+    {
+        var builder = new UriBuilder(input)
+        {
+            Scheme = Uri.UriSchemeHttps,
+            Port = -1
+        };
+
+        var hostParts = builder.Host.Split('.');
+        if (hostParts.Length == 0)
+            throw new InvalidOperationException("Host is invalid.");
+
+        hostParts[0] = "auth";
+        builder.Host = string.Join('.', hostParts);
+
+        return builder.Uri.ToString();
+    }
+
     public (string OAuthToken, string UID)? GetOAuth2(out bool hasMulti, int serverIdx = -1)
     {
         ServerStorage? currentServer;
@@ -678,8 +714,8 @@ public class ServerConfigurationManager
     {
         try
         {
-            var baseUri = serverUri.Replace("wss://", "https://").Replace("ws://", "http://");
-            var oauthCheckUri = MareAuth.GetUIDsFullPath(new Uri(baseUri));
+            //var baseUri = serverUri.Replace("wss://", "https://").Replace("ws://", "http://");
+            var oauthCheckUri = MareAuth.GetUIDsFullPath(new Uri(serverUri));
             var response = await _httpClient.GetWithBearerAuthAsync(oauthCheckUri, token).ConfigureAwait(false);
             var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             return await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(responseStream).ConfigureAwait(false) ?? [];
@@ -695,8 +731,9 @@ public class ServerConfigurationManager
     {
         try
         {
-            var baseUri = serverUri.Replace("wss://", "https://").Replace("ws://", "http://");
-            var oauthCheckUri = MareAuth.GetDiscordOAuthEndpointFullPath(new Uri(baseUri));
+            //var baseUri = serverUri.Replace("wss://", "https://").Replace("ws://", "http://");
+            //var authUri = ApiController.ConvertToAuthUrl(serverUri);
+            var oauthCheckUri = MareAuth.GetDiscordOAuthEndpointFullPath(new Uri(serverUri));
             var response = await _httpClient.GetFromJsonAsync<Uri?>(oauthCheckUri).ConfigureAwait(false);
             return response;
         }
@@ -718,8 +755,8 @@ public class ServerConfigurationManager
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeOutCts.Token, token);
         try
         {
-            var baseUri = serverUri.Replace("wss://", "https://").Replace("ws://", "http://");
-            var oauthCheckUri = MareAuth.GetDiscordOAuthTokenFullPath(new Uri(baseUri), sessionId);
+            //var baseUri = serverUri.Replace("wss://", "https://").Replace("ws://", "http://");
+            var oauthCheckUri = MareAuth.GetDiscordOAuthTokenFullPath(new Uri(serverUri), sessionId);
             var response = await _httpClient.GetAsync(oauthCheckUri, linkedCts.Token).ConfigureAwait(false);
             discordToken = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         }

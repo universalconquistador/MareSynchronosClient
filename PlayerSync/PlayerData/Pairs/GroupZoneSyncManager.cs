@@ -69,8 +69,14 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
     {
         if (!_apiController.IsConnected) return;
 
-        var enableGroupZoneSyncJoining = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
-        if (!enableGroupZoneSyncJoining) return;
+        var playerName = _dalamudUtilService.PlayerName;
+
+        bool zoneSyncEnabledConfig = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+        bool zoneSyncPerChara = _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter.ContainsKey(playerName);
+        bool zoneSyncEnabled = zoneSyncPerChara ? _zoneSyncConfigService.Current.ZoneSyncEnabledPerCharacter[playerName] : zoneSyncEnabledConfig;
+
+        //var enableGroupZoneSyncJoining = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
+        if (!zoneSyncEnabled) return;
 
         var delay = TimeSpan.FromSeconds(_zoneSyncConfigService.Current.ZoneJoinDelayTime);
 
