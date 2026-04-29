@@ -83,8 +83,8 @@ public partial class SettingsUi
             return (false, false, $"Failed to convert {failedConversions.Count} entries: " + string.Join(", ", failedConversions.Select(k => k.CharacterName)));
         }
 
-        var baseUri = serverStorage.ServerUri.Replace("wss://", "https://").Replace("ws://", "http://");
-        var oauthCheckUri = MareAuth.GetUIDsBasedOnSecretKeyFullPath(new Uri(baseUri));
+        //var baseUri = serverStorage.ServerUri.Replace("wss://", "https://").Replace("ws://", "http://");
+        var oauthCheckUri = MareAuth.GetUIDsBasedOnSecretKeyFullPath(new Uri(_serverConfigurationManager.CurrentAuthServiceUri));
         var requestContent = JsonContent.Create(secretKeyMapping.Select(k => k.Key).ToList());
         HttpRequestMessage requestMessage = new(HttpMethod.Post, oauthCheckUri);
         requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", serverStorage.OAuthToken);

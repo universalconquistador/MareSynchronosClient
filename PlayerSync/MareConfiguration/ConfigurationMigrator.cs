@@ -88,6 +88,22 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             serverConfigService.Current.Version = 4;
             serverConfigService.Save();
         }
+        if (serverConfigService.Current.Version == 4)
+        {
+            _logger.LogInformation("Migrating Server Config V4 => V5");
+
+            var devServer = serverConfigService.Current.ServerStorage.Find(f => f.ServerUri.Equals("wss://dev.playersync.io", StringComparison.Ordinal));
+            // Migrate dev, if we have one defined
+            if (devServer != null)
+            {
+                _logger.LogInformation("Setting dev server information.");
+                devServer.ServerAuth = "https://auth-dev.playersync.io";
+            }
+
+            // Bump server.json for migration code flow
+            serverConfigService.Current.Version = 5;
+            serverConfigService.Save();
+        }
 
         // notes migrations
         if (notesConfigService.Current.Version == 0)
