@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Windowing;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
@@ -21,7 +22,7 @@ public class PairingRequestsNoticeUi : WindowMediatorSubscriberBase
         _pairRequestManager = pairRequestManager;
         _configService = mareConfigService;
 
-        SizeConstraints = new WindowSizeConstraints()
+        SizeConstraints = new WindowSizeConstraints
         {
             MaximumSize = new Vector2(10000f, 10000f),
             MinimumSize = new Vector2(1f, 1f),
