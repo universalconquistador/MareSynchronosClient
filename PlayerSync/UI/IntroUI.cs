@@ -3,6 +3,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using MareSynchronos.FileCache;
 using MareSynchronos.Localization;
@@ -78,7 +79,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         ShowCloseButton = false;
         RespectCloseHotkey = false;
 
-        SizeConstraints = new WindowSizeConstraints()
+        SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(900, 600),
             MaximumSize = new Vector2(900, 2000),
