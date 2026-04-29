@@ -3,4 +3,4 @@
 	url = https://github.com/universalconquistador/MareSynchronosAPI.git
 [submodule "Dalamud-VFXEditor"]
 	path = Dalamud-VFXEditor
-	url = https://github.com/0ceal0t/Dalamud-VFXEditor
+	url = https://github.com/universalconquistador/VFXEditor-PlayerSync
