@@ -1,5 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Colors;
+using Dalamud.Interface.Windowing;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services;
@@ -30,7 +31,7 @@ public class DownloadUi : WindowMediatorSubscriberBase
         _fileTransferManager = fileTransferManager;
         _uiShared = uiShared;
 
-        SizeConstraints = new WindowSizeConstraints()
+        SizeConstraints = new WindowSizeConstraints
         {
             MaximumSize = new Vector2(500, 90),
             MinimumSize = new Vector2(500, 90),

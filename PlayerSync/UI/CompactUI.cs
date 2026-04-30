@@ -25,7 +25,7 @@ using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Numerics;
-using System.Reflection;
+using Dalamud.Interface.Windowing;
 
 namespace MareSynchronos.UI;
 
@@ -151,7 +151,7 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         Flags |= ImGuiWindowFlags.NoDocking;
 
-        SizeConstraints = new WindowSizeConstraints()
+        SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(375, 400),
             MaximumSize = new Vector2(375, 2000),
