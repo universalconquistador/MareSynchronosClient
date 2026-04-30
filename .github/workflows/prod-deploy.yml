@@ -1,3 +1,6 @@
+# https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/latest.zip
+# https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/stg/latest.zip
+
 name: Build & Deploy to Prod
 
 on: workflow_dispatch
@@ -12,7 +15,7 @@ jobs:
           submodules: recursive
           token: ${{ secrets.CI_TOKEN }}
       - name: Download Dalamud binaries
-        run: curl --output /home/runner/dalamud-distrib.zip -L "https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/latest.zip"
+        run: curl --output /home/runner/dalamud-distrib.zip -L "https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/stg/latest.zip"
       - name: Extract Dalamud binaries
         run: mkdir -p /home/runner/.xlcore/dalamud/Hooks/dev && unzip /home/runner/dalamud-distrib.zip -d /home/runner/.xlcore/dalamud/Hooks/dev
       - name: List dalamud files
