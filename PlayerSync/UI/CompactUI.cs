@@ -365,13 +365,15 @@ public class CompactUi : WindowMediatorSubscriberBase
                 {
                     if (isConnectingOrConnected && !_serverManager.CurrentServer.FullPause)
                     {
-                        _serverManager.CurrentServer.FullPause = true;
-                        _serverManager.Save();
+                        _serverManager.IsPausedCurrentServer = true;
+                        //_serverManager.CurrentServer.FullPause = true;
+                        //_serverManager.Save();
                     }
                     else if (!isConnectingOrConnected && _serverManager.CurrentServer.FullPause)
                     {
-                        _serverManager.CurrentServer.FullPause = false;
-                        _serverManager.Save();
+                        _serverManager.IsPausedCurrentServer = false;
+                        //_serverManager.CurrentServer.FullPause = false;
+                        //_serverManager.Save();
                     }
 
                     _ = _apiController.CreateConnectionsAsync();
