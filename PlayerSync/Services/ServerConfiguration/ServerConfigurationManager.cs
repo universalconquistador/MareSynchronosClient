@@ -45,6 +45,20 @@ public class ServerConfigurationManager
 
     public string RealApiUrl => _configService.Current.ServerStorage[CurrentServerIndex].ServerUri;
 
+    public bool SetPauseCurrentServer
+    {
+        get
+        {
+            return _configService.Current.ServerStorage[CurrentServerIndex].FullPause;
+        }
+        set
+        {
+            var server = _configService.Current.ServerStorage[CurrentServerIndex];
+            server.FullPause = value;
+            _configService.Save();
+        }
+    }
+
     public ServerStorage CurrentServer
     {
         get
