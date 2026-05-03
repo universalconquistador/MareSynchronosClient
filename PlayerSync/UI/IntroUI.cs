@@ -496,14 +496,14 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         }
 
         ImGuiHelpers.ScaledDummy(5);
-        ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "Only use the Proxied Server option if the PlayerSync Support Team has advised it, " +
-            "or if you are experiencing persistent connection issues that normal troubleshooting hasn't resolved.");
-        var useBackupServer = _serverConfigurationManager.EnableBackupServer;
-        if (ImGui.Checkbox("Use Proxied Server", ref useBackupServer))
+        //ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "Only use the Proxied Server option if the PlayerSync Support Team has advised it, " +
+        //    "or if you are experiencing persistent connection issues that normal troubleshooting hasn't resolved.");
+        var useGatewayDiscovery = _serverConfigurationManager.EnableGatewayDiscovery;
+        if (ImGui.Checkbox("Use Gateway Discovery", ref useGatewayDiscovery))
         {
-            _serverConfigurationManager.EnableBackupServer = useBackupServer;
+            _serverConfigurationManager.EnableGatewayDiscovery = useGatewayDiscovery;
         }
-        _uiShared.DrawHelpText("Only use this if advised by the PlayerSync support team, or if you know there is an ISP issue affecting you.");
+        _uiShared.DrawHelpText("Automatically finds the closests PlayerSync gateway.");
 
         if (_useLegacyLogin)
         {

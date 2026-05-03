@@ -1,3 +1,6 @@
+# https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/latest.zip
+# https://github.com/goatcorp/dalamud-distrib/raw/refs/heads/main/stg/latest.zip
+
 name: Build & Deploy to Prod
 
 on: workflow_dispatch

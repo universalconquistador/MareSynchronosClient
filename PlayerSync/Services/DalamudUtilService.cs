@@ -318,7 +318,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public string GetPlayerName()
     {
         EnsureIsOnFramework();
-        return _objectTable.LocalPlayer?.Name.ToString() ?? "--";
+        return _objectTable.LocalPlayer?.Name.ToString() ?? _playerName ?? "--";
     }
 
     public async Task<string> GetPlayerNameAsync()

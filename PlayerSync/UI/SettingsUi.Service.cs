@@ -134,15 +134,15 @@ public partial class SettingsUi
 
         _uiShared.BigText("Service");
         ImGuiHelpers.ScaledDummy(2);
-        var useBackupServer = _serverConfigurationManager.EnableBackupServer;
-        ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "Only use the Proxied Server option if the PlayerSync Support Team has advised it, " +
-            "or if you are experiencing persistent connection issues that normal troubleshooting hasn't resolved.");
-        if (ImGui.Checkbox("Use Proxied Server", ref useBackupServer))
+        var useGatewayDiscovery = _serverConfigurationManager.EnableGatewayDiscovery;
+        //ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "Only use the Proxied Server option if the PlayerSync Support Team has advised it, " +
+        //    "or if you are experiencing persistent connection issues that normal troubleshooting hasn't resolved.");
+        if (ImGui.Checkbox("Use Gateway Discovery", ref useGatewayDiscovery))
         {
-            _serverConfigurationManager.EnableBackupServer = useBackupServer;
+            _serverConfigurationManager.EnableGatewayDiscovery = useGatewayDiscovery;
             _ = _apiController.CreateConnectionsAsync();
         }
-        _uiShared.DrawHelpText("Only use this if advised by the PlayerSync support team, or if you know there is an ISP issue affecting you.");
+        _uiShared.DrawHelpText("Automatically finds the closests PlayerSync gateway.");
 
         var idx = _uiShared.DrawServiceSelection();
         if (_lastSelectedServerIndex != idx)
@@ -151,6 +151,9 @@ public partial class SettingsUi
             _secretKeysConversionCts = _secretKeysConversionCts.CancelRecreate();
             _secretKeysConversionTask = null;
             _lastSelectedServerIndex = idx;
+            _overrideGateways.Clear();
+            _gatewayLoadRequested = false;
+            _selectedGateway = null;
         }
 
         ImGuiHelpers.ScaledDummy(new Vector2(10, 10));
