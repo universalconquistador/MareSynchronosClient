@@ -40,55 +40,26 @@ public class ServerConfigurationManager
         EnsureMainExists();
     }
 
-    public string CurrentApiUrl => EnableBackupServer && !string.IsNullOrWhiteSpace(BackupServerUri)
-        ? BackupServerUri : _configService.Current.ServerStorage[CurrentServerIndex].ServerUri;
+    public string CurrentApiUrl => EnableGatewayDiscovery && !string.IsNullOrWhiteSpace(ActiveServericeUri)
+        ? ActiveServericeUri : _configService.Current.ServerStorage[CurrentServerIndex].ServerUri;
 
     public string RealApiUrl => _configService.Current.ServerStorage[CurrentServerIndex].ServerUri;
 
-    public bool IsPausedCurrentServer
+    public ServerStorage CurrentServer => _configService.Current.ServerStorage[CurrentServerIndex];
+
+    public string ActiveServericeUri { get; set; } = null;
+
+    public string ServiceDomain
     {
         get
         {
-            return _configService.Current.ServerStorage[CurrentServerIndex].FullPause;
-        }
-        set
-        {
-            var server = _configService.Current.ServerStorage[CurrentServerIndex];
-            server.FullPause = value;
-            _configService.Save();
+            Uri uri = new(_configService.Current.ServerStorage[CurrentServerIndex].ServerUri);
+            string host = uri.Host;
+            return string.Join('.', host.Split('.').Skip(1));
         }
     }
 
-    public ServerStorage CurrentServer
-    {
-        get
-        {
-            var server = _configService.Current.ServerStorage[CurrentServerIndex];
-            if (!EnableBackupServer || string.IsNullOrWhiteSpace(BackupServerUri))
-                return server;
-
-            return CloneWithServerUri(server, BackupServerUri!);
-        }
-    }
-
-    private static ServerStorage CloneWithServerUri(ServerStorage server, string newUri)
-    {
-        return new ServerStorage
-        {
-            Authentications = server.Authentications,
-            FullPause = server.FullPause,
-            SecretKeys = server.SecretKeys,
-            ServerName = server.ServerName,
-            ServerUri = newUri,
-            UseOAuth2 = server.UseOAuth2,
-            OAuthToken = server.OAuthToken,
-            HttpTransportType = server.HttpTransportType,
-            ForceWebSockets = server.ForceWebSockets
-        };
-    }
-
-    public string BackupServerUri => _configService.Current.BackupServerUri;
-    public bool EnableBackupServer
+    public bool EnableGatewayDiscovery
     {
         get
         {
@@ -97,6 +68,19 @@ public class ServerConfigurationManager
         set
         {
             _configService.Current.EnableBackupServer = value;
+            _configService.Save();
+        }
+    }
+
+    public string ManualGatewaySelection
+    {
+        get
+        {
+            return _configService.Current.BackupServerUri;
+        }
+        set
+        {
+            _configService.Current.BackupServerUri = value;
             _configService.Save();
         }
     }

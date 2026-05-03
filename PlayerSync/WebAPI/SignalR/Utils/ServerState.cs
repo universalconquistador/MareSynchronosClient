@@ -15,5 +15,6 @@ public enum ServerState
     MultiChara,
     OAuthMisconfigured,
     OAuthLoginTokenStale,
-    NoAutoLogon
+    NoAutoLogon,
+    Discovering
 }
