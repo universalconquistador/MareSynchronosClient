@@ -23,6 +23,9 @@ namespace MareSynchronos.Services
             "sync.playersync.io",
             "playersync.io",
             "mirror.playersync.io",
+            "gw-us-east-1.playersync.io",
+            "gw-us-west-1.playersync.io",
+            "gw-eu-west-1.playersync.io",
             "fs-na-01.playersync.io",
             "54cfada9aee2c44d7e67f5769a0a9301.r2.cloudflarestorage.com",
         };
