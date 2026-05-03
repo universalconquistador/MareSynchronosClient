@@ -18,5 +18,5 @@ public class ServerConfig : IMareConfiguration
 
     public int Version { get; set; } = 2;
     public bool EnableBackupServer { get; set; } = false;
-    public string BackupServerUri { get; } = "wss://psrp1.playersync.io";
+    public string BackupServerUri { get; set; } = "wss://psrp1.playersync.io";
 }
