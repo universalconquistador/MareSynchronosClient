@@ -1,10 +1,8 @@
 ﻿using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
-using MareSynchronos.API.Data.AdditionalTypes;
-using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
-using MareSynchronos.API.Dto;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
@@ -14,7 +12,6 @@ using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 
 
 namespace MareSynchronos.PlayerData.Handlers
@@ -56,11 +53,13 @@ namespace MareSynchronos.PlayerData.Handlers
         private readonly ServerConfigurationManager _serverConfigurationManager;
         private readonly PairInviteManager _inviteManager;
         private readonly PlayerPerformanceConfigService _performanceConfigService;
+        private readonly IpcManager _ipcManager;
 
         public PairContextMenuHandler(ILogger<PairContextMenuHandler> logger, MareMediator mediator, IContextMenu dalamudContextMenu,
             MareConfigService mareConfigService, DalamudUtilService dalamudUtilService, PairManager pairManager,
             ApiController apiController, ServerConfigurationManager serverConfigurationManager,
-            PairInviteManager pairInviteManager, PlayerPerformanceConfigService playerPerformanceConfigService) : base(logger, mediator)
+            PairInviteManager pairInviteManager, PlayerPerformanceConfigService playerPerformanceConfigService,
+            IpcManager ipcManager) : base(logger, mediator)
         {
             _dalamudContextMenu = dalamudContextMenu;
             _dalamudUtilService = dalamudUtilService;
@@ -70,6 +69,7 @@ namespace MareSynchronos.PlayerData.Handlers
             _serverConfigurationManager = serverConfigurationManager;
             _inviteManager = pairInviteManager;
             _performanceConfigService = playerPerformanceConfigService;
+            _ipcManager = ipcManager;
         }
 
         private string SelfUID => _apiController.UID;
@@ -94,6 +94,8 @@ namespace MareSynchronos.PlayerData.Handlers
         {
             if (args.MenuType == ContextMenuType.Inventory) return;
             if (!_configurationService.Current.EnableRightClickMenus) return;
+
+            Logger.LogTrace("Addon called: {addon}", args.AddonName);
 
             if (string.Equals(args.AddonName, "ChatLog", StringComparison.OrdinalIgnoreCase))
                 AddUserPairChatContextMenu(args);
@@ -394,8 +396,6 @@ namespace MareSynchronos.PlayerData.Handlers
             if (args.Target is not MenuTargetDefault target)
                 return;
 
-            Logger.LogTrace("ChatLog menu target: {1} {2}", target.TargetName, target.TargetContentId);
-
             var cid = target.TargetContentId.ToString().GetHash256();
 
             var pair = _pairManager.GetPairByCID(cid);
@@ -404,11 +404,44 @@ namespace MareSynchronos.PlayerData.Handlers
             args.AddMenuItem(new MenuItem()
             {
                 Name = new SeStringBuilder().AddText("Send Lifestream Location Invite").Build(),
-                OnClicked = (__) => _ = _apiController.SendLifestreamInviteToPair(pair),
+                OnClicked = (args) => DrawLifestreamInviteSubmenu(pair, args),
                 UseDefaultPrefix = false,
+                IsSubmenu = true,
                 PrefixChar = 'P',
                 PrefixColor = 530,
             });
+        }
+
+        private void DrawLifestreamInviteSubmenu(Pair pair, IMenuItemClickedArgs clickedArgs)
+        {
+            var menuItems = new List<MenuItem>();
+            var addressEntries = _ipcManager.Lifestream.GetAddressBookEntries();
+
+            foreach (var entry in addressEntries)
+            {
+                var addressName = _ipcManager.Lifestream.GetAddressBookEntryTextWithName(entry);
+
+                menuItems.Add(new MenuItem()
+                {
+                    Name = new SeStringBuilder().AddText(addressName).Build(),
+                    OnClicked = (__) => _ = _apiController.SendLifestreamInviteToPair(pair, entry)
+                });
+            }
+
+            menuItems.Add(new MenuItem()
+            {
+                Name = new SeStringBuilder().AddText("Use Current Location").Build(),
+                OnClicked = (__) => _ = _apiController.SendLifestreamInviteToPair(pair)
+            });
+
+            menuItems.Add(new MenuItem()
+            {
+                Name = new SeStringBuilder().AddText("Return").Build(),
+                IsReturn = true,
+                OnClicked = _ => _dalamudUtilService.OpenContextMenu(clickedArgs.AgentPtr)
+            });
+
+            clickedArgs.OpenSubmenu(new SeStringBuilder().AddText("Lifestream Address Book").Build(), menuItems);
         }
     }
 }

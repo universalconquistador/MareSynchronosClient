@@ -165,7 +165,7 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<IpcManager>(), chatGui));
             collection.AddSingleton((s) => new PairContextMenuHandler(s.GetRequiredService<ILogger<PairContextMenuHandler>>(), s.GetRequiredService<MareMediator>(), contextMenu, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<ServerConfigurationManager>(), 
-                s.GetRequiredService<PairInviteManager>(), s.GetRequiredService<PlayerPerformanceConfigService>()));
+                s.GetRequiredService<PairInviteManager>(), s.GetRequiredService<PlayerPerformanceConfigService>(), s.GetRequiredService<IpcManager>()));
             collection.AddSingleton((s) => new DtrEntry(s.GetRequiredService<ILogger<DtrEntry>>(), dtrBar, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<IBroadcastManager>(), s.GetRequiredService<ApiController>()));
             collection.AddSingleton((s) => new IpcCallerPenumbra(s.GetRequiredService<ILogger<IpcCallerPenumbra>>(), pluginInterface,
