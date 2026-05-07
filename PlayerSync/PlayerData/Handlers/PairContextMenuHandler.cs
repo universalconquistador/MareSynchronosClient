@@ -416,22 +416,29 @@ namespace MareSynchronos.PlayerData.Handlers
         {
             var menuItems = new List<MenuItem>();
             var addressEntries = _ipcManager.Lifestream.GetAddressBookEntries();
+            Logger.LogTrace("{service} Address Book Entries: {entries}", nameof(DrawLifestreamInviteSubmenu), addressEntries);
 
-            foreach (var entry in addressEntries)
+            List<AddressBookEntry> sorted = addressEntries
+                .OrderBy(e => string.IsNullOrWhiteSpace(e.Name) ? 1 : 0)
+                .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(e => e.World)
+                .ToList();
+
+            foreach (var entry in sorted)
             {
                 var addressName = _ipcManager.Lifestream.GetAddressBookEntryTextWithName(entry);
 
                 menuItems.Add(new MenuItem()
                 {
                     Name = new SeStringBuilder().AddText(addressName).Build(),
-                    OnClicked = (__) => _ = _apiController.SendLifestreamInviteToPair(pair, entry)
+                    OnClicked = _ => _apiController.SendLifestreamInviteToPair(pair, entry)
                 });
             }
 
             menuItems.Add(new MenuItem()
             {
                 Name = new SeStringBuilder().AddText("Use Current Location").Build(),
-                OnClicked = (__) => _ = _apiController.SendLifestreamInviteToPair(pair)
+                OnClicked = _ => _apiController.SendLifestreamInviteToPair(pair)
             });
 
             menuItems.Add(new MenuItem()

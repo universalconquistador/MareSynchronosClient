@@ -26,7 +26,7 @@ namespace PlayerSync.Services
         private readonly IpcManager _ipcManager;
         private readonly IChatGui _chatGui;
 
-        private readonly ConcurrentDictionary<string, AddressBookEntry> _addressCache = new();
+        private readonly ConcurrentDictionary<string, AddressBookEntry> _addressCache = new(StringComparer.OrdinalIgnoreCase);
         DalamudLinkPayload? _lifestreamInvite = null;
 
         public LifeStreamHandler(ILogger logger, MareMediator mediator, 
@@ -56,14 +56,29 @@ namespace PlayerSync.Services
 
             if (_configurationService.Current.LifestreamInvitesDirectPairsOnly && pair.IndividualPairStatus != IndividualPairStatus.Bidirectional) return;
 
-            var addressBookEntry = address.AddressBookEntry;
+            var addressBookEntryDto = address.AddressBookEntry;
+            AddressBookEntry addressBookEntry = (
+                    addressBookEntryDto.Name,
+                    addressBookEntryDto.World,
+                    addressBookEntryDto.City,
+                    addressBookEntryDto.Ward,
+                    addressBookEntryDto.PropertyType,
+                    addressBookEntryDto.Plot,
+                    addressBookEntryDto.Apartment,
+                    addressBookEntryDto.ApartmentSubdivision,
+                    addressBookEntryDto.AliasEnabled,
+                    addressBookEntryDto.Alias
+                );
 
             string psync = "[PlayerSync] ";
             string invite = string.IsNullOrWhiteSpace(pair.PlayerName) ? $"UID/Alias {pair.UserData.AliasOrUID}" : $"Player {pair.PlayerName}";
 
             string destination = _ipcManager.Lifestream.GetAddressBookEntryTextWithName(addressBookEntry);
 
-            _addressCache.TryAdd(destination, addressBookEntry);
+            Logger.LogTrace("Address book entry: {entry}", addressBookEntry);
+
+            if (!_addressCache.TryAdd(NormalizeAddressCacheKey(destination), addressBookEntry))
+                Logger.LogDebug("Failed to add address book entry to cache. {address} {entry}", destination, addressBookEntry);
 
             Logger.LogTrace("Address parse: {1}", destination);
 
@@ -86,11 +101,16 @@ namespace PlayerSync.Services
 
             string addressCache = address.TextValue;
 
-            if (!_addressCache.TryGetValue(addressCache, out var addressBookEntry))
-                Logger.LogWarning("Error in Lifestream command execution for {address}", address.TextValue);
+            if (!_addressCache.TryGetValue(NormalizeAddressCacheKey(addressCache), out var addressBookEntry))
+                Logger.LogWarning("Could not find valid address for {address}", address.TextValue);
 
             if (!_ipcManager.Lifestream.TryGoToHousingAddress(addressBookEntry))
                 Logger.LogWarning("Error in Lifestream command execution for {address}", address.TextValue);
+        }
+
+        private static string NormalizeAddressCacheKey(string value)
+        {
+            return string.Join(" ", value.Replace('\u00A0', ' ').Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         }
 
         protected override void Dispose(bool disposing)

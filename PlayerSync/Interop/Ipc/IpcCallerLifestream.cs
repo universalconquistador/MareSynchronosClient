@@ -186,9 +186,22 @@ public sealed class IpcCallerLifestream : IIpcCaller
     public string GetAddressBookEntryTextWithName(AddressBookEntry entry)
     {
         if (!string.IsNullOrWhiteSpace(entry.Name))
-            return $"{GetAddressBookEntryText(entry)} - {entry.Name}";
+            return $"{entry.Name} - {GetAddressBookEntryText(entry)}";
 
         return GetAddressBookEntryText(entry);
+    }
+
+    public ResidentialAetheryteKind? GetApartmentResidentialAetheryteKindFromTerritoryId(int id)
+    {
+        return id switch
+        {
+            608 => ResidentialAetheryteKind.Limsa,
+            609 => ResidentialAetheryteKind.Gridania,
+            610 => ResidentialAetheryteKind.Uldah,
+            655 => ResidentialAetheryteKind.Kugane,
+            999 => ResidentialAetheryteKind.Foundation,
+            _ => null
+        };
     }
 
     private static string GetResidentialDistrictName(ResidentialAetheryteKind kind)
