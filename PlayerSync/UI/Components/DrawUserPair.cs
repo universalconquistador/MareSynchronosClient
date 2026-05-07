@@ -1,5 +1,4 @@
 ﻿using Dalamud.Bindings.ImGui;
-using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
@@ -37,7 +36,6 @@ public class DrawUserPair
     private readonly CharaDataManager _charaDataManager;
     private readonly IpcManager _ipcManager;
     private float _menuWidth = -1;
-    private float _subMenuWidth = -1;
     private bool _wasHovered = false;
     private List<AddressBookEntry>? _addressBookCache;
 
@@ -193,7 +191,7 @@ public class DrawUserPair
 
             try
             {
-                if (_uiSharedService.IconMenu("lifestreamInvite", FontAwesomeIcon.Plane, "Lifestream Invite"))
+                if (ImGui.BeginMenu("Lifestream Invite"))
                 {
                     List<AddressBookEntry> sorted = _addressBookCache
                         .OrderBy(e => string.IsNullOrWhiteSpace(e.Name) ? 1 : 0)
@@ -213,7 +211,8 @@ public class DrawUserPair
                         }
                     }
 
-                    ImGui.Separator();
+                    if (sorted.Count > 0)
+                        ImGui.Separator();
 
                     if (ImGui.MenuItem("Use Current Location"))
                     {
