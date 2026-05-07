@@ -13,24 +13,6 @@ namespace MareSynchronos.Interop.Utils
 
     public static class LifestreamUtils
     {
-        public static ResidentialAetheryteKind? GetResidentialAetheryteKindFromTerritoryId(int id)
-        {
-            return id switch
-            {
-                339 => ResidentialAetheryteKind.Limsa,
-                340 => ResidentialAetheryteKind.Gridania,
-                341 => ResidentialAetheryteKind.Uldah,
-                641 => ResidentialAetheryteKind.Kugane,
-                979 => ResidentialAetheryteKind.Foundation,
-                608 => ResidentialAetheryteKind.Limsa,
-                609 => ResidentialAetheryteKind.Gridania,
-                610 => ResidentialAetheryteKind.Uldah,
-                655 => ResidentialAetheryteKind.Kugane,
-                999 => ResidentialAetheryteKind.Foundation,
-                _ => null
-            };
-        }
-
         public static string GetResidentialDistrictName(ResidentialAetheryteKind kind)
         {
             return kind switch
