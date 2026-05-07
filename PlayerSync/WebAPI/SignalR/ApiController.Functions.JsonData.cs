@@ -45,7 +45,7 @@ public partial class ApiController
                 return;
             }
 
-            var kind = LifestreamUtils.GetResidentialAetheryteKindFromTerritoryId((int)ownLocation.TerritoryId);
+            var kind = _dalamudUtil.GetResidentialAetheryteByTerritoryType(ownLocation.TerritoryId);
             if (kind == null) return;
 
             lifestreamAddress = (
