@@ -75,6 +75,9 @@ namespace PlayerSync.Services
 
             string destination = _ipcManager.Lifestream.GetAddressBookEntryTextWithName(addressBookEntry);
 
+            if (addressBookEntryDto.PropertyType == 1 && addressBookEntryDto.ApartmentSubdivision)
+                destination += " (Subdivision)";
+
             Logger.LogTrace("Address book entry: {entry}", addressBookEntry);
 
             if (!_addressCache.TryAdd(NormalizeAddressCacheKey(destination), addressBookEntry))

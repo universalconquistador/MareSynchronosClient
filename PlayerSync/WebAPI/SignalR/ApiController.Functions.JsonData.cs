@@ -1,6 +1,7 @@
 ﻿using MareSynchronos.API.Data.AdditionalTypes;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto;
+using MareSynchronos.Interop.Utils;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -26,60 +27,39 @@ public partial class ApiController
 
         if (entry is null)
         {
-            var lifeStreamPlotInfo = _ipcManager.Lifestream.GetCurrentPlotInfo();
+            if (!_dalamudUtil.TryGetCurrentPlotInfo(out var ward, out var plot))
+                return;
+
             var ownLocation = await _dalamudUtil.GetMapDataAsync().ConfigureAwait(false);
 
-            if (lifeStreamPlotInfo != null && ownLocation.HouseId != 100) // house
-            {
+            bool isInResedential = ward >= 0 && plot >= 0;
+            bool isInApartment = ward >= 0 && ownLocation.HouseId == 100;
 
-                Logger.LogTrace("Lifestream info: {ward} {plot}", lifeStreamPlotInfo.Value.Ward, lifeStreamPlotInfo.Value.Plot);
+            Logger.LogTrace("Ward {ward} Plot {plot}", ward, plot);
 
-                ownLocation.WardId = (uint)lifeStreamPlotInfo.Value.Ward;
-                ownLocation.HouseId = (uint)lifeStreamPlotInfo.Value.Plot;
-
-                lifestreamAddress = (
-                    Name: $"{_dalamudUtil.PlayerName}'s Location",
-                    World: (int)ownLocation.ServerId,
-                    City: (int)lifeStreamPlotInfo.Value.Kind,
-                    Ward: (int)ownLocation.WardId + 1,
-                    PropertyType: 0,
-                    Plot: (int)ownLocation.HouseId + 1,
-                    Apartment: 1,
-                    ApartmentSubdivision: false,
-                    AliasEnabled: true,
-                    Alias: "PSIPC"
-                    );
-            }
-            else if (ownLocation.HouseId == 100) // handle apartments
-            {
-                var kind = _ipcManager.Lifestream.GetApartmentResidentialAetheryteKindFromTerritoryId((int)ownLocation.TerritoryId);
-                if (kind is not null)
-                {
-                    lifestreamAddress = (
-                    Name: $"{_dalamudUtil.PlayerName}'s Location",
-                    World: (int)ownLocation.ServerId,
-                    City: (int)kind,
-                    Ward: (int)ownLocation.WardId,
-                    PropertyType: 1,
-                    Plot: 1, // 100 but that's out of range for validation checks...
-                    Apartment: (int)ownLocation.RoomId,
-                    ApartmentSubdivision: ownLocation.DivisionId-1 != 0,
-                    AliasEnabled: true,
-                    Alias: "PSIPC"
-                    );
-                }
-                else
-                {
-                    return;
-                }
-            }
-            else
+            if (!(isInResedential || isInApartment))
             {
                 Mediator.Publish(new NotificationMessage("Lifestream Invite", "Using current location for Lifestream invite requires you to be at a housing plot or an apartment.",
                     MareConfiguration.Models.NotificationType.Error));
 
                 return;
             }
+
+            var kind = LifestreamUtils.GetResidentialAetheryteKindFromTerritoryId((int)ownLocation.TerritoryId);
+            if (kind == null) return;
+
+            lifestreamAddress = (
+                Name: $"{_dalamudUtil.PlayerName}'s Location",
+                World: (int)ownLocation.ServerId,
+                City: (int)kind,
+                Ward: ward + 1,
+                PropertyType: isInResedential ? 0 : 1,
+                Plot: isInResedential ? plot + 1 : 1,
+                Apartment: (int)ownLocation.RoomId,
+                ApartmentSubdivision: ownLocation.DivisionId - 1 != 0,
+                AliasEnabled: true,
+                Alias: "PSIPC"
+                );
         }
         else
         {
