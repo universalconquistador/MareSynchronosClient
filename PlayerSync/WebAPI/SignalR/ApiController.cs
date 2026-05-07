@@ -5,6 +5,7 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.API.SignalR;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
@@ -15,6 +16,7 @@ using MareSynchronos.WebAPI.SignalR;
 using MareSynchronos.WebAPI.SignalR.Utils;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
+using PlayerSync.WebAPI.SignalR;
 using System.Reflection;
 
 namespace MareSynchronos.WebAPI;
@@ -31,6 +33,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private readonly ServerConfigurationManager _serverManager;
     private readonly TokenProvider _tokenProvider;
     private readonly MareConfigService _mareConfigService;
+    private readonly GatewayManager _gatewayManager;
+    private readonly IpcManager _ipcManager;
     private CancellationTokenSource _connectionCancellationTokenSource;
     private ConnectionDto? _connectionDto;
     private bool _doNotNotifyOnNextInfo = false;
@@ -43,7 +47,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public ApiController(ILogger<ApiController> logger, HubFactory hubFactory, DalamudUtilService dalamudUtil,
         PairManager pairManager, ServerConfigurationManager serverManager, MareMediator mediator,
-        TokenProvider tokenProvider, MareConfigService mareConfigService) : base(logger, mediator)
+        TokenProvider tokenProvider, MareConfigService mareConfigService, IpcManager ipcManager) : base(logger, mediator)
     {
         _hubFactory = hubFactory;
         _dalamudUtil = dalamudUtil;
@@ -52,6 +56,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         _tokenProvider = tokenProvider;
         _mareConfigService = mareConfigService;
         _connectionCancellationTokenSource = new CancellationTokenSource();
+        _gatewayManager = new(logger);
+        _ipcManager = ipcManager;
 
         Mediator.Subscribe<DalamudLoginMessage>(this, (_) => DalamudUtilOnLogIn());
         Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => DalamudUtilOnLogOut());
@@ -146,6 +152,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
         Logger.LogDebug("CreateConnections called");
 
+        // Check if the server is "paused", meaning we're manually disconnected from the service
         if (_serverManager.CurrentServer?.FullPause ?? true)
         {
             Logger.LogInformation("Not recreating Connection, paused");
@@ -249,6 +256,47 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                 }
 
                 if (token.IsCancellationRequested) break;
+
+                if (_serverManager.EnableGatewayDiscovery)
+                {
+                    ServerState = ServerState.Discovering;
+
+                    if (_mareConfigService.Current.OverrideGatewaySelection)
+                    {
+                        var gateway = $"wss://{_serverManager.ManualGatewaySelection}.{_serverManager.ServiceDomain}";
+                        _serverManager.ActiveServericeUri = gateway;
+
+                        Logger.LogDebug("Using manual gateway: {gateway} for connetion.", _serverManager.ActiveServericeUri);
+                    }
+                    else
+                    {
+                        Uri? resolvedGateway = null;
+                        try
+                        {
+                            resolvedGateway = await _gatewayManager.GetServiceGatewayUri(new(_serverManager.CurrentServer.ServerUri), token).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogError(ex, "Failed to resolve gateways!");
+                        }
+
+                        if (resolvedGateway == null)
+                        {
+                            Logger.LogError("No valid gateway available!");
+                            _connectionDto = null;
+                            await StopConnectionAsync(ServerState.Disconnected).ConfigureAwait(false);
+                            _connectionCancellationTokenSource?.Cancel();
+                            _connectionCancellationTokenSource?.Dispose();
+                            return;
+                        }
+
+                        _serverManager.ActiveServericeUri = resolvedGateway.GetLeftPart(UriPartial.Authority);
+
+                        Logger.LogDebug("Using gateway: {gateway} for connetion.", resolvedGateway.Host);
+                    }
+
+                    ServerState = ServerState.Connecting;
+                }
 
                 _mareHub = _hubFactory.GetOrCreate(token);
                 InitializeApiHooks();

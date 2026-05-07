@@ -1,4 +1,5 @@
 ﻿using MareSynchronos.API.Dto.Group;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
@@ -27,13 +28,14 @@ public class DrawEntityFactory
     private readonly IdDisplayHandler _uidDisplayHandler;
     private readonly IBroadcastManager _broadcastManager;
     private readonly PairManager _pairManager;
+    private readonly IpcManager _ipcManager;
 
     public DrawEntityFactory(ILogger<DrawEntityFactory> logger, ApiController apiController, IdDisplayHandler uidDisplayHandler,
         SelectTagForPairUi selectTagForPairUi, MareMediator mediator,
         TagHandler tagHandler, SelectPairForTagUi selectPairForTagUi,
         ServerConfigurationManager serverConfigurationManager, UiSharedService uiSharedService,
         PlayerPerformanceConfigService playerPerformanceConfigService, CharaDataManager charaDataManager, PairManager pairManager,
-        IBroadcastManager broadcastManager)
+        IBroadcastManager broadcastManager, IpcManager ipcManager)
     {
         _logger = logger;
         _apiController = apiController;
@@ -48,6 +50,7 @@ public class DrawEntityFactory
         _charaDataManager = charaDataManager;
         _broadcastManager = broadcastManager;
         _pairManager = pairManager;
+        _ipcManager = ipcManager;
     }
 
     public DrawFolderGroup CreateDrawGroupFolder(GroupFullInfoDto groupFullInfoDto,
@@ -71,7 +74,7 @@ public class DrawEntityFactory
     {
         return new DrawUserPair(id + user.UserData.UID, user, groups, currentGroup, _apiController, _uidDisplayHandler,
             _mediator, _selectTagForPairUi, _serverConfigurationManager, _uiSharedService, _playerPerformanceConfigService,
-            _charaDataManager);
+            _charaDataManager, _ipcManager);
     }
 
     public DrawBroadcastGroup CreateDrawBroadcastGroup(GroupBroadcastDto broadcast, IReadOnlyList<GroupFullInfoDto> groups)

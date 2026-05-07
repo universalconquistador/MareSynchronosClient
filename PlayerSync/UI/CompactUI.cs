@@ -299,11 +299,11 @@ public class CompactUi : WindowMediatorSubscriberBase
         var userCount = _apiController.OnlineUsers.ToString(CultureInfo.InvariantCulture);
         var userSize = ImGui.CalcTextSize(userCount);
         var textSize = ImGui.CalcTextSize("Users Online");
-#if DEBUG
-        string shardConnection = $"Shard: {_apiController.ServerInfo.ShardName}";
-#else
+//#if DEBUG
+//        string shardConnection = $"Shard: {_apiController.ServerInfo.ShardName}";
+//#else
         string shardConnection = string.Equals(_apiController.ServerInfo.ShardName, "Main", StringComparison.OrdinalIgnoreCase) ? string.Empty : $"Shard: {_apiController.ServerInfo.ShardName}";
-#endif
+//#endif
         var shardTextSize = ImGui.CalcTextSize(shardConnection);
         var printShard = !string.IsNullOrEmpty(_apiController.ServerInfo.ShardName) && shardConnection != string.Empty;
 
@@ -760,6 +760,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.OAuthMisconfigured => "OAuth2 is enabled but not fully configured, verify in the Settings -> Service Settings that you have OAuth2 connected and, importantly, a UID assigned to your current character.",
             ServerState.OAuthLoginTokenStale => "Your OAuth2 login token is stale and cannot be used to renew. Go to the Settings -> Service Settings and unlink then relink your OAuth2 configuration.",
             ServerState.NoAutoLogon => "This character has automatic login into PlayerSync disabled. Press the connect button to connect to PlayerSync.",
+            ServerState.Discovering => "Auto discoverng the best PlayerSync gateway...",
             _ => string.Empty
         };
     }
@@ -782,6 +783,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.OAuthMisconfigured => ImGuiColors.DalamudRed,
             ServerState.OAuthLoginTokenStale => ImGuiColors.DalamudRed,
             ServerState.NoAutoLogon => ImGuiColors.DalamudYellow,
+            ServerState.Discovering => ImGuiColors.DalamudYellow,
             _ => ImGuiColors.DalamudRed
         };
     }
@@ -803,6 +805,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.OAuthMisconfigured => "Misconfigured OAuth2",
             ServerState.OAuthLoginTokenStale => "Stale OAuth2",
             ServerState.NoAutoLogon => "Auto Login disabled",
+            ServerState.Discovering => "Discovering Gateways",
             ServerState.Connected => _apiController.DisplayName,
             _ => string.Empty
         };
