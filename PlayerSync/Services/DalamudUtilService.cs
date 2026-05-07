@@ -381,6 +381,21 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return _objectTable.LocalPlayer!.CurrentWorld.RowId;
     }
 
+    public unsafe bool TryGetCurrentPlotInfo(out int ward, out int plot)
+    {
+        var houseMan = HousingManager.Instance();
+        if (houseMan != null)
+        {
+            ward = houseMan->GetCurrentWard();
+            plot = houseMan->GetCurrentPlot();
+            return true;
+        }
+
+        ward = default;
+        plot = default;
+        return false;
+    }
+
     public unsafe LocationInfo GetMapData()
     {
         EnsureIsOnFramework();
