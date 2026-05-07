@@ -1,4 +1,5 @@
 ﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
@@ -7,6 +8,7 @@ using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
@@ -15,6 +17,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
+
 
 namespace MareSynchronos.UI.Components;
 
@@ -32,8 +35,11 @@ public class DrawUserPair
     private readonly UiSharedService _uiSharedService;
     private readonly PlayerPerformanceConfigService _performanceConfigService;
     private readonly CharaDataManager _charaDataManager;
+    private readonly IpcManager _ipcManager;
     private float _menuWidth = -1;
+    private float _subMenuWidth = -1;
     private bool _wasHovered = false;
+    private List<AddressBookEntry>? _addressBookCache;
 
     public DrawUserPair(string id, Pair entry, List<GroupFullInfoDto> syncedGroups,
         GroupFullInfoDto? currentGroup,
@@ -41,7 +47,7 @@ public class DrawUserPair
         MareMediator mareMediator, SelectTagForPairUi selectTagForPairUi,
         ServerConfigurationManager serverConfigurationManager,
         UiSharedService uiSharedService, PlayerPerformanceConfigService performanceConfigService,
-        CharaDataManager charaDataManager)
+        CharaDataManager charaDataManager, IpcManager ipcManager)
     {
         _id = id;
         _pair = entry;
@@ -55,6 +61,7 @@ public class DrawUserPair
         _uiSharedService = uiSharedService;
         _performanceConfigService = performanceConfigService;
         _charaDataManager = charaDataManager;
+        _ipcManager = ipcManager;
     }
 
     public Pair Pair => _pair;
@@ -176,12 +183,52 @@ public class DrawUserPair
 
         if (_pair.IndividualPairStatus == IndividualPairStatus.Bidirectional)
         {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plane, "Lifestream Invite", _menuWidth, true))
+            _addressBookCache ??= _ipcManager.Lifestream.GetAddressBookEntries();
+
+            var buttonHovered = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.ButtonHovered));
+            var buttonActive = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.ButtonActive));
+
+            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, buttonHovered);
+            ImGui.PushStyleColor(ImGuiCol.HeaderActive, buttonActive);
+
+            try
             {
-                _ = _apiController.SendLifestreamInviteToPair(_pair);
+                if (_uiSharedService.IconMenu("lifestreamInvite", FontAwesomeIcon.Plane, "Lifestream Invite"))
+                {
+                    List<AddressBookEntry> sorted = _addressBookCache
+                        .OrderBy(e => string.IsNullOrWhiteSpace(e.Name) ? 1 : 0)
+                        .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(e => e.World)
+                        .ToList();
+
+
+                    foreach (var entry in sorted)
+                    {
+                        string addressName = _ipcManager.Lifestream.GetAddressBookEntryTextWithName(entry);
+
+                        if (ImGui.MenuItem($"{addressName}##{entry.World}_{entry.City}_{entry.Ward}_{entry.Plot}_{entry.Apartment}_{entry.Name}"))
+                        {
+                            ImGui.CloseCurrentPopup();
+                            _ = _apiController.SendLifestreamInviteToPair(_pair, entry);
+                        }
+                    }
+
+                    ImGui.Separator();
+
+                    if (ImGui.MenuItem("Use Current Location"))
+                    {
+                        ImGui.CloseCurrentPopup();
+                        _ = _apiController.SendLifestreamInviteToPair(_pair);
+                    }
+                    ImGui.EndMenu();
+                }
+                UiSharedService.AttachToolTip("This will only notify the user if they have Lifestream installed.");
+            }
+            finally
+            {
+                ImGui.PopStyleColor(2);
             }
         }
-        UiSharedService.AttachToolTip("This will only notify the user if they have Lifestream installed.");
 
         if (_pair.IndividualPairStatus != API.Data.Enum.IndividualPairStatus.None)
         {
