@@ -146,6 +146,16 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         _cid = RebuildCID();
     }
 
+    public string GetWorldName(int worldId)
+    {
+        return WorldData.Value.TryGetValue((ushort)worldId, out var worldName) ? worldName : string.Empty;
+    }
+
+    public string GetTerritoryName(int terrirotyId)
+    {
+        return TerritoryData.Value.TryGetValue((ushort)terrirotyId, out var territoryName) ? territoryName : string.Empty;
+    }
+
     private Lazy<ulong> RebuildCID() =>  new(GetCID);
 
     public bool IsWine { get; init; }

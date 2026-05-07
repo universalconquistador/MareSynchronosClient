@@ -1146,6 +1146,47 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             width <= 0 ? null : width);
     }
 
+    public static bool PopupTextButton(string text, float? width = null)
+    {
+        Vector4 popupBg = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.PopupBg));
+        ImGui.PushStyleColor(ImGuiCol.Button, popupBg);
+
+        ImGui.PushID(text);
+
+        float buttonWidth = width is > 0
+            ? width.Value
+            : ImGui.CalcTextSize(text).X + ImGui.GetStyle().FramePadding.X * 2f;
+
+        bool clicked = ImGui.Button(text, new Vector2(buttonWidth, ImGui.GetFrameHeight()));
+
+        ImGui.PopID();
+        ImGui.PopStyleColor();
+
+        return clicked;
+    }
+
+    public bool IconMenu(string id, FontAwesomeIcon icon, string text)
+    {
+        ImDrawListPtr parentDrawList = ImGui.GetWindowDrawList();
+        Vector2 rowStart = ImGui.GetCursorScreenPos();
+
+        float iconWidth;
+        using (IconFont.Push())
+            iconWidth = ImGui.CalcTextSize(icon.ToIconString()).X;
+
+        int spaces = (int)Math.Ceiling((iconWidth + 8f * ImGuiHelpers.GlobalScale) / ImGui.CalcTextSize(" ").X);
+
+        bool open = ImGui.BeginMenu($"{new string(' ', spaces)}{text}##{id}");
+
+        Vector2 iconPos = rowStart + ImGui.GetStyle().FramePadding;
+        uint textColor = ImGui.GetColorU32(ImGuiCol.Text);
+
+        using (IconFont.Push())
+            parentDrawList.AddText(iconPos, textColor, icon.ToIconString());
+
+        return open;
+    }
+
     public IDalamudTextureWrap LoadImage(byte[] imageData)
     {
         return _textureProvider.CreateFromImageAsync(imageData).Result;
