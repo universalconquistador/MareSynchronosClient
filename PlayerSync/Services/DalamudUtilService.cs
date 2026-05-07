@@ -12,6 +12,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.Interop;
+using MareSynchronos.Interop.Utils;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
@@ -394,6 +395,19 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         ward = default;
         plot = default;
         return false;
+    }
+
+    // borrowed from Lifestream
+    public ResidentialAetheryteKind? GetResidentialAetheryteByTerritoryType(uint territoryType)
+    {
+        var t = _gameData.GetExcelSheet<TerritoryType>().GetRowOrDefault(territoryType);
+        if (t == null) return null;
+        if (t.Value.PlaceNameRegion.RowId == 2402) return ResidentialAetheryteKind.Kugane;
+        if (t.Value.PlaceNameRegion.RowId == 25) return ResidentialAetheryteKind.Foundation;
+        if (t.Value.PlaceNameRegion.RowId == 23) return ResidentialAetheryteKind.Gridania;
+        if (t.Value.PlaceNameRegion.RowId == 24) return ResidentialAetheryteKind.Uldah;
+        if (t.Value.PlaceNameRegion.RowId == 22) return ResidentialAetheryteKind.Limsa;
+        return null;
     }
 
     public unsafe LocationInfo GetMapData()

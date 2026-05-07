@@ -179,6 +179,46 @@ public class DrawUserPair
         ImGui.TextUnformatted("Individual Pair Functions");
         var entryUID = _pair.UserData.AliasOrUID;
 
+        if (_pair.IndividualPairStatus != API.Data.Enum.IndividualPairStatus.None)
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Folder, "Pair Groups", _menuWidth, true))
+            {
+                _selectTagForPairUi.Open(_pair);
+            }
+            UiSharedService.AttachToolTip("Choose pair groups for " + entryUID);
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Unpair User", _menuWidth, true) && UiSharedService.CtrlPressed())
+            {
+                _ = _apiController.UserRemovePair(new(_pair.UserData));
+            }
+            UiSharedService.AttachToolTip("Hold CTRL and click to unpair from " + entryUID);
+        }
+        if (_pair.IndividualPairStatus != API.Data.Enum.IndividualPairStatus.Bidirectional)
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Send Pair Request", _menuWidth, true))
+            {
+                _ = _apiController.UserMakePairRequest(new(UserData: _pair.UserData));
+            }
+            UiSharedService.AttachToolTip("Send pair request to " + entryUID);
+        }
+        if (!_pair.UserPair!.OwnPermissions.IsPaused())
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Keep Paused", _menuWidth, true) && UiSharedService.CtrlPressed())
+            {
+                _ = _apiController.UserPairStickyPauseAndRemove(_pair.UserData);
+            }
+            UiSharedService.AttachToolTip("Hold CTRL and click to keep paused " + entryUID);
+        }
+        else
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Play, "Resume Pairing", _menuWidth, true) && UiSharedService.CtrlPressed())
+            {
+                var perm = _pair.UserPair!.OwnPermissions;
+                perm.SetSticky(true);
+                perm.SetPaused(paused: false);
+                _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
+            }
+            UiSharedService.AttachToolTip("Hold CTRL and click to resume pairing with " + entryUID);
+        }
         if (_pair.IndividualPairStatus == IndividualPairStatus.Bidirectional)
         {
             _addressBookCache ??= _ipcManager.Lifestream.GetAddressBookEntries();
@@ -227,47 +267,6 @@ public class DrawUserPair
             {
                 ImGui.PopStyleColor(2);
             }
-        }
-
-        if (_pair.IndividualPairStatus != API.Data.Enum.IndividualPairStatus.None)
-        {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Folder, "Pair Groups", _menuWidth, true))
-            {
-                _selectTagForPairUi.Open(_pair);
-            }
-            UiSharedService.AttachToolTip("Choose pair groups for " + entryUID);
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Trash, "Unpair User", _menuWidth, true) && UiSharedService.CtrlPressed())
-            {
-                _ = _apiController.UserRemovePair(new(_pair.UserData));
-            }
-            UiSharedService.AttachToolTip("Hold CTRL and click to unpair from " + entryUID);
-        }
-        if (_pair.IndividualPairStatus != API.Data.Enum.IndividualPairStatus.Bidirectional)
-        {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Send Pair Request", _menuWidth, true))
-            {
-                _ = _apiController.UserMakePairRequest(new(UserData: _pair.UserData));
-            }
-            UiSharedService.AttachToolTip("Send pair request to " + entryUID);
-        }
-        if (!_pair.UserPair!.OwnPermissions.IsPaused())
-        {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Keep Paused", _menuWidth, true) && UiSharedService.CtrlPressed())
-            {
-                _ = _apiController.UserPairStickyPauseAndRemove(_pair.UserData);
-            }
-            UiSharedService.AttachToolTip("Hold CTRL and click to keep paused " + entryUID);
-        }
-        else
-        {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Play, "Resume Pairing", _menuWidth, true) && UiSharedService.CtrlPressed())
-            {
-                var perm = _pair.UserPair!.OwnPermissions;
-                perm.SetSticky(true);
-                perm.SetPaused(paused: false);
-                _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
-            }
-            UiSharedService.AttachToolTip("Hold CTRL and click to resume pairing with " + entryUID);
         }
     }
 
