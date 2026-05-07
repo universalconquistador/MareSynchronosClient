@@ -34,6 +34,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private bool _manualRefresh = false;
     private readonly HashSet<string> _pauseClicked = new();
     private readonly Dictionary<string, UserPermissions> _edited = new(StringComparer.Ordinal);
+    public float idmaxl = ImGui.CalcTextSize("WWWWWWWWWWWW").X; //calculate width of 11 W's, UID are only 10 and w are usually max width as far as the glyphs advance is concerned, so using it as a width anchor, is fine. so this provides ample padding but still consistent. The number of W's can be adjusted to your liking but 11 suffices visually.
     private readonly UiTheme _theme;
 
     public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
@@ -421,7 +422,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     if (!(!pair.HasProfile || pair.IsPaused || pair.UserPair.OtherPermissions.IsPaused() || pair.IsOneSidedPair))
                     {
                         ImGui.SameLine();
-                        ImGui.AlignTextToFramePadding();
+                        ImGui.SetCursorPosX(idmaxl);
+                        //ImGui.AlignTextToFramePadding();
 
                         _uiSharedService.IconText(FontAwesomeIcon.Portrait);
 
