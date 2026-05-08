@@ -104,6 +104,14 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             serverConfigService.Current.Version = 5;
             serverConfigService.Save();
         }
+        if (serverConfigService.Current.Version == 5)
+        {
+            serverConfigService.Current.EnableBackupServer = true;
+
+            // enable Gateway Discovery as a default
+            serverConfigService.Current.Version = 6;
+            serverConfigService.Save();
+        }
 
         // notes migrations
         if (notesConfigService.Current.Version == 0)
