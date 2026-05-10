@@ -259,12 +259,12 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                 {
                     ServerState = ServerState.Discovering;
 
-                    if (_mareConfigService.Current.OverrideGatewaySelection)
+                    if (_serverManager.OverrideGatewaySelection)
                     {
                         var gateway = $"wss://{_serverManager.ManualGatewaySelection}.{_serverManager.ServiceDomain}";
                         _serverManager.ActiveServericeUri = gateway;
 
-                        Logger.LogDebug("Using manual gateway: {gateway} for connetion.", _serverManager.ActiveServericeUri);
+                        Logger.LogDebug("Using manual gateway: {gateway} for connection.", _serverManager.ActiveServericeUri);
                     }
                     else
                     {

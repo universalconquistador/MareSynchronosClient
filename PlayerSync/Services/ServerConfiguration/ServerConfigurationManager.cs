@@ -63,11 +63,11 @@ public class ServerConfigurationManager
     {
         get
         {
-            return _configService.Current.EnableBackupServer;
+            return _configService.Current.EnableGatewayDiscovery;
         }
         set
         {
-            _configService.Current.EnableBackupServer = value;
+            _configService.Current.EnableGatewayDiscovery = value;
             _configService.Save();
         }
     }
@@ -76,11 +76,24 @@ public class ServerConfigurationManager
     {
         get
         {
-            return _configService.Current.BackupServerUri;
+            return _configService.Current.ManualGatewayServer;
         }
         set
         {
-            _configService.Current.BackupServerUri = value;
+            _configService.Current.ManualGatewayServer = value;
+            _configService.Save();
+        }
+    }
+
+    public bool OverrideGatewaySelection
+    {
+        get
+        {
+            return _configService.Current.OverrideGatewaySelection;
+        }
+        set
+        {
+            _configService.Current.OverrideGatewaySelection = value;
             _configService.Save();
         }
     }
