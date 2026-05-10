@@ -135,11 +135,10 @@ public partial class SettingsUi
         }
 
         ImGuiHelpers.ScaledDummy(5);
-        bool overrideGatewaySelection = _configService.Current.OverrideGatewaySelection;
+        bool overrideGatewaySelection = _serverConfigurationManager.OverrideGatewaySelection;
         if (ImGui.Checkbox("Override Gateway Selection", ref overrideGatewaySelection))
         {
-            _configService.Current.OverrideGatewaySelection = overrideGatewaySelection;
-            _configService.Save();
+            _serverConfigurationManager.OverrideGatewaySelection = overrideGatewaySelection;
 
             if (overrideGatewaySelection && !_gatewayLoadRequested)
             {
@@ -219,7 +218,7 @@ public partial class SettingsUi
 
     private void LoadGateways()
     {
-        if (!_configService.Current.OverrideGatewaySelection)
+        if (!_serverConfigurationManager.OverrideGatewaySelection)
             return;
 
         if (_gatewayLoadRequested || _isLoadingGateways || _overrideGateways.Count > 0)

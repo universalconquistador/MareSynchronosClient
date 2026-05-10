@@ -12,7 +12,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.Interop;
-using MareSynchronos.Interop.Utils;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;

@@ -63,11 +63,11 @@ public class ServerConfigurationManager
     {
         get
         {
-            return _configService.Current.EnableBackupServer;
+            return _configService.Current.EnableGatewayDiscovery;
         }
         set
         {
-            _configService.Current.EnableBackupServer = value;
+            _configService.Current.EnableGatewayDiscovery = value;
             _configService.Save();
         }
     }
@@ -76,11 +76,24 @@ public class ServerConfigurationManager
     {
         get
         {
-            return _configService.Current.BackupServerUri;
+            return _configService.Current.ManualGatewayServer;
         }
         set
         {
-            _configService.Current.BackupServerUri = value;
+            _configService.Current.ManualGatewayServer = value;
+            _configService.Save();
+        }
+    }
+
+    public bool OverrideGatewaySelection
+    {
+        get
+        {
+            return _configService.Current.OverrideGatewaySelection;
+        }
+        set
+        {
+            _configService.Current.OverrideGatewaySelection = value;
             _configService.Save();
         }
     }
@@ -674,13 +687,13 @@ public class ServerConfigurationManager
     private ServerNotesStorage CurrentNotesStorage()
     {
         TryCreateCurrentNotesStorage();
-        return _notesConfig.Current.ServerNotes[CurrentApiUrl];
+        return _notesConfig.Current.ServerNotes[RealApiUrl];
     }
 
     private ServerTagStorage CurrentServerTagStorage()
     {
         TryCreateCurrentServerTagStorage();
-        return _serverTagConfig.Current.ServerTagStorage[CurrentApiUrl];
+        return _serverTagConfig.Current.ServerTagStorage[RealApiUrl];
     }
 
     private void EnsureMainExists()
@@ -694,17 +707,17 @@ public class ServerConfigurationManager
 
     private void TryCreateCurrentNotesStorage()
     {
-        if (!_notesConfig.Current.ServerNotes.ContainsKey(CurrentApiUrl))
+        if (!_notesConfig.Current.ServerNotes.ContainsKey(RealApiUrl))
         {
-            _notesConfig.Current.ServerNotes[CurrentApiUrl] = new();
+            _notesConfig.Current.ServerNotes[RealApiUrl] = new();
         }
     }
 
     private void TryCreateCurrentServerTagStorage()
     {
-        if (!_serverTagConfig.Current.ServerTagStorage.ContainsKey(CurrentApiUrl))
+        if (!_serverTagConfig.Current.ServerTagStorage.ContainsKey(RealApiUrl))
         {
-            _serverTagConfig.Current.ServerTagStorage[CurrentApiUrl] = new();
+            _serverTagConfig.Current.ServerTagStorage[RealApiUrl] = new();
         }
     }
 
