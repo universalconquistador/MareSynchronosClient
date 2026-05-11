@@ -318,6 +318,8 @@ public partial class SettingsUi
         bool filterInvalidFiles = _configService.Current.EnableValidationChecks;
         bool filterMods = _configService.Current.FilterMods;
         bool filterDirectPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
+        bool filterMinionsAndMounts = _configService.Current.FilterMinionsAndMounts;
+        bool filterPets = _configService.Current.FilterPets;
 
         _uiShared.BigText("Filtering");
         ImGuiHelpers.ScaledDummy(2);
@@ -346,6 +348,20 @@ public partial class SettingsUi
             Mediator.Publish(new ChangeFilterMessage());
         }
         _uiShared.DrawHelpText("This setting will prevent modded animations from being displayed.");
+        if (ImGui.Checkbox("Filter out modded minions and mounts (also affects Fashion Accessories)", ref filterMinionsAndMounts))
+        {
+            _configService.Current.FilterMinionsAndMounts = filterMinionsAndMounts;
+            _configService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("This setting will prevent modded minions and mounts from being displayed. (Also affects Fashion Accessories.)");
+        if (ImGui.Checkbox("Filter out modded pets", ref filterPets))
+        {
+            _configService.Current.FilterPets = filterPets;
+            _configService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("This setting will prevent modded pets from being displayed.");
 
         Ui.DrawHorizontalRule(_theme);
 
