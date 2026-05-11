@@ -47,7 +47,7 @@ public class ServerConfigurationManager
 
     public ServerStorage CurrentServer => _configService.Current.ServerStorage[CurrentServerIndex];
 
-    public string ActiveServericeUri { get; set; } = null;
+    public string? ActiveServericeUri { get; set; } = null;
 
     public string ServiceDomain
     {
