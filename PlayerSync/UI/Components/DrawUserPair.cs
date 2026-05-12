@@ -233,25 +233,68 @@ public class DrawUserPair
             {
                 if (ImGui.BeginMenu("Lifestream Invite"))
                 {
-                    List<AddressBookEntry> sorted = _addressBookCache
-                        .OrderBy(e => string.IsNullOrWhiteSpace(e.Name) ? 1 : 0)
-                        .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                        .ThenBy(e => e.World)
-                        .ToList();
+                    var folders = _ipcManager.Lifestream.GetAddressBookEntriesWithFolders();
 
+                    // get default book first - "Default Book" is Lifestream's Default Address book. Anything outside of this will show up in a folder. And technically Default Book is already a folder. We are just handling it first. 
+                    folders.TryGetValue("Default Book", out var defaultBookEntries);
 
-                    foreach (var entry in sorted)
+                    if (defaultBookEntries != null)
                     {
-                        string addressName = _ipcManager.Lifestream.GetAddressBookEntryTextWithName(entry);
+                        var sortedRoot = defaultBookEntries
+                            .OrderBy(e => string.IsNullOrWhiteSpace(e.Name) ? 1 : 0)
+                            .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                            .ThenBy(e => e.World)
+                            .ToList();
 
-                        if (ImGui.MenuItem($"{addressName}##{entry.World}_{entry.City}_{entry.Ward}_{entry.Plot}_{entry.Apartment}_{entry.Name}"))
+                        foreach (var entry in sortedRoot)
                         {
-                            ImGui.CloseCurrentPopup();
-                            _ = _apiController.SendLifestreamInviteToPair(_pair, entry);
+                            string addressName = _ipcManager.Lifestream
+                                .GetAddressBookEntryTextWithName(entry);
+
+                            if (ImGui.MenuItem($"{addressName}##ROOT_{entry.World}_{entry.City}_{entry.Ward}_{entry.Plot}_{entry.Apartment}_{entry.Name}"))
+                            {
+                                ImGui.CloseCurrentPopup();
+                                _ = _apiController.SendLifestreamInviteToPair(_pair, entry);
+                            }
+                        }
+
+                        if (sortedRoot.Count > 0)
+                            ImGui.Separator();
+                    }
+
+                    // Folders
+                    foreach (var folder in folders.OrderBy(f => f.Key))
+                    {
+                        if (folder.Key.Equals("Default Book", StringComparison.OrdinalIgnoreCase))
+                            continue; //skip default book, already done. 
+
+                        if (folder.Value.Count == 0)
+                            continue; //if folder is empty doesnt render into the menu
+
+                        if (ImGui.BeginMenu(folder.Key))
+                        {
+                            List<AddressBookEntry> sorted = folder.Value
+                                .OrderBy(e => string.IsNullOrWhiteSpace(e.Name) ? 1 : 0)
+                                .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                                .ThenBy(e => e.World)
+                                .ToList();
+
+                            foreach (var entry in sorted)
+                            {
+                                string addressName = _ipcManager.Lifestream.GetAddressBookEntryTextWithName(entry);
+
+                                if (ImGui.MenuItem($"{addressName}##{folder.Key}_{entry.World}_{entry.City}_{entry.Ward}_{entry.Plot}_{entry.Apartment}_{entry.Name}"))
+                                {
+                                    ImGui.CloseCurrentPopup();
+                                    _ = _apiController.SendLifestreamInviteToPair(_pair, entry);
+                                }
+                            }
+
+                            ImGui.EndMenu();
                         }
                     }
 
-                    if (sorted.Count > 0)
+                    if (folders.Count > 0)
                         ImGui.Separator();
 
                     if (ImGui.MenuItem("Use Current Location"))

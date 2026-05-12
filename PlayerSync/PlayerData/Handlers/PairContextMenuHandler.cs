@@ -415,23 +415,74 @@ namespace MareSynchronos.PlayerData.Handlers
         private void DrawLifestreamInviteSubmenu(Pair pair, IMenuItemClickedArgs clickedArgs)
         {
             var menuItems = new List<MenuItem>();
-            var addressEntries = _ipcManager.Lifestream.GetAddressBookEntries();
-            Logger.LogTrace("{service} Address Book Entries: {entries}", nameof(DrawLifestreamInviteSubmenu), addressEntries);
 
-            List<AddressBookEntry> sorted = addressEntries
-                .OrderBy(e => string.IsNullOrWhiteSpace(e.Name) ? 1 : 0)
-                .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(e => e.World)
-                .ToList();
+            var folders = _ipcManager.Lifestream.GetAddressBookEntriesWithFolders();
 
-            foreach (var entry in sorted)
+            Logger.LogTrace("{service} Address Book Folders: {folders}",
+                nameof(DrawLifestreamInviteSubmenu), folders);
+
+            // get default book first - "Default Book" is Lifestream's Default Address book. Anything outside of this will show up in a folder. And technically Default Book is already a folder. We are just handling it first. 
+            folders.TryGetValue("Default Book", out var defaultBookEntries);
+
+            if (defaultBookEntries != null)
             {
-                var addressName = _ipcManager.Lifestream.GetAddressBookEntryTextWithName(entry);
+                List<AddressBookEntry> sortedRoot = defaultBookEntries
+                    .OrderBy(e => string.IsNullOrWhiteSpace(e.Name) ? 1 : 0)
+                    .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(e => e.World)
+                    .ToList();
+
+                foreach (var entry in sortedRoot)
+                {
+                    var addressName = _ipcManager.Lifestream.GetAddressBookEntryTextWithName(entry);
+
+                    menuItems.Add(new MenuItem()
+                    {
+                        Name = new SeStringBuilder().AddText(addressName).Build(),
+                        OnClicked = _ => _apiController.SendLifestreamInviteToPair(pair, entry)
+                    });
+                }
+            }
+
+            // Folders
+            foreach (var folder in folders.OrderBy(f => f.Key))
+            {
+                //skip default book, already done. 
+                if (folder.Key.Equals("Default Book", StringComparison.OrdinalIgnoreCase)) continue;
+                //skip if no folders
+                if (folder.Value.Count == 0) continue;
+
+                var folderItems = new List<MenuItem>();
+
+                List<AddressBookEntry> sortedFolder = folder.Value
+                    .OrderBy(e => string.IsNullOrWhiteSpace(e.Name) ? 1 : 0)
+                    .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(e => e.World)
+                    .ToList();
+
+                foreach (var entry in sortedFolder)
+                {
+                    var addressName = _ipcManager.Lifestream.GetAddressBookEntryTextWithName(entry);
+
+                    folderItems.Add(new MenuItem()
+                    {
+                        Name = new SeStringBuilder().AddText(addressName).Build(),
+                        OnClicked = _ => _apiController.SendLifestreamInviteToPair(pair, entry)
+                    });
+                }
+
+                folderItems.Add(new MenuItem()
+                {
+                    Name = new SeStringBuilder().AddText("Return").Build(),
+                    IsReturn = true,
+                    OnClicked = _ => _dalamudUtilService.OpenContextMenu(clickedArgs.AgentPtr)
+                });
 
                 menuItems.Add(new MenuItem()
                 {
-                    Name = new SeStringBuilder().AddText(addressName).Build(),
-                    OnClicked = _ => _apiController.SendLifestreamInviteToPair(pair, entry)
+                    Name = new SeStringBuilder().AddText(folder.Key).Build(),
+                    IsSubmenu = true,
+                    OnClicked = args => args.OpenSubmenu(new SeStringBuilder().AddText(folder.Key).Build(),folderItems)
                 });
             }
 
