@@ -278,19 +278,19 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                             Logger.LogError(ex, "Failed to resolve gateways!");
                         }
 
-                        if (resolvedGateway == null)
-                        {
-                            Logger.LogError("No valid gateway available!");
-                            _connectionDto = null;
-                            await StopConnectionAsync(ServerState.Disconnected).ConfigureAwait(false);
-                            _connectionCancellationTokenSource?.Cancel();
-                            _connectionCancellationTokenSource?.Dispose();
-                            return;
-                        }
+                        //if (resolvedGateway == null)
+                        //{
+                        //    Logger.LogError("No valid gateway available!");
+                        //    _connectionDto = null;
+                        //    await StopConnectionAsync(ServerState.Disconnected).ConfigureAwait(false);
+                        //    _connectionCancellationTokenSource?.Cancel();
+                        //    _connectionCancellationTokenSource?.Dispose();
+                        //    return;
+                        //}
 
-                        _serverManager.ActiveServericeUri = resolvedGateway.GetLeftPart(UriPartial.Authority);
+                        _serverManager.ActiveServericeUri = resolvedGateway?.GetLeftPart(UriPartial.Authority) ?? _serverManager.RealApiUrl;
 
-                        Logger.LogDebug("Using gateway: {gateway} for connetion.", resolvedGateway.Host);
+                        Logger.LogDebug("Using gateway: {gateway} for connetion.", _serverManager.ActiveServericeUri);
                     }
 
                     ServerState = ServerState.Connecting;
