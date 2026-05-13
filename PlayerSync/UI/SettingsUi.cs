@@ -216,12 +216,9 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
             ImGui.TextUnformatted("Users Online");
             ImGui.SameLine(0);
             ImGui.TextUnformatted(")");
-            if (_serverConfigurationManager.EnableGatewayDiscovery)
-            {
-                ImGui.SameLine(0);
-                string connection = _serverConfigurationManager.ActiveServericeUri.Replace("wss://", "").Replace("gw-", "");
-                ImGui.TextUnformatted($"Connected via {connection}");
-            }
+            ImGui.SameLine(0);
+            string connection = _serverConfigurationManager.ActiveServericeUri.Replace("wss://", "").Replace("gw-", "");
+            ImGui.TextUnformatted($"Connected via {connection}");
         }
         else
         {

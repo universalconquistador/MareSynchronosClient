@@ -33,20 +33,31 @@ namespace PlayerSync.WebAPI.SignalR
         {
             string host = serviceUri.Host;
             string domain = string.Join('.', host.Split('.').Skip(1));
-
-            Logger.LogTrace("{service} Host: {host} Domain: {domain}", nameof(GatewayManager), host, domain);
-
-            var hosts = await GetTxtRecordPartsAsync($"{GatewaySubDomain}.{domain}", ct).ConfigureAwait(false);
-
-            Logger.LogTrace("{service} Record Entries: {entries}", nameof(GatewayManager), string.Join(',', hosts));
-
-            var serviceGateways = MakeServiceGatewaysFromHosts(hosts, domain);
-
             using var httpClient = new HttpClient
             {
                 Timeout = TimeSpan.FromMilliseconds(2000)
             };
             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PlayerSync");
+
+            Logger.LogTrace("{service} Host: {host} Domain: {domain}", nameof(GatewayManager), host, domain);
+
+            Logger.LogTrace("Attempting to resolve gateways via DNS TXT record...");
+            var hosts = await TryGetTxtRecordPartsAsync($"{GatewaySubDomain}.{domain}", ct).ConfigureAwait(false);
+            if (hosts is null || hosts.Count == 0)
+            {
+                Logger.LogWarning("Failed to get gateway hosts by DNS TXT record!");
+                Logger.LogTrace("Attempting to get gateways via HTTPS request...");
+                hosts = await TryGetHostRecordPartsFromWebService(httpClient, new($"https://{GatewaySubDomain}.{domain}/csv"), ct).ConfigureAwait(false);
+            }
+            if (hosts is null || hosts.Count == 0)
+            {
+                Logger.LogError("Failed to get gateway hosts by HTTPS request!");
+                return null;
+            }
+
+            Logger.LogTrace("{service} Record Entries: {entries}", nameof(GatewayManager), string.Join(',', hosts));
+
+            var serviceGateways = MakeServiceGatewaysFromHosts(hosts, domain);
 
             Logger.LogTrace("{service} Checking gateways for availability", nameof(GatewayManager));
 
@@ -80,7 +91,9 @@ namespace PlayerSync.WebAPI.SignalR
             string host = serviceUri.Host;
             string domain = string.Join('.', host.Split('.').Skip(1));
 
-            var hosts = await GetTxtRecordPartsAsync($"{GatewaySubDomain}.{domain}", ct).ConfigureAwait(false);
+            var hosts = await TryGetTxtRecordPartsAsync($"{GatewaySubDomain}.{domain}", ct).ConfigureAwait(false);
+            if (hosts is null) return [];
+
             var serviceGateways = MakeServiceGatewaysFromHosts(hosts, domain);
 
             foreach (var gateway in serviceGateways)
@@ -91,17 +104,46 @@ namespace PlayerSync.WebAPI.SignalR
             return gatewayList;
         }
 
-        private static async Task<List<string>> GetTxtRecordPartsAsync(string hostName, CancellationToken ct = default)
+        private static async Task<List<string>?> TryGetTxtRecordPartsAsync(string hostName, CancellationToken ct = default)
         {
-            var dnsClient = new LookupClient();
+            try
+            {
+                var dnsClient = new LookupClient();
 
-            var queryResult = await dnsClient.QueryAsync(hostName, QueryType.TXT, cancellationToken: ct).ConfigureAwait(false);
+                var queryResult = await dnsClient.QueryAsync(hostName, QueryType.TXT, cancellationToken: ct).ConfigureAwait(false);
 
-            return queryResult.Answers
-                .TxtRecords()
-                .SelectMany(txtRecord => txtRecord.Text)
-                .SelectMany(txtValue => txtValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                .ToList();
+                return queryResult.Answers
+                    .TxtRecords()
+                    .SelectMany(txtRecord => txtRecord.Text)
+                    .SelectMany(txtValue => txtValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    .ToList();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private static async Task<List<string>?> TryGetHostRecordPartsFromWebService(HttpClient httpClient, Uri lookupUri, CancellationToken ct = default)
+        {
+            try
+            {
+                using var response = await httpClient.GetAsync(lookupUri, ct).ConfigureAwait(false);
+
+                if (response.StatusCode != HttpStatusCode.OK)
+                    return null;
+
+                var rawBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+
+                if (string.IsNullOrWhiteSpace(rawBody))
+                    return null;
+
+                return rawBody.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         private static List<Uri> MakeServiceGatewaysFromHosts(List<string> hosts, string domain)
