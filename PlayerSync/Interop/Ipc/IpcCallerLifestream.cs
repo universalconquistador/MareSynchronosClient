@@ -1,13 +1,23 @@
-﻿using Dalamud.Plugin;
+﻿global using AddressBookEntry = (string Name, int World, int City, int Ward, int PropertyType, int Plot, int Apartment, bool ApartmentSubdivision, bool AliasEnabled, string Alias);
+using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Ipc.Exceptions;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
-using MareSynchronos.Interop.Utils;
+
 
 namespace MareSynchronos.Interop.Ipc;
 
+
+public enum ResidentialAetheryteKind
+{
+    Uldah = 9,
+    Gridania = 2,
+    Limsa = 8,
+    Foundation = 70,
+    Kugane = 111,
+}
 
 public sealed class IpcCallerLifestream : IIpcCaller
 {
@@ -163,6 +173,19 @@ public sealed class IpcCallerLifestream : IIpcCaller
         }
     }
 
+    public static string GetResidentialDistrictName(ResidentialAetheryteKind kind)
+    {
+        return kind switch
+        {
+            ResidentialAetheryteKind.Uldah => "Goblet",
+            ResidentialAetheryteKind.Gridania => "Lavender Beds",
+            ResidentialAetheryteKind.Limsa => "Mist",
+            ResidentialAetheryteKind.Foundation => "Empyreum",
+            ResidentialAetheryteKind.Kugane => "Shirogane",
+            _ => "Unknown"
+        };
+    }
+
     public string GetAddressBookEntryText(AddressBookEntry entry)
     {
         if (entry.PropertyType == 0)
@@ -184,7 +207,7 @@ public sealed class IpcCallerLifestream : IIpcCaller
 
     private static string GetResidentialDistrictName(int kind)
     {
-        return LifestreamUtils.GetResidentialDistrictName((ResidentialAetheryteKind)kind);
+        return GetResidentialDistrictName((ResidentialAetheryteKind)kind);
     }
 
     public void Dispose()

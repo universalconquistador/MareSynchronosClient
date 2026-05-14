@@ -106,7 +106,7 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
         }
         if (serverConfigService.Current.Version == 5)
         {
-            serverConfigService.Current.EnableBackupServer = true;
+            serverConfigService.Current.EnableGatewayDiscovery = true;
 
             // enable Gateway Discovery as a default
             serverConfigService.Current.Version = 6;

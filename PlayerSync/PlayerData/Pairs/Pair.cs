@@ -284,9 +284,11 @@ public class Pair
         bool filterSounds = _configService.Current.FilterSounds;
         bool filterAnimations = _configService.Current.FilterAnimations;
         bool filterVfx = _configService.Current.FilterVfx;
+        bool filterMinionsMounts = _configService.Current.FilterMinionsAndMounts;
+        bool filterPets = _configService.Current.FilterPets;
 
         bool hasDisabledIndevidual = disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX;
-        bool hasDisabledViaFilter = filterAnimations || filterSounds || filterVfx;
+        bool hasDisabledViaFilter = filterAnimations || filterSounds || filterVfx || filterMinionsMounts || filterPets;
         bool filterUserPerms = hasDisabledViaFilter && !overrideFilterUid && !overrideFilterPair;
         if (filterUserPerms || hasDisabledIndevidual)
         {
@@ -306,6 +308,10 @@ public class Pair
                     data.FileReplacements[objectKind] = data.FileReplacements[objectKind]
                         .Where(f => !f.GamePaths.Any(p => p.EndsWith("atex", StringComparison.OrdinalIgnoreCase) || p.EndsWith("avfx", StringComparison.OrdinalIgnoreCase)))
                         .ToList();
+                if (filterUserPerms && filterMinionsMounts && objectKind == ObjectKind.MinionOrMount)
+                    data.FileReplacements[objectKind] = [];
+                if (filterUserPerms && filterPets && (objectKind == ObjectKind.Pet || objectKind == ObjectKind.Companion))
+                    data.FileReplacements[objectKind] = [];
             }
         }
 

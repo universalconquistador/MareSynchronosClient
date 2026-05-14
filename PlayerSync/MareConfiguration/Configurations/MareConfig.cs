@@ -79,6 +79,8 @@ public class MareConfig : IMareConfiguration
     public bool FilterSounds { get; set; } = false;
     public bool FilterVfx { get; set; } = false;
     public bool FilterMods { get; set; } = false;
+    public bool FilterMinionsAndMounts { get; set; } = false;
+    public bool FilterPets { get; set; } = false;
     public bool DoFilteringBidirectionDirectPairs { get; set; } = true;
     public List<string> UIDsToOverrideFilter { get; set; } = new();
     public bool OverrideCdnTimeZone { get; set; } = false;
@@ -111,7 +113,6 @@ public class MareConfig : IMareConfiguration
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
     public bool LifestreamInvitesDirectPairsOnly { get; set; } = false;
-    public bool OverrideGatewaySelection {  get; set; } = false;
 
     // Experimentals
     public bool UseQueuedCharacterDataApplication {  get; set; } = false;

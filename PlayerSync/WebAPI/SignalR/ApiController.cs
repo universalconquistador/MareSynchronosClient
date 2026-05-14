@@ -259,12 +259,12 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                 {
                     ServerState = ServerState.Discovering;
 
-                    if (_mareConfigService.Current.OverrideGatewaySelection)
+                    if (_serverManager.OverrideGatewaySelection)
                     {
                         var gateway = $"wss://{_serverManager.ManualGatewaySelection}.{_serverManager.ServiceDomain}";
                         _serverManager.ActiveServericeUri = gateway;
 
-                        Logger.LogDebug("Using manual gateway: {gateway} for connetion.", _serverManager.ActiveServericeUri);
+                        Logger.LogDebug("Using manual gateway: {gateway} for connection.", _serverManager.ActiveServericeUri);
                     }
                     else
                     {
@@ -278,19 +278,12 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                             Logger.LogError(ex, "Failed to resolve gateways!");
                         }
 
-                        if (resolvedGateway == null)
-                        {
-                            Logger.LogError("No valid gateway available!");
-                            _connectionDto = null;
-                            await StopConnectionAsync(ServerState.Disconnected).ConfigureAwait(false);
-                            _connectionCancellationTokenSource?.Cancel();
-                            _connectionCancellationTokenSource?.Dispose();
-                            return;
-                        }
+                        if (resolvedGateway is null)
+                            Logger.LogWarning("Failed to resolve a valid gateway, defaulting to main service URI.");
 
-                        _serverManager.ActiveServericeUri = resolvedGateway.GetLeftPart(UriPartial.Authority);
+                        _serverManager.ActiveServericeUri = resolvedGateway?.GetLeftPart(UriPartial.Authority) ?? _serverManager.RealApiUrl;
 
-                        Logger.LogDebug("Using gateway: {gateway} for connetion.", resolvedGateway.Host);
+                        Logger.LogDebug("Using gateway: {gateway} for connetion.", _serverManager.ActiveServericeUri);
                     }
 
                     ServerState = ServerState.Connecting;
