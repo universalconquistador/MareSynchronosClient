@@ -78,6 +78,13 @@ public class Pair
         }
     }
 
+    // Experimental
+    public void ApplyAddonPluginUpdate(OnlineUserCharaDataDto data)
+    {
+        if (CachedPlayer == null) return;
+        _ = CachedPlayer.HandleOptionalPluginDataAsync(data.AddonPlugin!.Value, data.CharaData);
+    }
+
     public void ApplyData(OnlineUserCharaDataDto data)
     {
         _applicationCts = _applicationCts.CancelRecreate();

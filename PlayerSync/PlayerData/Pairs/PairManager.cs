@@ -73,11 +73,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         {
             if (value && _applyQueue == null)
                 _applyQueue = new(MaxConcurrentApplications);
-            //else if (!value)
-            //{
-            //    _applyQueue?.Dispose();
-            //    _applyQueue = null;
-            //}
 
             _configurationService.Current.UseQueuedCharacterDataApplication = value;
             _configurationService.Save();
@@ -235,17 +230,28 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
     public void ReceiveCharaDataInternal(OnlineUserCharaDataDto dto)
     {
+        if (!_allClientPairs.TryGetValue(dto.User, out var pair)) throw new InvalidOperationException("No user found for " + dto.User);
+
+        // process the dto via the addon plugin path if AddonPlugin exists
+        if (dto.AddonPlugin is not null)
+        {
+            Logger.LogTrace("CharaData received with AddonPlugin: {plugin}", dto.AddonPlugin);
+            pair.ApplyAddonPluginUpdate(dto);
+            return;
+        }
+
+        // normal pair processing flow for full update
         var isQueuedPath = _configurationService.Current.UseQueuedCharacterDataApplication;  // ex setting
         if (isQueuedPath)
-            ReceiveCharaDataQueued(dto);
+            ReceiveCharaDataQueued(dto, pair);
         else if (_applyQueue?.PendingCount > 0 || _applyQueue?.InFlightCount > 0) // keep using the queue once disabled until empty
-            ReceiveCharaDataQueued(dto);
-        else ReceiveCharaData(dto);
+            ReceiveCharaDataQueued(dto, pair);
+        else ReceiveCharaData(dto, pair);
     }
 
-    public void ReceiveCharaData(OnlineUserCharaDataDto dto)
+    public void ReceiveCharaData(OnlineUserCharaDataDto dto, Pair pair)
     {
-        if (!_allClientPairs.TryGetValue(dto.User, out var pair)) throw new InvalidOperationException("No user found for " + dto.User);
+        //if (!_allClientPairs.TryGetValue(dto.User, out var pair)) throw new InvalidOperationException("No user found for " + dto.User);
 
         Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Character Data")));
         _allClientPairs[dto.User].ApplyData(dto);
@@ -256,10 +262,10 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     /// </summary>
     /// <param name="dto"></param>
     /// <exception cref="InvalidOperationException"></exception>
-    public void ReceiveCharaDataQueued(OnlineUserCharaDataDto dto)
+    public void ReceiveCharaDataQueued(OnlineUserCharaDataDto dto, Pair pair)
     {
-        if (!_allClientPairs.TryGetValue(dto.User, out var pair))
-            throw new InvalidOperationException("No user found for " + dto.User);
+        //    if (!_allClientPairs.TryGetValue(dto.User, out var pair))
+        //        throw new InvalidOperationException("No user found for " + dto.User);
 
         Logger.LogTrace("{class} - Pair Character Data in queue: {count}", nameof(ReceiveCharaData), _applyQueue.PendingCount.ToString());
         Logger.LogDebug("{method} - Received character data for {pair}", nameof(ReceiveCharaData), !string.IsNullOrWhiteSpace(pair.PlayerName) ? pair.PlayerName : pair.UserData.UID);

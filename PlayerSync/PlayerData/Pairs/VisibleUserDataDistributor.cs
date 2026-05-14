@@ -54,6 +54,9 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             }
         });
 
+        // Experimental
+        Mediator.Subscribe<AddonPluginChangesCreatedMessage>(this, (msg) => PushAddonPluginPlayerChanges(msg.PlayerChanges, msg.Data));
+
         Mediator.Subscribe<ConnectedMessage>(this, (_) => PushToAllVisibleUsers());
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => _previouslyVisiblePlayers.Clear());
     }
@@ -185,5 +188,66 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
         {
             Logger.LogError(ex, "Failed to properly detect if files to upload are too large.");
         }   
+    }
+
+    // Experimental
+    private void PushAddonPluginPlayerChanges(PlayerChanges playerChanges, string data)
+    {
+        foreach (var user in _pairManager.GetVisibleUsers())
+        {
+            _usersToPushDataTo.Add(user);
+        }
+
+        if (_usersToPushDataTo.Count > 0)
+        {
+            Logger.LogDebug("Pushing only addon plugin changes for {count} users", _usersToPushDataTo.Count);
+            _ = PushAddonPluginPlayerChangesInternal(playerChanges, data);
+        }
+    }
+
+    // Experimental
+    private async Task PushAddonPluginPlayerChangesInternal(PlayerChanges playerChanges, string data)
+    {
+        if (_usersToPushDataTo.Count == 0) return;
+
+        CharacterData characterData = new();
+        AddonPlugin plugin;
+        
+        switch (playerChanges)
+        {
+            case PlayerChanges.Honorific:
+                characterData.HonorificData = data;
+                plugin = AddonPlugin.Honorific;
+                break;
+
+            case PlayerChanges.Heels:
+                characterData.HeelsData = data;
+                plugin = AddonPlugin.Heels;
+                break;
+
+            case PlayerChanges.Moodles:
+                characterData.MoodlesData = data;
+                plugin = AddonPlugin.Moodles;
+                break;
+
+            case PlayerChanges.PetNames:
+                characterData.PetNamesData = data;
+                plugin = AddonPlugin.PetNames;
+                break;
+
+            default:
+                return;
+        }
+
+        try
+        {
+            await _pushDataSemaphore.WaitAsync(_runtimeCts.Token).ConfigureAwait(false);
+            await _apiController.UserPushData(new([.. _usersToPushDataTo], characterData, null, plugin)).ConfigureAwait(false);
+        }
+        finally
+        {
+            _usersToPushDataTo.Clear();
+            _pushDataSemaphore.Release();
+        }
     }
 }

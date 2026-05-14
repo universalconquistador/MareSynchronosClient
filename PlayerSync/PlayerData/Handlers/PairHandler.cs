@@ -1281,4 +1281,108 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
         return (_configService.Current.FilterMods && !overrideFilterPair && !overrideFilterUid);
     }
+
+    //////////////////////////// EXPERIMENTAL \\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    /// Please don't use/rely on the code below this point.
+    //////////////////////////// EXPERIMENTAL \\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+    public async Task HandleOptionalPluginDataAsync(AddonPlugin plugin, CharacterData charaData)
+    {
+        if (_charaHandler == null) return;
+        if (_charaHandler.Address == nint.Zero) return;
+
+        switch (plugin)
+        {
+            case AddonPlugin.Honorific:
+                await ApplyHonorificDataASync(charaData).ConfigureAwait(false);
+                return;
+
+            case AddonPlugin.Heels:
+                await ApplyHeelsDataAsync(charaData).ConfigureAwait(false);
+                return;
+
+            case AddonPlugin.Moodles:
+                await ApplyMoodlesDataAsync(charaData).ConfigureAwait(false);
+                return;
+
+            case AddonPlugin.PetNames:
+                await ApplyPetNicknamesDataAsync(charaData).ConfigureAwait(false);
+                return;
+
+            default:
+                return;
+        }
+    }
+
+    private async Task ApplyHonorificDataASync(CharacterData charaData)
+    {
+        try
+        {
+            await _ipcManager.Honorific.SetTitleAsync(_charaHandler!.Address, charaData.HonorificData).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to set Honorific data for {uid}", Pair.UserData.UID);
+        }
+    }
+
+    private async Task ApplyHeelsDataAsync(CharacterData charaData)
+    {
+        try
+        {
+            await _ipcManager.Heels.SetOffsetForPlayerAsync(_charaHandler!.Address, charaData.HeelsData).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to set Heels data for {uid}", Pair.UserData.UID);
+        }
+    }
+
+    private async Task ApplyMoodlesDataAsync(CharacterData charaData)
+    {
+        try
+        {
+            await _ipcManager.Moodles.SetStatusAsync(_charaHandler!.Address, charaData.MoodlesData).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to set Moodles data for {uid}", Pair.UserData.UID);
+        }
+    }
+
+    //private async Task ApplyLociDataASync(CharacterData charaData)
+    //{
+    //    if (charaData.LociData is null) return;
+
+    //    var handler = _charaHandler;
+    //    if (handler == null) return;
+    //    if (handler.Address == nint.Zero) return;
+
+    //    try
+    //    {
+    //        if (!_lociRegistrations.GetValueOrDefault(changes.Key, false))
+    //        {
+    //            _lociRegistrations[changes.Key] = await _ipcManager.Loci.RegisterActor(handler.Address).ConfigureAwait(false);
+    //        }
+    //        var lociDataToApply = charaData.LociData.GetValueOrDefault(changes.Key, string.Empty);
+    //        await _ipcManager.Loci.SetActorManager(handler.Address, lociDataToApply).ConfigureAwait(false);
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        Logger.LogError(ex, "Failed to set Loci data for {uid}", Pair.UserData.UID);
+    //    }
+    //}
+
+    private async Task ApplyPetNicknamesDataAsync(CharacterData charaData)
+    {
+        try
+        {
+            await _ipcManager.PetNames.SetPlayerData(_charaHandler!.Address, charaData.PetNamesData).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to set Pet Nicknames data for {uid}", Pair.UserData.UID);
+        }
+    }
 }

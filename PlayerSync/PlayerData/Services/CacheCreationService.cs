@@ -2,6 +2,7 @@
 using MareSynchronos.PlayerData.Data;
 using MareSynchronos.PlayerData.Factories;
 using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
@@ -22,6 +23,17 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
     private CancellationTokenSource _debounceCts = new();
     private bool _haltCharaDataCreation;
     private bool _isZoning = false;
+
+    // Experimental
+    private readonly SemaphoreSlim _playerChangesLock = new(1);
+
+    private readonly HashSet<PlayerChanges> _debouncedPlayerChanges = [];
+    private readonly HashSet<PlayerChanges> _queuedPlayerChanges = [];
+    private readonly HashSet<PlayerChanges> _currentlyProcessingPlayerChanges = [];
+    private readonly Queue<PlayerChanges> _playerChangesToUpdate = [];
+
+    private CancellationTokenSource _playerChangesCts = new();
+    private CancellationTokenSource _playerChangesDebounceCts = new();
 
     public CacheCreationService(ILogger<CacheCreationService> logger, MareMediator mediator, GameObjectHandlerFactory gameObjectHandlerFactory,
         PlayerDataFactory characterDataFactory, DalamudUtilService dalamudUtil) : base(logger, mediator)
@@ -83,11 +95,19 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             }
         });
 
+        //Mediator.Subscribe<HeelsOffsetMessage>(this, (msg) =>
+        //{
+        //    if (_isZoning) return;
+        //    Logger.LogDebug("Received Heels Offset change, updating player");
+        //    AddCacheToCreate();
+        //});
+
+        // Experimental
         Mediator.Subscribe<HeelsOffsetMessage>(this, (msg) =>
         {
             if (_isZoning) return;
-            Logger.LogDebug("Received Heels Offset change, updating player");
-            AddCacheToCreate();
+            Logger.LogDebug("Received Heels Offset change, updating player changes");
+            AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Heels);
         });
 
         Mediator.Subscribe<GlamourerChangedMessage>(this, (msg) =>
@@ -101,24 +121,48 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             }
         });
 
+        //Mediator.Subscribe<HonorificMessage>(this, (msg) =>
+        //{
+        //    if (_isZoning) return;
+        //    if (!string.Equals(msg.NewHonorificTitle, _playerData.HonorificData, StringComparison.Ordinal))
+        //    {
+        //        Logger.LogDebug("Received Honorific change, updating player");
+        //        AddCacheToCreate(ObjectKind.Player);
+        //    }
+        //});
+
+        // Experimental
         Mediator.Subscribe<HonorificMessage>(this, (msg) =>
         {
             if (_isZoning) return;
+            Logger.LogTrace("Current Honorific title: {old}  Changed title: {new}", _playerData.HonorificData, msg.NewHonorificTitle);
             if (!string.Equals(msg.NewHonorificTitle, _playerData.HonorificData, StringComparison.Ordinal))
             {
-                Logger.LogDebug("Received Honorific change, updating player");
-                AddCacheToCreate(ObjectKind.Player);
+                Logger.LogDebug("Received Honorific change, updating player changes");
+                AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Honorific);
             }
         });
 
+        //Mediator.Subscribe<MoodlesMessage>(this, (msg) =>
+        //{
+        //    if (_isZoning) return;
+        //    var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
+        //    if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType) && changedType.Key == ObjectKind.Player)
+        //    {
+        //        Logger.LogDebug("Received Moodles change, updating player");
+        //        AddCacheToCreate(ObjectKind.Player);
+        //    }
+        //});
+
+        // Experimental
         Mediator.Subscribe<MoodlesMessage>(this, (msg) =>
         {
             if (_isZoning) return;
             var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
             if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType) && changedType.Key == ObjectKind.Player)
             {
-                Logger.LogDebug("Received Moodles change, updating player");
-                AddCacheToCreate(ObjectKind.Player);
+                Logger.LogDebug("Received Moodles change, updating player changes");
+                AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Moodles);
             }
         });
 
@@ -133,13 +177,24 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             }
         });
 
+        //Mediator.Subscribe<PetNamesMessage>(this, (msg) =>
+        //{
+        //    if (_isZoning) return;
+        //    if (!string.Equals(msg.PetNicknamesData, _playerData.PetNamesData, StringComparison.Ordinal))
+        //    {
+        //        Logger.LogDebug("Received Pet Nicknames change, updating player");
+        //        AddCacheToCreate(ObjectKind.Player);
+        //    }
+        //});
+
+        // Experimental
         Mediator.Subscribe<PetNamesMessage>(this, (msg) =>
         {
             if (_isZoning) return;
             if (!string.Equals(msg.PetNicknamesData, _playerData.PetNamesData, StringComparison.Ordinal))
             {
-                Logger.LogDebug("Received Pet Nicknames change, updating player");
-                AddCacheToCreate(ObjectKind.Player);
+                Logger.LogDebug("Received Pet Nicknames change, updating player changes");
+                AddPlayerAddonPluginChangesToUpdate(PlayerChanges.PetNames);
             }
         });
 
@@ -152,7 +207,14 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             AddCacheToCreate(ObjectKind.Companion);
         });
 
-        Mediator.Subscribe<FrameworkUpdateMessage>(this, (msg) => ProcessCacheCreation());
+        //Mediator.Subscribe<FrameworkUpdateMessage>(this, (msg) => ProcessCacheCreation());
+
+        // Experimental
+        Mediator.Subscribe<FrameworkUpdateMessage>(this, (msg) =>
+        {
+            ProcessCacheCreation();
+            ProcessAddonPluginChanges();
+        });
     }
 
     protected override void Dispose(bool disposing)
@@ -164,6 +226,13 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         _runtimeCts.Dispose();
         _creationCts.Cancel();
         _creationCts.Dispose();
+
+        // Experimental
+        _playerChangesCts.Cancel();
+        _playerChangesCts.Dispose();
+        _playerChangesDebounceCts.Cancel();
+        _playerChangesDebounceCts.Dispose();
+        _playerChangesLock.Dispose();
     }
 
     private void AddCacheToCreate(ObjectKind kind = ObjectKind.Player)
@@ -252,5 +321,176 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
                 Logger.LogDebug("Cache Creation complete");
             }
         });
+    }
+
+    // Experimental
+    private void AddPlayerAddonPluginChangesToUpdate(PlayerChanges playerChanges)
+    {
+        _playerChangesDebounceCts.Cancel();
+        _playerChangesDebounceCts.Dispose();
+        _playerChangesDebounceCts = new();
+
+        var token = _playerChangesDebounceCts.Token;
+
+        _playerChangesLock.Wait();
+        try
+        {
+            _debouncedPlayerChanges.Add(playerChanges); // use hashset to dedupe PlayerChanges
+        }
+        finally
+        {
+            _playerChangesLock.Release();
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100), token).ConfigureAwait(false); // if this is too low, set higher, but updates take longer to propogate
+
+                await _playerChangesLock.WaitAsync(token).ConfigureAwait(false);
+                try
+                {
+                    Logger.LogTrace("Player change debounce complete, queueing changes: {changes}", string.Join(", ", _debouncedPlayerChanges));
+
+                    foreach (var item in _debouncedPlayerChanges)
+                    {
+                        if (_queuedPlayerChanges.Add(item))
+                        {
+                            _playerChangesToUpdate.Enqueue(item);
+                        }
+                    }
+
+                    _debouncedPlayerChanges.Clear();
+                }
+                finally
+                {
+                    _playerChangesLock.Release();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogTrace("Player change debounce cancelled");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogCritical(ex, "Error during player change debounce processing");
+            }
+        });
+    }
+
+    // Experimental
+    private void ProcessAddonPluginChanges()
+    {
+        if (_isZoning || _haltCharaDataCreation) return;
+
+        if (!HasPendingPlayerChanges()) return;
+
+        bool fullPlayerUpdateQueued = false;
+
+        if (_debouncedObjectCache.Contains(ObjectKind.Player)) // our changes will get picked up by the full update
+        {
+            Logger.LogDebug("Object Cache already contains ObjectKind.Player, skipping update.");
+            // If an addon plugin is ever not fully updated when ObjectKind == Player, this will need to be updated.
+            fullPlayerUpdateQueued = true;
+        } 
+
+        if (_playerRelatedObjects.Any(p => p.Value.CurrentDrawCondition is
+            not (GameObjectHandler.DrawCondition.None or GameObjectHandler.DrawCondition.DrawObjectZero or GameObjectHandler.DrawCondition.ObjectZero)))
+        {
+            Logger.LogDebug("Waiting for draw to finish before processing player changes");
+            return;
+        }
+
+        _playerChangesCts.Cancel();
+        _playerChangesCts.Dispose();
+        _playerChangesCts = new();
+
+        var processingToken = _playerChangesCts.Token;
+        var playerChangesToProcess = new List<PlayerChanges>();
+
+        _playerChangesLock.Wait(processingToken);
+        try
+        {
+            while (_playerChangesToUpdate.TryDequeue(out var playerChange))
+            {
+                _queuedPlayerChanges.Remove(playerChange);
+
+                if (fullPlayerUpdateQueued) continue;
+
+                if (_currentlyProcessingPlayerChanges.Add(playerChange))
+                {
+                    playerChangesToProcess.Add(playerChange);
+                }
+            }
+        }
+        finally
+        {
+            _playerChangesLock.Release();
+        }
+
+        if (playerChangesToProcess.Count == 0) return;
+
+        _ = Task.Run(async () =>
+        {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(processingToken, _runtimeCts.Token);
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100), linkedCts.Token).ConfigureAwait(false); // if this is too low, set higher, but updates take longer to propogate
+
+                Logger.LogDebug("Processing player changes: {changes}", string.Join(", ", playerChangesToProcess));
+
+                foreach (var change in playerChangesToProcess)
+                {
+                    linkedCts.Token.ThrowIfCancellationRequested();
+
+                    var data = await _characterDataFactory.GetAddonPluginPlayerData(change).ConfigureAwait(false);
+
+                    _playerData.SetAddonPluginPlayerData(change, data); // update our own local data for each type so we can detect future changes
+
+                    Mediator.Publish(new AddonPluginChangesCreatedMessage(change, data));
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogDebug("Player change processing cancelled");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogCritical(ex, "Error during player change processing");
+            }
+            finally
+            {
+                await _playerChangesLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                try
+                {
+                    foreach (var playerChange in playerChangesToProcess)
+                    {
+                        _currentlyProcessingPlayerChanges.Remove(playerChange);
+                    }
+                }
+                finally
+                {
+                    _playerChangesLock.Release();
+                }
+
+                Logger.LogDebug("Player change processing complete");
+            }
+        });
+    }
+
+    // Experimental
+    private bool HasPendingPlayerChanges()
+    {
+        _playerChangesLock.Wait();
+        try
+        {
+            return _playerChangesToUpdate.Count != 0;
+        }
+        finally
+        {
+            _playerChangesLock.Release();
+        }
     }
 }
