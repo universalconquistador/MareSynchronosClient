@@ -50,7 +50,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private CancellationTokenSource? _downloadCancellationTokenSource = new();
     private bool _forceApplyMods = false;
     private bool _isVisible;
-    private Guid _penumbraCollection;
+    private Guid? _penumbraCollection;
     private bool _redrawOnNextApplication = false;
     private int _isRedrawVanillaRunning = 0;
     private bool _isVanillaEnforced;
@@ -86,7 +86,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _performanceConfig = performanceConfig;
         _dataManager = dataManager;
         _configService = configService;
-        _penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
+        //_penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
         _isVanillaEnforced = IsVanillaEnforced();
 
         Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => FrameworkUpdate());
@@ -157,8 +157,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
     }
 
-    // science
-    //private static SemaphoreSlim GetActorLock(string uid) => _actorLocks.GetOrAdd(uid, _ => new SemaphoreSlim(1, 1));
     public long LastAppliedDataBytes { get; private set; }
     public Pair Pair { get; private set; }
     public nint PlayerCharacter => _charaHandler?.Address ?? nint.Zero;
@@ -235,6 +233,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}",
             applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
 
+        // Check if this the same character data we've already applied
         if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization)
             return Task.CompletedTask;
 
@@ -252,6 +251,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
         _forceApplyMods |= forceApplyCustomization;
 
+        // this is supposed to figure out what's actually changed/what needs updating
         var charaDataToUpdate = characterData.CheckUpdatedData(applicationBase, _cachedData?.DeepClone() ?? new(), Logger, this, forceApplyCustomization, _forceApplyMods);
 
         if (_charaHandler != null && _forceApplyMods)
@@ -509,7 +509,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             {
                 Logger.LogTrace("[{applicationId}] Restoring state for {name} ({OnlineUser})", applicationId, name, Pair.UserPair);
                 Logger.LogDebug("[{applicationId}] Removing Temp Collection for {name} ({user})", applicationId, name, Pair.UserPair);
-                _ipcManager.Penumbra.RemoveTemporaryCollectionAsync(Logger, applicationId, _penumbraCollection).GetAwaiter().GetResult();
+                if (_penumbraCollection is not null)
+                    _ipcManager.Penumbra.RemoveTemporaryCollectionAsync(Logger, applicationId, _penumbraCollection.Value).GetAwaiter().GetResult();
                 if (!IsVisible)
                 {
                     Logger.LogDebug("[{applicationId}] Restoring Glamourer for {name} ({user})", applicationId, name, Pair.UserPair);
@@ -545,6 +546,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         finally
         {
             PlayerName = null;
+            _penumbraCollection = null;
             _cachedData = null;
             Logger.LogDebug("Disposing {name} complete", name);
         }
@@ -811,9 +813,12 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         Dictionary<(string GamePath, string? Hash), string> moddedPaths, CancellationToken token)
     {
         _applicationId = Guid.NewGuid();
-        // science
-        //var gate = GetActorLock(applicationBase.ToString());
-        //await gate.WaitAsync(token).ConfigureAwait(false);
+
+        if (_penumbraCollection is null)
+        {
+            Logger.LogError("No penumbra collection exists for {pair}!", Pair.PlayerName);
+            return;
+        }
 
         // Proactively check the incoming files for specific known sources of crashes
         if (_configService.Current.EnableValidationChecks)
@@ -873,10 +878,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 // ensure collection is set
                 // This call can sometimes fail with a no ref
                 var objIndex = await _dalamudUtil.RunOnFrameworkThread(() => _charaHandler!.GetGameObject()!.ObjectIndex).ConfigureAwait(false);
-                await _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection, objIndex).ConfigureAwait(false);
+                await _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection.Value, objIndex).ConfigureAwait(false);
 
                 string? pairUid = String.IsNullOrWhiteSpace(Pair.UserData.UID) ? null : Pair.UserData.UID;
-                await _ipcManager.Penumbra.SetTemporaryModsAsync(Logger, _applicationId, _penumbraCollection,
+                await _ipcManager.Penumbra.SetTemporaryModsAsync(Logger, _applicationId, _penumbraCollection.Value,
                     moddedPaths.ToDictionary(k => k.Key.GamePath, k => k.Value, StringComparer.Ordinal), pairUid).ConfigureAwait(false);
                 LastAppliedDataBytes = -1;
                 foreach (var path in moddedPaths.Values.Distinct(StringComparer.OrdinalIgnoreCase).Select(v => new FileInfo(v)).Where(p => p.Exists))
@@ -892,7 +897,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
             if (updateManip)
             {
-                await _ipcManager.Penumbra.SetManipulationDataAsync(Logger, _applicationId, _penumbraCollection, charaData.ManipulationData).ConfigureAwait(false);
+                await _ipcManager.Penumbra.SetManipulationDataAsync(Logger, _applicationId, _penumbraCollection.Value, charaData.ManipulationData).ConfigureAwait(false);
             }
 
             token.ThrowIfCancellationRequested();
@@ -931,7 +936,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     {
         if (string.IsNullOrEmpty(PlayerName))
         {
-            var pc = _dalamudUtil.FindPlayerByNameHash(Pair.Ident);
+            var pc = _dalamudUtil.FindPlayerByNameHash(Pair.Ident); // This kicks everything off once we can discern the Pair's character name
             if (pc == default((string, nint))) return;
             Logger.LogDebug("One-Time Initializing {this}", this);
             Initialize(pc.Name);
@@ -940,17 +945,18 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 $"Initializing User For Character {pc.Name}")));
         }
 
-        if (_charaHandler?.Address != nint.Zero)
+        if (_charaHandler?.Address != nint.Zero) // We have a valid GameObjectHandler for this Pair
         {
-            LastCompanionPtr =  _dalamudUtil.GetCompanionPtr(PlayerCharacter);
-            LastMinionOrMountPtr =  _dalamudUtil.GetMinionOrMountPtr(PlayerCharacter);
-            LastPetPtr =  _dalamudUtil.GetPetPtr(PlayerCharacter);
+            // Update pointers this frame as to not dereference old/stale/invalid ptr
+            LastCompanionPtr = _dalamudUtil.GetCompanionPtr(PlayerCharacter);
+            LastMinionOrMountPtr = _dalamudUtil.GetMinionOrMountPtr(PlayerCharacter);
+            LastPetPtr = _dalamudUtil.GetPetPtr(PlayerCharacter);
 
-            if (!IsVisible)
+            if (!IsVisible) // We can now "see" the player in game
             {
                 Guid appData = Guid.NewGuid();
                 IsVisible = true;
-                if (_cachedData != null)
+                if (_cachedData != null) // Apply cached data so we're not always recreating the player
                 {
                     Logger.LogTrace("[BASE-{appBase}] {this} visibility changed, now: {visi}, cached data exists", appData, this, IsVisible);
 
@@ -965,7 +971,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
             }
         }
-        else
+        else // We no longer have a valid GameObjectHandler for this Pair
         {
             LastCompanionPtr = nint.Zero;
             LastMinionOrMountPtr = nint.Zero;
@@ -985,6 +991,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private void Initialize(string name)
     {
         PlayerName = name;
+
+        _penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(Logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
+
         _charaHandler = _gameObjectHandlerFactory.Create(ObjectKind.Player, () => _dalamudUtil.GetPlayerCharacterFromCachedTableByIdent(Pair.Ident), isWatched: false).GetAwaiter().GetResult();
 
         _serverConfigManager.AutoPopulateNoteForUid(Pair.UserData.UID, name);
@@ -1014,7 +1023,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             await _ipcManager.Loci.SetActorManager(_charaHandler.Address, data).ConfigureAwait(false);
         });
 
-        _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection, _charaHandler.GetGameObject()!.ObjectIndex).GetAwaiter().GetResult();
+        _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection.Value, _charaHandler.GetGameObject()!.ObjectIndex).GetAwaiter().GetResult();
     }
 
     private async Task RevertCustomizationDataAsync(ObjectKind objectKind, string name, Guid applicationId, CancellationToken cancelToken)
