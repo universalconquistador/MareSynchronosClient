@@ -406,8 +406,23 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             {
                 // Download the compressed file directly
                 downloadTracker.DownloadStatus = DownloadStatus.Downloading;
-                Logger.LogDebug("Beginning direct download of {hash} from {url}", directDownload.Hash, directDownload.DirectDownloadUrl!);
-                await DownloadFileThrottled(new Uri(directDownload.DirectDownloadUrl!), tempFilename, directDownload.Hash, progress, null, token, withToken: false).ConfigureAwait(false);
+
+                DownloadDataCallback? munge = null;
+                if (directDownload.MungeKey != null)
+                {
+                    long mungeOffset = 0;
+                    byte[] mungeKeyBytes = Encoding.ASCII.GetBytes(directDownload.MungeKey);
+                    munge = span =>
+                    {
+                        for (int i = 0; i < span.Length; i++)
+                        {
+                            span[i] = (byte)(span[i] ^ mungeKeyBytes[mungeOffset]);
+                            mungeOffset = (mungeOffset + 1) % mungeKeyBytes.Length;
+                        }
+                    };
+                }
+                Logger.LogDebug("Beginning direct download of {hash} from {url} with key {key}", directDownload.Hash, directDownload.DirectDownloadUrl!, directDownload.MungeKey ?? "<none>");
+                await DownloadFileThrottled(new Uri(directDownload.DirectDownloadUrl!), tempFilename, directDownload.Hash, progress, munge, token, withToken: false).ConfigureAwait(false);
             }
             catch (OperationCanceledException ex)
             {
