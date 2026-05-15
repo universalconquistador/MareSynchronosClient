@@ -1319,6 +1319,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 await ApplyPetNicknamesDataAsync(charaData).ConfigureAwait(false);
                 return;
 
+            case AddonPlugin.Loci:
+                await ApplyLociDtaaASync(charaData).ConfigureAwait(false);
+                return;
+
             default:
                 return;
         }
@@ -1360,28 +1364,24 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
     }
 
-    //private async Task ApplyLociDataASync(CharacterData charaData)
-    //{
-    //    if (charaData.LociData is null) return;
+    private async Task ApplyLociDtaaASync(CharacterData charaData)
+    {
+        if (charaData.LociData is null) return;
 
-    //    var handler = _charaHandler;
-    //    if (handler == null) return;
-    //    if (handler.Address == nint.Zero) return;
-
-    //    try
-    //    {
-    //        if (!_lociRegistrations.GetValueOrDefault(changes.Key, false))
-    //        {
-    //            _lociRegistrations[changes.Key] = await _ipcManager.Loci.RegisterActor(handler.Address).ConfigureAwait(false);
-    //        }
-    //        var lociDataToApply = charaData.LociData.GetValueOrDefault(changes.Key, string.Empty);
-    //        await _ipcManager.Loci.SetActorManager(handler.Address, lociDataToApply).ConfigureAwait(false);
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        Logger.LogError(ex, "Failed to set Loci data for {uid}", Pair.UserData.UID);
-    //    }
-    //}
+        try
+        {
+            if (!_lociRegistrations.GetValueOrDefault(ObjectKind.Player, false))
+            {
+                _lociRegistrations[ObjectKind.Player] = await _ipcManager.Loci.RegisterActor(_charaHandler!.Address).ConfigureAwait(false);
+            }
+            var lociDataToApply = charaData.LociData.GetValueOrDefault(ObjectKind.Player, string.Empty);
+            await _ipcManager.Loci.SetActorManager(_charaHandler!.Address, lociDataToApply).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to set Loci data for {uid}", Pair.UserData.UID);
+        }
+    }
 
     private async Task ApplyPetNicknamesDataAsync(CharacterData charaData)
     {
