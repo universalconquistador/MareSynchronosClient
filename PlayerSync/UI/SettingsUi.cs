@@ -217,7 +217,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
             ImGui.SameLine(0);
             ImGui.TextUnformatted(")");
             ImGui.SameLine(0);
-            string connection = _serverConfigurationManager.ActiveServericeUri.Replace("wss://", "").Replace("gw-", "");
+            string connection = _serverConfigurationManager.CurrentApiUrl.Replace("wss://", "").Replace("gw-", "");
             ImGui.TextUnformatted($"Connected via {connection}");
         }
         else
