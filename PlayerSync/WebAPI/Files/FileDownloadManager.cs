@@ -421,7 +421,11 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                         }
                     };
                 }
+#if DEBUG
                 Logger.LogDebug("Beginning direct download of {hash} from {url} with key {key}", directDownload.Hash, directDownload.DirectDownloadUrl!, directDownload.MungeKey ?? "<none>");
+#else
+                Logger.LogDebug("Beginning direct download of {hash} from {url}", directDownload.Hash, directDownload.DirectDownloadUrl!);
+#endif
                 await DownloadFileThrottled(new Uri(directDownload.DirectDownloadUrl!), tempFilename, directDownload.Hash, progress, munge, token, withToken: false).ConfigureAwait(false);
             }
             catch (OperationCanceledException ex)
