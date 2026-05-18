@@ -150,7 +150,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         }
         
         //Checks if Dungeon Sync is enabled and exits early if not enabled AND in a dungeon.
-        if (instance > 0 && !_zoneSyncConfigService.Current.EnableDungeonSync)
+        if (dutyBound && instance > 0 && !_zoneSyncConfigService.Current.EnableDungeonSync)
         {
             Logger.LogDebug("Cancelled ZoneSync, instanced area.");
             await GroupZoneLeaveAll().ConfigureAwait(false);
