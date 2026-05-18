@@ -137,7 +137,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         var dutyBound = _dalamudUtilService.IsBoundByDuty;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
         var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
-        _logger.LogDebug("ZoneSync: instance={instance}", instance);
+        _logger.LogDebug("ZoneSync: instance={instance}", ownLocation.RoomId);
 
         if (TerritoryTools.TerritoryStaticMap.ForbiddenZoneSyncTerritoryIds.Contains(ownLocation.TerritoryId))
         {
