@@ -140,8 +140,17 @@ public partial class SettingsUi
         }
 
         ImGuiHelpers.ScaledDummy(5f);
-        //ImGui.AlignTextToFramePadding();
-        ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "This does not work for instanced areas.");
+        bool enableDungeonSync = _zoneSyncConfigService.Current.EnableDungeonSync;
+        if (ImGui.Checkbox("Include instances/dungeons in ZoneSync", ref enableDungeonSync))
+        {
+            _zoneSyncConfigService.Current.EnableDungeonSync = enableDungeonSync;
+            _zoneSyncConfigService.Save();
+            if (zoneSyncEnabled)
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
+        }
+        _uiShared.DrawHelpText("When enabled, ZoneSync will also join syncshells in instances/dungeons. Certain zones like Company Workshop or Player Islands are always excluded.");
+
+        ImGuiHelpers.ScaledDummy(5f);
         ImGui.SetNextItemWidth(150 * ImGuiHelpers.GlobalScale);
         using (ImRaii.Disabled(_globalControlCountdown > 0 && zoneSyncEnabled))
         {
