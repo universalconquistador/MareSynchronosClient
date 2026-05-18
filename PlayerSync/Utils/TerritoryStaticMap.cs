@@ -14,8 +14,10 @@ namespace TerritoryTools
         /// </summary>
         public static HashSet<uint> ForbiddenZoneSyncTerritoryIds { get; } =
         [
+            392, // Sanctum of the Twelve
+            393, // Sanctum of the Twelve
             425, // Company Workshop
-            890, // Island Sanctuary
+            890 // Island Sanctuary
         ];
     }
 }
