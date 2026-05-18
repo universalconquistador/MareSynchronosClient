@@ -1,4 +1,5 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+﻿using Dalamud.Game.ClientState;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
@@ -381,7 +382,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         EnsureIsOnFramework();
         return _objectTable.LocalPlayer!.CurrentWorld.RowId;
     }
-
     public unsafe bool TryGetCurrentPlotInfo(out int ward, out int plot)
     {
         var houseMan = HousingManager.Instance();
@@ -436,7 +436,8 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         {
             territoryId = HousingManager.GetOriginalHouseTerritoryTypeId();
         }
-        uint roomId = houseMan == null ? 0 : (uint)(houseMan->GetCurrentRoom());
+        uint roomId = IsBoundByDuty ? GetZoneId()
+            : houseMan == null ? 0 : (uint)(houseMan->GetCurrentRoom());
 
         return new LocationInfo()
         {
@@ -469,6 +470,18 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return WorldToDataCenterData.Value.TryGetValue(worldId, out var dataCenterName) ? dataCenterName : null;
     }
 
+    public unsafe ushort GetZoneId()
+    {
+        EnsureIsOnFramework();
+        var readZoneId = ContentsReplayManager.Instance();
+        return readZoneId != null ? readZoneId->ZoneInitPacket.Instance : (ushort)0;
+    }
+    
+    public async Task<ushort> GetZoneIdAsync()
+    {
+        return await RunOnFrameworkThread(GetZoneId).ConfigureAwait(false);
+    }
+    
     public async Task<uint> GetWorldIdAsync()
     {
         return await RunOnFrameworkThread(GetWorldId).ConfigureAwait(false);

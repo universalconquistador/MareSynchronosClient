@@ -136,10 +136,19 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         }
         var dutyBound = _dalamudUtilService.IsBoundByDuty;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
-        bool? inst = TerritoryTools.TerritoryStaticMap.IsInstance(ownLocation.TerritoryId);
-        if (inst != false || dutyBound)
+        var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
+        _logger.LogDebug("ZoneSync: instance={instance}", instance);
+
+        if (TerritoryTools.TerritoryStaticMap.ForbiddenZoneSyncTerritoryIds.Contains(ownLocation.TerritoryId))
         {
             Logger.LogDebug("Cancelled ZoneSync, not in a permitted area.");
+            await GroupZoneLeaveAll().ConfigureAwait(false);
+            return;
+        }
+
+        if (instance > 0 && !_zoneSyncConfigService.Current.EnableDungeonSync)
+        {
+            Logger.LogDebug("Cancelled ZoneSync, instanced area.");
             await GroupZoneLeaveAll().ConfigureAwait(false);
             return;
         }
