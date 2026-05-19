@@ -137,7 +137,10 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         var dutyBound = _dalamudUtilService.IsBoundByDuty;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
         var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
-        
+        if (instance > 0 && dutyBound)
+        {
+            ownLocation.RoomId = instance;
+        }
         //Just wanted to see what RoomId was getting
         _logger.LogDebug("ZoneSync: instance={instance}", ownLocation.RoomId);
 
@@ -188,11 +191,6 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
                     return;
                 }
                 break;
-        }
-        
-        if (instance > 0 && dutyBound)
-        {
-            ownLocation.RoomId = instance;
         }
         
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
