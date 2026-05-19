@@ -438,8 +438,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         {
             territoryId = HousingManager.GetOriginalHouseTerritoryTypeId();
         }
-        uint roomId = IsBoundByDuty && _zoneSyncConfigService.Current.EnableDungeonSync ? GetZoneId()
-            : houseMan == null ? 0 : (uint)(houseMan->GetCurrentRoom());
+        uint roomId = houseMan == null ? 0 : (uint)(houseMan->GetCurrentRoom());
 
         return new LocationInfo()
         {

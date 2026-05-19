@@ -142,7 +142,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         _logger.LogDebug("ZoneSync: instance={instance}", ownLocation.RoomId);
 
         //Exits early if in a forbidden zone
-        if (TerritoryTools.TerritoryStaticMap.ForbiddenZoneSyncTerritoryIds.Contains(ownLocation.TerritoryId))
+        if (!TerritoryTools.TerritoryStaticMap.AllowedZoneSyncTerritoryIds.Contains(ownLocation.TerritoryId))
         {
             Logger.LogDebug("Cancelled ZoneSync, not in a permitted area.");
             await GroupZoneLeaveAll().ConfigureAwait(false);
@@ -188,6 +188,11 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
                     return;
                 }
                 break;
+        }
+        
+        if (instance > 0)
+        {
+            ownLocation.RoomId = instance;
         }
         
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
