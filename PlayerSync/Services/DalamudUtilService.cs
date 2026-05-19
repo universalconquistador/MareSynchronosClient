@@ -42,7 +42,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     private readonly ITargetManager _targetManager;
     private readonly PerformanceCollectorService _performanceCollector;
     private readonly MareConfigService _configService;
-    private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private uint? _classJobId = 0;
     private DateTime _delayedFrameworkUpdateCheck = DateTime.UtcNow;
     private string _lastGlobalBlockPlayer = string.Empty;
@@ -58,7 +57,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public DalamudUtilService(ILogger<DalamudUtilService> logger, IClientState clientState, IObjectTable objectTable, IFramework framework,
         IGameGui gameGui, ICondition condition, IDataManager gameData, ITargetManager targetManager, IGameConfig gameConfig,
         BlockedCharacterHandler blockedCharacterHandler, MareMediator mediator, PerformanceCollectorService performanceCollector,
-        MareConfigService configService, ZoneSyncConfigService zoneSyncConfigService)
+        MareConfigService configService)
     {
         _logger = logger;
         _clientState = clientState;
@@ -73,7 +72,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         Mediator = mediator;
         _performanceCollector = performanceCollector;
         _configService = configService;
-        _zoneSyncConfigService = zoneSyncConfigService;
         WorldData = new(() =>
         {
             return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!

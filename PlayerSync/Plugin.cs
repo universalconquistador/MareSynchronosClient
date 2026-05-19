@@ -147,7 +147,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton((s) => new DalamudUtilService(s.GetRequiredService<ILogger<DalamudUtilService>>(),
                 clientState, objectTable, framework, gameGui, condition, gameData, targetManager, gameConfig,
                 s.GetRequiredService<BlockedCharacterHandler>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<PerformanceCollectorService>(),
-                s.GetRequiredService<MareConfigService>(), s.GetRequiredService<ZoneSyncConfigService>()));
+                s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton(s => new PairManager(s.GetRequiredService<ILogger<PairManager>>(), s.GetRequiredService<PairFactory>(),
                 s.GetRequiredService<MareConfigService>(), s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<MareMediator>()));
             collection.AddSingleton<RedrawManager>();
