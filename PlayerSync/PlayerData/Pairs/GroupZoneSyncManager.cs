@@ -190,7 +190,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
                 break;
         }
         
-        if (instance > 0)
+        if (instance > 0 && dutyBound)
         {
             ownLocation.RoomId = instance;
         }
