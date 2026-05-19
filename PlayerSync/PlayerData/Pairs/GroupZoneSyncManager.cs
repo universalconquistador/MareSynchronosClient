@@ -145,21 +145,13 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         _logger.LogDebug("ZoneSync: instance={instance}", ownLocation.RoomId);
 
         //Exits early if in a forbidden zone
-        if (!TerritoryTools.TerritoryStaticMap.AllowedZoneSyncTerritoryIds.Contains(ownLocation.TerritoryId))
+        if (dutyBound && instance > 0 && (!TerritoryTools.TerritoryStaticMap.AllowedZoneSyncTerritoryIds.Contains(ownLocation.TerritoryId) || !_zoneSyncConfigService.Current.EnableDungeonSync))
         {
-            Logger.LogDebug("Cancelled ZoneSync, not in a permitted area.");
+            Logger.LogDebug("Cancelled ZoneSync, not in a permitted instanced area.");
             await GroupZoneLeaveAll().ConfigureAwait(false);
             return;
         }
         
-        //Checks if Dungeon Sync is enabled and exits early if not enabled AND in a dungeon.
-        if (dutyBound && instance > 0 && !_zoneSyncConfigService.Current.EnableDungeonSync)
-        {
-            Logger.LogDebug("Cancelled ZoneSync, instanced area.");
-            await GroupZoneLeaveAll().ConfigureAwait(false);
-            return;
-        }
-
         var filteredZones = _zoneSyncConfigService.Current.ZoneSyncFilter;
         var isTown = TerritoryTools.TerritoryStaticMap.IsTown(ownLocation.TerritoryId);
         var isResidential = ownLocation.WardId != 0;
