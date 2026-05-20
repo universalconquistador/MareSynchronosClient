@@ -156,6 +156,10 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
         var instdata = _dalamudUtilService.GetDataCenterIdForWorld((ushort)ownLocation.ServerId);
 
+        //Dungeon sync Trace log data
+        _logger.LogTrace("ZoneSync: DataCenter={instdata} ServerID={serverId} Instance={instance} RoomID={roomId}", 
+            instdata, ownLocation.ServerId, instance, ownLocation.RoomId);
+        
         //Set ServerId to instdata and RoomId to instance if instanceBound
         if (instanceBound && instance > 0)
         {
@@ -196,9 +200,6 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
                 break;
         }
         
-        //Dungeon sync Trace log data
-        _logger.LogTrace("ZoneSync: DataCenter={instdata} ServerID={serverId} Instance={instance} RoomID={roomId}", 
-            instdata, ownLocation.ServerId, instance, ownLocation.RoomId);
         //Zone sync debug log for what's being sent to server
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}", 
             ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
