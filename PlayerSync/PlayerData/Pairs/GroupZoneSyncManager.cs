@@ -137,14 +137,22 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         var instanceBound = _dalamudUtilService.IsBoundByDuty/*PvE Duty */ || _dalamudUtilService.IsPvPExcludingDen/*PvP Duty*/;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
         bool? forbidden = TerritoryTools.TerritoryStaticMap.IsTerritoryForbidden(ownLocation.TerritoryId);
-        //Exit if Forbidden zone or Dungeon Sync is off
-        if (forbidden != false || (instanceBound && !_zoneSyncConfigService.Current.EnableDungeonSync))
+        
+        //Exit if Forbidden zone
+        if (forbidden != false)
         {
             _logger.LogDebug("Cancelled ZoneSync, territory is forbidden.");
             await GroupZoneLeaveAll().ConfigureAwait(false);
             return;
         }
-        
+        //Exit if Dungeon Sync is off while in instance
+        if (instanceBound && !_zoneSyncConfigService.Current.EnableDungeonSync)
+        {
+            _logger.LogDebug("Cancelled ZoneSync, dungeon sync is disabled.");
+            await GroupZoneLeaveAll().ConfigureAwait(false);
+            return;
+        }
+
         //Get instance and datacenter values
         var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
         var instdata = _dalamudUtilService.GetDataCenterIdForWorld((ushort)ownLocation.ServerId);
@@ -154,7 +162,6 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         {
             ownLocation.RoomId = instance;
             ownLocation.ServerId = instdata!.Value;
-
         }
         
         var filteredZones = _zoneSyncConfigService.Current.ZoneSyncFilter;
@@ -190,8 +197,9 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
                 break;
         }
         
+        //Dungeon sync Trace log data
         _logger.LogTrace("ZoneSync: DataCenter={instdata} ServerID={serverId} Instance={instance} RoomID={roomId}", instdata, ownLocation.ServerId, instance, ownLocation.RoomId);
-
+        //Zonesync debug log for what's being sent to server
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
             ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
 
