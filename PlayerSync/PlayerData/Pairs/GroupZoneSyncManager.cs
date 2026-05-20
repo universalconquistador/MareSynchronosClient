@@ -157,7 +157,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
         var instdata = _dalamudUtilService.GetDataCenterIdForWorld((ushort)ownLocation.ServerId);
 
-        //Set ServerId to instdata and RoomId to instance if dutybound
+        //Set ServerId to instdata and RoomId to instance if instanceBound
         if (instanceBound && instance > 0)
         {
             ownLocation.RoomId = instance;
@@ -198,9 +198,10 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         }
         
         //Dungeon sync Trace log data
-        _logger.LogTrace("ZoneSync: DataCenter={instdata} ServerID={serverId} Instance={instance} RoomID={roomId}", instdata, ownLocation.ServerId, instance, ownLocation.RoomId);
-        //Zonesync debug log for what's being sent to server
-        _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
+        _logger.LogTrace("ZoneSync: DataCenter={instdata} ServerID={serverId} Instance={instance} RoomID={roomId}", 
+            instdata, ownLocation.ServerId, instance, ownLocation.RoomId);
+        //Zone sync debug log for what's being sent to server
+        _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}", 
             ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
 
         var defaultPerms = _apiController.DefaultPermissions.DeepClone()!;
