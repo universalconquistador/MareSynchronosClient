@@ -136,20 +136,21 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         }
         var dutyBound = _dalamudUtilService.IsBoundByDuty;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
+        bool? forbidden = TerritoryTools.TerritoryStaticMap.IsTerritoryForbidden(ownLocation.TerritoryId);
+        if (dutyBound && (forbidden != false || !_zoneSyncConfigService.Current.EnableDungeonSync))
+        {
+            _logger.LogDebug("Cancelled ZoneSync, territory is forbidden.");
+            await GroupZoneLeaveAll().ConfigureAwait(false);
+            return;
+        }
+
         var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
+
+        //Set RoomId to instance if dutybound
         if (instance > 0 && dutyBound)
         {
             ownLocation.RoomId = instance;
-        }
-        //Just wanted to see what RoomId was getting
-        _logger.LogDebug("ZoneSync: instance={instance}", ownLocation.RoomId);
-
-        //Exits early if in a forbidden zone
-        if (dutyBound && instance > 0 && (!TerritoryTools.TerritoryStaticMap.AllowedZoneSyncTerritoryIds.Contains(ownLocation.TerritoryId) || !_zoneSyncConfigService.Current.EnableDungeonSync))
-        {
-            Logger.LogDebug("Cancelled ZoneSync, not in a permitted instanced area.");
-            await GroupZoneLeaveAll().ConfigureAwait(false);
-            return;
+            _logger.LogDebug("ZoneSync: instance={instance}", ownLocation.RoomId);
         }
         
         var filteredZones = _zoneSyncConfigService.Current.ZoneSyncFilter;

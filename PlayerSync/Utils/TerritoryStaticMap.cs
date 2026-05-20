@@ -7,514 +7,2496 @@ namespace TerritoryTools
         public static List<uint> TownTerritoryIds { get; set; } = new List<uint>([128, 129, 130, 131, 132, 133, 144,
             388, 418, 419, 478, 635, 628, 759, 819, 820, 962, 963, 1185, 1186]);
         public static bool IsTown(uint id) => TownTerritoryIds.Contains(id);
+        
+        /// <summary> true = instanced; false = open-world; null = unknown id </summary>
+        public static bool? IsTerritoryForbidden(uint territoryId) => _map.TryGetValue(territoryId, out var v) ? v : (bool?)null;
+        public static IReadOnlyDictionary<uint, bool> Map => _map;
+        
+        private static readonly Dictionary<uint, bool> _map = new()
+        {
+            // Territory #1
+            [1] = false,
+            // Territory #2
+            [2] = false,
+            // Territory #3
+            [3] = false,
+            // Territory #4
+            [4] = false,
+            // Territory #5
+            [5] = false,
+            // Territory #6
+            [6] = false,
+            // Territory #7
+            [7] = false,
+            // Territory #8
+            [8] = false,
+            // Territory #9
+            [9] = false,
+            // Territory #10
+            [10] = false,
+            // Territory #11
+            [11] = false,
+            // Territory #12
+            [12] = false,
+            // Territory #13
+            [13] = false,
+            // Territory #14
+            [14] = false,
+            // Territory #15
+            [15] = false,
+            // Territory #16
+            [16] = false,
+            // Territory #17
+            [17] = false,
+            // Territory #18
+            [18] = false,
+            // Territory #19
+            [19] = false,
+            // Territory #20
+            [20] = false,
+            // Territory #21
+            [21] = false,
+            // Territory #22
+            [22] = false,
+            // Territory #24
+            [24] = false,
+            // Territory #25
+            [25] = false,
+            // Territory #26
+            [26] = false,
+            // Territory #27
+            [27] = false,
+            // Territory #28
+            [28] = false,
+            // Territory #29
+            [29] = false,
+            // Territory #30
+            [30] = false,
+            // Territory #31
+            [31] = false,
+            // Limsa Lominsa Upper Decks
+            [128] = false,
+            // Limsa Lominsa Lower Decks
+            [129] = false,
+            // Ul'dah - Steps of Nald
+            [130] = false,
+            // Ul'dah - Steps of Thal
+            [131] = false,
+            // New Gridania
+            [132] = false,
+            // Old Gridania
+            [133] = false,
+            // Middle La Noscea
+            [134] = false,
+            // Lower La Noscea
+            [135] = false,
+            // Mist
+            [136] = false,
+            // Eastern La Noscea
+            [137] = false,
+            // Western La Noscea
+            [138] = false,
+            // Upper La Noscea
+            [139] = false,
+            // Western Thanalan
+            [140] = false,
+            // Central Thanalan
+            [141] = false,
+            // Halatali
+            [142] = false,
+            // Territory #143
+            [143] = false,
+            // The Gold Saucer
+            [144] = false,
+            // Eastern Thanalan
+            [145] = false,
+            // Southern Thanalan
+            [146] = false,
+            // Northern Thanalan
+            [147] = false,
+            // Central Shroud
+            [148] = false,
+            // The Feasting Grounds
+            [149] = false,
+            // Territory #150
+            [150] = false,
+            // The World of Darkness
+            [151] = false,
+            // East Shroud
+            [152] = false,
+            // South Shroud
+            [153] = false,
+            // North Shroud
+            [154] = false,
+            // Coerthas Central Highlands
+            [155] = false,
+            // Mor Dhona
+            [156] = false,
+            // Territory #157
+            [157] = false,
+            // Territory #158
+            [158] = false,
+            // The Wanderer's Palace
+            [159] = false,
+            // Pharos Sirius
+            [160] = false,
+            // Territory #161
+            [161] = false,
+            // Territory #162
+            [162] = false,
+            // Territory #163
+            [163] = false,
+            // Territory #164
+            [164] = false,
+            // Territory #166
+            [166] = false,
+            // Amdapor Keep
+            [167] = false,
+            // Territory #168
+            [168] = false,
+            // Territory #169
+            [169] = false,
+            // Territory #170
+            [170] = false,
+            // Dzemael Darkhold
+            [171] = false,
+            // Aurum Vale
+            [172] = false,
+            // Labyrinth of the Ancients
+            [174] = false,
+            // Territory #175
+            [175] = false,
+            // Mordion Gaol
+            [176] = true,
+            // Mizzenmast Inn
+            [177] = true,
+            // The Hourglass
+            [178] = true,
+            // The Roost
+            [179] = true,
+            // Outer La Noscea
+            [180] = false,
+            // Limsa Lominsa
+            [181] = false,
+            // Ul'dah - Steps of Nald
+            [182] = false,
+            // New Gridania
+            [183] = false,
+            // Territory #184
+            [184] = false,
+            // Territory #185
+            [185] = false,
+            // Territory #186
+            [186] = false,
+            // Territory #187
+            [187] = false,
+            // The Wanderer's Palace
+            [188] = false,
+            // Amdapor Keep
+            [189] = false,
+            // Central Shroud
+            [190] = false,
+            // East Shroud
+            [191] = false,
+            // South Shroud
+            [192] = false,
+            // IC-06 Central Decks
+            [193] = false,
+            // IC-06 Regeneration Grid
+            [194] = false,
+            // IC-06 Main Bridge
+            [195] = false,
+            // The Burning Heart
+            [196] = false,
+            // Territory #197
+            [197] = false,
+            // Command Room
+            [198] = false,
+            // Territory #199
+            [199] = false,
+            // Territory #200
+            [200] = false,
+            // Territory #201
+            [201] = false,
+            // Territory #202
+            [202] = false,
+            // Territory #203
+            [203] = false,
+            // Seat of the First Bow
+            [204] = false,
+            // Lotus Stand
+            [205] = false,
+            // Territory #206
+            [206] = false,
+            // Territory #207
+            [207] = false,
+            // Territory #208
+            [208] = false,
+            // Territory #209
+            [209] = false,
+            // Heart of the Sworn
+            [210] = false,
+            // Territory #211
+            [211] = false,
+            // The Waking Sands
+            [212] = false,
+            // Territory #213
+            [213] = false,
+            // Middle La Noscea
+            [214] = false,
+            // Western Thanalan
+            [215] = false,
+            // Central Thanalan
+            [216] = false,
+            // Territory #217
+            [217] = false,
+            // Territory #218
+            [218] = false,
+            // Central Shroud
+            [219] = false,
+            // South Shroud
+            [220] = false,
+            // Upper La Noscea
+            [221] = false,
+            // Lower La Noscea
+            [222] = false,
+            // Coerthas Central Highlands
+            [223] = false,
+            // Territory #224
+            [224] = false,
+            // Central Shroud
+            [225] = true,
+            // Central Shroud
+            [226] = true,
+            // Central Shroud
+            [227] = true,
+            // North Shroud
+            [228] = true,
+            // South Shroud
+            [229] = true,
+            // Central Shroud
+            [230] = true,
+            // South Shroud
+            [231] = true,
+            // South Shroud
+            [232] = true,
+            // Central Shroud
+            [233] = true,
+            // East Shroud
+            [234] = true,
+            // South Shroud
+            [235] = true,
+            // South Shroud
+            [236] = true,
+            // Central Shroud
+            [237] = true,
+            // Old Gridania
+            [238] = true,
+            // Central Shroud
+            [239] = true,
+            // North Shroud
+            [240] = true,
+            // Upper Aetheroacoustic Exploratory Site
+            [241] = false,
+            // Lower Aetheroacoustic Exploratory Site
+            [242] = false,
+            // The Ragnarok
+            [243] = false,
+            // Ragnarok Drive Cylinder
+            [244] = false,
+            // Ragnarok Central Core
+            [245] = false,
+            // IC-04 Main Bridge
+            [246] = false,
+            // Ragnarok Main Bridge
+            [247] = false,
+            // Central Thanalan
+            [248] = true,
+            // Lower La Noscea
+            [249] = true,
+            // Wolves' Den Pier
+            [250] = false,
+            // Ul'dah - Steps of Nald
+            [251] = true,
+            // Middle La Noscea
+            [252] = true,
+            // Central Thanalan
+            [253] = true,
+            // Ul'dah - Steps of Nald
+            [254] = true,
+            // Western Thanalan
+            [255] = true,
+            // Eastern Thanalan
+            [256] = true,
+            // Eastern Thanalan
+            [257] = true,
+            // Central Thanalan
+            [258] = true,
+            // Ul'dah - Steps of Nald
+            [259] = true,
+            // Southern Thanalan
+            [260] = true,
+            // Southern Thanalan
+            [261] = true,
+            // Lower La Noscea
+            [262] = true,
+            // Western La Noscea
+            [263] = true,
+            // Lower La Noscea
+            [264] = true,
+            // Lower La Noscea
+            [265] = true,
+            // Eastern Thanalan
+            [266] = true,
+            // Western Thanalan
+            [267] = true,
+            // Eastern Thanalan
+            [268] = true,
+            // Western Thanalan
+            [269] = true,
+            // Central Thanalan
+            [270] = true,
+            // Central Thanalan
+            [271] = true,
+            // Middle La Noscea
+            [272] = true,
+            // Western Thanalan
+            [273] = true,
+            // Ul'dah - Steps of Nald
+            [274] = true,
+            // Eastern Thanalan
+            [275] = true,
+            // Hall of Summoning
+            [276] = false,
+            // East Shroud
+            [277] = true,
+            // Western Thanalan
+            [278] = true,
+            // Lower La Noscea
+            [279] = true,
+            // Western La Noscea
+            [280] = true,
+            // The Whorleater
+            [281] = false,
+            // Private Cottage - Mist
+            [282] = false,
+            // Private House - Mist
+            [283] = false,
+            // Private Mansion - Mist
+            [284] = false,
+            // Middle La Noscea
+            [285] = true,
+            // Rhotano Sea
+            [286] = true,
+            // Lower La Noscea
+            [287] = true,
+            // Rhotano Sea
+            [288] = true,
+            // East Shroud
+            [289] = true,
+            // East Shroud
+            [290] = true,
+            // South Shroud
+            [291] = true,
+            // Bowl of Embers
+            [292] = false,
+            // The Navel
+            [293] = false,
+            // The Howling Eye
+            [294] = false,
+            // Bowl of Embers
+            [295] = false,
+            // The Navel
+            [296] = false,
+            // The Howling Eye
+            [297] = false,
+            // Coerthas Central Highlands
+            [298] = false,
+            // Mor Dhona
+            [299] = false,
+            // Mor Dhona
+            [300] = false,
+            // Coerthas Central Highlands
+            [301] = true,
+            // Coerthas Central Highlands
+            [302] = true,
+            // East Shroud
+            [303] = true,
+            // Coerthas Central Highlands
+            [304] = true,
+            // Mor Dhona
+            [305] = true,
+            // Southern Thanalan
+            [306] = true,
+            // Lower La Noscea
+            [307] = true,
+            // Mor Dhona
+            [308] = true,
+            // Mor Dhona
+            [309] = true,
+            // Eastern La Noscea
+            [310] = true,
+            // Eastern La Noscea
+            [311] = true,
+            // Southern Thanalan
+            [312] = true,
+            // Coerthas Central Highlands
+            [313] = true,
+            // Central Thanalan
+            [314] = true,
+            // Mor Dhona
+            [315] = true,
+            // Coerthas Central Highlands
+            [316] = true,
+            // South Shroud
+            [317] = true,
+            // Southern Thanalan
+            [318] = true,
+            // Central Shroud
+            [319] = true,
+            // Central Shroud
+            [320] = true,
+            // North Shroud
+            [321] = true,
+            // Coerthas Central Highlands
+            [322] = true,
+            // Southern Thanalan
+            [323] = true,
+            // North Shroud
+            [324] = true,
+            // Outer La Noscea
+            [325] = true,
+            // Mor Dhona
+            [326] = true,
+            // Eastern La Noscea
+            [327] = true,
+            // Upper La Noscea
+            [328] = true,
+            // The Wanderer's Palace
+            [329] = true,
+            // Western La Noscea
+            [330] = true,
+            // The Howling Eye
+            [331] = false,
+            // Territory #332
+            [332] = false,
+            // Territory #333
+            [333] = false,
+            // Territory #334
+            [334] = false,
+            // Mor Dhona
+            [335] = false,
+            // Territory #336
+            [336] = false,
+            // Territory #337
+            [337] = false,
+            // Eorzean Subterrane
+            [338] = false,
+            // Mist
+            [339] = false,
+            // The Lavender Beds
+            [340] = false,
+            // The Goblet
+            [341] = false,
+            // Private Cottage - The Lavender Beds
+            [342] = false,
+            // Private House - The Lavender Beds
+            [343] = false,
+            // Private Mansion - The Lavender Beds
+            [344] = false,
+            // Private Cottage - The Goblet
+            [345] = false,
+            // Private House - The Goblet
+            [346] = false,
+            // Private Mansion - The Goblet
+            [347] = false,
+            // Porta Decumana
+            [348] = false,
+            // Copperbell Mines
+            [349] = false,
+            // Haukke Manor
+            [350] = false,
+            // The Rising Stones
+            [351] = false,
+            // Territory #352
+            [352] = false,
+            // Kugane Ohashi
+            [353] = false,
+            // The Dancing Plague
+            [354] = false,
+            // Dalamud's Shadow
+            [355] = false,
+            // The Outer Coil
+            [356] = false,
+            // Central Decks
+            [357] = false,
+            // The Holocharts
+            [358] = false,
+            // The Whorleater
+            [359] = false,
+            // Halatali
+            [360] = false,
+            // Hullbreaker Isle
+            [361] = false,
+            // Brayflox's Longstop
+            [362] = false,
+            // The Lost City of Amdapor
+            [363] = false,
+            // Thornmarch
+            [364] = false,
+            // Stone Vigil
+            [365] = false,
+            // Griffin Crossing
+            [366] = false,
+            // The Sunken Temple of Qarn
+            [367] = false,
+            // The Weeping Saint
+            [368] = false,
+            // Hall of the Bestiarii
+            [369] = false,
+            // Main Bridge
+            [370] = false,
+            // Territory #371
+            [371] = false,
+            // Syrcus Tower
+            [372] = false,
+            // The Tam-Tara Deepcroft
+            [373] = false,
+            // The Striking Tree
+            [374] = false,
+            // The Striking Tree
+            [375] = false,
+            // Carteneau Flats: Borderland Ruins
+            [376] = false,
+            // Akh Afah Amphitheatre
+            [377] = false,
+            // Akh Afah Amphitheatre
+            [378] = false,
+            // Mor Dhona
+            [379] = true,
+            // Dalamud's Shadow
+            [380] = false,
+            // The Outer Coil
+            [381] = false,
+            // Central Decks
+            [382] = false,
+            // The Holocharts
+            [383] = false,
+            // Private Chambers - Mist
+            [384] = false,
+            // Private Chambers - The Lavender Beds
+            [385] = false,
+            // Private Chambers - The Goblet
+            [386] = false,
+            // Sastasha
+            [387] = false,
+            // Chocobo Square
+            [388] = false,
+            // Chocobo Square
+            [389] = true,
+            // Chocobo Square
+            [390] = true,
+            // Chocobo Square
+            [391] = true,
+            // Sanctum of the Twelve
+            [392] = false,
+            // Sanctum of the Twelve
+            [393] = false,
+            // South Shroud
+            [394] = false,
+            // Intercessory
+            [395] = false,
+            // Amdapor Keep
+            [396] = false,
+            // Coerthas Western Highlands
+            [397] = false,
+            // The Dravanian Forelands
+            [398] = false,
+            // The Dravanian Hinterlands
+            [399] = false,
+            // The Churning Mists
+            [400] = false,
+            // The Sea of Clouds
+            [401] = false,
+            // Azys Lla
+            [402] = false,
+            // Ala Mhigo
+            [403] = true,
+            // Limsa Lominsa Lower Decks
+            [404] = true,
+            // Western La Noscea
+            [405] = true,
+            // Western La Noscea
+            [406] = true,
+            // Rhotano Sea
+            [407] = true,
+            // Eastern La Noscea
+            [408] = true,
+            // Limsa Lominsa Upper Decks
+            [409] = true,
+            // Northern Thanalan
+            [410] = true,
+            // Eastern La Noscea
+            [411] = true,
+            // Upper La Noscea
+            [412] = true,
+            // Western La Noscea
+            [413] = true,
+            // Eastern La Noscea
+            [414] = true,
+            // Lower La Noscea
+            [415] = true,
+            // Territory #416
+            [416] = false,
+            // Chocobo Square
+            [417] = true,
+            // Foundation
+            [418] = false,
+            // The Pillars
+            [419] = false,
+            // Neverreap
+            [420] = false,
+            // Territory #421
+            [421] = false,
+            // Territory #422
+            [422] = false,
+            // Company Workshop - Mist
+            [423] = true,
+            // Company Workshop - The Goblet
+            [424] = true,
+            // Company Workshop - The Lavender Beds
+            [425] = true,
+            // The Chrysalis
+            [426] = false,
+            // Saint Endalim's Scholasticate
+            [427] = false,
+            // Seat of the Lord Commander
+            [428] = false,
+            // Cloud Nine
+            [429] = true,
+            // The Fractal Continuum
+            [430] = false,
+            // Seal Rock
+            [431] = false,
+            // Thok ast Thok
+            [432] = false,
+            // Fortemps Manor
+            [433] = false,
+            // Dusk Vigil
+            [434] = true,
+            // Territory #435
+            [435] = false,
+            // The Limitless Blue
+            [436] = false,
+            // Singularity Reactor
+            [437] = false,
+            // Territory #438
+            [438] = false,
+            // The Lightfeather Proving Grounds
+            [439] = false,
+            // Ruling Chamber
+            [440] = false,
+            // Territory #441
+            [441] = false,
+            // The Fist of the Father
+            [442] = false,
+            // The Cuff of the Father
+            [443] = false,
+            // The Arm of the Father
+            [444] = false,
+            // The Burden of the Father
+            [445] = false,
+            // Thok ast Thok
+            [446] = false,
+            // The Limitless Blue
+            [447] = false,
+            // Singularity Reactor
+            [448] = false,
+            // The Fist of the Father
+            [449] = false,
+            // The Cuff of the Father
+            [450] = false,
+            // The Arm of the Father
+            [451] = false,
+            // The Burden of the Father
+            [452] = false,
+            // Western La Noscea
+            [453] = true,
+            // Upper La Noscea
+            [454] = true,
+            // The Sea of Clouds
+            [455] = true,
+            // Ruling Chamber
+            [456] = true,
+            // Akh Afah Amphitheatre
+            [457] = true,
+            // Foundation
+            [458] = true,
+            // Azys Lla
+            [459] = true,
+            // Halatali
+            [460] = true,
+            // The Sea of Clouds
+            [461] = true,
+            // Sacrificial Chamber
+            [462] = false,
+            // Matoya's Cave
+            [463] = false,
+            // The Dravanian Forelands
+            [464] = true,
+            // Eastern Thanalan
+            [465] = true,
+            // Upper La Noscea
+            [466] = true,
+            // Coerthas Western Highlands
+            [467] = true,
+            // Coerthas Central Highlands
+            [468] = true,
+            // Coerthas Central Highlands
+            [469] = true,
+            // Coerthas Western Highlands
+            [470] = true,
+            // Eastern La Noscea
+            [471] = true,
+            // Coerthas Western Highlands
+            [472] = true,
+            // South Shroud
+            [473] = true,
+            // Limsa Lominsa Upper Decks
+            [474] = true,
+            // Coerthas Central Highlands
+            [475] = true,
+            // The Dravanian Hinterlands
+            [476] = true,
+            // Coerthas Western Highlands
+            [477] = true,
+            // Idyllshire
+            [478] = false,
+            // Coerthas Western Highlands
+            [479] = true,
+            // Mor Dhona
+            [480] = true,
+            // The Dravanian Forelands
+            [481] = true,
+            // The Dravanian Forelands
+            [482] = true,
+            // Northern Thanalan
+            [483] = true,
+            // Lower La Noscea
+            [484] = true,
+            // The Dravanian Hinterlands
+            [485] = true,
+            // Outer La Noscea
+            [486] = true,
+            // Coerthas Central Highlands
+            [487] = true,
+            // Coerthas Central Highlands
+            [488] = true,
+            // Coerthas Western Highlands
+            [489] = true,
+            // Hullbreaker Isle
+            [490] = true,
+            // Southern Thanalan
+            [491] = true,
+            // The Sea of Clouds
+            [492] = true,
+            // Coerthas Western Highlands
+            [493] = true,
+            // Eastern Thanalan
+            [494] = true,
+            // Lower La Noscea
+            [495] = true,
+            // Coerthas Central Highlands
+            [496] = true,
+            // Coerthas Western Highlands
+            [497] = true,
+            // Coerthas Western Highlands
+            [498] = true,
+            // The Pillars
+            [499] = true,
+            // Coerthas Central Highlands
+            [500] = true,
+            // The Churning Mists
+            [501] = true,
+            // Carteneau Flats: Borderland Ruins
+            [502] = true,
+            // The Dravanian Hinterlands
+            [503] = true,
+            // The Eighteenth Floor
+            [504] = false,
+            // Alexander
+            [505] = false,
+            // Chocobo Square
+            [506] = true,
+            // Central Azys Lla
+            [507] = false,
+            // Void Ark
+            [508] = false,
+            // The Gilded Araya
+            [509] = false,
+            // Pharos Sirius
+            [510] = false,
+            // Saint Mocianne's Arboretum
+            [511] = false,
+            // The Diadem
+            [512] = false,
+            // The Vault
+            [513] = true,
+            // The Diadem
+            [514] = false,
+            // The Diadem
+            [515] = false,
+            // Territory #516
+            [516] = false,
+            // Containment Bay S1T7
+            [517] = false,
+            // Territory #518
+            [518] = false,
+            // The Lost City of Amdapor
+            [519] = false,
+            // The Fist of the Son
+            [520] = false,
+            // The Cuff of the Son
+            [521] = false,
+            // The Arm of the Son
+            [522] = false,
+            // The Burden of the Son
+            [523] = false,
+            // Containment Bay S1T7
+            [524] = false,
+            // Territory #525
+            [525] = false,
+            // Territory #526
+            [526] = false,
+            // Territory #527
+            [527] = false,
+            // Territory #528
+            [528] = false,
+            // The Fist of the Son
+            [529] = false,
+            // The Cuff of the Son
+            [530] = false,
+            // The Arm of the Son
+            [531] = false,
+            // The Burden of the Son
+            [532] = false,
+            // Coerthas Central Highlands
+            [533] = true,
+            // Twin Adder Barracks
+            [534] = false,
+            // Flame Barracks
+            [535] = false,
+            // Maelstrom Barracks
+            [536] = false,
+            // The Fold
+            [537] = true,
+            // The Fold
+            [538] = true,
+            // The Fold
+            [539] = true,
+            // The Fold
+            [540] = true,
+            // The Fold
+            [541] = true,
+            // The Fold
+            [542] = true,
+            // The Fold
+            [543] = true,
+            // The Fold
+            [544] = true,
+            // The Fold
+            [545] = true,
+            // The Fold
+            [546] = true,
+            // The Fold
+            [547] = true,
+            // The Fold
+            [548] = true,
+            // The Fold
+            [549] = true,
+            // The Fold
+            [550] = true,
+            // The Fold
+            [551] = true,
+            // Western La Noscea
+            [552] = true,
+            // Alexander
+            [553] = false,
+            // The Fields of Glory
+            [554] = false,
+            // Territory #555
+            [555] = false,
+            // The Weeping City of Mhach
+            [556] = false,
+            // Hullbreaker Isle
+            [557] = false,
+            // The Aquapolis
+            [558] = false,
+            // Steps of Faith
+            [559] = false,
+            // Aetherochemical Research Facility
+            [560] = true,
+            // The Palace of the Dead
+            [561] = false,
+            // The Palace of the Dead
+            [562] = false,
+            // The Palace of the Dead
+            [563] = false,
+            // The Palace of the Dead
+            [564] = false,
+            // The Palace of the Dead
+            [565] = false,
+            // Steps of Faith
+            [566] = false,
+            // The Parrock
+            [567] = false,
+            // Leofard's Chambers
+            [568] = false,
+            // Steps of Faith
+            [569] = false,
+            // The Palace of the Dead
+            [570] = false,
+            // Haunted Manor
+            [571] = false,
+            // Territory #572
+            [572] = false,
+            // Topmast Apartment Lobby
+            [573] = false,
+            // Lily Hills Apartment Lobby
+            [574] = false,
+            // Sultana's Breath Apartment Lobby
+            [575] = false,
+            // Containment Bay P1T6
+            [576] = false,
+            // Containment Bay P1T6
+            [577] = false,
+            // The Great Gubal Library
+            [578] = false,
+            // The Battlehall
+            [579] = false,
+            // Eyes of the Creator
+            [580] = false,
+            // Breath of the Creator
+            [581] = false,
+            // Heart of the Creator
+            [582] = false,
+            // Soul of the Creator
+            [583] = false,
+            // Eyes of the Creator
+            [584] = false,
+            // Breath of the Creator
+            [585] = false,
+            // Heart of the Creator
+            [586] = false,
+            // Soul of the Creator
+            [587] = false,
+            // Heart of the Creator
+            [588] = false,
+            // Chocobo Square
+            [589] = false,
+            // Chocobo Square
+            [590] = false,
+            // Chocobo Square
+            [591] = false,
+            // Bowl of Embers
+            [592] = true,
+            // The Palace of the Dead
+            [593] = false,
+            // The Palace of the Dead
+            [594] = false,
+            // The Palace of the Dead
+            [595] = false,
+            // The Palace of the Dead
+            [596] = false,
+            // The Palace of the Dead
+            [597] = false,
+            // The Palace of the Dead
+            [598] = false,
+            // The Palace of the Dead
+            [599] = false,
+            // The Palace of the Dead
+            [600] = false,
+            // The Palace of the Dead
+            [601] = false,
+            // The Palace of the Dead
+            [602] = false,
+            // The Palace of the Dead
+            [603] = false,
+            // The Palace of the Dead
+            [604] = false,
+            // The Palace of the Dead
+            [605] = false,
+            // The Palace of the Dead
+            [606] = false,
+            // The Palace of the Dead
+            [607] = false,
+            // Topmast Apartment
+            [608] = false,
+            // Lily Hills Apartment
+            [609] = false,
+            // Sultana's Breath Apartment
+            [610] = false,
+            // Frondale's Home for Friendless Foundlings
+            [611] = false,
+            // The Fringes
+            [612] = false,
+            // The Ruby Sea
+            [613] = false,
+            // Yanxia
+            [614] = false,
+            // Territory #615
+            [615] = false,
+            // Shisui of the Violet Tides
+            [616] = true,
+            // Sohm Al
+            [617] = false,
+            // Territory #618
+            [618] = false,
+            // Territory #619
+            [619] = false,
+            // The Peaks
+            [620] = false,
+            // The Lochs
+            [621] = false,
+            // The Azim Steppe
+            [622] = false,
+            // Territory #623
+            [623] = false,
+            // The Diadem
+            [624] = false,
+            // The Diadem
+            [625] = false,
+            // Territory #626
+            [626] = false,
+            // Dun Scaith
+            [627] = false,
+            // Kugane
+            [628] = false,
+            // Bokairo Inn
+            [629] = false,
+            // Territory #630
+            [630] = true,
+            // Territory #631
+            [631] = false,
+            // Territory #632
+            [632] = false,
+            // Carteneau Flats: Borderland Ruins
+            [633] = true,
+            // Yanxia
+            [634] = true,
+            // Rhalgr's Reach
+            [635] = false,
+            // Omega Control
+            [636] = false,
+            // Containment Bay Z1T9
+            [637] = false,
+            // Containment Bay Z1T9
+            [638] = false,
+            // Ruby Bazaar Offices
+            [639] = false,
+            // The Fringes
+            [640] = true,
+            // Shirogane
+            [641] = false,
+            // Territory #642
+            [642] = false,
+            // Territory #643
+            [643] = false,
+            // Territory #644
+            [644] = false,
+            // Territory #645
+            [645] = false,
+            // Territory #646
+            [646] = false,
+            // The Fringes
+            [647] = true,
+            // The Fringes
+            [648] = true,
+            // Private Cottage - Shirogane
+            [649] = false,
+            // Private House - Shirogane
+            [650] = false,
+            // Private Mansion - Shirogane
+            [651] = false,
+            // Private Chambers - Shirogane
+            [652] = false,
+            // Company Workshop - Shirogane
+            [653] = true,
+            // Kobai Goten Apartment Lobby
+            [654] = false,
+            // Kobai Goten Apartment
+            [655] = false,
+            // The Diadem
+            [656] = false,
+            // The Ruby Sea
+            [657] = true,
+            // The Interdimensional Rift
+            [658] = true,
+            // Rhalgr's Reach
+            [659] = true,
+            // Territory #660
+            [660] = false,
+            // Territory #661
+            [661] = false,
+            // Kugane Castle
+            [662] = false,
+            // The Temple of the Fist
+            [663] = false,
+            // Kugane
+            [664] = true,
+            // Kugane
+            [665] = true,
+            // Ul'dah - Steps of Thal
+            [666] = true,
+            // Kugane
+            [667] = true,
+            // Eastern Thanalan
+            [668] = true,
+            // Southern Thanalan
+            [669] = true,
+            // The Fringes
+            [670] = true,
+            // The Fringes
+            [671] = true,
+            // Mor Dhona
+            [672] = true,
+            // Sohm Al
+            [673] = true,
+            // The Blessed Treasury
+            [674] = false,
+            // Western La Noscea
+            [675] = true,
+            // The Great Gubal Library
+            [676] = true,
+            // The Blessed Treasury
+            [677] = false,
+            // The Fringes
+            [678] = true,
+            // The Royal Airship Landing
+            [679] = false,
+            // The Misery
+            [680] = false,
+            // The House of the Fierce
+            [681] = false,
+            // The Doman Enclave
+            [682] = false,
+            // The First Altar of Djanan Qhat
+            [683] = false,
+            // The Lochs
+            [684] = true,
+            // Yanxia
+            [685] = true,
+            // The Lochs
+            [686] = true,
+            // The Lochs
+            [687] = true,
+            // The Azim Steppe
+            [688] = true,
+            // Territory #689
+            [689] = false,
+            // The Interdimensional Rift
+            [690] = true,
+            // Deltascape V1.0
+            [691] = false,
+            // Deltascape V2.0
+            [692] = false,
+            // Deltascape V3.0
+            [693] = false,
+            // Deltascape V4.0
+            [694] = false,
+            // Deltascape V1.0
+            [695] = false,
+            // Deltascape V2.0
+            [696] = false,
+            // Deltascape V3.0
+            [697] = false,
+            // Deltascape V4.0
+            [698] = false,
+            // Coerthas Central Highlands
+            [699] = true,
+            // Foundation
+            [700] = true,
+            // Seal Rock
+            [701] = true,
+            // Aetherochemical Research Facility
+            [702] = true,
+            // The Fringes
+            [703] = true,
+            // Dalamud's Shadow
+            [704] = true,
+            // Ul'dah - Steps of Thal
+            [705] = true,
+            // Ul'dah - Steps of Thal
+            [706] = true,
+            // The Weeping City of Mhach
+            [707] = true,
+            // Rhotano Sea
+            [708] = true,
+            // Coerthas Western Highlands
+            [709] = true,
+            // Kugane
+            [710] = true,
+            // The Ruby Sea
+            [711] = true,
+            // The Lost Canals of Uznair
+            [712] = false,
+            // The Azim Steppe
+            [713] = true,
+            // Bardam's Mettle
+            [714] = true,
+            // The Churning Mists
+            [715] = true,
+            // The Peaks
+            [716] = true,
+            // Wolves' Den Pier
+            [717] = true,
+            // The Azim Steppe
+            [718] = true,
+            // Emanation
+            [719] = false,
+            // Emanation
+            [720] = false,
+            // Amdapor Keep
+            [721] = true,
+            // The Lost City of Amdapor
+            [722] = true,
+            // The Azim Steppe
+            [723] = true,
+            // The Interdimensional Rift
+            [724] = false,
+            // The Lost Canals of Uznair
+            [725] = false,
+            // The Ruby Sea
+            [726] = true,
+            // The Royal Menagerie
+            [727] = false,
+            // Mordion Gaol
+            [728] = false,
+            // Astragalos
+            [729] = false,
+            // Transparency
+            [730] = false,
+            // Territory #731
+            [731] = false,
+            // Eureka Anemos
+            [732] = false,
+            // The Binding Coil of Bahamut
+            [733] = false,
+            // The Royal City of Rabanastre
+            [734] = false,
+            // The Prima Vista Tiring Room
+            [735] = false,
+            // The Prima Vista Bridge
+            [736] = false,
+            // Royal Palace
+            [737] = false,
+            // The Resonatorium
+            [738] = false,
+            // The Doman Enclave
+            [739] = false,
+            // The Royal Menagerie
+            [740] = false,
+            // Sanctum of the Twelve
+            [741] = false,
+            // Hells' Lid
+            [742] = false,
+            // The Fractal Continuum
+            [743] = false,
+            // Kienkan
+            [744] = false,
+            // Territory #745
+            [745] = false,
+            // The Jade Stoa
+            [746] = false,
+            // Territory #747
+            [747] = false,
+            // Sigmascape V1.0
+            [748] = false,
+            // Sigmascape V2.0
+            [749] = false,
+            // Sigmascape V3.0
+            [750] = false,
+            // Sigmascape V4.0
+            [751] = false,
+            // Sigmascape V1.0
+            [752] = false,
+            // Sigmascape V2.0
+            [753] = false,
+            // Sigmascape V3.0
+            [754] = false,
+            // Sigmascape V4.0
+            [755] = false,
+            // The Interdimensional Rift
+            [756] = false,
+            // The Ruby Sea
+            [757] = true,
+            // The Jade Stoa
+            [758] = false,
+            // The Doman Enclave
+            [759] = false,
+            // The Fringes
+            [760] = true,
+            // The Great Hunt
+            [761] = false,
+            // The Great Hunt
+            [762] = false,
+            // Eureka Pagos
+            [763] = false,
+            // Reisen Temple
+            [764] = false,
+            // Territory #765
+            [765] = false,
+            // Territory #766
+            [766] = false,
+            // Territory #767
+            [767] = false,
+            // The Swallow's Compass
+            [768] = false,
+            // The Burn
+            [769] = true,
+            // Heaven-on-High
+            [770] = true,
+            // Heaven-on-High
+            [771] = true,
+            // Heaven-on-High
+            [772] = true,
+            // Heaven-on-High
+            [773] = true,
+            // Heaven-on-High
+            [774] = true,
+            // Heaven-on-High
+            [775] = true,
+            // The Ridorana Lighthouse
+            [776] = false,
+            // Ultimacy
+            [777] = false,
+            // Castrum Fluminis
+            [778] = false,
+            // Castrum Fluminis
+            [779] = false,
+            // Heaven-on-High
+            [780] = false,
+            // Reisen Temple Road
+            [781] = true,
+            // Heaven-on-High
+            [782] = true,
+            // Heaven-on-High
+            [783] = true,
+            // Heaven-on-High
+            [784] = true,
+            // Heaven-on-High
+            [785] = true,
+            // Castrum Fluminis
+            [786] = false,
+            // The Ridorana Cataract
+            [787] = false,
+            // Saint Mocianne's Arboretum
+            [788] = false,
+            // Territory #789
+            [789] = false,
+            // Ul'dah - Steps of Nald
+            [790] = false,
+            // Hidden Gorge
+            [791] = false,
+            // The Fall of Belah'dia
+            [792] = false,
+            // Territory #793
+            [793] = false,
+            // The Shifting Altars of Uznair
+            [794] = false,
+            // Eureka Pyros
+            [795] = false,
+            // Blue Sky
+            [796] = true,
+            // The Azim Steppe
+            [797] = true,
+            // Psiscape V1.0
+            [798] = false,
+            // Psiscape V2.0
+            [799] = false,
+            // The Interdimensional Rift
+            [800] = false,
+            // The Interdimensional Rift
+            [801] = false,
+            // Psiscape V1.0
+            [802] = false,
+            // Psiscape V2.0
+            [803] = false,
+            // The Interdimensional Rift
+            [804] = false,
+            // The Interdimensional Rift
+            [805] = false,
+            // Kugane Ohashi
+            [806] = false,
+            // The Interdimensional Rift
+            [807] = false,
+            // The Interdimensional Rift
+            [808] = false,
+            // Haunted Manor
+            [809] = false,
+            // Hells' Kier
+            [810] = false,
+            // Hells' Kier
+            [811] = false,
+            // The Interdimensional Rift
+            [812] = false,
+            // Lakeland
+            [813] = false,
+            // Kholusia
+            [814] = false,
+            // Amh Araeng
+            [815] = false,
+            // Il Mheg
+            [816] = false,
+            // The Rak'tika Greatwood
+            [817] = false,
+            // The Tempest
+            [818] = false,
+            // The Crystarium
+            [819] = false,
+            // Eulmore
+            [820] = false,
+            // Dohn Mheg
+            [821] = false,
+            // Mt. Gulg
+            [822] = false,
+            // The Qitana Ravel
+            [823] = false,
+            // The Wreath of Snakes
+            [824] = false,
+            // The Wreath of Snakes
+            [825] = false,
+            // The Orbonne Monastery
+            [826] = false,
+            // Eureka Hydatos
+            [827] = false,
+            // The Prima Vista Tiring Room
+            [828] = false,
+            // Eorzean Alliance Headquarters
+            [829] = false,
+            // The Ghimlyt Dark
+            [830] = true,
+            // The Manderville Tables
+            [831] = true,
+            // The Gold Saucer
+            [832] = true,
+            // The Howling Eye
+            [833] = false,
+            // The Howling Eye
+            [834] = true,
+            // Territory #835
+            [835] = false,
+            // Malikah's Well
+            [836] = false,
+            // Holminster Switch
+            [837] = false,
+            // Amaurot
+            [838] = false,
+            // East Shroud
+            [839] = true,
+            // The Twinning
+            [840] = false,
+            // Akadaemia Anyder
+            [841] = false,
+            // The Syrcus Trench
+            [842] = false,
+            // The Pendants Personal Suite
+            [843] = true,
+            // The Ocular
+            [844] = false,
+            // The Dancing Plague
+            [845] = false,
+            // The Crown of the Immaculate
+            [846] = false,
+            // The Dying Gasp
+            [847] = false,
+            // The Crown of the Immaculate
+            [848] = false,
+            // The Core
+            [849] = false,
+            // The Halo
+            [850] = false,
+            // The Nereus Trench
+            [851] = false,
+            // Atlas Peak
+            [852] = false,
+            // The Core
+            [853] = false,
+            // The Halo
+            [854] = false,
+            // The Nereus Trench
+            [855] = false,
+            // Atlas Peak
+            [856] = false,
+            // The Core
+            [857] = false,
+            // The Dancing Plague
+            [858] = false,
+            // The Confessional of Toupasa the Elder
+            [859] = true,
+            // Amh Araeng
+            [860] = true,
+            // Lakeland
+            [861] = true,
+            // Lakeland
+            [862] = true,
+            // Eulmore
+            [863] = true,
+            // Kholusia
+            [864] = true,
+            // Old Gridania
+            [865] = true,
+            // Coerthas Western Highlands
+            [866] = true,
+            // Eastern La Noscea
+            [867] = true,
+            // The Peaks
+            [868] = true,
+            // Il Mheg
+            [869] = true,
+            // Kholusia
+            [870] = true,
+            // The Rak'tika Greatwood
+            [871] = true,
+            // Amh Araeng
+            [872] = true,
+            // The Dancing Plague
+            [873] = true,
+            // The Rak'tika Greatwood
+            [874] = true,
+            // The Rak'tika Greatwood
+            [875] = true,
+            // The Nabaath Mines
+            [876] = true,
+            // Lakeland
+            [877] = false,
+            // The Empty
+            [878] = false,
+            // The Dungeons of Lyhe Ghiah
+            [879] = false,
+            // The Crown of the Immaculate
+            [880] = false,
+            // The Dying Gasp
+            [881] = false,
+            // The Copied Factory
+            [882] = false,
+            // Territory #883
+            [883] = false,
+            // The Grand Cosmos
+            [884] = false,
+            // The Dying Gasp
+            [885] = false,
+            // The Firmament
+            [886] = false,
+            // Liminal Space
+            [887] = false,
+            // Onsal Hakair
+            [888] = false,
+            // Lyhe Mheg
+            [889] = false,
+            // Lyhe Mheg
+            [890] = false,
+            // Lyhe Mheg
+            [891] = false,
+            // Lyhe Mheg
+            [892] = false,
+            // The Imperial Palace
+            [893] = true,
+            // Lyhe Mheg
+            [894] = true,
+            // Excavation Tunnels
+            [895] = false,
+            // The Copied Factory
+            [896] = false,
+            // Cinder Drift
+            [897] = false,
+            // Anamnesis Anyder
+            [898] = false,
+            // The Falling City of Nym
+            [899] = false,
+            // The Endeavor
+            [900] = false,
+            // The Diadem
+            [901] = false,
+            // The Gandof Thunder Plains
+            [902] = false,
+            // Ashfall
+            [903] = false,
+            // The Halo
+            [904] = false,
+            // Great Glacier
+            [905] = false,
+            // The Gandof Thunder Plains
+            [906] = false,
+            // Ashfall
+            [907] = false,
+            // The Halo
+            [908] = false,
+            // Great Glacier
+            [909] = false,
+            // Territory #910
+            [910] = false,
+            // Cid's Memory
+            [911] = true,
+            // Cinder Drift
+            [912] = false,
+            // Transmission Control
+            [913] = false,
+            // Trial's Threshold
+            [914] = true,
+            // Gangos
+            [915] = false,
+            // The Heroes' Gauntlet
+            [916] = false,
+            // The Puppets' Bunker
+            [917] = false,
+            // Anamnesis Anyder
+            [918] = false,
+            // Terncliff
+            [919] = false,
+            // Bozjan Southern Front
+            [920] = false,
+            // Frondale's Home for Friendless Foundlings
+            [921] = false,
+            // The Seat of Sacrifice
+            [922] = false,
+            // The Seat of Sacrifice
+            [923] = false,
+            // The Shifting Oubliettes of Lyhe Ghiah
+            [924] = false,
+            // Terncliff Bay
+            [925] = true,
+            // Terncliff Bay
+            [926] = true,
+            // Territory #927
+            [927] = false,
+            // The Puppets' Bunker
+            [928] = false,
+            // The Diadem
+            [929] = false,
+            // Territory #930
+            [930] = false,
+            // The Seat of Sacrifice
+            [931] = false,
+            // The Tempest
+            [932] = true,
+            // Matoya's Relict
+            [933] = false,
+            // Castrum Marinum Drydocks
+            [934] = false,
+            // Castrum Marinum Drydocks
+            [935] = false,
+            // Delubrum Reginae
+            [936] = false,
+            // Delubrum Reginae
+            [937] = false,
+            // Paglth'an
+            [938] = false,
+            // The Diadem
+            [939] = false,
+            // The Battlehall
+            [940] = false,
+            // The Battlehall
+            [941] = false,
+            // Sphere of Naught
+            [942] = false,
+            // Laxan Loft
+            [943] = false,
+            // Bygone Gaol
+            [944] = false,
+            // The Garden of Nowhere
+            [945] = false,
+            // Sphere of Naught
+            [946] = false,
+            // Laxan Loft
+            [947] = false,
+            // Bygone Gaol
+            [948] = false,
+            // The Garden of Nowhere
+            [949] = false,
+            // G-Savior Deck
+            [950] = false,
+            // G-Savior Deck
+            [951] = false,
+            // The Tower of Zot
+            [952] = false,
+            // Territory #953
+            [953] = false,
+            // The Navel
+            [954] = true,
+            // The Last Trace
+            [955] = true,
+            // Labyrinthos
+            [956] = false,
+            // Thavnair
+            [957] = false,
+            // Garlemald
+            [958] = false,
+            // Mare Lamentorum
+            [959] = false,
+            // Ultima Thule
+            [960] = false,
+            // Elpis
+            [961] = false,
+            // Old Sharlayan
+            [962] = false,
+            // Radz-at-Han
+            [963] = false,
+            // The Last Trace
+            [964] = false,
+            // The Empty
+            [965] = false,
+            // The Tower at Paradigm's Breach
+            [966] = false,
+            // Castrum Marinum Drydocks
+            [967] = false,
+            // Medias Res
+            [968] = false,
+            // The Tower of Babil
+            [969] = false,
+            // Vanaspati
+            [970] = false,
+            // Lemures Headquarters
+            [971] = false,
+            // Territory #972
+            [972] = false,
+            // The Dead Ends
+            [973] = false,
+            // Ktisis Hyperboreia
+            [974] = false,
+            // Zadnor
+            [975] = false,
+            // Smileton
+            [976] = false,
+            // Carteneau Flats: Borderland Ruins
+            [977] = true,
+            // The Aitiascope
+            [978] = false,
+            // Empyreum
+            [979] = false,
+            // Private Cottage - Empyreum
+            [980] = false,
+            // Private House - Empyreum
+            [981] = false,
+            // Private Mansion - Empyreum
+            [982] = false,
+            // Private Chambers - Empyreum
+            [983] = false,
+            // Company Workshop - Empyreum
+            [984] = true,
+            // Ingleside Apartment Lobby
+            [985] = false,
+            // The Stigma Dreamscape
+            [986] = false,
+            // Main Hall
+            [987] = false,
+            // m5e1
+            [988] = false,
+            // k5e2
+            [989] = false,
+            // Andron
+            [990] = true,
+            // G-Savior Deck
+            [991] = false,
+            // The Dark Inside
+            [992] = false,
+            // The Dark Inside
+            [993] = false,
+            // The Phantoms' Feast
+            [994] = false,
+            // The Mothercrystal
+            [995] = false,
+            // The Mothercrystal
+            [996] = false,
+            // The Final Day
+            [997] = false,
+            // The Final Day
+            [998] = false,
+            // Ingleside Apartment
+            [999] = false,
+            // The Excitatron 6000
+            [1000] = false,
+            // Strategy Room
+            [1001] = false,
+            // The Gates of Pandæmonium
+            [1002] = false,
+            // The Gates of Pandæmonium
+            [1003] = false,
+            // The Stagnant Limbo
+            [1004] = false,
+            // The Stagnant Limbo
+            [1005] = false,
+            // The Fervid Limbo
+            [1006] = false,
+            // The Fervid Limbo
+            [1007] = false,
+            // The Sanguine Limbo
+            [1008] = false,
+            // The Sanguine Limbo
+            [1009] = false,
+            // Magna Glacies
+            [1010] = true,
+            // Garlemald
+            [1011] = true,
+            // Magna Glacies
+            [1012] = true,
+            // Beyond the Stars
+            [1013] = true,
+            // Elpis
+            [1014] = true,
+            // Central Shroud
+            [1015] = true,
+            // Sastasha
+            [1016] = true,
+            // The Swallow's Compass
+            [1017] = true,
+            // The Vault
+            [1018] = true,
+            // The Peaks
+            [1019] = true,
+            // Cutter's Cry
+            [1020] = true,
+            // Dusk Vigil
+            [1021] = true,
+            // Saint Mocianne's Arboretum
+            [1022] = true,
+            // The Dravanian Forelands
+            [1023] = true,
+            // The Nethergate
+            [1024] = false,
+            // The Gates of Pandæmonium
+            [1025] = false,
+            // Beyond the Stars
+            [1026] = false,
+            // Ultima Thule
+            [1027] = false,
+            // The Dark Inside
+            [1028] = false,
+            // The Final Day
+            [1029] = false,
+            // The Mothercrystal
+            [1030] = false,
+            // Propylaion
+            [1031] = false,
+            // The Palaistra
+            [1032] = true,
+            // The Volcanic Heart
+            [1033] = true,
+            // Cloud Nine
+            [1034] = true,
+            // Territory #1035
+            [1035] = false,
+            // Sastasha
+            [1036] = false,
+            // The Tam-Tara Deepcroft
+            [1037] = false,
+            // Copperbell Mines
+            [1038] = false,
+            // The Thousand Maws of Toto-Rak
+            [1039] = false,
+            // Haukke Manor
+            [1040] = false,
+            // Brayflox's Longstop
+            [1041] = false,
+            // Stone Vigil
+            [1042] = false,
+            // Castrum Meridianum
+            [1043] = false,
+            // The Praetorium
+            [1044] = false,
+            // Bowl of Embers
+            [1045] = false,
+            // The Navel
+            [1046] = false,
+            // The Howling Eye
+            [1047] = false,
+            // Porta Decumana
+            [1048] = false,
+            // Western Thanalan
+            [1049] = true,
+            // Alzadaal's Legacy
+            [1050] = false,
+            // The Tower of Babil
+            [1051] = true,
+            // The Porta Decumana
+            [1052] = true,
+            // The Porta Decumana
+            [1053] = false,
+            // Aglaia
+            [1054] = false,
+            // Unnamed Island
+            [1055] = true,
+            // Alzadaal's Legacy
+            [1056] = false,
+            // Restricted Archives
+            [1057] = false,
+            // The Palaistra
+            [1058] = true,
+            // The Volcanic Heart
+            [1059] = true,
+            // Cloud Nine
+            [1060] = true,
+            // The Omphalos
+            [1061] = false,
+            // Snowcloak
+            [1062] = false,
+            // The Keeper of the Lake
+            [1063] = false,
+            // Sohm Al
+            [1064] = false,
+            // The Aery
+            [1065] = false,
+            // The Vault
+            [1066] = false,
+            // Thornmarch
+            [1067] = false,
+            // Steps of Faith
+            [1068] = true,
+            // The Sil'dihn Subterrane
+            [1069] = false,
+            // The Fell Court of Troia
+            [1070] = false,
+            // Storm's Crown
+            [1071] = false,
+            // Storm's Crown
+            [1072] = false,
+            // Elysion
+            [1073] = false,
+            // Territory #1074
+            [1074] = false,
+            // Another Sil'dihn Subterrane
+            [1075] = false,
+            // Another Sil'dihn Subterrane
+            [1076] = false,
+            // Zero's Domain
+            [1077] = false,
+            // Meghaduta Guest Chambers
+            [1078] = false,
+            // The Aitiascope
+            [1079] = false,
+            // Territory #1080
+            [1080] = false,
+            // The Caustic Purgatory
+            [1081] = false,
+            // The Caustic Purgatory
+            [1082] = false,
+            // The Pestilent Purgatory
+            [1083] = false,
+            // The Pestilent Purgatory
+            [1084] = false,
+            // The Hollow Purgatory
+            [1085] = false,
+            // The Hollow Purgatory
+            [1086] = false,
+            // Stygian Insenescence Cells
+            [1087] = false,
+            // Stygian Insenescence Cells
+            [1088] = false,
+            // The Fell Court of Troia
+            [1089] = false,
+            // Territory #1090
+            [1090] = false,
+            // The Fell Court of Troia
+            [1091] = true,
+            // Storm's Crown
+            [1092] = false,
+            // Stygian Insenescence Cells
+            [1093] = false,
+            // Sneaky Hollow
+            [1094] = false,
+            // Mount Ordeals
+            [1095] = false,
+            // Mount Ordeals
+            [1096] = false,
+            // Lapis Manalis
+            [1097] = false,
+            // Sylphstep
+            [1098] = false,
+            // Eureka Orthos
+            [1099] = false,
+            // Eureka Orthos
+            [1100] = false,
+            // Eureka Orthos
+            [1101] = false,
+            // Eureka Orthos
+            [1102] = false,
+            // Eureka Orthos
+            [1103] = false,
+            // Eureka Orthos
+            [1104] = false,
+            // Eureka Orthos
+            [1105] = false,
+            // Eureka Orthos
+            [1106] = false,
+            // Eureka Orthos
+            [1107] = false,
+            // Eureka Orthos
+            [1108] = false,
+            // The Great Gubal Library
+            [1109] = false,
+            // Aetherochemical Research Facility
+            [1110] = false,
+            // The Antitower
+            [1111] = false,
+            // Sohr Khai
+            [1112] = false,
+            // Xelphatol
+            [1113] = false,
+            // Baelsar's Wall
+            [1114] = false,
+            // The Tower of Babil
+            [1115] = true,
+            // The Clockwork Castletown
+            [1116] = true,
+            // The Clockwork Castletown
+            [1117] = true,
+            // Euphrosyne
+            [1118] = false,
+            // Lapis Manalis
+            [1119] = false,
+            // Garlemald
+            [1120] = true,
+            // Territory #1121
+            [1121] = false,
+            // The Interdimensional Rift
+            [1122] = false,
+            // The Shifting Gymnasion Agonon
+            [1123] = false,
+            // Eureka Orthos
+            [1124] = false,
+            // Khadga
+            [1125] = false,
+            // The Aetherfont
+            [1126] = false,
+            // The Fold
+            [1127] = true,
+            // The Fold
+            [1128] = true,
+            // The Fold
+            [1129] = true,
+            // Territory #1130
+            [1130] = false,
+            // Territory #1131
+            [1131] = false,
+            // Territory #1132
+            [1132] = false,
+            // Territory #1133
+            [1133] = false,
+            // Territory #1134
+            [1134] = false,
+            // Territory #1135
+            [1135] = false,
+            // The Gilded Araya
+            [1136] = false,
+            // Mount Rokkon
+            [1137] = false,
+            // The Red Sands
+            [1138] = true,
+            // The Red Sands
+            [1139] = true,
+            // The Voidcast Dais
+            [1140] = false,
+            // The Voidcast Dais
+            [1141] = false,
+            // The Sirensong Sea
+            [1142] = false,
+            // Bardam's Mettle
+            [1143] = false,
+            // Doma Castle
+            [1144] = false,
+            // Castrum Abania
+            [1145] = false,
+            // Ala Mhigo
+            [1146] = false,
+            // The Aetherial Slough
+            [1147] = false,
+            // The Aetherial Slough
+            [1148] = false,
+            // The Dæmons' Nest
+            [1149] = false,
+            // The Dæmons' Nest
+            [1150] = false,
+            // The Chamber of Fourteen
+            [1151] = false,
+            // The Chamber of Fourteen
+            [1152] = false,
+            // Ascension
+            [1153] = false,
+            // Ascension
+            [1154] = false,
+            // Another Mount Rokkon
+            [1155] = false,
+            // Another Mount Rokkon
+            [1156] = false,
+            // Territory #1157
+            [1157] = false,
+            // The Dæmons' Nest
+            [1158] = false,
+            // The Voidcast Dais
+            [1159] = false,
+            // Senatus
+            [1160] = false,
+            // Estinien's Chambers
+            [1161] = false,
+            // The Red Moon
+            [1162] = false,
+            // The Endeavor
+            [1163] = false,
+            // The Lunar Subterrane
+            [1164] = false,
+            // Blunderville
+            [1165] = false,
+            // The Memory of Embers
+            [1166] = true,
+            // Ihuykatumu
+            [1167] = false,
+            // The Abyssal Fracture
+            [1168] = false,
+            // The Abyssal Fracture
+            [1169] = false,
+            // Sunperch
+            [1170] = false,
+            // Earthen Sky Hideout
+            [1171] = false,
+            // The Drowned City of Skalla
+            [1172] = false,
+            // The Burn
+            [1173] = false,
+            // The Ghimlyt Dark
+            [1174] = false,
+            // Territory #1175
+            [1175] = false,
+            // Aloalo Island
+            [1176] = false,
+            // The Aetherfont
+            [1177] = true,
+            // Thaleia
+            [1178] = false,
+            // Another Aloalo Island
+            [1179] = false,
+            // Another Aloalo Island
+            [1180] = false,
+            // The Abyssal Fracture
+            [1181] = false,
+            // Thaleia
+            [1182] = false,
+            // The Gilded Araya
+            [1183] = false,
+            // The Lunar Subterrane
+            [1184] = false,
+            // Tuliyollal
+            [1185] = false,
+            // Solution Nine
+            [1186] = false,
+            // Urqopacha
+            [1187] = false,
+            // Kozama'uka
+            [1188] = false,
+            // Yak T'el
+            [1189] = false,
+            // Shaaloani
+            [1190] = false,
+            // Heritage Found
+            [1191] = false,
+            // Living Memory
+            [1192] = false,
+            // Worqor Zormor
+            [1193] = false,
+            // The Skydeep Cenote
+            [1194] = false,
+            // Worqor Lar Dor
+            [1195] = false,
+            // Worqor Lar Dor
+            [1196] = false,
+            // Blunderville Square
+            [1197] = false,
+            // Vanguard
+            [1198] = false,
+            // Alexandria
+            [1199] = false,
+            // Summit of Everkeep
+            [1200] = false,
+            // Summit of Everkeep
+            [1201] = false,
+            // Interphos
+            [1202] = false,
+            // Tender Valley
+            [1203] = false,
+            // Strayborough
+            [1204] = false,
+            // The For'ard Cabins
+            [1205] = true,
+            // Main Deck
+            [1206] = false,
+            // The Backroom
+            [1207] = false,
+            // Origenics
+            [1208] = false,
+            // Cenote Ja Ja Gural
+            [1209] = false,
+            // Sunperch
+            [1210] = true,
+            // Yak T'el
+            [1211] = true,
+            // Yak T'el
+            [1212] = true,
+            // Solution Nine
+            [1213] = true,
+            // The Sea of Clouds
+            [1214] = true,
+            // Brayflox's Longstop
+            [1215] = true,
+            // Bardam's Mettle
+            [1216] = true,
+            // Ala Mhigo
+            [1217] = true,
+            // Khadga
+            [1218] = true,
+            // Vanguard
+            [1219] = false,
+            // Summit of Everkeep
+            [1220] = false,
+            // Interphos
+            [1221] = false,
+            // Skydeep Cenote Inner Chamber
+            [1222] = false,
+            // Tritails Training
+            [1223] = false,
+            // Greenroom
+            [1224] = false,
+            // Scratching Ring
+            [1225] = false,
+            // Scratching Ring
+            [1226] = false,
+            // Lovely Lovering
+            [1227] = false,
+            // Lovely Lovering
+            [1228] = false,
+            // Blasting Ring
+            [1229] = false,
+            // Blasting Ring
+            [1230] = false,
+            // The Thundering
+            [1231] = false,
+            // The Thundering
+            [1232] = false,
+            // Manor Basement
+            [1233] = true,
+            // Dreamlike Palace
+            [1234] = true,
+            // Central Thanalan
+            [1235] = true,
+            // Southern Thanalan
+            [1236] = true,
+            // Sinus Ardorum
+            [1237] = false,
+            // A Future Rewritten
+            [1238] = false,
+            // Territory #1239
+            [1239] = false,
+            // Territory #1240
+            [1240] = false,
+            // Sphere of Naught
+            [1241] = false,
+            // Yuweyawata
+            [1242] = false,
+            // Interphos
+            [1243] = false,
+            // Shaaloani
+            [1244] = true,
+            // Halatali
+            [1245] = false,
+            // Zorgor the Boundless
+            [1246] = true,
+            // Starlight Stalls
+            [1247] = false,
+            // Jeuno: The First Walk
+            [1248] = false,
+            // h1i1
+            [1249] = false,
+            // h1i2
+            [1250] = false,
+            // h1i3
+            [1251] = false,
+            // South Horn
+            [1252] = false,
+            // Starlight Stalls
+            [1253] = false,
+            // Yuweyawata
+            [1254] = false,
+            // Hall of the Unbound
+            [1255] = false,
+            // Groovy Ring
+            [1256] = false,
+            // Groovy Ring
+            [1257] = false,
+            // Rebel Ring
+            [1258] = false,
+            // Rebel Ring
+            [1259] = false,
+            // Demolition Site
+            [1260] = false,
+            // Demolition Site
+            [1261] = false,
+            // Hunter's Ring
+            [1262] = false,
+            // Hunter's Ring
+            [1263] = false,
+            // Lower Jeuno
+            [1264] = false,
+            // Lower Jeuno
+            [1265] = false,
+            // The Underkeep
+            [1266] = false,
+            // The Sunken Temple of Qarn
+            [1267] = false,
+            // Break Room
+            [1268] = false,
+            // Phantom Village
+            [1269] = false,
+            // Recollection
+            [1270] = false,
+            // Recollection
+            [1271] = false,
+            // Territory #1272
+            [1272] = false,
+            // Carteneau Flats: Borderland Ruins
+            [1273] = false,
+            // Throne Room
+            [1274] = false,
+            // Recollection
+            [1275] = false,
+            // Demolition Site
+            [1276] = false,
+            // Main Deck
+            [1277] = false,
+            // Phantom Village
+            [1278] = false,
+            // Vault Oneiron
+            [1279] = false,
+            // Territory #1280
+            [1280] = false,
+            // Territory #1281
+            [1281] = false,
+            // Territory #1282
+            [1282] = false,
+            // Territory #1283
+            [1283] = false,
+            // Territory #1284
+            [1284] = false,
+            // Territory #1285
+            [1285] = false,
+            // Territory #1286
+            [1286] = false,
+            // Territory #1287
+            [1287] = false,
+            // Territory #1288
+            [1288] = false,
+            // Territory #1289
+            [1289] = false,
+            // Territory #1290
+            [1290] = false,
+            // Phaenna
+            [1291] = false,
+            // The Meso Terminal
+            [1292] = false,
+            // The Bayside Battleground
+            [1293] = true,
+            // The Bayside Battleground
+            [1294] = true,
+            // The Ageless Necropolis
+            [1295] = false,
+            // The Ageless Necropolis
+            [1296] = false,
+            // Territory #1297
+            [1297] = false,
+            // Territory #1298
+            [1298] = false,
+            // Containment Complex 10-29
+            [1299] = false,
+            // Territory #1300
+            [1300] = false,
+            // Territory #1301
+            [1301] = false,
+            // The Wreath of Snakes
+            [1302] = true,
+            // Cutter's Cry
+            [1303] = false,
+            // San d'Oria: The Second Walk
+            [1304] = false,
+            // Haunted Manor
+            [1305] = false,
+            // Territory #1306
+            [1306] = false,
+            // Territory #1307
+            [1307] = false,
+            // Territory #1308
+            [1308] = false,
+            // Starlight Stalls
+            [1309] = false,
+            // Territory #1310
+            [1310] = false,
+            // Territory #1311
+            [1311] = false,
+            // The Ageless Necropolis
+            [1312] = false,
+            // Territory #1313
+            [1313] = false,
+            // Territory #1314
+            [1314] = false,
+            // Territory #1315
+            [1315] = false,
+            // Territory #1316
+            [1316] = false,
+            // Territory #1317
+            [1317] = false,
+            // Territory #1318
+            [1318] = false,
+            // Territory #1319
+            [1319] = false,
+            // Territory #1320
+            [1320] = false,
+            // Territory #1321
+            [1321] = false,
+            // Territory #1322
+            [1322] = false,
+            // Territory #1323
+            [1323] = false,
+            // Territory #1324
+            [1324] = false,
+            // Territory #1325
+            [1325] = false,
+            // Territory #1326
+            [1326] = false,
+            // Territory #1327
+            [1327] = false,
+            // Territory #1328
+            [1328] = false,
+            // Territory #1329
+            [1329] = false,
+            // Territory #1330
+            [1330] = false,
+            // Territory #1331
+            [1331] = false,
+            // Territory #1332
+            [1332] = false,
+            // Territory #1333
+            [1333] = false,
+            // The Clyteum - the Clyteum
+            [1345] = false,
+            // The Unmaking - the Unmaking
+            [1361] = false,
+            // The Unmaking - the Unmaking (Extreme)
+            [1362] = false,
+            // Dusk Vigil - the Dusk Vigil
+            [1366] = false,
+            // Shisui of the Violet Tides - Shisui of the Violet Tides
+            [1367] = false,
+            // Windurst: The Third Walk - Windurst: The Third Walk
+            [1368] = false,
+            // Transparency - Shinryu's Domain (Unreal)
+            [1372] = false,
 
-        /// <summary>
-        /// Territory IDs that are always excluded from ZoneSync regardless of user settings.
-        /// Covers private or unsupported areas not caught by duty-bound or instance number checks.
-        /// </summary>
-        public static HashSet<uint> AllowedZoneSyncTerritoryIds { get; } =
-        [
-            // === InstanceContent - Group (468) ===
-            142, // Halatali - the Dragon's Neck
-            151, // The World of Darkness - the World of Darkness
-            159, // The Wanderer's Palace - the Wanderer's Palace
-            160, // Pharos Sirius - Pharos Sirius
-            167, // Amdapor Keep - Amdapor Keep
-            171, // Dzemael Darkhold - Dzemael Darkhold
-            172, // Aurum Vale - the Aurum Vale
-            174, // Labyrinth of the Ancients - the Labyrinth of the Ancients
-            188, // The Wanderer's Palace - the Wanderer's Palace (Hard)
-            189, // Amdapor Keep - Amdapor Keep (Hard)
-            190, // Central Shroud - Under the Armor
-            191, // East Shroud - Pulling Poison Posies
-            192, // South Shroud - Stinging Back
-            193, // IC-06 Central Decks - the Final Coil of Bahamut - Turn 1
-            194, // IC-06 Regeneration Grid - the Final Coil of Bahamut - Turn 2
-            195, // IC-06 Main Bridge - the Final Coil of Bahamut - Turn 3
-            196, // The Burning Heart - the Final Coil of Bahamut - Turn 4
-            214, // Middle La Noscea - Basic Training: Enemy Parties
-            215, // Western Thanalan - Basic Training: Enemy Strongholds
-            216, // Central Thanalan - Hero on the Half Shell
-            219, // Central Shroud - Flicking Sticks and Taking Names
-            220, // South Shroud - All's Well that Ends in the Well
-            221, // Upper La Noscea - More than a Feeler
-            222, // Lower La Noscea - Annoy the Void
-            223, // Coerthas Central Highlands - Shadow and Claw
-            241, // Upper Aetheroacoustic Exploratory Site - the Binding Coil of Bahamut - Turn 1
-            242, // Lower Aetheroacoustic Exploratory Site - the Binding Coil of Bahamut - Turn 2
-            243, // The Ragnarok - the Binding Coil of Bahamut - Turn 3
-            244, // Ragnarok Drive Cylinder - the Binding Coil of Bahamut - Turn 4
-            245, // Ragnarok Central Core - the Binding Coil of Bahamut - Turn 5
-            281, // The Whorleater - the Whorleater (Hard)
-            292, // Bowl of Embers - the Bowl of Embers (Hard)
-            293, // The Navel - the Navel (Hard)
-            294, // The Howling Eye - the Howling Eye (Hard)
-            295, // Bowl of Embers - the Bowl of Embers (Extreme)
-            296, // The Navel - the Navel (Extreme)
-            297, // The Howling Eye - the Howling Eye (Extreme)
-            298, // Coerthas Central Highlands - Long Live the Queen
-            299, // Mor Dhona - Ward Up
-            300, // Mor Dhona - Solemn Trinity
-            348, // Porta Decumana - the Minstrel's Ballad: Ultima's Bane
-            349, // Copperbell Mines - Copperbell Mines (Hard)
-            350, // Haukke Manor - Haukke Manor (Hard)
-            353, // Kugane Ohashi - Special Event I
-            354, // The Dancing Plague - Special Event II
-            355, // Dalamud's Shadow - the Second Coil of Bahamut - Turn 1
-            356, // The Outer Coil - the Second Coil of Bahamut - Turn 2
-            357, // Central Decks - the Second Coil of Bahamut - Turn 3
-            358, // The Holocharts - the Second Coil of Bahamut - Turn 4
-            359, // The Whorleater - the Whorleater (Extreme)
-            360, // Halatali - Halatali (Hard)
-            361, // Hullbreaker Isle - Hullbreaker Isle
-            362, // Brayflox's Longstop - Brayflox's Longstop (Hard)
-            363, // The Lost City of Amdapor - the Lost City of Amdapor
-            364, // Thornmarch - Thornmarch (Extreme)
-            365, // Stone Vigil - the Stone Vigil (Hard)
-            366, // Griffin Crossing - Battle on the Big Bridge
-            367, // The Sunken Temple of Qarn - the Sunken Temple of Qarn (Hard)
-            368, // The Weeping Saint - A Relic Reborn: the Chimera
-            369, // Hall of the Bestiarii - A Relic Reborn: the Hydra
-            372, // Syrcus Tower - Syrcus Tower
-            373, // The Tam-Tara Deepcroft - the Tam-Tara Deepcroft (Hard)
-            374, // The Striking Tree - the Striking Tree (Hard)
-            375, // The Striking Tree - the Striking Tree (Extreme)
-            376, // Carteneau Flats: Borderland Ruins - the Borderland Ruins (Secure)
-            377, // Akh Afah Amphitheatre - the Akh Afah Amphitheatre (Hard)
-            378, // Akh Afah Amphitheatre - the Akh Afah Amphitheatre (Extreme)
-            380, // Dalamud's Shadow - the Second Coil of Bahamut (Savage) - Turn 1
-            381, // The Outer Coil - the Second Coil of Bahamut (Savage) - Turn 2
-            382, // Central Decks - the Second Coil of Bahamut (Savage) - Turn 3
-            383, // The Holocharts - the Second Coil of Bahamut (Savage) - Turn 4
-            387, // Sastasha - Sastasha (Hard)
-            394, // South Shroud - Urth's Fount
-            396, // Amdapor Keep - Battle in the Big Keep
-            420, // Neverreap - Neverreap
-            426, // The Chrysalis - the Chrysalis
-            430, // The Fractal Continuum - the Fractal Continuum
-            431, // Seal Rock - Seal Rock (Seize)
-            432, // Thok ast Thok - Thok ast Thok (Hard)
-            436, // The Limitless Blue - the Limitless Blue (Hard)
-            437, // Singularity Reactor - the Singularity Reactor
-            442, // The Fist of the Father - Alexander - The Fist of the Father
-            443, // The Cuff of the Father - Alexander - The Cuff of the Father
-            444, // The Arm of the Father - Alexander - The Arm of the Father
-            445, // The Burden of the Father - Alexander - The Burden of the Father
-            446, // Thok ast Thok - Thok ast Thok (Extreme)
-            447, // The Limitless Blue - the Limitless Blue (Extreme)
-            448, // Singularity Reactor - the Minstrel's Ballad: Thordan's Reign
-            449, // The Fist of the Father - Alexander - The Fist of the Father (Savage)
-            450, // The Cuff of the Father - Alexander - The Cuff of the Father (Savage)
-            451, // The Arm of the Father - Alexander - The Arm of the Father (Savage)
-            452, // The Burden of the Father - Alexander - The Burden of the Father (Savage)
-            508, // Void Ark - the Void Ark
-            509, // The Gilded Araya - the Gilded Araya
-            510, // Pharos Sirius - Pharos Sirius (Hard)
-            511, // Saint Mocianne's Arboretum - Saint Mocianne's Arboretum
-            517, // Containment Bay S1T7 - Containment Bay S1T7
-            519, // The Lost City of Amdapor - the Lost City of Amdapor (Hard)
-            520, // The Fist of the Son - Alexander - The Fist of the Son
-            521, // The Cuff of the Son - Alexander - The Cuff of the Son
-            522, // The Arm of the Son - Alexander - The Arm of the Son
-            523, // The Burden of the Son - Alexander - The Burden of the Son
-            524, // Containment Bay S1T7 - Containment Bay S1T7 (Extreme)
-            529, // The Fist of the Son - Alexander - The Fist of the Son (Savage)
-            530, // The Cuff of the Son - Alexander - The Cuff of the Son (Savage)
-            531, // The Arm of the Son - Alexander - The Arm of the Son (Savage)
-            532, // The Burden of the Son - Alexander - The Burden of the Son (Savage)
-            554, // The Fields of Glory - the Fields of Glory (Shatter)
-            556, // The Weeping City of Mhach - the Weeping City of Mhach
-            557, // Hullbreaker Isle - Hullbreaker Isle (Hard)
-            558, // The Aquapolis - the Aquapolis
-            559, // Steps of Faith - the Final Steps of Faith
-            561, // The Palace of the Dead - the Palace of the Dead (Floors 1-10)
-            562, // The Palace of the Dead - the Palace of the Dead (Floors 11-20)
-            563, // The Palace of the Dead - the Palace of the Dead (Floors 21-30)
-            564, // The Palace of the Dead - the Palace of the Dead (Floors 31-40)
-            565, // The Palace of the Dead - the Palace of the Dead (Floors 41-50)
-            566, // Steps of Faith - the Minstrel's Ballad: Nidhogg's Rage
-            571, // Haunted Manor - the Haunted Manor
-            576, // Containment Bay P1T6 - Containment Bay P1T6
-            577, // Containment Bay P1T6 - Containment Bay P1T6 (Extreme)
-            578, // The Great Gubal Library - the Great Gubal Library (Hard)
-            580, // Eyes of the Creator - Alexander - The Eyes of the Creator
-            581, // Breath of the Creator - Alexander - The Breath of the Creator
-            582, // Heart of the Creator - Alexander - The Heart of the Creator
-            583, // Soul of the Creator - Alexander - The Soul of the Creator
-            584, // Eyes of the Creator - Alexander - The Eyes of the Creator (Savage)
-            585, // Breath of the Creator - Alexander - The Breath of the Creator (Savage)
-            586, // Heart of the Creator - Alexander - The Heart of the Creator (Savage)
-            587, // Soul of the Creator - Alexander - The Soul of the Creator (Savage)
-            593, // The Palace of the Dead - the Palace of the Dead (Floors 51-60)
-            594, // The Palace of the Dead - the Palace of the Dead (Floors 61-70)
-            595, // The Palace of the Dead - the Palace of the Dead (Floors 71-80)
-            596, // The Palace of the Dead - the Palace of the Dead (Floors 81-90)
-            597, // The Palace of the Dead - the Palace of the Dead (Floors 91-100)
-            598, // The Palace of the Dead - the Palace of the Dead (Floors 101-110)
-            599, // The Palace of the Dead - the Palace of the Dead (Floors 111-120)
-            600, // The Palace of the Dead - the Palace of the Dead (Floors 121-130)
-            601, // The Palace of the Dead - the Palace of the Dead (Floors 131-140)
-            602, // The Palace of the Dead - the Palace of the Dead (Floors 141-150)
-            603, // The Palace of the Dead - the Palace of the Dead (Floors 151-160)
-            604, // The Palace of the Dead - the Palace of the Dead (Floors 161-170)
-            605, // The Palace of the Dead - the Palace of the Dead (Floors 171-180)
-            606, // The Palace of the Dead - the Palace of the Dead (Floors 181-190)
-            607, // The Palace of the Dead - the Palace of the Dead (Floors 191-200)
-            617, // Sohm Al - Sohm Al (Hard)
-            627, // Dun Scaith - Dun Scaith
-            637, // Containment Bay Z1T9 - Containment Bay Z1T9
-            638, // Containment Bay Z1T9 - Containment Bay Z1T9 (Extreme)
-            662, // Kugane Castle - Kugane Castle
-            663, // The Temple of the Fist - the Temple of the Fist
-            674, // The Blessed Treasury - the Pool of Tribute
-            677, // The Blessed Treasury - the Pool of Tribute (Extreme)
-            679, // The Royal Airship Landing - the Royal Menagerie
-            691, // Deltascape V1.0 - Deltascape V1.0
-            692, // Deltascape V2.0 - Deltascape V2.0
-            693, // Deltascape V3.0 - Deltascape V3.0
-            694, // Deltascape V4.0 - Deltascape V4.0
-            695, // Deltascape V1.0 - Deltascape V1.0 (Savage)
-            696, // Deltascape V2.0 - Deltascape V2.0 (Savage)
-            697, // Deltascape V3.0 - Deltascape V3.0 (Savage)
-            698, // Deltascape V4.0 - Deltascape V4.0 (Savage)
-            712, // The Lost Canals of Uznair - the Lost Canals of Uznair
-            719, // Emanation - Emanation
-            720, // Emanation - Emanation (Extreme)
-            725, // The Lost Canals of Uznair - the Hidden Canals of Uznair
-            729, // Astragalos - Astragalos
-            730, // Transparency - the Minstrel's Ballad: Shinryu's Domain
-            733, // The Binding Coil of Bahamut - the Unending Coil of Bahamut (Ultimate)
-            734, // The Royal City of Rabanastre - the Royal City of Rabanastre
-            741, // Sanctum of the Twelve - the Valentione's Ceremony
-            742, // Hells' Lid - Hells' Lid
-            743, // The Fractal Continuum - the Fractal Continuum (Hard)
-            746, // The Jade Stoa - the Jade Stoa
-            748, // Sigmascape V1.0 - Sigmascape V1.0
-            749, // Sigmascape V2.0 - Sigmascape V2.0
-            750, // Sigmascape V3.0 - Sigmascape V3.0
-            751, // Sigmascape V4.0 - Sigmascape V4.0
-            752, // Sigmascape V1.0 - Sigmascape V1.0 (Savage)
-            753, // Sigmascape V2.0 - Sigmascape V2.0 (Savage)
-            754, // Sigmascape V3.0 - Sigmascape V3.0 (Savage)
-            755, // Sigmascape V4.0 - Sigmascape V4.0 (Savage)
-            758, // The Jade Stoa - the Jade Stoa (Extreme)
-            761, // The Great Hunt - the Great Hunt
-            762, // The Great Hunt - the Great Hunt (Extreme)
-            768, // The Swallow's Compass - the Swallow's Compass
-            776, // The Ridorana Lighthouse - the Ridorana Lighthouse
-            777, // Ultimacy - the Weapon's Refrain (Ultimate)
-            778, // Castrum Fluminis - Castrum Fluminis
-            779, // Castrum Fluminis - the Minstrel's Ballad: Tsukuyomi's Pain
-            788, // Saint Mocianne's Arboretum - Saint Mocianne's Arboretum (Hard)
-            791, // Hidden Gorge - Hidden Gorge
-            794, // The Shifting Altars of Uznair - the Shifting Altars of Uznair
-            798, // Psiscape V1.0 - Alphascape V1.0
-            799, // Psiscape V2.0 - Alphascape V2.0
-            800, // The Interdimensional Rift - Alphascape V3.0
-            801, // The Interdimensional Rift - Alphascape V4.0
-            802, // Psiscape V1.0 - Alphascape V1.0 (Savage)
-            803, // Psiscape V2.0 - Alphascape V2.0 (Savage)
-            804, // The Interdimensional Rift - Alphascape V3.0 (Savage)
-            805, // The Interdimensional Rift - Alphascape V4.0 (Savage)
-            806, // Kugane Ohashi - Kugane Ohashi
-            810, // Hells' Kier - Hells' Kier
-            811, // Hells' Kier - Hells' Kier (Extreme)
-            821, // Dohn Mheg - Dohn Mheg
-            822, // Mt. Gulg - Mt. Gulg
-            823, // The Qitana Ravel - the Qitana Ravel
-            824, // The Wreath of Snakes - the Wreath of Snakes
-            825, // The Wreath of Snakes - the Wreath of Snakes (Extreme)
-            826, // The Orbonne Monastery - the Orbonne Monastery
-            836, // Malikah's Well - Malikah's Well
-            837, // Holminster Switch - Holminster Switch
-            838, // Amaurot - Amaurot
-            840, // The Twinning - the Twinning
-            841, // Akadaemia Anyder - Akadaemia Anyder
-            845, // The Dancing Plague - the Dancing Plague
-            846, // The Crown of the Immaculate - the Crown of the Immaculate
-            847, // The Dying Gasp - the Dying Gasp
-            848, // The Crown of the Immaculate - the Crown of the Immaculate (Extreme)
-            849, // The Core - Eden's Gate: Resurrection
-            850, // The Halo - Eden's Gate: Descent
-            851, // The Nereus Trench - Eden's Gate: Inundation
-            852, // Atlas Peak - Eden's Gate: Sepulture
-            853, // The Core - Eden's Gate: Resurrection (Savage)
-            854, // The Halo - Eden's Gate: Descent (Savage)
-            855, // The Nereus Trench - Eden's Gate: Inundation (Savage)
-            856, // Atlas Peak - Eden's Gate: Sepulture (Savage)
-            858, // The Dancing Plague - the Dancing Plague (Extreme)
-            879, // The Dungeons of Lyhe Ghiah - The Dungeons of Lyhe Ghiah
-            882, // The Copied Factory - the Copied Factory
-            884, // The Grand Cosmos - the Grand Cosmos
-            885, // The Dying Gasp - the Minstrel's Ballad: Hades's Elegy
-            887, // Liminal Space - the Epic of Alexander (Ultimate)
-            888, // Onsal Hakair - Onsal Hakair (Danshig Naadam)
-            897, // Cinder Drift - Cinder Drift
-            898, // Anamnesis Anyder - Anamnesis Anyder
-            900, // The Endeavor - Ocean Fishing
-            902, // The Gandof Thunder Plains - Eden's Verse: Fulmination
-            903, // Ashfall - Eden's Verse: Furor
-            904, // The Halo - Eden's Verse: Iconoclasm
-            905, // Great Glacier - Eden's Verse: Refulgence
-            906, // The Gandof Thunder Plains - Eden's Verse: Fulmination (Savage)
-            907, // Ashfall - Eden's Verse: Furor (Savage)
-            908, // The Halo - Eden's Verse: Iconoclasm (Savage)
-            909, // Great Glacier - Eden's Verse: Refulgence (Savage)
-            912, // Cinder Drift - Cinder Drift (Extreme)
-            913, // Transmission Control - Memoria Misera (Extreme)
-            916, // The Heroes' Gauntlet - the Heroes' Gauntlet
-            917, // The Puppets' Bunker - the Puppets' Bunker
-            922, // The Seat of Sacrifice - the Seat of Sacrifice
-            923, // The Seat of Sacrifice - the Seat of Sacrifice (Extreme)
-            924, // The Shifting Oubliettes of Lyhe Ghiah - the Shifting Oubliettes of Lyhe Ghiah
-            933, // Matoya's Relict - Matoya's Relict
-            934, // Castrum Marinum Drydocks - Castrum Marinum
-            935, // Castrum Marinum Drydocks - Castrum Marinum (Extreme)
-            938, // Paglth'an - Paglth'an
-            940, // The Battlehall - Triple Triad Open Tournament
-            941, // The Battlehall - Triple Triad Invitational Parlor
-            942, // Sphere of Naught - Eden's Promise: Umbra
-            943, // Laxan Loft - Eden's Promise: Litany
-            944, // Bygone Gaol - Eden's Promise: Anamorphosis
-            945, // The Garden of Nowhere - Eden's Promise: Eternity
-            946, // Sphere of Naught - Eden's Promise: Umbra (Savage)
-            947, // Laxan Loft - Eden's Promise: Litany (Savage)
-            948, // Bygone Gaol - Eden's Promise: Anamorphosis (Savage)
-            949, // The Garden of Nowhere - Eden's Promise: Eternity (Savage)
-            950, // G-Savior Deck - the Cloud Deck
-            951, // G-Savior Deck - the Cloud Deck (Extreme)
-            952, // The Tower of Zot - the Tower of Zot
-            966, // The Tower at Paradigm's Breach - the Tower at Paradigm's Breach
-            968, // Medias Res - Dragonsong's Reprise (Ultimate)
-            969, // The Tower of Babil - the Tower of Babil
-            970, // Vanaspati - Vanaspati
-            973, // The Dead Ends - the Dead Ends
-            974, // Ktisis Hyperboreia - Ktisis Hyperboreia
-            976, // Smileton - Smileton
-            978, // The Aitiascope - the Aitiascope
-            986, // The Stigma Dreamscape - the Stigma Dreamscape
-            992, // The Dark Inside - the Dark Inside
-            993, // The Dark Inside - the Minstrel's Ballad: Zodiark's Fall
-            994, // The Phantoms' Feast - The Phantoms' Feast
-            995, // The Mothercrystal - the Mothercrystal
-            996, // The Mothercrystal - the Minstrel's Ballad: Hydaelyn's Call
-            997, // The Final Day - the Final Day
-            998, // The Final Day - the Minstrel's Ballad: Endsinger's Aria
-            1000, // The Excitatron 6000 - the Excitatron 6000
-            1002, // The Gates of Pandæmonium - Asphodelos: The First Circle
-            1003, // The Gates of Pandæmonium - Asphodelos: The First Circle (Savage)
-            1004, // The Stagnant Limbo - Asphodelos: The Second Circle
-            1005, // The Stagnant Limbo - Asphodelos: The Second Circle (Savage)
-            1006, // The Fervid Limbo - Asphodelos: The Third Circle
-            1007, // The Fervid Limbo - Asphodelos: The Third Circle (Savage)
-            1008, // The Sanguine Limbo - Asphodelos: The Fourth Circle
-            1009, // The Sanguine Limbo - Asphodelos: The Fourth Circle (Savage)
-            1036, // Sastasha - Sastasha
-            1037, // The Tam-Tara Deepcroft - the Tam-Tara Deepcroft
-            1038, // Copperbell Mines - Copperbell Mines
-            1039, // The Thousand Maws of Toto-Rak - the Thousand Maws of Toto-Rak
-            1040, // Haukke Manor - Haukke Manor
-            1041, // Brayflox's Longstop - Brayflox's Longstop
-            1042, // Stone Vigil - the Stone Vigil
-            1043, // Castrum Meridianum - Castrum Meridianum
-            1044, // The Praetorium - the Praetorium
-            1045, // Bowl of Embers - the Bowl of Embers
-            1046, // The Navel - the Navel
-            1047, // The Howling Eye - the Howling Eye
-            1048, // Porta Decumana - the Porta Decumana
-            1050, // Alzadaal's Legacy - Alzadaal's Legacy
-            1054, // Aglaia - Aglaia
-            1062, // Snowcloak - Snowcloak
-            1063, // The Keeper of the Lake - the Keeper of the Lake
-            1064, // Sohm Al - Sohm Al
-            1065, // The Aery - the Aery
-            1066, // The Vault - the Vault
-            1067, // Thornmarch - Thornmarch (Hard)
-            1069, // The Sil'dihn Subterrane - the Sil'dihn Subterrane
-            1070, // The Fell Court of Troia - the Fell Court of Troia
-            1071, // Storm's Crown - Storm's Crown
-            1072, // Storm's Crown - Storm's Crown (Extreme)
-            1075, // Another Sil'dihn Subterrane - Another Sil'dihn Subterrane
-            1076, // Another Sil'dihn Subterrane - Another Sil'dihn Subterrane (Savage)
-            1081, // The Caustic Purgatory - Abyssos: The Fifth Circle
-            1082, // The Caustic Purgatory - Abyssos: The Fifth Circle (Savage)
-            1083, // The Pestilent Purgatory - Abyssos: The Sixth Circle
-            1084, // The Pestilent Purgatory - Abyssos: The Sixth Circle (Savage)
-            1085, // The Hollow Purgatory - Abyssos: The Seventh Circle
-            1086, // The Hollow Purgatory - Abyssos: The Seventh Circle (Savage)
-            1087, // Stygian Insenescence Cells - Abyssos: The Eighth Circle
-            1088, // Stygian Insenescence Cells - Abyssos: The Eighth Circle (Savage)
-            1095, // Mount Ordeals - Mount Ordeals
-            1096, // Mount Ordeals - Mount Ordeals (Extreme)
-            1097, // Lapis Manalis - Lapis Manalis
-            1099, // Eureka Orthos - Eureka Orthos (Floors 1-10)
-            1100, // Eureka Orthos - Eureka Orthos (Floors 11-20)
-            1101, // Eureka Orthos - Eureka Orthos (Floors 21-30)
-            1102, // Eureka Orthos - Eureka Orthos (Floors 31-40)
-            1103, // Eureka Orthos - Eureka Orthos (Floors 41-50)
-            1104, // Eureka Orthos - Eureka Orthos (Floors 51-60)
-            1105, // Eureka Orthos - Eureka Orthos (Floors 61-70)
-            1106, // Eureka Orthos - Eureka Orthos (Floors 71-80)
-            1107, // Eureka Orthos - Eureka Orthos (Floors 81-90)
-            1108, // Eureka Orthos - Eureka Orthos (Floors 91-100)
-            1109, // The Great Gubal Library - the Great Gubal Library
-            1110, // Aetherochemical Research Facility - the Aetherochemical Research Facility
-            1111, // The Antitower - the Antitower
-            1112, // Sohr Khai - Sohr Khai
-            1113, // Xelphatol - Xelphatol
-            1114, // Baelsar's Wall - Baelsar's Wall
-            1118, // Euphrosyne - Euphrosyne
-            1122, // The Interdimensional Rift - the Omega Protocol (Ultimate)
-            1123, // The Shifting Gymnasion Agonon - the Shifting Gymnasion Agonon
-            1126, // The Aetherfont - the Aetherfont
-            1136, // The Gilded Araya - the Gilded Araya
-            1137, // Mount Rokkon - Mount Rokkon
-            1140, // The Voidcast Dais - the Voidcast Dais
-            1141, // The Voidcast Dais - the Voidcast Dais (Extreme)
-            1142, // The Sirensong Sea - the Sirensong Sea
-            1143, // Bardam's Mettle - Bardam's Mettle
-            1144, // Doma Castle - Doma Castle
-            1145, // Castrum Abania - Castrum Abania
-            1146, // Ala Mhigo - Ala Mhigo
-            1147, // The Aetherial Slough - Anabaseios: The Ninth Circle
-            1148, // The Aetherial Slough - Anabaseios: The Ninth Circle (Savage)
-            1149, // The Dæmons' Nest - Anabaseios: The Tenth Circle
-            1150, // The Dæmons' Nest - Anabaseios: The Tenth Circle (Savage)
-            1151, // The Chamber of Fourteen - Anabaseios: The Eleventh Circle
-            1152, // The Chamber of Fourteen - Anabaseios: The Eleventh Circle (Savage)
-            1153, // Ascension - Anabaseios: The Twelfth Circle
-            1154, // Ascension - Anabaseios: The Twelfth Circle (Savage)
-            1155, // Another Mount Rokkon - Another Mount Rokkon
-            1156, // Another Mount Rokkon - Another Mount Rokkon (Savage)
-            1163, // The Endeavor - Ocean Fishing
-            1164, // The Lunar Subterrane - the Lunar Subterrane
-            1167, // Ihuykatumu - Ihuykatumu
-            1168, // The Abyssal Fracture - the Abyssal Fracture
-            1169, // The Abyssal Fracture - the Abyssal Fracture (Extreme)
-            1172, // The Drowned City of Skalla - the Drowned City of Skalla
-            1173, // The Burn - the Burn
-            1174, // The Ghimlyt Dark - the Ghimlyt Dark
-            1176, // Aloalo Island - Aloalo Island
-            1178, // Thaleia - Thaleia
-            1179, // Another Aloalo Island - Another Aloalo Island
-            1180, // Another Aloalo Island - Another Aloalo Island (Savage)
-            1193, // Worqor Zormor - Worqor Zormor
-            1194, // The Skydeep Cenote - the Skydeep Cenote
-            1195, // Worqor Lar Dor - Worqor Lar Dor
-            1196, // Worqor Lar Dor - Worqor Lar Dor (Extreme)
-            1198, // Vanguard - Vanguard
-            1199, // Alexandria - Alexandria
-            1200, // Summit of Everkeep - Everkeep
-            1201, // Summit of Everkeep - Everkeep (Extreme)
-            1202, // Interphos - the Interphos
-            1203, // Tender Valley - Tender Valley
-            1204, // Strayborough - The Strayborough Deadwalk
-            1208, // Origenics - Origenics
-            1209, // Cenote Ja Ja Gural - Cenote Ja Ja Gural
-            1225, // Scratching Ring - AAC Light-heavyweight M1
-            1226, // Scratching Ring - AAC Light-heavyweight M1 (Savage)
-            1227, // Lovely Lovering - AAC Light-heavyweight M2
-            1228, // Lovely Lovering - AAC Light-heavyweight M2 (Savage)
-            1229, // Blasting Ring - AAC Light-heavyweight M3
-            1230, // Blasting Ring - AAC Light-heavyweight M3 (Savage)
-            1231, // The Thundering - AAC Light-heavyweight M4
-            1232, // The Thundering - AAC Light-heavyweight M4 (Savage)
-            1238, // A Future Rewritten - Futures Rewritten (Ultimate)
-            1241, // Sphere of Naught - the Cloud of Darkness (Chaotic)
-            1242, // Yuweyawata - Yuweyawata Field Station
-            1243, // Interphos - the Minstrel's Ballad: Sphene's Burden
-            1245, // Halatali - Halatali
-            1248, // Jeuno: The First Walk - Jeuno: The First Walk
-            1256, // Groovy Ring - AAC Cruiserweight M1
-            1257, // Groovy Ring - AAC Cruiserweight M1 (Savage)
-            1258, // Rebel Ring - AAC Cruiserweight M2
-            1259, // Rebel Ring - AAC Cruiserweight M2 (Savage)
-            1260, // Demolition Site - AAC Cruiserweight M3
-            1261, // Demolition Site - AAC Cruiserweight M3 (Savage)
-            1262, // Hunter's Ring - AAC Cruiserweight M4
-            1263, // Hunter's Ring - AAC Cruiserweight M4 (Savage)
-            1266, // The Underkeep - the Underkeep
-            1267, // The Sunken Temple of Qarn - the Sunken Temple of Qarn
-            1270, // Recollection - Recollection
-            1271, // Recollection - Recollection (Extreme)
-            1273, // Carteneau Flats: Borderland Ruins - the Borderland Ruins (Secure)
-            1279, // Vault Oneiron - Vault Oneiron
-            1281, // Pilgrim's Traverse - Pilgrim's Traverse (Stones 1-10)
-            1282, // Pilgrim's Traverse - Pilgrim's Traverse (Stones 11-20)
-            1283, // Pilgrim's Traverse - Pilgrim's Traverse (Stones 21-30)
-            1284, // Pilgrim's Traverse - Pilgrim's Traverse (Stones 31-40)
-            1285, // Pilgrim's Traverse - Pilgrim's Traverse (Stones 41-50)
-            1286, // Pilgrim's Traverse - Pilgrim's Traverse (Stones 51-60)
-            1287, // Pilgrim's Traverse - Pilgrim's Traverse (Stones 61-70)
-            1288, // Pilgrim's Traverse - Pilgrim's Traverse (Stones 71-80)
-            1289, // Pilgrim's Traverse - Pilgrim's Traverse (Stones 81-90)
-            1290, // Pilgrim's Traverse - Pilgrim's Traverse (Stones 91-100)
-            1292, // The Meso Terminal - the Meso Terminal
-            1295, // The Ageless Necropolis - the Ageless Necropolis
-            1296, // The Ageless Necropolis - the Minstrel's Ballad: Necron's Embrace
-            1298, // The Pâtisserie - the Pâtisserie
-            1300, // The Windward Wilds - the Windward Wilds
-            1303, // Cutter's Cry - Cutter's Cry
-            1304, // San d'Oria: The Second Walk - San d'Oria: The Second Walk
-            1306, // The Windward Wilds - the Windward Wilds (Extreme)
-            1307, // Hell on Rails - Hell on Rails
-            1308, // Hell on Rails - Hell on Rails (Extreme)
-            1311, // Pilgrim's Traverse - the Final Verse (Quantum)
-            1313, // Worqor Chirteh - Worqor Chirteh (Triumph)
-            1314, // Mistwake - Mistwake
-            1315, // The Merchant's Tale - The Merchant's Tale
-            1316, // The Merchant's Tale - The Merchant's Tale (Advanced)
-            1317, // Another Merchant's Tale - Another Merchant's Tale
-            1320, // Ring Noir - AAC Heavyweight M1
-            1321, // Ring Noir - AAC Heavyweight M1 (Savage)
-            1322, // The X-Ring - AAC Heavyweight M2
-            1323, // The X-Ring - AAC Heavyweight M2 (Savage)
-            1324, // The Crown - AAC Heavyweight M3
-            1325, // The Crown - AAC Heavyweight M3 (Savage)
-            1326, // Arcadia - AAC Heavyweight M4
-            1327, // Arcadia - AAC Heavyweight M4 (Savage)
-            1330, // Dzemael Darkhold - Dzemael Darkhold
-            1331, // Aurum Vale - the Aurum Vale
-            1333, // Pilgrim's Traverse - the Final Verse
-            1345, // The Clyteum - the Clyteum
-            1361, // The Unmaking - the Unmaking
-            1362, // The Unmaking - the Unmaking (Extreme)
-            1366, // Dusk Vigil - the Dusk Vigil
-            1367, // Shisui of the Violet Tides - Shisui of the Violet Tides
-            1368, // Windurst: The Third Walk - Windurst: The Third Walk
-            1372, // Transparency - Shinryu's Domain (Unreal)
-
-            // === PublicContent (18) ===
-            579, // The Battlehall - The Triple Triad Battlehall
-            732, // Eureka Anemos - the Forbidden Land, Eureka Anemos
-            763, // Eureka Pagos - the Forbidden Land, Eureka Pagos
-            790, // Ul'dah - Steps of Nald - the Calamity Retold
-            792, // The Fall of Belah'dia - Leap of Faith
-            795, // Eureka Pyros - the Forbidden Land, Eureka Pyros
-            827, // Eureka Hydatos - the Forbidden Land, Eureka Hydatos
-            899, // The Falling City of Nym - Leap of Faith
-            901, // The Diadem - the Diadem
-            920, // Bozjan Southern Front - the Bozjan Southern Front
-            929, // The Diadem - the Diadem
-            936, // Delubrum Reginae - Delubrum Reginae
-            937, // Delubrum Reginae - Delubrum Reginae (Savage)
-            939, // The Diadem - the Diadem
-            975, // Zadnor - Zadnor
-            1098, // Sylphstep - Leap of Faith
-            1165, // Blunderville - Blunderville
-            1252, // South Horn - the Occult Crescent: South Horn
-
-            // === Other CFC - PartyContent/GoldSaucer (10) ===
-            149, // The Feasting Grounds (old PvP)
-            512, // The Diadem (Easy)
-            514, // The Diadem
-            515, // The Diadem (Hard)
-            589, // Chocobo Square - LoVM: Player Battle (RP)
-            590, // Chocobo Square - LoVM: Tournament
-            591, // Chocobo Square - LoVM: Player Battle (Non-RP)
-            624, // The Diadem - Hunting Grounds (Easy)
-            625, // The Diadem - Hunting Grounds
-            656, // The Diadem - Trials of the Matron
-        ];
+        };
     }
 }
