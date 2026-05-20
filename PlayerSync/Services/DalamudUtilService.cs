@@ -86,6 +86,14 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                     w => (ushort)w.RowId,
                     w => w.DataCenter.Value.Name.ToString());
         });
+        WorldToDataCenterIdData = new(() =>
+        {
+            return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
+                .Where(w => !w.Name.IsEmpty && w.DataCenter.RowId != 0 && (w.IsPublic || char.IsUpper(w.Name.ToString()[0])))
+                .ToDictionary(
+                    w => (ushort)w.RowId,
+                    w => w.DataCenter.RowId);
+        });
         JobData = new(() =>
         {
             return gameData.GetExcelSheet<ClassJob>(Dalamud.Game.ClientLanguage.English)!
@@ -201,6 +209,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public Lazy<Dictionary<uint, string>> JobData { get; private set; }
     public Lazy<Dictionary<ushort, string>> WorldData { get; private set; }
     public Lazy<Dictionary<ushort, string>> WorldToDataCenterData { get; private set; }
+    public Lazy<Dictionary<ushort, uint>> WorldToDataCenterIdData { get; private set; }
     public Lazy<Dictionary<uint, string>> TerritoryData { get; private set; }
     public Lazy<Dictionary<uint, (Map Map, string MapName)>> MapData { get; private set; }
     public bool IsLodEnabled { get; private set; }
@@ -467,6 +476,12 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public string? GetDataCenterNameForWorld(ushort worldId)
     {
         return WorldToDataCenterData.Value.TryGetValue(worldId, out var dataCenterName) ? dataCenterName : null;
+    }
+
+    public uint? GetDataCenterIdForWorld(ushort worldId)
+    {
+        
+        return WorldToDataCenterIdData.Value.TryGetValue(worldId, out var dataCenterId) ? dataCenterId : null;
     }
 
     public unsafe ushort GetZoneId()

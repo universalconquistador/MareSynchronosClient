@@ -143,14 +143,18 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
             await GroupZoneLeaveAll().ConfigureAwait(false);
             return;
         }
-
+        
+        //Get instance and datacenter values
         var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
+        var instdata = _dalamudUtilService.GetDataCenterIdForWorld((ushort)ownLocation.ServerId);
 
-        //Set RoomId to instance if dutybound
-        if (instance > 0 && dutyBound)
+        //Set ServerId to instdata and RoomId to instance if dutybound
+        if (dutyBound && instance > 0)
         {
             ownLocation.RoomId = instance;
-            _logger.LogDebug("ZoneSync: instance={instance}", ownLocation.RoomId);
+            ownLocation.ServerId = instdata ?? ownLocation.ServerId;
+
+            _logger.LogDebug("ZoneSync: DataCenter={instdata} Instance={instance} ServerID={serverId} RoomID={roomId}", instdata, instance, ownLocation.ServerId, ownLocation.RoomId);
         }
         
         var filteredZones = _zoneSyncConfigService.Current.ZoneSyncFilter;
@@ -187,7 +191,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         }
         
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
-        ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
+            ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
 
         var defaultPerms = _apiController.DefaultPermissions.DeepClone()!;
         GroupUserPreferredPermissions joinPermissions = GroupUserPreferredPermissions.NoneSet;
