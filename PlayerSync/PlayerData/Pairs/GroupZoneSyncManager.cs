@@ -136,10 +136,9 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         }
         var instanceBound = _dalamudUtilService.IsBoundByDuty/*PvE Duty */ || _dalamudUtilService.IsPvPExcludingDen/*PvP Duty*/;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
-        bool? forbidden = TerritoryTools.TerritoryStaticMap.IsTerritoryForbidden(ownLocation.TerritoryId);
         
         //Exit if Forbidden zone
-        if (forbidden != false)
+        if (TerritoryTools.TerritoryStaticMap.IsTerritoryForbidden(ownLocation.TerritoryId) != false)
         {
             _logger.LogDebug("Cancelled ZoneSync, territory is forbidden.");
             await GroupZoneLeaveAll().ConfigureAwait(false);
