@@ -134,10 +134,11 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
             _logger.LogDebug("Can't call SendGroupZoneSyncInfo when not connected.");
             return;
         }
-        var dutyBound = _dalamudUtilService.IsBoundByDuty || _dalamudUtilService.IsPvPExcludingDen;
+        var instanceBound = _dalamudUtilService.IsBoundByDuty/*PvE Duty */ || _dalamudUtilService.IsPvPExcludingDen/*PvP Duty*/;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
         bool? forbidden = TerritoryTools.TerritoryStaticMap.IsTerritoryForbidden(ownLocation.TerritoryId);
-        if (dutyBound && (forbidden != false || !_zoneSyncConfigService.Current.EnableDungeonSync))
+        //Exit if Forbidden zone or Dungeon Sync is off
+        if (forbidden != false || (instanceBound && !_zoneSyncConfigService.Current.EnableDungeonSync))
         {
             _logger.LogDebug("Cancelled ZoneSync, territory is forbidden.");
             await GroupZoneLeaveAll().ConfigureAwait(false);
@@ -149,7 +150,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         var instdata = _dalamudUtilService.GetDataCenterIdForWorld((ushort)ownLocation.ServerId);
 
         //Set ServerId to instdata and RoomId to instance if dutybound
-        if (dutyBound && instance > 0)
+        if (instanceBound && instance > 0)
         {
             ownLocation.RoomId = instance;
             ownLocation.ServerId = instdata!.Value;
