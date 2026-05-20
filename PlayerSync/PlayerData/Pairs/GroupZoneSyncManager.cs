@@ -134,7 +134,7 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
             _logger.LogDebug("Can't call SendGroupZoneSyncInfo when not connected.");
             return;
         }
-        var dutyBound = _dalamudUtilService.IsBoundByDuty;
+        var dutyBound = _dalamudUtilService.IsBoundByDuty || _dalamudUtilService.IsPvPExcludingDen;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
         bool? forbidden = TerritoryTools.TerritoryStaticMap.IsTerritoryForbidden(ownLocation.TerritoryId);
         if (dutyBound && (forbidden != false || !_zoneSyncConfigService.Current.EnableDungeonSync))
@@ -152,9 +152,8 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         if (dutyBound && instance > 0)
         {
             ownLocation.RoomId = instance;
-            ownLocation.ServerId = instdata ?? ownLocation.ServerId;
+            ownLocation.ServerId = instdata!.Value;
 
-            _logger.LogDebug("ZoneSync: DataCenter={instdata} Instance={instance} ServerID={serverId} RoomID={roomId}", instdata, instance, ownLocation.ServerId, ownLocation.RoomId);
         }
         
         var filteredZones = _zoneSyncConfigService.Current.ZoneSyncFilter;
@@ -190,6 +189,8 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
                 break;
         }
         
+        _logger.LogTrace("ZoneSync: DataCenter={instdata} ServerID={serverId} Instance={instance} RoomID={roomId}", instdata, ownLocation.ServerId, instance, ownLocation.RoomId);
+
         _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
             ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
 

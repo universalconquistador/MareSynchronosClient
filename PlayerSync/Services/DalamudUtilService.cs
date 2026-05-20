@@ -202,6 +202,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public bool IsOnFrameworkThread => _framework.IsInFrameworkUpdateThread;
     public bool IsZoning => _condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.BetweenAreas51];
     public bool IsBoundByDuty { get; set; } = false;
+    public bool IsPvPExcludingDen => _clientState.IsPvPExcludingDen;
     public bool IsSyncPausedByDuty => IsBoundByDuty && _configService.Current.DisableSyncDuringDuty;
     public bool IsInCombatOrPerforming { get; private set; } = false;
     public bool HasModifiedGameFiles => _gameData.HasModifiedGameDataFiles;
