@@ -1,4 +1,5 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+﻿using Dalamud.Game.ClientState;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
@@ -84,6 +85,14 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 .ToDictionary(
                     w => (ushort)w.RowId,
                     w => w.DataCenter.Value.Name.ToString());
+        });
+        WorldToDataCenterIdData = new(() =>
+        {
+            return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
+                .Where(w => !w.Name.IsEmpty && w.DataCenter.RowId != 0 && (w.IsPublic || char.IsUpper(w.Name.ToString()[0])))
+                .ToDictionary(
+                    w => (ushort)w.RowId,
+                    w => w.DataCenter.RowId);
         });
         JobData = new(() =>
         {
@@ -193,6 +202,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public bool IsOnFrameworkThread => _framework.IsInFrameworkUpdateThread;
     public bool IsZoning => _condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.BetweenAreas51];
     public bool IsBoundByDuty { get; set; } = false;
+    public bool IsPvPExcludingDen => _clientState.IsPvPExcludingDen;
     public bool IsSyncPausedByDuty => IsBoundByDuty && _configService.Current.DisableSyncDuringDuty;
     public bool IsInCombatOrPerforming { get; private set; } = false;
     public bool HasModifiedGameFiles => _gameData.HasModifiedGameDataFiles;
@@ -200,6 +210,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public Lazy<Dictionary<uint, string>> JobData { get; private set; }
     public Lazy<Dictionary<ushort, string>> WorldData { get; private set; }
     public Lazy<Dictionary<ushort, string>> WorldToDataCenterData { get; private set; }
+    public Lazy<Dictionary<ushort, uint>> WorldToDataCenterIdData { get; private set; }
     public Lazy<Dictionary<uint, string>> TerritoryData { get; private set; }
     public Lazy<Dictionary<uint, (Map Map, string MapName)>> MapData { get; private set; }
     public bool IsLodEnabled { get; private set; }
@@ -381,7 +392,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         EnsureIsOnFramework();
         return _objectTable.LocalPlayer!.CurrentWorld.RowId;
     }
-
     public unsafe bool TryGetCurrentPlotInfo(out int ward, out int plot)
     {
         var houseMan = HousingManager.Instance();
@@ -469,6 +479,24 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return WorldToDataCenterData.Value.TryGetValue(worldId, out var dataCenterName) ? dataCenterName : null;
     }
 
+    public uint? GetDataCenterIdForWorld(ushort worldId)
+    {
+        
+        return WorldToDataCenterIdData.Value.TryGetValue(worldId, out var dataCenterId) ? dataCenterId : null;
+    }
+
+    public unsafe ushort GetZoneId()
+    {
+        EnsureIsOnFramework();
+        var readZoneId = ContentsReplayManager.Instance();
+        return readZoneId != null ? readZoneId->ZoneInitPacket.Instance : (ushort)0;
+    }
+    
+    public async Task<ushort> GetZoneIdAsync()
+    {
+        return await RunOnFrameworkThread(GetZoneId).ConfigureAwait(false);
+    }
+    
     public async Task<uint> GetWorldIdAsync()
     {
         return await RunOnFrameworkThread(GetWorldId).ConfigureAwait(false);

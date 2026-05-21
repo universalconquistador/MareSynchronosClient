@@ -140,36 +140,61 @@ public partial class SettingsUi
         }
 
         ImGuiHelpers.ScaledDummy(5f);
-        //ImGui.AlignTextToFramePadding();
-        ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "This does not work for instanced areas.");
-        ImGui.SetNextItemWidth(150 * ImGuiHelpers.GlobalScale);
+        ImGui.TextUnformatted("ZoneSync Allowed Areas:");
+        ImGui.Indent();
+        
+        bool enableFieldSync = _zoneSyncConfigService.Current.EnableFieldSync;
+        bool enableResidentialSync = _zoneSyncConfigService.Current.EnableResidentialSync;
+        bool enableTownSync = _zoneSyncConfigService.Current.EnableTownSync;
+        bool enableDungeonSync = _zoneSyncConfigService.Current.EnableDungeonSync;
+        bool enablePvpSync = _zoneSyncConfigService.Current.EnablePvpSync;
+        
         using (ImRaii.Disabled(_globalControlCountdown > 0 && zoneSyncEnabled))
         {
-            _uiShared.DrawCombo("###zonefilter", [ZoneSyncFilter.All, ZoneSyncFilter.ResidentialOnly, ZoneSyncFilter.TownOnly, ZoneSyncFilter.ResidentialTown],
-            (s) => s switch
+            if (ImGui.Checkbox("Open Fields", ref enableFieldSync))
             {
-                ZoneSyncFilter.All => "All",
-                ZoneSyncFilter.ResidentialOnly => "Residential Only",
-                ZoneSyncFilter.TownOnly => "Town Only",
-                ZoneSyncFilter.ResidentialTown => "Residential + Town",
-                _ => throw new NotSupportedException()
-            }, (s) =>
-            {
-                _zoneSyncConfigService.Current.ZoneSyncFilter = s;
+                _zoneSyncConfigService.Current.EnableFieldSync = enableFieldSync;
                 _zoneSyncConfigService.Save();
-                if (zoneSyncEnabled)
-                {
-                    _ = GlobalControlCountdown(5);
-                }
+                if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
                 Mediator.Publish(new GroupZoneSyncUpdateMessage());
-            }, _zoneSyncConfigService.Current.ZoneSyncFilter);
-            if (_globalControlCountdown != 0 && zoneSyncEnabled)
-            {
-                UiSharedService.AttachToolTip("Wait a moment before changing ");
             }
+            _uiShared.DrawHelpText("Outdoor zones in the game.");
+            if (ImGui.Checkbox("Residential", ref enableResidentialSync))
+            {
+                _zoneSyncConfigService.Current.EnableResidentialSync = enableResidentialSync;
+                _zoneSyncConfigService.Save();
+                if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
+            }
+            _uiShared.DrawHelpText("Any area inside or containing player housing");
+            if (ImGui.Checkbox("Towns", ref enableTownSync))
+            {
+                _zoneSyncConfigService.Current.EnableTownSync = enableTownSync;
+                _zoneSyncConfigService.Save();
+                if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
+            }
+            _uiShared.DrawHelpText("All major towns in the game.");
+            if (ImGui.Checkbox("Dungeons", ref enableDungeonSync))
+            {
+                _zoneSyncConfigService.Current.EnableDungeonSync = enableDungeonSync;
+                _zoneSyncConfigService.Save();
+                if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
+            }
+            _uiShared.DrawHelpText("Dungeons, Trials, Raids, etc...");
+            if (ImGui.Checkbox("PvP", ref enablePvpSync))
+            {
+                _zoneSyncConfigService.Current.EnablePvpSync = enablePvpSync;
+                _zoneSyncConfigService.Save();
+                if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
+            }
+            _uiShared.DrawHelpText("Frontlines, Rival Wings, and Crystalline Conflict.");
+            if (_globalControlCountdown != 0 && zoneSyncEnabled)
+                UiSharedService.AttachToolTip("Wait a moment before changing.");
         }
-        ImGui.SameLine();
-        ImGui.TextUnformatted("ZoneSync Allowed Areas");
+        ImGui.Unindent();
         ImGuiHelpers.ScaledDummy(5f);
 
         ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Setting this too low may not give your PC enough time to unload/load other players.");
