@@ -12,7 +12,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using PlayerSync.PlayerData.Pairs;
 using PlayerSync.Services;
-using PlayerSync.Utils;
 using System.Reflection;
 
 namespace MareSynchronos;
@@ -85,18 +84,15 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
 {
     private readonly DalamudUtilService _dalamudUtil;
     private readonly MareConfigService _mareConfigService;
-    private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private IServiceScope? _runtimeServiceScope;
     private Task? _launchTask = null;
 
-    public MarePlugin(ILogger<MarePlugin> logger, MareConfigService mareConfigService, ZoneSyncConfigService zoneSyncConfigService,
-        ServerConfigurationManager serverConfigurationManager,
+    public MarePlugin(ILogger<MarePlugin> logger, MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, 
         DalamudUtilService dalamudUtil, IServiceScopeFactory serviceScopeFactory, MareMediator mediator) : base(logger, mediator)
     {
         _mareConfigService = mareConfigService;
-        _zoneSyncConfigService = zoneSyncConfigService;
         _serverConfigurationManager = serverConfigurationManager;
         _dalamudUtil = dalamudUtil;
         _serviceScopeFactory = serviceScopeFactory;
@@ -176,9 +172,6 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
                 _mareConfigService.Current.FirstTimeSetupComplete = true;
                 _mareConfigService.Save();
             }
-
-            if (ZoneSyncConfigMigration.Migrate(_zoneSyncConfigService.Current))
-                _zoneSyncConfigService.Save();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<CacheCreationService>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<TransientResourceManager>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<VisibleUserDataDistributor>();
