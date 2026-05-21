@@ -118,7 +118,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public async Task PauseServerConnection()
     {
-        if (!_dalamudUtil.IsSyncPausedByDuty && !_dalamudUtil.IsSyncPausedByPvP) return;
+        if (!_dalamudUtil.IsSyncPausedByDuty) return;
 
         if (!(ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting)) return;
 

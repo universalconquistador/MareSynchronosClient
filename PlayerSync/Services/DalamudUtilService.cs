@@ -203,9 +203,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public bool IsZoning => _condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.BetweenAreas51];
     public bool IsBoundByDuty { get; set; } = false;
     public bool IsPvPExcludingDen => _clientState.IsPvPExcludingDen;
-    public bool IsBoundByPvP { get; set; } = false;
     public bool IsSyncPausedByDuty => IsBoundByDuty && _configService.Current.DisableSyncDuringDuty;
-    public bool IsSyncPausedByPvP => IsBoundByPvP && _configService.Current.DisableSyncDuringPvP;
     public bool IsInCombatOrPerforming { get; private set; } = false;
     public bool HasModifiedGameFiles => _gameData.HasModifiedGameDataFiles;
     public uint ClassJobId => _classJobId!.Value;
@@ -843,27 +841,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 {
                     Mediator.Publish(new ResumeSyncMessage());
                     Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByDuty)));
-                }
-            }
-
-            if (_clientState.IsPvPExcludingDen && !IsBoundByPvP)
-            {
-                _logger.LogDebug("PvP start");
-                IsBoundByPvP = true;
-                if (_configService.Current.DisableSyncDuringPvP)
-                {
-                    Mediator.Publish(new PauseSyncMessage());
-                    Mediator.Publish(new HaltScanMessage(nameof(IsBoundByPvP)));
-                }
-            }
-            else if (!_clientState.IsPvPExcludingDen && IsBoundByPvP)
-            {
-                _logger.LogDebug("PvP end");
-                IsBoundByPvP = false;
-                if (_configService.Current.DisableSyncDuringPvP)
-                {
-                    Mediator.Publish(new ResumeSyncMessage());
-                    Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByPvP)));
                 }
             }
 
