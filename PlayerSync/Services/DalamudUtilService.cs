@@ -818,7 +818,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 }
             }
 
-            if (_clientState.IsPvP && !IsBoundByPvP)
+            if (_clientState.IsPvPExcludingDen && !IsBoundByPvP)
             {
                 _logger.LogDebug("PvP start");
                 IsBoundByPvP = true;
@@ -828,7 +828,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                     Mediator.Publish(new HaltScanMessage(nameof(IsBoundByPvP)));
                 }
             }
-            else if (!_clientState.IsPvP && IsBoundByPvP)
+            else if (!_clientState.IsPvPExcludingDen && IsBoundByPvP)
             {
                 _logger.LogDebug("PvP end");
                 IsBoundByPvP = false;
