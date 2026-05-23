@@ -40,6 +40,7 @@ public class DrawFolderGroup : DrawFolderBase
 
     protected override bool RenderIfEmpty => true;
     protected override bool RenderMenu => true;
+    protected override bool RenderFullWarning => true;
     private bool IsModerator => IsOwner || _groupFullInfoDto.GroupUserInfo.IsModerator();
     private bool IsOwner => string.Equals(_groupFullInfoDto.OwnerUID, _apiController.UID, StringComparison.Ordinal);
     private bool IsPinned => _groupFullInfoDto.GroupUserInfo.IsPinned();

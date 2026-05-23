@@ -32,6 +32,7 @@ public abstract class DrawFolderBase : IDrawFolder
 
     protected abstract bool RenderIfEmpty { get; }
     protected abstract bool RenderMenu { get; }
+    protected virtual bool RenderFullWarning => false;
 
     public void Draw()
     {
@@ -61,7 +62,7 @@ public abstract class DrawFolderBase : IDrawFolder
             // draw name
             ImGui.SameLine(leftSideEnd);
             DrawName(rightSideStart - leftSideEnd);
-            if (_allPairs.Count == (_uiSharedService.ApiController.ServerInfo.MaxGroupUserCount - 1))
+            if (RenderFullWarning && _allPairs.Count == (_uiSharedService.ApiController.ServerInfo.MaxGroupUserCount - 1))
             {
                 ImGui.SameLine();
                 _uiSharedService.IconText(FontAwesomeIcon.ExclamationCircle, ImGuiColors.DalamudRed);
