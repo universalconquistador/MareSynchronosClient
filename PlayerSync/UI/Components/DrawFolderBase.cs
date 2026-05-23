@@ -61,12 +61,6 @@ public abstract class DrawFolderBase : IDrawFolder
             // draw name
             ImGui.SameLine(leftSideEnd);
             DrawName(rightSideStart - leftSideEnd);
-            if (_allPairs.Count == (_uiSharedService.ApiController.ServerInfo.MaxGroupUserCount - 1))
-            {
-                ImGui.SameLine();
-                _uiSharedService.IconText(FontAwesomeIcon.ExclamationCircle, ImGuiColors.DalamudRed);
-                UiSharedService.AttachToolTip("Syncshell full");
-            }
         }
 
         _wasHovered = ImGui.IsItemHovered();
