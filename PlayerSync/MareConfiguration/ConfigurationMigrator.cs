@@ -182,7 +182,7 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
                     break;
             }
 
-            zoneSync.Version = 2;
+            zoneSyncConfigService.Current.Version = 2;
             zoneSyncConfigService.Save();
         }
     }
