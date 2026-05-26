@@ -1,3 +1,4 @@
+using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -5,7 +6,8 @@ using Microsoft.Extensions.Logging;
 namespace MareSynchronos.MareConfiguration;
 
 public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, TransientConfigService transientConfigService,
-    ServerConfigService serverConfigService, NotesConfigService notesConfigService, ServerTagConfigService serverTagConfigService) : IHostedService
+    ServerConfigService serverConfigService, NotesConfigService notesConfigService, ServerTagConfigService serverTagConfigService,
+    ZoneSyncConfigService zoneSyncConfigService) : IHostedService
 {
     private readonly ILogger<ConfigurationMigrator> _logger = logger;
 
@@ -140,6 +142,48 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             }
             serverTagConfigService.Current.Version = 1;
             serverTagConfigService.Save();
+        }
+
+        // zone sync migration
+        if (zoneSyncConfigService.Current.Version == 1)
+        {
+            _logger.LogInformation("Migrating Server Config V1 => V2");
+            var zoneSync = zoneSyncConfigService.Current;
+
+            switch (zoneSync.ZoneSyncFilter)
+            {
+                case ZoneSyncFilter.All:
+                    zoneSync.EnableFieldSync = true;
+                    zoneSync.EnableResidentialSync = true;
+                    zoneSync.EnableTownSync = true;
+                    zoneSync.EnableDungeonSync = true;
+                    zoneSync.EnablePvpSync = true;
+                    break;
+                case ZoneSyncFilter.ResidentialOnly:
+                    zoneSync.EnableFieldSync = false;
+                    zoneSync.EnableResidentialSync = true;
+                    zoneSync.EnableTownSync = false;
+                    zoneSync.EnableDungeonSync = true;
+                    zoneSync.EnablePvpSync = false;
+                    break;
+                case ZoneSyncFilter.TownOnly:
+                    zoneSync.EnableFieldSync = false;
+                    zoneSync.EnableResidentialSync = false;
+                    zoneSync.EnableTownSync = true;
+                    zoneSync.EnableDungeonSync = true;
+                    zoneSync.EnablePvpSync = false;
+                    break;
+                case ZoneSyncFilter.ResidentialTown:
+                    zoneSync.EnableFieldSync = false;
+                    zoneSync.EnableResidentialSync = true;
+                    zoneSync.EnableTownSync = true;
+                    zoneSync.EnableDungeonSync = true;
+                    zoneSync.EnablePvpSync = false;
+                    break;
+            }
+
+            zoneSync.Version = 2;
+            zoneSyncConfigService.Save();
         }
     }
 
