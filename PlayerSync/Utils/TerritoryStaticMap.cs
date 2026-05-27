@@ -2496,7 +2496,12 @@ namespace TerritoryTools
             [1368] = false,
             // Transparency - Shinryu's Domain (Unreal)
             [1372] = false,
-
+            // h2i1
+            [1374] = false,
+            // h2i2
+            [1375] = false,
+            // h2i3
+            [1376] = false,
         };
     }
 }
