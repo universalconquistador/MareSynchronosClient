@@ -1879,11 +1879,11 @@ namespace TerritoryTools
             // Propylaion
             [1031] = false,
             // The Palaistra
-            [1032] = true,
+            [1032] = false,
             // The Volcanic Heart
-            [1033] = true,
+            [1033] = false,
             // Cloud Nine
-            [1034] = true,
+            [1034] = false,
             // Territory #1035
             [1035] = false,
             // Sastasha
@@ -1931,11 +1931,11 @@ namespace TerritoryTools
             // Restricted Archives
             [1057] = false,
             // The Palaistra
-            [1058] = true,
+            [1058] = false,
             // The Volcanic Heart
-            [1059] = true,
+            [1059] = false,
             // Cloud Nine
-            [1060] = true,
+            [1060] = false,
             // The Omphalos
             [1061] = false,
             // Snowcloak
@@ -2047,9 +2047,9 @@ namespace TerritoryTools
             // The Tower of Babil
             [1115] = true,
             // The Clockwork Castletown
-            [1116] = true,
+            [1116] = false,
             // The Clockwork Castletown
-            [1117] = true,
+            [1117] = false,
             // Euphrosyne
             [1118] = false,
             // Lapis Manalis
@@ -2091,9 +2091,9 @@ namespace TerritoryTools
             // Mount Rokkon
             [1137] = false,
             // The Red Sands
-            [1138] = true,
+            [1138] = false,
             // The Red Sands
-            [1139] = true,
+            [1139] = false,
             // The Voidcast Dais
             [1140] = false,
             // The Voidcast Dais
@@ -2401,9 +2401,9 @@ namespace TerritoryTools
             // The Meso Terminal
             [1292] = false,
             // The Bayside Battleground
-            [1293] = true,
+            [1293] = false,
             // The Bayside Battleground
-            [1294] = true,
+            [1294] = false,
             // The Ageless Necropolis
             [1295] = false,
             // The Ageless Necropolis
@@ -2484,6 +2484,10 @@ namespace TerritoryTools
             [1333] = false,
             // The Clyteum - the Clyteum
             [1345] = false,
+            // Archeia Harmonias
+            [1357] = false,
+            // Archeia Harmonias
+            [1358] = false,
             // The Unmaking - the Unmaking
             [1361] = false,
             // The Unmaking - the Unmaking (Extreme)
@@ -2502,6 +2506,8 @@ namespace TerritoryTools
             [1375] = false,
             // h2i3
             [1376] = false,
+            // Starlight Stalls
+            [1384] = false,
         };
     }
 }
