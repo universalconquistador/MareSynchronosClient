@@ -98,7 +98,6 @@ public class MareConfig : IMareConfiguration
     public bool InitialSetupOptions { get; set; } = false;
     public bool FirstTimeSetupComplete { get; set; } = false;
     public bool DisableSyncDuringDuty { get; set; } = false;
-    public bool DisableSyncDuringPvP { get; set; } = false;
     public bool DebugDisableSoundIndicators { get; set; } = false;
     public ContextMenuItemId[] ContextMenuOrder { get; set; } = new ContextMenuItemId[5]
     {
