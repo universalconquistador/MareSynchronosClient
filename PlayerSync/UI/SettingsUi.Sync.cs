@@ -309,8 +309,9 @@ public partial class SettingsUi
 
     private void DrawDutyPause()
     {
-        bool disableSyncDuringDuty = _configService.Current.DisableSyncDuringDuty;
+        bool disableSyncDuringDuty = _configService.Current.DisableSyncDuringDuty; bool disableSyncDuringPvP = _configService.Current.DisableSyncDuringPvP;
         bool IsBoundByDuty = _dalamudUtilService.IsBoundByDuty;
+        bool IsBoundByPvP = _dalamudUtilService.IsBoundByPvP;
         bool isConnectingOrConnected = _apiController.ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting;
 
         _uiShared.BigText("Duty Pause");
@@ -331,6 +332,22 @@ public partial class SettingsUi
             }
 
             _configService.Current.DisableSyncDuringDuty = disableSyncDuringDuty;
+            _configService.Save();
+        }
+        if (ImGui.Checkbox("Auto disconnect when in PvP", ref disableSyncDuringPvP))
+        {
+            if (isConnectingOrConnected && !_serverConfigurationManager.CurrentServer.FullPause && IsBoundByPvP && disableSyncDuringPvP)
+            {
+                Mediator.Publish(new PauseSyncMessage());
+                Mediator.Publish(new HaltScanMessage(nameof(IsBoundByPvP)));
+            }
+            else if (!isConnectingOrConnected && _serverConfigurationManager.CurrentServer.FullPause && IsBoundByPvP && !disableSyncDuringPvP)
+            {
+                Mediator.Publish(new ResumeSyncMessage());
+                Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByPvP)));
+            }
+
+            _configService.Current.DisableSyncDuringPvP = disableSyncDuringPvP;
             _configService.Save();
         }
     }
