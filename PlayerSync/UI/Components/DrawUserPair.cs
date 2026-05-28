@@ -294,7 +294,7 @@ public class DrawUserPair
                         }
                     }
 
-                    if (folders.Count > 0)
+                    if (folders.Count > 1) // changed to 1 as Default Book is technically considered a folder, this removes double line draw.
                         ImGui.Separator();
 
                     if (ImGui.MenuItem("Use Current Location"))

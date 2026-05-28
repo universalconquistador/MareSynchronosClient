@@ -8,6 +8,11 @@ public class ZoneSyncConfig : IMareConfiguration
     public bool EnableGroupZoneSyncJoining { get; set; } = false;
     public bool UserHasConfirmedWarning { get; set; } = false;
     public ZoneSyncFilter ZoneSyncFilter { get; set; } = ZoneSyncFilter.All;
+    public bool EnableFieldSync { get; set; } = true;
+    public bool EnableResidentialSync { get; set; } = true;
+    public bool EnableTownSync { get; set; } = true;
+    public bool EnableDungeonSync { get; set; } = true;
+    public bool EnablePvpSync { get; set; } = true;
     public int ZoneJoinDelayTime { get; set; } = 10;
     public Dictionary<string, bool> ZoneSyncEnabledPerCharacter { get; set; } = new(StringComparer.Ordinal);
 }

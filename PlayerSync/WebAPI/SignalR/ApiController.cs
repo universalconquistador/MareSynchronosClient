@@ -5,7 +5,6 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.API.SignalR;
-using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
@@ -111,16 +110,17 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     public SystemInfoDto SystemInfoDto { get; private set; } = new();
 
     public string UID => _connectionDto?.User.UID ?? string.Empty;
-
+    
     public async Task<bool> CheckClientHealth()
     {
         return await _mareHub!.InvokeAsync<bool>(nameof(CheckClientHealth)).ConfigureAwait(false);
     }
 
+    public bool UserRequestedFullPause { get; set; }
+    
     public async Task PauseServerConnection()
     {
-        if (!_dalamudUtil.IsSyncPausedByDuty) return;
-
+        if (!_dalamudUtil.IsSyncPausedByDuty && !_dalamudUtil.IsSyncPausedByPvP) return;
         if (!(ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting)) return;
 
         _serverManager.CurrentServer.FullPause = true;
@@ -132,6 +132,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     public async Task ResumeServerConnection()
     {
         if (ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting) return;
+        if (UserRequestedFullPause) return;
         _serverManager.CurrentServer.FullPause = false;
         _serverManager.Save();
         await CreateConnectionsAsync().ConfigureAwait(false);
