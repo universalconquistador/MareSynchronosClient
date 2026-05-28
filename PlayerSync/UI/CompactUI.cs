@@ -366,11 +366,13 @@ public class CompactUi : WindowMediatorSubscriberBase
                     if (isConnectingOrConnected && !_serverManager.CurrentServer.FullPause)
                     {
                         _serverManager.CurrentServer.FullPause = true;
+                        _apiController.UserRequestedFullPause = true;
                         _serverManager.Save();
                     }
                     else if (!isConnectingOrConnected && _serverManager.CurrentServer.FullPause)
                     {
                         _serverManager.CurrentServer.FullPause = false;
+                        _apiController.UserRequestedFullPause = false;
                         _serverManager.Save();
                     }
 
