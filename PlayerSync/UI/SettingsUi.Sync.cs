@@ -149,6 +149,7 @@ public partial class SettingsUi
         bool enableDungeonSync = _zoneSyncConfigService.Current.EnableDungeonSync;
         bool enablePvpSync = _zoneSyncConfigService.Current.EnablePvpSync;
         
+        var zoneSyncBlockStart = ImGui.GetCursorScreenPos();
         using (ImRaii.Disabled(_globalControlCountdown > 0 && zoneSyncEnabled))
         {
             if (ImGui.Checkbox("Open Fields", ref enableFieldSync))
@@ -191,9 +192,11 @@ public partial class SettingsUi
                 Mediator.Publish(new GroupZoneSyncUpdateMessage());
             }
             _uiShared.DrawHelpText("Frontlines, Rival Wings, and Crystalline Conflict.");
-            if (_globalControlCountdown != 0 && zoneSyncEnabled)
-                UiSharedService.AttachToolTip("Wait a moment before changing.");
         }
+        if (_globalControlCountdown != 0 && zoneSyncEnabled &&
+            ImGui.IsMouseHoveringRect(zoneSyncBlockStart, new Vector2(zoneSyncBlockStart.X + ImGui.GetContentRegionAvail().X, ImGui.GetCursorScreenPos().Y)))
+            ImGui.SetTooltip("Wait a moment before changing...");
+        
         ImGui.Unindent();
         ImGuiHelpers.ScaledDummy(5f);
 
