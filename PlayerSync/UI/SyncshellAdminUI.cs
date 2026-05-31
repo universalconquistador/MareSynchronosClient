@@ -682,6 +682,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         ImGuiHelpers.ScaledDummy(2);
 
         ImGui.AlignTextToFramePadding();
+
+        UiSharedService.ColorTextWrapped("Syncshell names can be changed in PlayerSync Settings > Vanity/Alias", ImGuiColors.DalamudYellow);
+
         ImGui.TextUnformatted("New Password");
         var availableWidth = ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X;
         var buttonSize = _uiSharedService.GetIconTextButtonSize(FontAwesomeIcon.Passport, "Change Password");
