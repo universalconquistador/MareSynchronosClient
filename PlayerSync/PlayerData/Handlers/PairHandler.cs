@@ -238,7 +238,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization)
             return Task.CompletedTask;
 
-        if (_dalamudUtil.IsInCutscene || _dalamudUtil.IsInGpose || !_ipcManager.Penumbra.APIAvailable || !_ipcManager.Glamourer.APIAvailable)
+        if (_dalamudUtil.IsInCutscene || _dalamudUtil.IsOccupiedInCutSceneEvent || _dalamudUtil.IsInGpose || !_ipcManager.Penumbra.APIAvailable || !_ipcManager.Glamourer.APIAvailable)
         {
             Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
                 "Cannot apply character data: you are in GPose, a Cutscene or Penumbra/Glamourer is not available")));

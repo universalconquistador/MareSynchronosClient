@@ -197,6 +197,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     }
     public bool IsAnythingDrawing { get; private set; } = false;
     public bool IsInCutscene { get; private set; } = false;
+    public bool IsOccupiedInCutSceneEvent => _condition[ConditionFlag.OccupiedInCutSceneEvent];
     public bool IsInGpose { get; private set; } = false;
     public bool IsLoggedIn { get; private set; }
     public bool IsOnFrameworkThread => _framework.IsInFrameworkUpdateThread;
