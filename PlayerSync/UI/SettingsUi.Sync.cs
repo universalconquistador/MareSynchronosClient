@@ -167,7 +167,7 @@ public partial class SettingsUi
                 if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
                 Mediator.Publish(new GroupZoneSyncUpdateMessage());
             }
-            _uiShared.DrawHelpText("Any area inside or containing player housing");
+            _uiShared.DrawHelpText("Any area inside or containing player housing.");
             if (ImGui.Checkbox("Towns", ref enableTownSync))
             {
                 _zoneSyncConfigService.Current.EnableTownSync = enableTownSync;
