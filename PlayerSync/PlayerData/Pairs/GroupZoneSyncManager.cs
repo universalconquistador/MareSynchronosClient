@@ -134,51 +134,70 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
             _logger.LogDebug("Can't call SendGroupZoneSyncInfo when not connected.");
             return;
         }
-        var dutyBound = _dalamudUtilService.IsBoundByDuty;
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
-        bool? inst = TerritoryTools.TerritoryStaticMap.IsInstance(ownLocation.TerritoryId);
-        if (inst != false || dutyBound)
+        var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
+        var datacenter = _dalamudUtilService.GetDataCenterIdForWorld((ushort)ownLocation.ServerId);
+        var instanceBound = _dalamudUtilService.IsBoundByDuty/*PvE Duty */ || _dalamudUtilService.IsPvPExcludingDen/*PvP Duty*/;
+
+        //Exit if Forbidden zone
+        if (TerritoryTools.TerritoryStaticMap.IsTerritoryForbidden(ownLocation.TerritoryId) != false)
         {
-            Logger.LogDebug("Cancelled ZoneSync, not in a permitted area.");
+            _logger.LogDebug("Cancelled ZoneSync, territory is forbidden.");
             await GroupZoneLeaveAll().ConfigureAwait(false);
             return;
         }
-
-        var filteredZones = _zoneSyncConfigService.Current.ZoneSyncFilter;
-        var isTown = TerritoryTools.TerritoryStaticMap.IsTown(ownLocation.TerritoryId);
-        var isResidential = ownLocation.WardId != 0;
-        switch(filteredZones)
+        
+        //DungeonSync Trace log data before modification
+        _logger.LogTrace("ZoneSync: DataCenter={instdata} ServerID={serverId} Instance={instance} RoomID={roomId}", 
+            datacenter, ownLocation.ServerId, instance, ownLocation.RoomId);
+        
+        //Set ServerId to datacenter and RoomId to instance if instanceBound
+        if (instanceBound && instance > 0)
         {
-            case ZoneSyncFilter.All:
-                break;
-
-            case ZoneSyncFilter.TownOnly:
-                if (!isTown)
-                {
-                    await GroupZoneLeaveAll().ConfigureAwait(false);
-                    return;
-                }
-                break;
-
-            case ZoneSyncFilter.ResidentialOnly:
-                if (!isResidential)
-                {
-                    await GroupZoneLeaveAll().ConfigureAwait(false);
-                    return;
-                }
-                break;
-
-            case ZoneSyncFilter.ResidentialTown:
-                if (!(isTown || isResidential))
-                {
-                    await GroupZoneLeaveAll().ConfigureAwait(false);
-                    return;
-                }
-                break;
+            ownLocation.RoomId = instance;
+            ownLocation.ServerId = datacenter!.Value;
         }
         
-        _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}",
-        ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
+        var isResidential = ownLocation.WardId != 0;
+        var isTown = TerritoryTools.TerritoryStaticMap.IsTown(ownLocation.TerritoryId);
+        var isDungeon = _dalamudUtilService.IsBoundByDuty;
+        var isPvP = _dalamudUtilService.IsPvPExcludingDen;
+        
+        //Early Exits that checks against ZoneSync Allowed Areas user settings
+        if (!_zoneSyncConfigService.Current.EnableFieldSync && !(isResidential || isTown || isDungeon || isPvP))
+        {
+            _logger.LogDebug("Cancelled ZoneSync, Field Sync is disabled.");
+            await GroupZoneLeaveAll().ConfigureAwait(false);
+            return; 
+        }
+        if (!_zoneSyncConfigService.Current.EnableResidentialSync && isResidential)
+        {
+            _logger.LogDebug("Cancelled ZoneSync, Residential Sync is disabled.");
+            await GroupZoneLeaveAll().ConfigureAwait(false);
+            return;
+        }
+        if (!_zoneSyncConfigService.Current.EnableTownSync && isTown)
+        {
+            _logger.LogDebug("Cancelled ZoneSync, Town Sync is disabled.");
+            await GroupZoneLeaveAll().ConfigureAwait(false);
+            return;
+        }
+        if (!_zoneSyncConfigService.Current.EnableDungeonSync && isDungeon)
+        {
+            _logger.LogDebug("Cancelled ZoneSync, Dungeon Sync is disabled.");
+            await GroupZoneLeaveAll().ConfigureAwait(false);
+            return;
+        }
+        if (!_zoneSyncConfigService.Current.EnablePvpSync && isPvP)
+        {
+            _logger.LogDebug("Cancelled ZoneSync, PvP Sync is disabled.");
+            await GroupZoneLeaveAll().ConfigureAwait(false);
+            return; 
+        }
+        
+        //Zone sync debug log for what's being sent to server
+        _logger.LogDebug("Sending ZoneSync join for {world} {territory} {ward} {house} {room}", 
+            ownLocation.ServerId, ownLocation.TerritoryId, ownLocation.WardId, ownLocation.HouseId, ownLocation.RoomId);
 
         var defaultPerms = _apiController.DefaultPermissions.DeepClone()!;
         GroupUserPreferredPermissions joinPermissions = GroupUserPreferredPermissions.NoneSet;

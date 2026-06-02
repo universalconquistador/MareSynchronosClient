@@ -261,6 +261,13 @@ public class DrawFolderGroup : DrawFolderBase
     protected override void DrawName(float width)
     {
         _idDisplayHandler.DrawGroupText(_id, _groupFullInfoDto, ImGui.GetCursorPosX(), () => width);
+
+        if (_allPairs.Count == (_uiSharedService.ApiController.ServerInfo.MaxGroupUserCount - 1))
+        {
+            ImGui.SameLine();
+            _uiSharedService.IconText(FontAwesomeIcon.ExclamationCircle, ImGuiColors.DalamudRed);
+            UiSharedService.AttachToolTip("Syncshell full");
+        }
     }
 
     protected override float DrawRightSide(float currentRightSideX)

@@ -89,20 +89,18 @@ public partial class SettingsUi
 
         _uiShared.HeaderText("Update Vanity IDs/Alias");
 
+        ImGui.TextWrapped("Use this to set a vanity name for your PlayerSync UID or Syncshell ID.");
         if (ImGui.Button("Retrieve Account Info"))
         {
             _retrieveAccountInfoTask = _apiController.GetAccountInfo();
             _accountInfo = null;
         }
 
-        ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Vanity IDs/Alias must be 5-15 characters, underscore, dash.");
-
-        ImGuiHelpers.ScaledDummy(2);
-
         if (_retrieveAccountInfoTask is { IsCompleted: true } && _accountInfo == null)
         {
             if (_retrieveAccountInfoTask.IsFaulted)
             {
+                ImGuiHelpers.ScaledDummy(2);
                 ImGui.TextColored(ImGuiColors.DalamudRed, _retrieveAccountInfoTask.Exception?.GetBaseException().Message ?? "Failed.");
             }
             else
@@ -113,6 +111,10 @@ public partial class SettingsUi
 
         if (_accountInfo == null)
             return;
+
+        ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Vanity IDs/Alias must be 5-15 characters, underscore, dash.");
+
+        ImGuiHelpers.ScaledDummy(2);
 
         float itemWidth = ImGui.GetContentRegionAvail().X / 2f;
 

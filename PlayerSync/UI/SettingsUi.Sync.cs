@@ -140,36 +140,64 @@ public partial class SettingsUi
         }
 
         ImGuiHelpers.ScaledDummy(5f);
-        //ImGui.AlignTextToFramePadding();
-        ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "This does not work for instanced areas.");
-        ImGui.SetNextItemWidth(150 * ImGuiHelpers.GlobalScale);
+        ImGui.TextUnformatted("ZoneSync Allowed Areas:");
+        ImGui.Indent();
+        
+        bool enableFieldSync = _zoneSyncConfigService.Current.EnableFieldSync;
+        bool enableResidentialSync = _zoneSyncConfigService.Current.EnableResidentialSync;
+        bool enableTownSync = _zoneSyncConfigService.Current.EnableTownSync;
+        bool enableDungeonSync = _zoneSyncConfigService.Current.EnableDungeonSync;
+        bool enablePvpSync = _zoneSyncConfigService.Current.EnablePvpSync;
+        
+        var zoneSyncBlockStart = ImGui.GetCursorScreenPos();
         using (ImRaii.Disabled(_globalControlCountdown > 0 && zoneSyncEnabled))
         {
-            _uiShared.DrawCombo("###zonefilter", [ZoneSyncFilter.All, ZoneSyncFilter.ResidentialOnly, ZoneSyncFilter.TownOnly, ZoneSyncFilter.ResidentialTown],
-            (s) => s switch
+            if (ImGui.Checkbox("Open Fields", ref enableFieldSync))
             {
-                ZoneSyncFilter.All => "All",
-                ZoneSyncFilter.ResidentialOnly => "Residential Only",
-                ZoneSyncFilter.TownOnly => "Town Only",
-                ZoneSyncFilter.ResidentialTown => "Residential + Town",
-                _ => throw new NotSupportedException()
-            }, (s) =>
-            {
-                _zoneSyncConfigService.Current.ZoneSyncFilter = s;
+                _zoneSyncConfigService.Current.EnableFieldSync = enableFieldSync;
                 _zoneSyncConfigService.Save();
-                if (zoneSyncEnabled)
-                {
-                    _ = GlobalControlCountdown(5);
-                }
+                if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
                 Mediator.Publish(new GroupZoneSyncUpdateMessage());
-            }, _zoneSyncConfigService.Current.ZoneSyncFilter);
-            if (_globalControlCountdown != 0 && zoneSyncEnabled)
-            {
-                UiSharedService.AttachToolTip("Wait a moment before changing ");
             }
+            _uiShared.DrawHelpText("Outdoor zones in the game.");
+            if (ImGui.Checkbox("Residential", ref enableResidentialSync))
+            {
+                _zoneSyncConfigService.Current.EnableResidentialSync = enableResidentialSync;
+                _zoneSyncConfigService.Save();
+                if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
+            }
+            _uiShared.DrawHelpText("Any area inside or containing player housing.");
+            if (ImGui.Checkbox("Towns", ref enableTownSync))
+            {
+                _zoneSyncConfigService.Current.EnableTownSync = enableTownSync;
+                _zoneSyncConfigService.Save();
+                if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
+            }
+            _uiShared.DrawHelpText("All major towns in the game.");
+            if (ImGui.Checkbox("Dungeons", ref enableDungeonSync))
+            {
+                _zoneSyncConfigService.Current.EnableDungeonSync = enableDungeonSync;
+                _zoneSyncConfigService.Save();
+                if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
+            }
+            _uiShared.DrawHelpText("Dungeons, Trials, Raids, etc...");
+            if (ImGui.Checkbox("PvP", ref enablePvpSync))
+            {
+                _zoneSyncConfigService.Current.EnablePvpSync = enablePvpSync;
+                _zoneSyncConfigService.Save();
+                if (zoneSyncEnabled) _ = GlobalControlCountdown(5);
+                Mediator.Publish(new GroupZoneSyncUpdateMessage());
+            }
+            _uiShared.DrawHelpText("Frontlines, Rival Wings, and Crystalline Conflict.");
         }
-        ImGui.SameLine();
-        ImGui.TextUnformatted("ZoneSync Allowed Areas");
+        if (_globalControlCountdown != 0 && zoneSyncEnabled &&
+            ImGui.IsMouseHoveringRect(zoneSyncBlockStart, new Vector2(zoneSyncBlockStart.X + ImGui.GetContentRegionAvail().X, ImGui.GetCursorScreenPos().Y)))
+            ImGui.SetTooltip("Wait a moment before changing...");
+        
+        ImGui.Unindent();
         ImGuiHelpers.ScaledDummy(5f);
 
         ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Setting this too low may not give your PC enough time to unload/load other players.");
@@ -180,7 +208,7 @@ public partial class SettingsUi
             _zoneSyncConfigService.Current.ZoneJoinDelayTime = zoneSyncJoinDelay;
             _zoneSyncConfigService.Save();
         }
-        _uiShared.DrawHelpText("Set the wait time in seconds between entering a zone and joining a ZoneSync. Increase this if you have pairing issues after zoning.");
+        _uiShared.DrawHelpText("Set the wait time in seconds between entering a zone and joining a ZoneSync." + UiSharedService.TooltipSeparator + "Increase this if you have pairing issues after zoning.");
 
         ImGuiHelpers.ScaledDummy(5f);
         UiSharedService.TextWrapped("ZoneSync Synchshell permissions are based on your Default Permission Settings.");
@@ -284,8 +312,9 @@ public partial class SettingsUi
 
     private void DrawDutyPause()
     {
-        bool disableSyncDuringDuty = _configService.Current.DisableSyncDuringDuty;
+        bool disableSyncDuringDuty = _configService.Current.DisableSyncDuringDuty; bool disableSyncDuringPvP = _configService.Current.DisableSyncDuringPvP;
         bool IsBoundByDuty = _dalamudUtilService.IsBoundByDuty;
+        bool IsBoundByPvP = _dalamudUtilService.IsBoundByPvP;
         bool isConnectingOrConnected = _apiController.ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting;
 
         _uiShared.BigText("Duty Pause");
@@ -306,6 +335,22 @@ public partial class SettingsUi
             }
 
             _configService.Current.DisableSyncDuringDuty = disableSyncDuringDuty;
+            _configService.Save();
+        }
+        if (ImGui.Checkbox("Auto disconnect when in PvP", ref disableSyncDuringPvP))
+        {
+            if (isConnectingOrConnected && !_serverConfigurationManager.CurrentServer.FullPause && IsBoundByPvP && disableSyncDuringPvP)
+            {
+                Mediator.Publish(new PauseSyncMessage());
+                Mediator.Publish(new HaltScanMessage(nameof(IsBoundByPvP)));
+            }
+            else if (!isConnectingOrConnected && _serverConfigurationManager.CurrentServer.FullPause && IsBoundByPvP && !disableSyncDuringPvP)
+            {
+                Mediator.Publish(new ResumeSyncMessage());
+                Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByPvP)));
+            }
+
+            _configService.Current.DisableSyncDuringPvP = disableSyncDuringPvP;
             _configService.Save();
         }
     }

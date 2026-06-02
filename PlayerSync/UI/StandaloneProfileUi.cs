@@ -275,7 +275,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
                     {
                         _confirmNsfwWarning = true;
                     }
-                    UiSharedService.AttachToolTip("Disable warning in settings");
+                    UiSharedService.AttachToolTip("Disable warning in Settings > Interface > PlayerSync UI");
                 }
             }
 

@@ -249,7 +249,12 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         using var pane = ImRaii.Child("##settings-pane", new Vector2(0, 0), false);
         Ui.AddVerticalSpace(2);
 
-        _selectedNavItem.NavAction.Invoke();
+        try
+        {
+            _selectedNavItem.NavAction.Invoke();
+        }
+        catch { }
+        
     }
 
     private static bool InputColorPicker(string label, ref SeStringTextColors colors, bool drawDtr = false)
