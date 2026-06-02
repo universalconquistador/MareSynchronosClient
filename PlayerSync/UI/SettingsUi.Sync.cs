@@ -208,7 +208,7 @@ public partial class SettingsUi
             _zoneSyncConfigService.Current.ZoneJoinDelayTime = zoneSyncJoinDelay;
             _zoneSyncConfigService.Save();
         }
-        _uiShared.DrawHelpText("Set the wait time in seconds between entering a zone and joining a ZoneSync. Increase this if you have pairing issues after zoning.");
+        _uiShared.DrawHelpText("Set the wait time in seconds between entering a zone and joining a ZoneSync." + UiSharedService.TooltipSeparator + "Increase this if you have pairing issues after zoning.");
 
         ImGuiHelpers.ScaledDummy(5f);
         UiSharedService.TextWrapped("ZoneSync Synchshell permissions are based on your Default Permission Settings.");
