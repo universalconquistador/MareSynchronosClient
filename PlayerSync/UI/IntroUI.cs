@@ -642,6 +642,15 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         UiSharedService.TextWrapped("Highlight color can later be changed in the PlayerSync Settings menu.");
 
         ImGuiHelpers.ScaledDummy(5);
+        var enableDtrEntry = _configService.Current.EnableDtrEntry;
+        if (ImGui.Checkbox("Display status and visible pair count in Server Info Bar", ref enableDtrEntry))
+        {
+            _configService.Current.EnableDtrEntry = enableDtrEntry;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This will add PlayerSync connection status and visible pair count in the Server Info Bar.\nYou can further configure this through your Dalamud Settings.");
+
+        ImGuiHelpers.ScaledDummy(5);
         var enableGroupZoneSyncJoining = _zoneSyncConfigService.Current.EnableGroupZoneSyncJoining;
         if (ImGui.Checkbox("Enable ZoneSync", ref enableGroupZoneSyncJoining))
         {
