@@ -8,6 +8,9 @@ namespace TerritoryTools
             388, 418, 419, 478, 635, 628, 759, 819, 820, 962, 963, 1185, 1186]);
         public static bool IsTown(uint id) => TownTerritoryIds.Contains(id);
         
+        public static List<uint> FieldOperationIds { get; set; } = new List<uint>([732, 763, 795, 827, 920, 97, 1252]);
+        public static bool IsFieldOp(uint id) => FieldOperationIds.Contains(id);
+        
         /// <summary> true = instanced; false = open-world; null = unknown id </summary>
         public static bool? IsTerritoryForbidden(uint territoryId) => _map.TryGetValue(territoryId, out var v) ? v : (bool?)null;
         public static IReadOnlyDictionary<uint, bool> Map => _map;
