@@ -30,7 +30,16 @@ jobs:
         run: dotnet build --configuration Release --no-restore
         env:
           DALAMUD_HOME: /home/runner/.xlcore/dalamud/Hooks/dev
-
+      - name: Prepare artifact
+        run: unzip PlayerSync/bin/x64/Release/MareSempiterne/latest.zip -d PlayerSync/bin/x64/Release/MareSempiterne/MareSempiterne
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MareSempiterne
+          path: PlayerSync/bin/x64/Release/MareSempiterne/MareSempiterne/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MareSempiterneManifest
+          path: PlayerSync/bin/x64/Release/MareSempiterne/MareSempiterne.json
       - name: Deploy plugin to dev environment
         run: >
           curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_PROD_SECRET }}" --request POST --data-binary "@PlayerSync/bin/x64/Release/MareSempiterne/MareSempiterne.json" https://sync.playersync.io/redux/deploy/client-manifest &&
