@@ -19,6 +19,7 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
     private readonly DalamudUtilService _dalamudUtil;
     private readonly string[] _handledFileTypes = ["tmb", "pap", "avfx", "atex", "sklb", "eid", "phyb", "scd", "skp", "shpk"];
     private readonly string[] _handledRecordingFileTypes = ["tex", "mdl", "mtrl"];
+    private readonly ConcurrentDictionary<string, string> _lastKnownFilePaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<GameObjectHandler> _playerRelatedPointers = [];
     private ConcurrentDictionary<IntPtr, ObjectKind> _cachedFrameAddresses = [];
     private ConcurrentDictionary<ObjectKind, HashSet<string>>? _semiTransientResources = null;
@@ -233,6 +234,12 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
 
         if (reloadSemiTransient)
             _semiTransientResources = null;
+
+        foreach (var path in list)
+        {
+            var normalizedPath = path.ToLowerInvariant().Replace("\\", "/", StringComparison.OrdinalIgnoreCase);
+            _lastKnownFilePaths.TryRemove(normalizedPath, out _);
+        }
     }
 
     protected override void Dispose(bool disposing)
@@ -241,6 +248,7 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
 
         TransientResources.Clear();
         SemiTransientResources.Clear();
+        _lastKnownFilePaths.Clear();
     }
 
     private void DalamudUtil_FrameworkUpdate()
@@ -361,6 +369,23 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
                 Logger.LogTrace("Not adding {replacedPath} => {filePath}, Reason: Transient: {contains}, SemiTransient: {contains2}", replacedGamePath, filePath,
                     transientContains, semiTransientContains);
             alreadyTransient = true;
+
+            if (!IsTransientRecording)
+            {
+                if (_lastKnownFilePaths.TryGetValue(replacedGamePath, out var prevFilePath))
+                {
+                    if (!string.Equals(prevFilePath, filePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _lastKnownFilePaths[replacedGamePath] = filePath;
+                        Logger.LogDebug("Replacement file changed for {path}, re-sending transients", replacedGamePath);
+                        SendTransients(gameObjectAddress, objectKind);
+                    }
+                }
+                else
+                {
+                    _lastKnownFilePaths[replacedGamePath] = filePath;
+                }
+            }
         }
         else
         {
@@ -369,6 +394,7 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
                 bool isAdded = transientResources.Add(replacedGamePath);
                 if (isAdded)
                 {
+                    _lastKnownFilePaths[replacedGamePath] = filePath;
                     Logger.LogDebug("Adding {replacedGamePath} for {gameObject} ({filePath})", replacedGamePath, owner?.ToString() ?? gameObjectAddress.ToString("X"), filePath);
                     SendTransients(gameObjectAddress, objectKind);
                 }
