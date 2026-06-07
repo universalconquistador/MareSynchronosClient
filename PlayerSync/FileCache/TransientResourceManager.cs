@@ -17,6 +17,8 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
     private readonly HashSet<string> _cachedHandledPaths = new(StringComparer.Ordinal);
     private readonly TransientConfigService _configurationService;
     private readonly DalamudUtilService _dalamudUtil;
+    private readonly FileCacheManager _fileCacheManager;
+    private readonly ConcurrentDictionary<ObjectKind, ConcurrentDictionary<string, string>> _transientHashes = new();
     private readonly string[] _handledFileTypes = ["tmb", "pap", "avfx", "atex", "sklb", "eid", "phyb", "scd", "skp", "shpk"];
     private readonly string[] _handledRecordingFileTypes = ["tex", "mdl", "mtrl"];
     private readonly HashSet<GameObjectHandler> _playerRelatedPointers = [];
@@ -26,10 +28,11 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
     public bool IsTransientRecording { get; private set; } = false;
 
     public TransientResourceManager(ILogger<TransientResourceManager> logger, TransientConfigService configurationService,
-            DalamudUtilService dalamudUtil, MareMediator mediator) : base(logger, mediator)
+            DalamudUtilService dalamudUtil, FileCacheManager fileCacheManager, MareMediator mediator) : base(logger, mediator)
     {
         _configurationService = configurationService;
         _dalamudUtil = dalamudUtil;
+        _fileCacheManager = fileCacheManager;
 
         Mediator.Subscribe<PenumbraResourceLoadMessage>(this, Manager_PenumbraResourceLoadEvent);
         Mediator.Subscribe<PenumbraModSettingChangedMessage>(this, (_) => Manager_PenumbraModSettingChanged());
@@ -210,6 +213,12 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
 
             int removed = set.RemoveWhere(p => list.Contains(p, StringComparer.OrdinalIgnoreCase));
             Logger.LogDebug("Removed {removed} previously existing transient paths", removed);
+
+            if (_transientHashes.TryGetValue(objectKind, out var hashDict))
+            {
+                foreach (var path in list)
+                    hashDict.TryRemove(path, out _);
+            }
         }
 
         bool reloadSemiTransient = false;
@@ -241,6 +250,7 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
 
         TransientResources.Clear();
         SemiTransientResources.Clear();
+        _transientHashes.Clear();
     }
 
     private void DalamudUtil_FrameworkUpdate()
@@ -350,6 +360,9 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
             TransientResources[objectKind] = transientResources;
         }
 
+        var hashDict = _transientHashes.GetOrAdd(objectKind, _ => new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+        var fileHash = _fileCacheManager.GetFileCachesByPaths([filePath]).GetValueOrDefault(filePath)?.Hash ?? string.Empty;
+
         var owner = _playerRelatedPointers.FirstOrDefault(f => f.Address == gameObjectAddress);
         bool alreadyTransient = false;
 
@@ -357,10 +370,24 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
         bool semiTransientContains = SemiTransientResources.SelectMany(k => k.Value).Any(f => string.Equals(f, gamePath, StringComparison.OrdinalIgnoreCase));
         if (transientContains || semiTransientContains)
         {
-            if (!IsTransientRecording)
-                Logger.LogTrace("Not adding {replacedPath} => {filePath}, Reason: Transient: {contains}, SemiTransient: {contains2}", replacedGamePath, filePath,
-                    transientContains, semiTransientContains);
-            alreadyTransient = true;
+            bool hashChanged = !string.IsNullOrEmpty(fileHash)
+                && hashDict.TryGetValue(replacedGamePath, out var storedHash)
+                && !string.Equals(storedHash, fileHash, StringComparison.OrdinalIgnoreCase);
+
+            if (hashChanged)
+            {
+                Logger.LogDebug("File changed for {gamePath}: resending transients", replacedGamePath);
+                hashDict[replacedGamePath] = fileHash;
+                transientResources.Add(replacedGamePath);
+                if (!IsTransientRecording) SendTransients(gameObjectAddress, objectKind);
+            }
+            else
+            {
+                if (!IsTransientRecording)
+                    Logger.LogTrace("Not adding {replacedPath} => {filePath}, Reason: Transient: {contains}, SemiTransient: {contains2}", replacedGamePath, filePath,
+                        transientContains, semiTransientContains);
+                alreadyTransient = true;
+            }
         }
         else
         {
@@ -369,6 +396,7 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
                 bool isAdded = transientResources.Add(replacedGamePath);
                 if (isAdded)
                 {
+                    hashDict[replacedGamePath] = fileHash;
                     Logger.LogDebug("Adding {replacedGamePath} for {gameObject} ({filePath})", replacedGamePath, owner?.ToString() ?? gameObjectAddress.ToString("X"), filePath);
                     SendTransients(gameObjectAddress, objectKind);
                 }
