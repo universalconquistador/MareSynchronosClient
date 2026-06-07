@@ -39,10 +39,10 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
         _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PlayerSync", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
         _httpClient.Timeout = Timeout.InfiniteTimeSpan;
 
-        _availableDownloadSlots = mareConfig.Current.ParallelDownloads;
+        _availableDownloadSlots = Math.Clamp(mareConfig.Current.ParallelDownloads, 1, 100);
         _downloadSemaphore = new(_availableDownloadSlots, _availableDownloadSlots);
 
-        _availableUploadSlots = mareConfig.Current.ParallelUploads;
+        _availableUploadSlots = Math.Clamp(mareConfig.Current.ParallelUploads, 1, 100);
         _uploadSemaphore = new(_availableUploadSlots, _availableUploadSlots);
 
         Mediator.Subscribe<ConnectedMessage>(this, (msg) =>
