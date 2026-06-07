@@ -370,23 +370,32 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
         bool semiTransientContains = SemiTransientResources.SelectMany(k => k.Value).Any(f => string.Equals(f, gamePath, StringComparison.OrdinalIgnoreCase));
         if (transientContains || semiTransientContains)
         {
-            bool hashChanged = !string.IsNullOrEmpty(fileHash)
-                && hashDict.TryGetValue(replacedGamePath, out var storedHash)
-                && !string.Equals(storedHash, fileHash, StringComparison.OrdinalIgnoreCase);
-
-            if (hashChanged)
+            if (!string.IsNullOrEmpty(fileHash) && !hashDict.TryGetValue(replacedGamePath, out _))
             {
-                Logger.LogDebug("File changed for {gamePath}: resending transients", replacedGamePath);
+                // First time seeing this path — store hash baseline without triggering re-sync
                 hashDict[replacedGamePath] = fileHash;
-                transientResources.Add(replacedGamePath);
-                if (!IsTransientRecording) SendTransients(gameObjectAddress, objectKind);
+                alreadyTransient = true;
             }
             else
             {
-                if (!IsTransientRecording)
-                    Logger.LogTrace("Not adding {replacedPath} => {filePath}, Reason: Transient: {contains}, SemiTransient: {contains2}", replacedGamePath, filePath,
-                        transientContains, semiTransientContains);
-                alreadyTransient = true;
+                bool hashChanged = !string.IsNullOrEmpty(fileHash)
+                    && hashDict.TryGetValue(replacedGamePath, out var storedHash)
+                    && !string.Equals(storedHash, fileHash, StringComparison.OrdinalIgnoreCase);
+
+                if (hashChanged)
+                {
+                    Logger.LogDebug("File changed for {gamePath}: resending transients", replacedGamePath);
+                    hashDict[replacedGamePath] = fileHash;
+                    transientResources.Add(replacedGamePath);
+                    if (!IsTransientRecording) SendTransients(gameObjectAddress, objectKind);
+                }
+                else
+                {
+                    if (!IsTransientRecording)
+                        Logger.LogTrace("Not adding {replacedPath} => {filePath}, Reason: Transient: {contains}, SemiTransient: {contains2}", replacedGamePath, filePath,
+                            transientContains, semiTransientContains);
+                    alreadyTransient = true;
+                }
             }
         }
         else
