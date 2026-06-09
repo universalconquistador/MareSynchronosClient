@@ -81,6 +81,7 @@ public partial class SettingsUi
         ImGui.TextUnformatted("Maximum Parallel Downloads");
         if (ImGui.SliderInt("##maxDown", ref maxParallelDownloads, 1, 30))
         {
+            maxParallelDownloads = Math.Clamp(maxParallelDownloads, 1, 100);
             _configService.Current.ParallelDownloads = maxParallelDownloads;
             _configService.Save();
         }
@@ -90,6 +91,7 @@ public partial class SettingsUi
         ImGui.TextUnformatted("Maximum Parallel Uploads");
         if (ImGui.SliderInt("##maxUp", ref maxParallelUploads, 1, 10))
         {
+            maxParallelUploads = Math.Clamp(maxParallelUploads, 1, 100);
             _configService.Current.ParallelUploads = maxParallelUploads;
             _configService.Save();
         }
