@@ -43,6 +43,14 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
         _downloadSemaphore = new(_availableDownloadSlots, _availableDownloadSlots);
 
         _availableUploadSlots = Math.Clamp(mareConfig.Current.ParallelUploads, 1, 100);
+        // temp for now until a better config validation framework can be worked out
+        if (_availableDownloadSlots != mareConfig.Current.ParallelDownloads || _availableUploadSlots != mareConfig.Current.ParallelUploads)
+        {
+            mareConfig.Current.ParallelDownloads = _availableDownloadSlots;
+            mareConfig.Current.ParallelUploads = _availableUploadSlots;
+            mareConfig.Save();
+        }
+
         _uploadSemaphore = new(_availableUploadSlots, _availableUploadSlots);
 
         Mediator.Subscribe<ConnectedMessage>(this, (msg) =>
