@@ -151,12 +151,11 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         _logger.LogTrace("ZoneSync: DataCenter={instdata} ServerID={serverId} Instance={instance} RoomID={roomId}", 
             datacenter, ownLocation.ServerId, instance, ownLocation.RoomId);
         
-        //Set ServerId to datacenter and RoomId to instance if instanceBound
-        if (instanceBound && instance > 0)
-        {
+        //Sets Zonesync ServerId and RoomId to instance and datacenter depending on content and openworld instanced zones 
+        if (instance > 0 || instanceBound)
             ownLocation.RoomId = instance;
+        if (instanceBound)
             ownLocation.ServerId = datacenter!.Value;
-        }
         
         var isResidential = ownLocation.WardId != 0;
         var isTown = TerritoryTools.TerritoryStaticMap.IsTown(ownLocation.TerritoryId);
