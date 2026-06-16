@@ -131,9 +131,9 @@
       },
       "Penumbra.String": {
         "type": "Direct",
-        "requested": "[1.0.7, )",
-        "resolved": "1.0.7",
-        "contentHash": "CcCgL3ZxSZ4cDp9TCPD96LFZXOx+vzWuKlTFfIEPsuhOPJd/ikaPTuNaBRwqVNw09x9RQ/4SWalV2OSsq1q7AQ=="
+        "requested": "[1.0.8, )",
+        "resolved": "1.0.8",
+        "contentHash": "VtV6urO7hxrLgTmn+4zRHpHxj3HyzoJsPOFmFRp1TuVTMS8SFB2dBD+9Dhdu2+dslyI79XWX7xKs39FXblEnYw=="
       },
       "SixLabors.ImageSharp": {
         "type": "Direct",
