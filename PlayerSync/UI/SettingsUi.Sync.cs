@@ -211,6 +211,39 @@ public partial class SettingsUi
         _uiShared.DrawHelpText("Set the wait time in seconds between entering a zone and joining a ZoneSync." + UiSharedService.TooltipSeparator + "Increase this if you have pairing issues after zoning.");
 
         ImGuiHelpers.ScaledDummy(5f);
+
+        ImGui.TextWrapped("ZoneSync filters apply to ZoneSync-only pairs (not direct pairs or pairs from Syncshells.)");
+        UiSharedService.ColorTextWrapped("Changing these options will redraw all visible pairs around you.", ImGuiColors.DalamudRed);
+
+        bool filerAnimations = _zoneSyncConfigService.Current.ZoneSyncFilterAnimations;
+        bool filterSounds = _zoneSyncConfigService.Current.ZoneSyncFilterSounds;
+        bool filterVfx = _zoneSyncConfigService.Current.ZoneSyncFilterVfx;
+
+        if (ImGui.Checkbox("Filter Animations", ref filerAnimations))
+        {
+            _zoneSyncConfigService.Current.ZoneSyncFilterAnimations = filerAnimations;
+            _zoneSyncConfigService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("Prevent the loading of modded animations for players only paired via ZoneSync.");
+
+        if (ImGui.Checkbox("Filter Sounds", ref filterSounds))
+        {
+            _zoneSyncConfigService.Current.ZoneSyncFilterSounds = filterSounds;
+            _zoneSyncConfigService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("Prevent the loading of modded sounds for players only paired via ZoneSync.");
+
+        if (ImGui.Checkbox("Filter Vfx", ref filterVfx))
+        {
+            _zoneSyncConfigService.Current.ZoneSyncFilterVfx = filterVfx;
+            _zoneSyncConfigService.Save();
+            Mediator.Publish(new ChangeFilterMessage());
+        }
+        _uiShared.DrawHelpText("Prevent the loading of modded VFX for players only paired via ZoneSync.");
+
+        ImGuiHelpers.ScaledDummy(5f);
         UiSharedService.TextWrapped("ZoneSync Synchshell permissions are based on your Default Permission Settings.");
         UiSharedService.TextWrapped("Permissions can be found under Settings > Service Settings > Permission Settings.");
 
