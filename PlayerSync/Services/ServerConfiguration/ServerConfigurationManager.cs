@@ -490,6 +490,18 @@ public class ServerConfigurationManager
         return PauseReason.None;
     }
 
+    internal Dictionary<string, DateTimeOffset> GetPendingPausedPairUIDs()
+    {
+        try
+        {
+            return CurrentNotesStorage().PendingPausedPairs;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     internal string? GetPendingRequestNameForIdent(string ident)
     {
         if (CurrentNotesStorage().PendingRequests.TryGetValue(ident, out var name))
@@ -583,6 +595,12 @@ public class ServerConfigurationManager
         _notesConfig.Save();
     }
 
+    internal void RemovePendingPauseForUid(string uid)
+    {
+        CurrentNotesStorage().PendingPausedPairs.Remove(uid);
+        _notesConfig.Save();
+    }
+
     internal void RemovePendingRequestForIdent(string ident)
     {
         CurrentNotesStorage().PendingRequests.Remove(ident);
@@ -648,6 +666,18 @@ public class ServerConfigurationManager
         }
         if (save)
             _notesConfig.Save();
+    }
+
+    internal void SetPauseTimeoutForUid(string uid, PauseDuration pairPauseDuration)
+    {
+        if (string.IsNullOrEmpty(uid)) return;
+        int minutes = (int)pairPauseDuration;
+        if (minutes <= 0) return;
+
+        var pauseDuration = TimeSpan.FromMinutes(minutes);
+
+        CurrentNotesStorage().PendingPausedPairs[uid] = DateTimeOffset.UtcNow.Add(pauseDuration);
+        _notesConfig.Save();
     }
 
     internal void AddPendingRequestForIdent(string ident, string name)

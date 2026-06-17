@@ -202,11 +202,41 @@ public class DrawUserPair
         }
         if (!_pair.UserPair!.OwnPermissions.IsPaused())
         {
-            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Keep Paused", _menuWidth, true) && UiSharedService.CtrlPressed())
+            try
             {
-                _ = _apiController.UserPairStickyPauseAndRemove(_pair.UserData);
+                var buttonHovered = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.ButtonHovered));
+                var buttonActive = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.ButtonActive));
+
+                ImGui.PushStyleColor(ImGuiCol.HeaderHovered, buttonHovered);
+                ImGui.PushStyleColor(ImGuiCol.HeaderActive, buttonActive);
+
+                if (ImGui.BeginMenu("Pause Pair"))
+                {
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Pause for 30 minutes", _menuWidth, true))
+                    {
+                        _ = _apiController.PauseAsync(_pair.UserData, PauseReason.Manual, PauseDuration.ThirtyMinutes);
+                    }
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Pause for 4 hours", _menuWidth, true))
+                    {
+                        _ = _apiController.PauseAsync(_pair.UserData, PauseReason.Manual, PauseDuration.FourHours);
+                    }
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Pause for 8 hours", _menuWidth, true))
+                    {
+                        _ = _apiController.PauseAsync(_pair.UserData, PauseReason.Manual, PauseDuration.EightHours);
+                    }
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Keep Paused Forever", _menuWidth, true) && UiSharedService.CtrlPressed())
+                    {
+                        _ = _apiController.UserPairStickyPauseAndRemove(_pair.UserData);
+                    }
+                    UiSharedService.AttachToolTip("Hold CTRL and click to keep " + entryUID + " paused forever");
+
+                    ImGui.EndMenu();
+                }
             }
-            UiSharedService.AttachToolTip("Hold CTRL and click to keep paused " + entryUID);
+            finally
+            {
+                ImGui.PopStyleColor(2);
+            }
         }
         else
         {

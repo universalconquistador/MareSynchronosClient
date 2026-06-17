@@ -81,7 +81,8 @@ public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading
 public record ClearProfileDataMessage(UserData? UserData = null, bool UpdateProfileStatus = false) : MessageBase;
 public record UserPairStickyPauseAndRemoveMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
-public record PauseMessage(UserData UserData, PauseReason Reason) : MessageBase;
+public record PauseMessage(UserData UserData, PauseReason Reason, PauseDuration? PauseDuration) : MessageBase;
+public record UnPauseMessage(UserData UserData, bool Notification) : MessageBase;
 public record ProfilePopoutToggle(Pair? Pair) : MessageBase;
 public record CompactUiChange(Vector2 Size, Vector2 Position) : MessageBase;
 public record ProfileOpenStandaloneMessage(Pair Pair) : MessageBase;

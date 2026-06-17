@@ -1,4 +1,6 @@
-﻿namespace MareSynchronos.MareConfiguration.Configurations;
+﻿using MareSynchronos.MareConfiguration.Models;
+
+namespace MareSynchronos.MareConfiguration.Configurations;
 
 /// <summary>
 /// The policy for when to use server-compressed alternate files when available.
@@ -56,6 +58,8 @@ public class PlayerPerformanceConfig : IMareConfiguration
     public int MaxHeightAbsolute { get; set; } = 366;
     public List<string> UIDsToIgnoreForHeightPausing { get; set; } = new();
     public List<string> UIDsToOverride { get; set; } = new();
+    public PauseDuration PauseDurationAutoPauseExceedingThresholds { get; set; } = PauseDuration.Indefinitely;
+    public PauseDuration PauseDurationAutoPauseExceedingHeightThresholds { get; set; } = PauseDuration.Indefinitely;
 }
 
 public static class PlayerPerformanceConfigExtensions
