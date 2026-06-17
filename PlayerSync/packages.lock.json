@@ -125,15 +125,15 @@
       },
       "Penumbra.Api": {
         "type": "Direct",
-        "requested": "[5.13.1, )",
-        "resolved": "5.13.1",
-        "contentHash": "kmpqhcbnnF+Ib0F9g7+1W17IbZ8Q8G2zn3MJURd/rmQiB3D7cm8YS2JRmvhDzrN5w9OMlfq7MFxVtwG419YkIA=="
+        "requested": "[5.15.1, )",
+        "resolved": "5.15.1",
+        "contentHash": "3ikk0zIOaLm2n3nZRQpW3xaRQ2cq/TOOEApNUjYXolqbyvCrZVGXhdQulcssNUbo0AMQ81l+cf7OfqRceeRBcg=="
       },
       "Penumbra.String": {
         "type": "Direct",
-        "requested": "[1.0.7, )",
-        "resolved": "1.0.7",
-        "contentHash": "CcCgL3ZxSZ4cDp9TCPD96LFZXOx+vzWuKlTFfIEPsuhOPJd/ikaPTuNaBRwqVNw09x9RQ/4SWalV2OSsq1q7AQ=="
+        "requested": "[1.0.8, )",
+        "resolved": "1.0.8",
+        "contentHash": "VtV6urO7hxrLgTmn+4zRHpHxj3HyzoJsPOFmFRp1TuVTMS8SFB2dBD+9Dhdu2+dslyI79XWX7xKs39FXblEnYw=="
       },
       "SixLabors.ImageSharp": {
         "type": "Direct",
@@ -159,8 +159,8 @@
       },
       "BCnEncoder.Net": {
         "type": "Transitive",
-        "resolved": "2.2.1",
-        "contentHash": "tI5+/OQo0kciLqWrViRjpOH+IL3FjexYnoWZajiGV41g/EM9CGbWsxsPzBDmpoxNkrV9uox/EtIhCIi9chBSFw==",
+        "resolved": "2.3.0",
+        "contentHash": "DJhHJiBJKXUXxlkkrv74ckzJb3wYxqIAZHjXD9G76kpsD0YyJOmqtNufHWEuJe0eH0tB1tCZn80/3JV2UVP7yQ==",
         "dependencies": {
           "CommunityToolkit.HighPerformance": "8.4.0"
         }
@@ -652,8 +652,8 @@
       },
       "NAudio.Core": {
         "type": "Transitive",
-        "resolved": "2.2.1",
-        "contentHash": "GgkdP6K/7FqXFo7uHvoqGZTJvW4z8g2IffhOO4JHaLzKCdDOUEzVKtveoZkCuUX8eV2HAINqi7VFqlFndrnz/g=="
+        "resolved": "2.3.0",
+        "contentHash": "jMd7r6dB6tAtXhOYL58ntPqwERNm1/Rhw5MKOIYvsnXzuX+PTGsa2VMam6n0npZYSwlSidKa4GAm4bFcXFUlcg=="
       },
       "NAudio.Vorbis": {
         "type": "Transitive",
@@ -666,18 +666,18 @@
       },
       "NAudio.Wasapi": {
         "type": "Transitive",
-        "resolved": "2.2.1",
-        "contentHash": "lFfXoqacZZe0WqNChJgGYI+XV/n/61LzPHT3C1CJp4khoxeo2sziyX5wzNYWeCMNbsWxFvT3b3iXeY1UYjBhZw==",
+        "resolved": "2.3.0",
+        "contentHash": "y5K2BxrLnvohgu5znzg5wRsai3YcuNXfrpo68i7PmCQqpK5MC/R24e5aO3OyN/XhfRr12e0QYV0OnUWEHi5SzA==",
         "dependencies": {
-          "NAudio.Core": "2.2.1"
+          "NAudio.Core": "2.3.0"
         }
       },
       "NAudio.WinMM": {
         "type": "Transitive",
-        "resolved": "2.2.1",
-        "contentHash": "xFHRFwH4x6aq3IxRbewvO33ugJRvZFEOfO62i7uQJRUNW2cnu6BeBTHUS0JD5KBucZbHZaYqxQG8dwZ47ezQuQ==",
+        "resolved": "2.3.0",
+        "contentHash": "5G1dRjsZm50T3luyuqcmI2BSvj3K4ZJaD/x776/0Epj88qOsOryDZG40+MufwIk1UFJSFWhRobBqtJYFc8Ss4g==",
         "dependencies": {
-          "NAudio.Core": "2.2.1"
+          "NAudio.Core": "2.3.0"
         }
       },
       "NETStandard.Library": {
@@ -741,23 +741,23 @@
       },
       "SharpGLTF.Core": {
         "type": "Transitive",
-        "resolved": "1.0.5",
-        "contentHash": "HNHKPqaHXm7R1nlXZ764K5UI02IeDOQ5DQKLjwYUVNTsSW27jJpw+wLGQx6ZFoiFYqUlyZjmsu+WfEak2GmJAg=="
+        "resolved": "1.0.6",
+        "contentHash": "m3qIvUnpvRRfQ0fp0TFfpPk+vsHkCIOf/uIVJ19fe9dwa29KCO/PeHVXKAph8nsFxFLXitTIIqCa5W8JGLMhBg=="
       },
       "SharpGLTF.Runtime": {
         "type": "Transitive",
-        "resolved": "1.0.5",
-        "contentHash": "EVP32k4LqERxSVICiupT8xQvhHSHJCiXajBjNpqdfdajtREHayuVhH0Jmk6uSjTLX8/IIH9XfT34sw3TwvCziw==",
+        "resolved": "1.0.6",
+        "contentHash": "MVb0p0gzwnjHB03b0kMhf9bVUd6gSvs/jBpTkL6rMa0RtzSGARbCvZkpGbHXjxgSTncprEuzV4nAaaAucifc3Q==",
         "dependencies": {
-          "SharpGLTF.Core": "1.0.5"
+          "SharpGLTF.Core": "1.0.6"
         }
       },
       "SharpGLTF.Toolkit": {
         "type": "Transitive",
-        "resolved": "1.0.5",
-        "contentHash": "piQKk7PH2pSWQSQmCSd8cYPaDtAy/ppAD+Mrh2RUhhHI8awl81HqqLyAauwQhJwea3LNaiJ6f4ehZuOGk89TlA==",
+        "resolved": "1.0.6",
+        "contentHash": "wb9Ebb4uwXevL4WiLlry29RWIYlxa+NiAa0BB8iSR7VbmgSa5Ij/QaPNlKi1jjA4oL8aEygg5V76zY1SJfIS+Q==",
         "dependencies": {
-          "SharpGLTF.Runtime": "1.0.5"
+          "SharpGLTF.Runtime": "1.0.6"
         }
       },
       "System.Diagnostics.EventLog": {
@@ -788,22 +788,22 @@
       "vfxeditor": {
         "type": "Project",
         "dependencies": {
-          "BCnEncoder.Net": "[2.2.1, )",
-          "DalamudPackager": "[14.0.1, )",
+          "BCnEncoder.Net": "[2.3.0, )",
+          "DalamudPackager": "[15.0.0, )",
           "FlatSharp.Compiler": "[7.9.0, )",
           "FlatSharp.Runtime": "[7.9.0, )",
           "Google.FlatBuffers": "[25.2.10, )",
           "HelixToolkit": "[3.1.2, )",
           "HelixToolkit.Maths": "[3.1.2, )",
           "HelixToolkit.SharpDX": "[3.1.2, )",
-          "NAudio.Core": "[2.2.1, )",
+          "NAudio.Core": "[2.3.0, )",
           "NAudio.Vorbis": "[1.5.0, )",
-          "NAudio.Wasapi": "[2.2.1, )",
-          "NAudio.WinMM": "[2.2.1, )",
-          "Penumbra.Api": "[5.13.1, )",
-          "Penumbra.String": "[1.0.7, )",
+          "NAudio.Wasapi": "[2.3.0, )",
+          "NAudio.WinMM": "[2.3.0, )",
+          "Penumbra.Api": "[5.15.1, )",
+          "Penumbra.String": "[1.0.8, )",
           "SharpDX.D3DCompiler": "[4.2.0, )",
-          "SharpGLTF.Toolkit": "[1.0.5, )",
+          "SharpGLTF.Toolkit": "[1.0.6, )",
           "TeximpNet": "[1.4.3, )",
           "mgholam.fastCSV": "[2.0.9, )"
         }
