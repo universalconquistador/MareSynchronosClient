@@ -650,39 +650,10 @@
         "resolved": "1.1.0",
         "contentHash": "kz0PEW2lhqygehI/d6XsPCQzD7ff7gUJaVGPVETX611eadGsA3A877GdSlU0LRVMCTH/+P3o2iDTak+S08V2+A=="
       },
-      "NAudio": {
-        "type": "Transitive",
-        "resolved": "2.3.0",
-        "contentHash": "xN+Lzlu9DmXqBiL6XkP0VZmgTxZPdSGjVSWtKG9HKuar3LhIYNOIYQETieigS+QDS+nrs1QmHbBWWOru0nWA5A==",
-        "dependencies": {
-          "NAudio.Asio": "2.3.0",
-          "NAudio.Core": "2.3.0",
-          "NAudio.Midi": "2.3.0",
-          "NAudio.Wasapi": "2.3.0",
-          "NAudio.WinForms": "2.3.0",
-          "NAudio.WinMM": "2.3.0"
-        }
-      },
-      "NAudio.Asio": {
-        "type": "Transitive",
-        "resolved": "2.3.0",
-        "contentHash": "I+rAAPT8vmSEw4d4ie+AoSkrvNK6ylRrXznnjQKS+qZgTA9Jnt1Pxe0EaU8nXxOOq5h8ucBSWccBEw6I/J0nkQ==",
-        "dependencies": {
-          "NAudio.Core": "2.3.0"
-        }
-      },
       "NAudio.Core": {
         "type": "Transitive",
         "resolved": "2.3.0",
         "contentHash": "jMd7r6dB6tAtXhOYL58ntPqwERNm1/Rhw5MKOIYvsnXzuX+PTGsa2VMam6n0npZYSwlSidKa4GAm4bFcXFUlcg=="
-      },
-      "NAudio.Midi": {
-        "type": "Transitive",
-        "resolved": "2.3.0",
-        "contentHash": "t8wvPFPHHQOHhoNMCaDE8OiYZoJuxmY4H6UPBtmnf+xx7oQuajFCqlG4Q00ID+tiEyj471WeVb4Nkylr4tDoow==",
-        "dependencies": {
-          "NAudio.Core": "2.3.0"
-        }
       },
       "NAudio.Vorbis": {
         "type": "Transitive",
@@ -699,14 +670,6 @@
         "contentHash": "y5K2BxrLnvohgu5znzg5wRsai3YcuNXfrpo68i7PmCQqpK5MC/R24e5aO3OyN/XhfRr12e0QYV0OnUWEHi5SzA==",
         "dependencies": {
           "NAudio.Core": "2.3.0"
-        }
-      },
-      "NAudio.WinForms": {
-        "type": "Transitive",
-        "resolved": "2.3.0",
-        "contentHash": "vyKqFUlAZrZ0QPcCM1T+zimjYgC1cNDloHaiOdtV4S1eK4AGu3Dz1EE4yy/WgcneJwQNjGFaELY7b2TsL+g56w==",
-        "dependencies": {
-          "NAudio.WinMM": "2.3.0"
         }
       },
       "NAudio.WinMM": {
@@ -833,8 +796,9 @@
           "HelixToolkit": "[3.1.2, )",
           "HelixToolkit.Maths": "[3.1.2, )",
           "HelixToolkit.SharpDX": "[3.1.2, )",
-          "NAudio": "[2.3.0, )",
+          "NAudio.Core": "[2.3.0, )",
           "NAudio.Vorbis": "[1.5.0, )",
+          "NAudio.Wasapi": "[2.3.0, )",
           "NAudio.WinMM": "[2.3.0, )",
           "Penumbra.Api": "[5.15.1, )",
           "Penumbra.String": "[1.0.8, )",
