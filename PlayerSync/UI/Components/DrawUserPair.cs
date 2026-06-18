@@ -16,6 +16,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
+using System.Numerics;
 
 
 namespace MareSynchronos.UI.Components;
@@ -643,11 +644,32 @@ public class DrawUserPair
 
         if (Pair.LastLoadedSoundSinceRedraw != null)
         {
-            var icon = FontAwesomeIcon.VolumeOff;
+            var timepassed = DateTimeOffset.UtcNow - Pair.LastLoadedSoundSinceRedraw.Value;
+
+            FontAwesomeIcon icon = FontAwesomeIcon.VolumeOff;
+            Vector4 color;
+
+            if (timepassed.TotalSeconds <= 15)
+            {
+                color = ImGuiColors.HealerGreen;
+            }
+            else if (timepassed.TotalSeconds < 300)
+            {
+                color = ImGuiColors.DalamudYellow;
+            }
+            else
+            {
+                color = ImGuiColors.DalamudRed;
+            }
             currentRightSide -= _uiSharedService.GetIconSize(icon).X + spacingX;
             ImGui.SameLine(currentRightSide);
-            _uiSharedService.IconText(icon, ImGuiColors.HealerGreen);
-            UiSharedService.AttachToolTip($"Started playing modded audio {UiSharedService.ApproxElapsedTimeToString(DateTimeOffset.UtcNow - Pair.LastLoadedSoundSinceRedraw.Value)}.{UiSharedService.TooltipSeparator}CTRL + Click to disable sound sync with {_pair.UserData.AliasOrUID}.");
+            _uiSharedService.IconText(icon, color);
+
+            UiSharedService.AttachToolTip(
+                $"Started playing modded audio {UiSharedService.ApproxElapsedTimeToString(timepassed)}." +
+                $"{UiSharedService.TooltipSeparator}CTRL + Click to disable sound sync with {Pair.UserData.AliasOrUID}."
+            );
+
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && UiSharedService.CtrlPressed())
             {
                 var perm = _pair.UserPair!.OwnPermissions;
