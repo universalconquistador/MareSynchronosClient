@@ -398,8 +398,17 @@ namespace MareSynchronos.PlayerData.Handlers
 
             menuItems.Add(new MenuItem()
             {
+                Name = new SeStringBuilder().AddText("Pause").Build(),
+                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.Indefinitely)),
+                UseDefaultPrefix = false,
+                PrefixChar = 'P',
+                PrefixColor = 17,
+            });
+
+            menuItems.Add(new MenuItem()
+            {
                 Name = new SeStringBuilder().AddText("Pause for 30 minutes").Build(),
-                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, MareConfiguration.Models.PauseReason.Manual, PauseDuration.ThirtyMinutes)),
+                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.ThirtyMinutes)),
                 UseDefaultPrefix = false,
                 PrefixChar = 'P',
                 PrefixColor = 17,
@@ -408,7 +417,7 @@ namespace MareSynchronos.PlayerData.Handlers
             menuItems.Add(new MenuItem()
             {
                 Name = new SeStringBuilder().AddText("Pause for 4 hours").Build(),
-                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, MareConfiguration.Models.PauseReason.Manual, PauseDuration.FourHours)),
+                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.FourHours)),
                 UseDefaultPrefix = false,
                 PrefixChar = 'P',
                 PrefixColor = 17,
@@ -417,7 +426,7 @@ namespace MareSynchronos.PlayerData.Handlers
             menuItems.Add(new MenuItem()
             {
                 Name = new SeStringBuilder().AddText("Pause for 8 hours").Build(),
-                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, MareConfiguration.Models.PauseReason.Manual, PauseDuration.EightHours)),
+                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.EightHours)),
                 UseDefaultPrefix = false,
                 PrefixChar = 'P',
                 PrefixColor = 17,
@@ -425,7 +434,7 @@ namespace MareSynchronos.PlayerData.Handlers
 
             menuItems.Add(new MenuItem()
             {
-                Name = new SeStringBuilder().AddText("Keep Paused Forever").Build(),
+                Name = new SeStringBuilder().AddText("Block Pairing").Build(),
                 OnClicked = (a) => Mediator.Publish(new UserPairStickyPauseAndRemoveMessage(pair.UserData)),
                 UseDefaultPrefix = false,
                 PrefixChar = 'P',
@@ -439,7 +448,7 @@ namespace MareSynchronos.PlayerData.Handlers
                 OnClicked = _ => _dalamudUtilService.OpenContextMenu(clickedArgs.AgentPtr)
             });
 
-            clickedArgs.OpenSubmenu(new SeStringBuilder().AddText($"Pause {pair.UserData.AliasOrUID}").Build(), menuItems);
+            clickedArgs.OpenSubmenu(new SeStringBuilder().AddText($"Pair {pair.UserData.AliasOrUID}").Build(), menuItems);
         }
 
         private void AddUserPairChatContextMenu(IMenuOpenedArgs args)

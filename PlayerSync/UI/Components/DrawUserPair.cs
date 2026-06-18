@@ -36,6 +36,7 @@ public class DrawUserPair
     private readonly CharaDataManager _charaDataManager;
     private readonly IpcManager _ipcManager;
     private float _menuWidth = -1;
+    private float _pauseMenuWidth = -1;
     private bool _wasHovered = false;
     private List<AddressBookEntry>? _addressBookCache;
 
@@ -202,34 +203,16 @@ public class DrawUserPair
         }
         if (!_pair.UserPair!.OwnPermissions.IsPaused())
         {
+            var buttonHovered = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.ButtonHovered));
+            var buttonActive = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.ButtonActive));
+
+            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, buttonHovered);
+            ImGui.PushStyleColor(ImGuiCol.HeaderActive, buttonActive);
             try
             {
-                var buttonHovered = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.ButtonHovered));
-                var buttonActive = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.ButtonActive));
-
-                ImGui.PushStyleColor(ImGuiCol.HeaderHovered, buttonHovered);
-                ImGui.PushStyleColor(ImGuiCol.HeaderActive, buttonActive);
-
                 if (ImGui.BeginMenu("Pause Pair"))
                 {
-                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Pause for 30 minutes", _menuWidth, true))
-                    {
-                        _ = _apiController.PauseAsync(_pair.UserData, PauseReason.Manual, PauseDuration.ThirtyMinutes);
-                    }
-                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Pause for 4 hours", _menuWidth, true))
-                    {
-                        _ = _apiController.PauseAsync(_pair.UserData, PauseReason.Manual, PauseDuration.FourHours);
-                    }
-                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Pause for 8 hours", _menuWidth, true))
-                    {
-                        _ = _apiController.PauseAsync(_pair.UserData, PauseReason.Manual, PauseDuration.EightHours);
-                    }
-                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Keep Paused Forever", _menuWidth, true) && UiSharedService.CtrlPressed())
-                    {
-                        _ = _apiController.UserPairStickyPauseAndRemove(_pair.UserData);
-                    }
-                    UiSharedService.AttachToolTip("Hold CTRL and click to keep " + entryUID + " paused forever");
-
+                    DrawPairPauseContent(_menuWidth);
                     ImGui.EndMenu();
                 }
             }
@@ -510,25 +493,21 @@ public class DrawUserPair
         ImGui.SameLine(currentRightSide);
         if (_uiSharedService.IconButton(pauseIcon))
         {
-            var perm = _pair.UserPair!.OwnPermissions;
-
-            if (UiSharedService.CtrlPressed() && !perm.IsPaused())
-            {
-                perm.SetSticky(true);
-            }
-            
-            if (!_pair.IsPaused)
-                _serverConfigurationManager.SetPauseReasonForUid(_pair.UserData.UID, PauseReason.Manual);
-
-            perm.SetPaused(!perm.IsPaused());
-            _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
+            ImGui.OpenPopup("PausePopup");
         }
-        UiSharedService.AttachToolTip(!_pair.UserPair!.OwnPermissions.IsPaused()
-            ? ("Pause pairing with " + _pair.UserData.AliasOrUID
-                + (_pair.UserPair!.OwnPermissions.IsSticky()
-                    ? string.Empty
-                    : UiSharedService.TooltipSeparator + "Hold CTRL to enable preferred permissions while pausing." + Environment.NewLine + "This will leave this pair paused even if unpausing syncshells including this pair."))
-            : "Resume pairing with " + _pair.UserData.AliasOrUID);
+        if (ImGui.BeginPopup("PausePopup"))
+        {
+            using (ImRaii.PushId($"pausePopup-{_pair.UserData.UID}"))
+            {
+                DrawPairPauseContent(_pauseMenuWidth);
+                if (_pauseMenuWidth <= 0)
+                {
+                    _pauseMenuWidth = ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X;
+                }
+            }
+
+            ImGui.EndPopup();
+        }
 
         if (_pair.IsPaired)
         {
@@ -775,5 +754,37 @@ public class DrawUserPair
             UiSharedService.AttachToolTip("Hold CTRL and SHIFT and click to transfer ownership of this Syncshell to "
                 + (_pair.UserData.AliasOrUID) + Environment.NewLine + "WARNING: This action is irreversible.");
         }
+    }
+
+    private void DrawPairPauseContent(float width)
+    {
+        ImGui.TextUnformatted($"Pair {_pair.UserData.AliasOrUID}");
+        ImGui.Separator();
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Pause, "Pause", width, true))
+        {
+            _mediator.Publish(new PauseMessage(_pair.UserData, PauseReason.Manual, PauseDuration.Indefinitely));
+        }
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Pause, "Pause for 30 minutes", width, true))
+        {
+            _mediator.Publish(new PauseMessage(_pair.UserData, PauseReason.Manual, PauseDuration.ThirtyMinutes));
+        }
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Pause, "Pause for 4 hours", width, true))
+        {
+            _mediator.Publish(new PauseMessage(_pair.UserData, PauseReason.Manual, PauseDuration.FourHours));
+        }
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Pause, "Pause for 8 hours", width, true))
+        {
+            _mediator.Publish(new PauseMessage(_pair.UserData, PauseReason.Manual, PauseDuration.EightHours));
+        }
+        ImGui.Separator();
+        using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Block Pairing", width, true))
+            {
+                _mediator.Publish(new UserPairStickyPauseAndRemoveMessage(_pair.UserData));
+            }
+        }
+        UiSharedService.AttachToolTip("Hold CTRL and click to block pairing with " + _pair.UserData.AliasOrUID 
+            + Environment.NewLine + "This will leave this pair paused even if unpausing syncshells including this pair.");
     }
 }
