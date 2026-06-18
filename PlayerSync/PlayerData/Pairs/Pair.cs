@@ -20,18 +20,20 @@ public class Pair
     private readonly ILogger<Pair> _logger;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly MareConfigService _configService;
+    private readonly ZoneSyncConfigService _zoneSyncConfig;
     private CancellationTokenSource _applicationCts = new();
     private OnlineUserIdentDto? _onlineUserIdentDto = null;
     private bool? _hasProfile = null;
 
     public Pair(ILogger<Pair> logger, UserFullPairDto userPair, PairHandlerFactory cachedPlayerFactory,
-        MareMediator mediator, ServerConfigurationManager serverConfigurationManager, MareConfigService mareConfigService)
+        MareMediator mediator, ServerConfigurationManager serverConfigurationManager, MareConfigService mareConfigService, ZoneSyncConfigService zoneSyncConfig)
     {
         _logger = logger;
         UserPair = userPair;
         _cachedPlayerFactory = cachedPlayerFactory;
         _serverConfigurationManager = serverConfigurationManager;
         _configService = mareConfigService;
+        _zoneSyncConfig = zoneSyncConfig;
     }
 
     public bool HasCachedPlayer => CachedPlayer != null && !string.IsNullOrEmpty(CachedPlayer.PlayerName) && _onlineUserIdentDto != null;
@@ -41,6 +43,7 @@ public class Pair
     public bool IsOnline => CachedPlayer != null;
 
     public bool IsPaired => IndividualPairStatus == IndividualPairStatus.Bidirectional || UserPair.Groups.Any();
+    public bool IsZoneSyncOnlyPair => IndividualPairStatus != IndividualPairStatus.Bidirectional && UserPair.Groups.All(g => g.StartsWith(Constants.GroupZoneSyncPrefix));
     public bool IsPaused => UserPair.OwnPermissions.IsPaused();
     public bool IsVisible => CachedPlayer?.IsVisible ?? false;
     public CharacterData? LastReceivedCharacterData { get; set; }
@@ -267,10 +270,12 @@ public class Pair
             return data;
         }
 
+        // permissions
         bool disableIndividualAnimations = UserPair.OtherPermissions.IsDisableAnimations() || UserPair.OwnPermissions.IsDisableAnimations();
         bool disableIndividualVFX = UserPair.OtherPermissions.IsDisableVFX() || UserPair.OwnPermissions.IsDisableVFX();
         bool disableIndividualSounds = UserPair.OtherPermissions.IsDisableSounds() || UserPair.OwnPermissions.IsDisableSounds();
 
+        // global filtering
         bool filterBiDiPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
         bool isDirectPaired = UserPair.IndividualPairStatus == IndividualPairStatus.Bidirectional;
         bool overrideFilterPair = !filterBiDiPairs && isDirectPaired;
@@ -281,30 +286,37 @@ public class Pair
         _logger.LogTrace("Disable: Sounds: {disableIndividualSounds}, Anims: {disableIndividualAnims}; " +
             "VFX: {disableGroupSounds}", disableIndividualSounds, disableIndividualAnimations, disableIndividualVFX);
 
-        bool filterSounds = _configService.Current.FilterSounds;
+        // global filtering
         bool filterAnimations = _configService.Current.FilterAnimations;
+        bool filterSounds = _configService.Current.FilterSounds;
         bool filterVfx = _configService.Current.FilterVfx;
         bool filterMinionsMounts = _configService.Current.FilterMinionsAndMounts;
         bool filterPets = _configService.Current.FilterPets;
 
+        // zonesync filtering
+        bool filterZoneSyncAnimations = _zoneSyncConfig.Current.ZoneSyncFilterAnimations;
+        bool filterZoneSyncSounds = _zoneSyncConfig.Current.ZoneSyncFilterSounds;
+        bool filterZoneSyncVfx = _zoneSyncConfig.Current.ZoneSyncFilterVfx;
+
+        bool zoneSyncFiltering = IsZoneSyncOnlyPair && (filterZoneSyncAnimations || filterZoneSyncSounds || filterZoneSyncVfx);
         bool hasDisabledIndevidual = disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX;
         bool hasDisabledViaFilter = filterAnimations || filterSounds || filterVfx || filterMinionsMounts || filterPets;
         bool filterUserPerms = hasDisabledViaFilter && !overrideFilterUid && !overrideFilterPair;
-        if (filterUserPerms || hasDisabledIndevidual)
+        if (filterUserPerms || hasDisabledIndevidual || zoneSyncFiltering)
         {
             _logger.LogTrace("Data cleaned up: Animations disabled: {disableAnimations}, Sounds disabled: {disableSounds}, VFX disabled: {disableVFX}",
                 disableIndividualAnimations, disableIndividualSounds, disableIndividualVFX);
             foreach (var objectKind in data.FileReplacements.Select(k => k.Key))
             {
-                if ((filterUserPerms && filterSounds) || disableIndividualSounds)
+                if ((filterUserPerms && filterSounds) || disableIndividualSounds || (zoneSyncFiltering && filterZoneSyncSounds))
                     data.FileReplacements[objectKind] = data.FileReplacements[objectKind]
                         .Where(f => !f.GamePaths.Any(p => p.EndsWith("scd", StringComparison.OrdinalIgnoreCase)))
                         .ToList();
-                if ((filterUserPerms && filterAnimations) || disableIndividualAnimations)
+                if ((filterUserPerms && filterAnimations) || disableIndividualAnimations || (zoneSyncFiltering && filterZoneSyncAnimations))
                     data.FileReplacements[objectKind] = data.FileReplacements[objectKind]
                         .Where(f => !f.GamePaths.Any(p => p.EndsWith("tmb", StringComparison.OrdinalIgnoreCase) || p.EndsWith("pap", StringComparison.OrdinalIgnoreCase)))
                         .ToList();
-                if ((filterUserPerms && filterVfx) || disableIndividualVFX)
+                if ((filterUserPerms && filterVfx) || disableIndividualVFX || (zoneSyncFiltering && filterZoneSyncVfx))
                     data.FileReplacements[objectKind] = data.FileReplacements[objectKind]
                         .Where(f => !f.GamePaths.Any(p => p.EndsWith("atex", StringComparison.OrdinalIgnoreCase) || p.EndsWith("avfx", StringComparison.OrdinalIgnoreCase)))
                         .ToList();

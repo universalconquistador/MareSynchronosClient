@@ -111,7 +111,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(1000, 800),
+            MinimumSize = new Vector2(1000, 840),
             MaximumSize = new Vector2(1000, 2000),
         };
 
