@@ -7,6 +7,7 @@ using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -381,6 +382,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 // time to draw table data.
                 foreach (var pair in sortedPairs)
                 {
+                    ImGui.PushID(pair.UserData.UID);
+
                     bool shouldHighlight = !string.IsNullOrWhiteSpace(_dalamudUtilService.TargetName)
                         && !string.IsNullOrWhiteSpace(pair.PlayerName)
                         && _dalamudUtilService.TargetName == pair.PlayerName;
@@ -543,25 +546,62 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     }
 
                     // Button options Column
-                    var uid = pair.UserData.UID;
-                    bool isBusy = _pauseClicked.Contains(uid);
-
                     ImGui.TableSetColumnIndex(7);
                     ImGui.AlignTextToFramePadding();
-                    ImGui.BeginDisabled(isBusy);
-                    if (ImGui.Button($"Pause##{pair.UserData.UID}"))
+                    if (ImGui.Button("Pause"))
                     {
-                        // It can take a moment to dispose a large player, so we don't let the user spam the button
-                        if (_pauseClicked.Add(uid))
+                        ImGui.OpenPopup("PausePopup");
+                    }
+                    if (ImGui.BeginPopup("PausePopup"))
+                    {
+                        var buttonHovered = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.ButtonHovered));
+                        var buttonActive = ColorHelpers.RgbaUintToVector4(ImGui.GetColorU32(ImGuiCol.ButtonActive));
+
+                        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, buttonHovered);
+                        ImGui.PushStyleColor(ImGuiCol.HeaderActive, buttonActive);
+                        try
                         {
-                            // This should be reworked and use the mediator to publish a pause message
-                            _ = _apiController.PauseAsync(pair.UserData, MareConfiguration.Models.PauseReason.Manual).ContinueWith(_ => _pauseClicked.Remove(uid));
+                            ImGui.TextUnformatted($"Pair {pair.UserData.AliasOrUID}");
+                            ImGui.Separator();
+                            if (ImGui.Selectable("Pause"))
+                            {
+                                Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.Indefinitely));
+                            }
+                            if (ImGui.Selectable("Pause for 30 minutes"))
+                            {
+                                Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.ThirtyMinutes));
+                            }
+
+                            if (ImGui.Selectable("Pause for 4 hours"))
+                            {
+                                Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.FourHours));
+                            }
+
+                            if (ImGui.Selectable("Pause for 8 hours"))
+                            {
+                                Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.EightHours));
+                            }
+                            ImGui.Separator();
+                            
+                            using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
+                            {
+                                if (ImGui.Selectable("Block Pairing") && UiSharedService.CtrlPressed())
+                                {
+                                    Mediator.Publish(new UserPairStickyPauseAndRemoveMessage(pair.UserData));
+                                }
+                            }
+                            UiSharedService.AttachToolTip("Hold CTRL and click to block pairing with " + pair.UserData.AliasOrUID
+                                + Environment.NewLine + "This will leave this pair paused even if unpausing syncshells including this pair.");
+                        }
+                        finally
+                        {
+                            ImGui.PopStyleColor(2);
+                            ImGui.EndPopup();
                         }
                     }
-                    ImGui.EndDisabled();
 
                     ImGui.SameLine();
-                    if (ImGui.Button($"Refresh##{pair.UserData.UID}"))
+                    if (ImGui.Button("Refresh"))
                     {
                         _ = _apiController.CyclePauseAsync(pair.UserData);
                     }
@@ -573,6 +613,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
                         ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
                     }
+
+                    ImGui.PopID();
                 }
             }
             finally

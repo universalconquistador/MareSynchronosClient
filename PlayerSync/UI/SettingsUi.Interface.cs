@@ -615,7 +615,7 @@ public partial class SettingsUi
         {
             ContextMenuItemId.None => "Do Not Show",
             ContextMenuItemId.OpenProfile => "Open Profile",
-            ContextMenuItemId.PauseForever => "Keep Paused",
+            ContextMenuItemId.PausePair => "Pause Pair (Submenu)",
             ContextMenuItemId.PairData => "Pair Data (Submenu)",
             ContextMenuItemId.InviteToSyncshell => "Invite To Syncshell (Submenu)",
             ContextMenuItemId.AddToOverrides => "Add to Overrides (Submenu)",

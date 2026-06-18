@@ -1,5 +1,4 @@
-﻿using Dalamud.Plugin.Services;
-using MareSynchronos.API.Data;
+﻿using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
@@ -18,6 +17,8 @@ namespace MareSynchronos.PlayerData.Pairs;
 
 public sealed class PairManager : DisposableMediatorSubscriberBase
 {
+    private readonly TimeSpan PausedPairCheckInterval = TimeSpan.FromMinutes(1);
+
     private readonly ConcurrentDictionary<UserData, Pair> _allClientPairs = new(UserDataComparer.Instance);
     private readonly ConcurrentDictionary<GroupData, GroupFullInfoDto> _allGroups = new(GroupDataComparer.Instance);
     private readonly MareConfigService _configurationService;
@@ -27,6 +28,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private Lazy<Dictionary<GroupFullInfoDto, List<Pair>>> _groupPairsInternal;
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
     private PairApplyQueue? _applyQueue = null;
+
+    private CancellationTokenSource? _periodicCts;
+    private Task? _periodicTask;
 
     public PairManager(ILogger<PairManager> logger, PairFactory pairFactory,
                 MareConfigService configurationService, ServerConfigurationManager serverConfigurationManager, MareMediator mediator)
@@ -44,6 +48,10 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
         if (_configurationService.Current.UseQueuedCharacterDataApplication)
             _applyQueue = new(_configurationService.Current.MaxConcurrentApplications);
+
+        _periodicCts?.Dispose();
+        _periodicCts = new CancellationTokenSource();
+        _periodicTask = PausedPairExpiredTimerCheckTask(_periodicCts.Token);
 
         Logger.LogTrace("{class} created.", nameof(PairManager));
     }
@@ -385,7 +393,10 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         }
 
         if (pair.UserPair.OwnPermissions.IsPaused() && !dto.Permissions.IsPaused())
+        {
             _serverConfigurationManager.RemovePauseReasonForUid(pair.UserData.UID);
+            _serverConfigurationManager.RemovePendingPauseForUid(pair.UserData.UID);
+        }
 
         pair.UserPair.OwnPermissions = dto.Permissions;
 
@@ -445,6 +456,12 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
+
+        CancellationTokenSource? cts;
+        cts = _periodicCts;
+        _periodicCts = null;
+        cts?.Cancel();
+        cts?.Dispose();
 
         _applyQueue?.Dispose();
 
@@ -507,5 +524,81 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
         Mediator.Publish(new RefreshUiMessage());
+    }
+
+    private async Task PausedPairExpiredTimerCheckTask(CancellationToken ct)
+    {
+        try
+        {
+            Logger.LogDebug("Starting checks for paused players to unpause.");
+            var initDelay = TimeSpan.FromMinutes(1);
+            await Task.Delay(initDelay, ct).ConfigureAwait(false); // init delay for plugin load
+
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    if (!_serverConfigurationManager.CurrentServer.FullPause)
+                    {
+                        Logger.LogTrace("Checking for paused pairs to unpause...");
+
+                        var onlinePairs = GetOnlineUserPairs();
+                        List<string> stalePausedEntries = new List<string>();
+
+                        var pendingPausedPairs = _serverConfigurationManager.GetPendingPausedPairUIDs();
+                        List<string> pairsToUnPause = new List<string>();
+
+                        foreach (var pausedPair in pendingPausedPairs)
+                        {
+                            var uid = pausedPair.Key;
+
+                            if (onlinePairs.Any(p => string.Equals(p.UserData.UID, uid, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                stalePausedEntries.Add(uid);
+                                continue;
+                            }
+
+                            if (DateTimeOffset.UtcNow >= pausedPair.Value)
+                                pairsToUnPause.Add(uid);
+                        }
+
+                        foreach (var staleEntryUid in stalePausedEntries)
+                        {
+                            Logger.LogDebug("Removing stale paused pair entry for UID: {uid}", staleEntryUid);
+                            _serverConfigurationManager.RemovePauseReasonForUid(staleEntryUid);
+                            _serverConfigurationManager.RemovePendingPauseForUid(staleEntryUid);
+                        }
+
+                        foreach (var uidToUnpause in pairsToUnPause)
+                        {
+                            Logger.LogDebug("Automatically removing paused status for UID: {uid}", uidToUnpause);
+                            Mediator.Publish(new UnPauseMessage(new(uidToUnpause), true));
+                            await Task.Delay(250).ConfigureAwait(false);
+                        }
+                    }
+
+                    await Task.Delay(PausedPairCheckInterval, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    // normal shutdown
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error while checking for paused pair.");
+
+                    await Task.Delay(PausedPairCheckInterval, ct).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogCritical(ex, "Error while checking for paused pairs. This background task will now stop.");
+        }
+        finally
+        {
+            _periodicTask = null;
+        }
     }
 }

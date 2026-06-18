@@ -8,6 +8,7 @@ using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Hosting;
@@ -20,7 +21,7 @@ namespace MareSynchronos.PlayerData.Handlers
     {
         None = 0,
         OpenProfile,
-        PauseForever,
+        PausePair,
         PairData,
         InviteToSyncshell,
         AddToOverrides,
@@ -34,7 +35,7 @@ namespace MareSynchronos.PlayerData.Handlers
         public static ContextMenuItemId[] Order { get; set; } = new ContextMenuItemId[6]
         {
         ContextMenuItemId.OpenProfile,
-        ContextMenuItemId.PauseForever,
+        ContextMenuItemId.PausePair,
         ContextMenuItemId.PairData,
         ContextMenuItemId.InviteToSyncshell,
         ContextMenuItemId.AddToOverrides,
@@ -171,12 +172,12 @@ namespace MareSynchronos.PlayerData.Handlers
                         });
                         break;
 
-                    // This kind of acts like a blacklist feature
-                    case ContextMenuItemId.PauseForever:
+                    case ContextMenuItemId.PausePair:
                         args.AddMenuItem(new MenuItem()
                         {
-                            Name = new SeStringBuilder().AddText("Keep Paused").Build(),
-                            OnClicked = (a) => Mediator.Publish(new UserPairStickyPauseAndRemoveMessage(pair.UserData)),
+                            Name = new SeStringBuilder().AddText($"Pause {pair.UserData.AliasOrUID}").Build(),
+                            OnClicked = (args) => DrawPairPauseSubmenu(pair, args),
+                            IsSubmenu = true,
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
                             PrefixColor = 17,
@@ -389,6 +390,65 @@ namespace MareSynchronos.PlayerData.Handlers
             });
 
             clickedArgs.OpenSubmenu(new SeStringBuilder().AddText("Add to Overrides").Build(), menuItems);
+        }
+
+        private void DrawPairPauseSubmenu(Pair pair, IMenuItemClickedArgs clickedArgs)
+        {
+            var menuItems = new List<MenuItem>();
+
+            menuItems.Add(new MenuItem()
+            {
+                Name = new SeStringBuilder().AddText("Pause").Build(),
+                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.Indefinitely)),
+                UseDefaultPrefix = false,
+                PrefixChar = 'P',
+                PrefixColor = 17,
+            });
+
+            menuItems.Add(new MenuItem()
+            {
+                Name = new SeStringBuilder().AddText("Pause for 30 minutes").Build(),
+                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.ThirtyMinutes)),
+                UseDefaultPrefix = false,
+                PrefixChar = 'P',
+                PrefixColor = 17,
+            });
+
+            menuItems.Add(new MenuItem()
+            {
+                Name = new SeStringBuilder().AddText("Pause for 4 hours").Build(),
+                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.FourHours)),
+                UseDefaultPrefix = false,
+                PrefixChar = 'P',
+                PrefixColor = 17,
+            });
+
+            menuItems.Add(new MenuItem()
+            {
+                Name = new SeStringBuilder().AddText("Pause for 8 hours").Build(),
+                OnClicked = (a) => Mediator.Publish(new PauseMessage(pair.UserData, PauseReason.Manual, PauseDuration.EightHours)),
+                UseDefaultPrefix = false,
+                PrefixChar = 'P',
+                PrefixColor = 17,
+            });
+
+            menuItems.Add(new MenuItem()
+            {
+                Name = new SeStringBuilder().AddText("Block Pairing").Build(),
+                OnClicked = (a) => Mediator.Publish(new UserPairStickyPauseAndRemoveMessage(pair.UserData)),
+                UseDefaultPrefix = false,
+                PrefixChar = 'P',
+                PrefixColor = 17,
+            });
+
+            menuItems.Add(new MenuItem()
+            {
+                Name = new SeStringBuilder().AddText("Return").Build(),
+                IsReturn = true,
+                OnClicked = _ => _dalamudUtilService.OpenContextMenu(clickedArgs.AgentPtr)
+            });
+
+            clickedArgs.OpenSubmenu(new SeStringBuilder().AddText($"Pair {pair.UserData.AliasOrUID}").Build(), menuItems);
         }
 
         private void AddUserPairChatContextMenu(IMenuOpenedArgs args)

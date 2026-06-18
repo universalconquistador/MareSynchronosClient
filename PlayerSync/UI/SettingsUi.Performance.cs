@@ -7,6 +7,7 @@ using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.UI.ModernUi;
 using MareSynchronos.Services.Mediator;
 using System.Numerics;
+using MareSynchronos.MareConfiguration.Models;
 
 namespace MareSynchronos.UI;
 
@@ -227,7 +228,28 @@ public partial class SettingsUi
             ImGui.Text("(thousand triangles)");
             _uiShared.DrawHelpText("When a loading in player and their triangle count exceeds this amount, automatically pauses the synced player." + UiSharedService.TooltipSeparator
                 + "Default: 250 thousand");
+            ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+            _uiShared.DrawCombo("Auto Pause Duration##autoPauseThreshold", [
+                PauseDuration.ThirtyMinutes,
+                PauseDuration.FourHours,
+                PauseDuration.EightHours,
+                PauseDuration.Indefinitely
+            ],
+            (s) => s switch
+            {
+                PauseDuration.ThirtyMinutes => "Pause for 30 minutes",
+                PauseDuration.FourHours => "Pause for 4 hours",
+                PauseDuration.EightHours => "Pause for 8 hours",
+                PauseDuration.Indefinitely => "Indefinitely",
+                _ => throw new NotSupportedException()
+            }, (s) =>
+            {
+                _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingThresholds = s;
+                _playerPerformanceConfigService.Save();
+            }, PauseDuration.Indefinitely);
         }
+        _uiShared.DrawHelpText("Pairs paused indefinitely require a manual unpause unless unpaused via a Syncshell resume.");
+
         ImGui.Dummy(new Vector2(10));
         _uiShared.BigText("Whitelisted UIDs");
         UiSharedService.TextWrapped("The entries in the list below will be ignored for all warnings and auto pause operations.");
@@ -301,6 +323,26 @@ public partial class SettingsUi
             }
         }
         UiSharedService.ColorTextWrapped("Toggle this feature off/on again after changing values to refresh pairs immediately.", ImGuiColors.DalamudRed);
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        _uiShared.DrawCombo("Auto Pause Duration##autoPauseHeight", [
+                PauseDuration.ThirtyMinutes,
+                PauseDuration.FourHours,
+                PauseDuration.EightHours,
+                PauseDuration.Indefinitely
+            ],
+            (s) => s switch
+            {
+                PauseDuration.ThirtyMinutes => "Pause for 30 minutes",
+                PauseDuration.FourHours => "Pause for 4 hours",
+                PauseDuration.EightHours => "Pause for 8 hours",
+                PauseDuration.Indefinitely => "Indefinitely",
+                _ => throw new NotSupportedException()
+            }, (s) =>
+            {
+                _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingHeightThresholds = s;
+                _playerPerformanceConfigService.Save();
+            }, PauseDuration.Indefinitely);
+        _uiShared.DrawHelpText("Pairs paused indefinitely require a manual unpause unless unpaused via a Syncshell resume.");
 
         if (ImGui.Checkbox("Don't auto pause direct pairs exceeding thresholds", ref noAutoPausePairs))
         {
@@ -326,7 +368,7 @@ public partial class SettingsUi
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("Pause players above ");
             ImGui.SameLine();
-            ImGui.SetNextItemWidth(200f);
+            ImGui.SetNextItemWidth(130f * ImGuiHelpers.GlobalScale);
             if (ImGui.SliderFloat("##max", ref maxHeightMultiplier, 100.0f, 500.0f, "%.0f%%"))
             {
                 _playerPerformanceConfigService.Current.MaxHeightMultiplier = maxHeightMultiplier;
@@ -356,7 +398,7 @@ public partial class SettingsUi
             ImGui.SameLine();
 
             // Feet
-            ImGui.SetNextItemWidth(60);
+            ImGui.SetNextItemWidth(40 * ImGuiHelpers.GlobalScale);
             changedImperial |= ImGui.InputInt("##maxFeet", ref _maxHeightFeet);
             ImGui.SameLine();
             ImGui.TextUnformatted("feet");
@@ -364,7 +406,7 @@ public partial class SettingsUi
             ImGui.SameLine();
 
             // Inches
-            ImGui.SetNextItemWidth(60);
+            ImGui.SetNextItemWidth(40 * ImGuiHelpers.GlobalScale);
             changedImperial |= ImGui.InputInt("##maxInches", ref _maxHeightInches);
             ImGui.SameLine();
             ImGui.TextUnformatted("inches or");
@@ -372,7 +414,7 @@ public partial class SettingsUi
             ImGui.SameLine();
 
             // Centimeters
-            ImGui.SetNextItemWidth(60);
+            ImGui.SetNextItemWidth(40 * ImGuiHelpers.GlobalScale);
             changedMetric |= ImGui.InputInt("##maxCm", ref _maxHeightCm);
             ImGui.SameLine();
             ImGui.TextUnformatted("cm");
@@ -401,7 +443,7 @@ public partial class SettingsUi
             }
         }
 
-        UiSharedService.ColorTextWrapped("Paused pairs must be manually unpaused.", ImGuiColors.DalamudYellow);
+        //UiSharedService.ColorTextWrapped("Paused pairs must be manually unpaused.", ImGuiColors.DalamudYellow);
         ImGui.Dummy(new Vector2(10));
 
         _uiShared.BigText("Whitelisted UIDs");
