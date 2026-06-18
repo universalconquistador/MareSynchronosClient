@@ -519,9 +519,19 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
                     if (pair.LastLoadedSoundSinceRedraw != null)
                     {
-                        var icon = FontAwesomeIcon.VolumeOff;
-                        _uiSharedService.IconText(icon, ImGuiColors.HealerGreen);
-                        UiSharedService.AttachToolTip($"Started playing modded audio {UiSharedService.ApproxElapsedTimeToString(DateTimeOffset.UtcNow - pair.LastLoadedSoundSinceRedraw.Value)}.{UiSharedService.TooltipSeparator}CTRL + Click to disable sound sync with {pair.UserData.AliasOrUID}.");
+                        var timepassed = DateTimeOffset.UtcNow - pair.LastLoadedSoundSinceRedraw.Value;
+
+                        FontAwesomeIcon icon = FontAwesomeIcon.VolumeOff;
+
+                        var color = UiSharedService.TimePassedIconColor(timepassed);                 
+
+                        _uiSharedService.IconText(icon, color);
+
+                        UiSharedService.AttachToolTip(
+                            $"Started playing modded audio {UiSharedService.ApproxElapsedTimeToString(timepassed)}." +
+                            $"{UiSharedService.TooltipSeparator}CTRL + Click to disable sound sync with {pair.UserData.AliasOrUID}."
+                        );
+
                         if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && UiSharedService.CtrlPressed())
                         {
                             var perm = pair.UserPair!.OwnPermissions;
