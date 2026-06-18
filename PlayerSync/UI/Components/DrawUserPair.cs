@@ -647,20 +647,9 @@ public class DrawUserPair
             var timepassed = DateTimeOffset.UtcNow - Pair.LastLoadedSoundSinceRedraw.Value;
 
             FontAwesomeIcon icon = FontAwesomeIcon.VolumeOff;
-            Vector4 color;
 
-            if (timepassed.TotalSeconds <= 15)
-            {
-                color = ImGuiColors.HealerGreen;
-            }
-            else if (timepassed.TotalSeconds < 300)
-            {
-                color = ImGuiColors.DalamudYellow;
-            }
-            else
-            {
-                color = ImGuiColors.DalamudRed;
-            }
+            var color = UiSharedService.TimePassedIconColor(timepassed);
+
             currentRightSide -= _uiSharedService.GetIconSize(icon).X + spacingX;
             ImGui.SameLine(currentRightSide);
             _uiSharedService.IconText(icon, color);

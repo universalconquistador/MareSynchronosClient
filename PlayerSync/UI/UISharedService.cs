@@ -1310,4 +1310,20 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
         return Vector4.Lerp(PlayerSyncLogoPalette[startColorIndex], PlayerSyncLogoPalette[endColorIndex], smoothedBlendAmount);
     }
+
+    public static Vector4 TimePassedIconColor(TimeSpan timepassed)
+    {
+        if (timepassed.TotalSeconds <= 15)
+        {
+            return ImGuiColors.HealerGreen;
+        }
+
+        if (timepassed.TotalSeconds < 300)
+        {
+            return ImGuiColors.DalamudYellow;
+        }
+
+        return ImGuiColors.DalamudRed;
+        
+    }
 }
