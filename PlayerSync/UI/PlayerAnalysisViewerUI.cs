@@ -10,6 +10,7 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
+using MareSynchronos.Services.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.ModernUi;
@@ -402,7 +403,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
                     UiSharedService.AttachToolTip("Target " + pair.PlayerName);
                     if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-                    if (ImGui.IsItemClicked()) Mediator.Publish(new TargetPairMessage(pair));
+                    if (ImGui.IsItemClicked()) Mediator.Publish(new TargetPairMessage(pair, TargetType.Target));
 
                     // UID Column                     
                     ImGui.TableSetColumnIndex(1);

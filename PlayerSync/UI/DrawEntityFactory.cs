@@ -22,6 +22,7 @@ public class DrawEntityFactory
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly UiSharedService _uiSharedService;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfigService;
+    private readonly MareConfigService _configService;
     private readonly CharaDataManager _charaDataManager;
     private readonly SelectTagForPairUi _selectTagForPairUi;
     private readonly TagHandler _tagHandler;
@@ -34,7 +35,8 @@ public class DrawEntityFactory
         SelectTagForPairUi selectTagForPairUi, MareMediator mediator,
         TagHandler tagHandler, SelectPairForTagUi selectPairForTagUi,
         ServerConfigurationManager serverConfigurationManager, UiSharedService uiSharedService,
-        PlayerPerformanceConfigService playerPerformanceConfigService, CharaDataManager charaDataManager, PairManager pairManager,
+        PlayerPerformanceConfigService playerPerformanceConfigService, MareConfigService mareConfigService,
+        CharaDataManager charaDataManager, PairManager pairManager,
         IBroadcastManager broadcastManager, IpcManager ipcManager)
     {
         _logger = logger;
@@ -47,6 +49,7 @@ public class DrawEntityFactory
         _serverConfigurationManager = serverConfigurationManager;
         _uiSharedService = uiSharedService;
         _playerPerformanceConfigService = playerPerformanceConfigService;
+        _configService = mareConfigService;
         _charaDataManager = charaDataManager;
         _broadcastManager = broadcastManager;
         _pairManager = pairManager;
@@ -73,8 +76,8 @@ public class DrawEntityFactory
     public DrawUserPair CreateDrawPair(string id, Pair user, List<GroupFullInfoDto> groups, GroupFullInfoDto? currentGroup)
     {
         return new DrawUserPair(id + user.UserData.UID, user, groups, currentGroup, _apiController, _uidDisplayHandler,
-            _mediator, _selectTagForPairUi, _serverConfigurationManager, _uiSharedService, _playerPerformanceConfigService,
-            _charaDataManager, _ipcManager);
+            _mediator, _selectTagForPairUi, _serverConfigurationManager, _uiSharedService, _playerPerformanceConfigService, 
+            _configService, _charaDataManager, _ipcManager);
     }
 
     public DrawBroadcastGroup CreateDrawBroadcastGroup(GroupBroadcastDto broadcast, IReadOnlyList<GroupFullInfoDto> groups)

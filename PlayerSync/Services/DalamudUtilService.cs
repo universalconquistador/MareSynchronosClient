@@ -1,5 +1,4 @@
-﻿using Dalamud.Game.ClientState;
-using Dalamud.Game.ClientState.Conditions;
+﻿using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
@@ -16,6 +15,7 @@ using MareSynchronos.Interop;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Utils;
 using Microsoft.Extensions.Hosting;
@@ -24,6 +24,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using GameObject = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
+using TargetType = MareSynchronos.Services.Models.TargetType;
 
 namespace MareSynchronos.Services;
 
@@ -136,22 +137,9 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 return (w, sb.ToString());
             });
         });
-        mediator.Subscribe<TargetPairMessage>(this, (msg) =>
-        {
-            if (clientState.IsPvP) return;
-            var name = msg.Pair.PlayerName;
-            if (string.IsNullOrEmpty(name)) return;
-            var addr = _playerCharas.FirstOrDefault(f => string.Equals(f.Value.Name, name, StringComparison.Ordinal)).Value.Address;
-            if (addr == nint.Zero) return;
-            var useFocusTarget = _configService.Current.UseFocusTarget;
-            _ = RunOnFrameworkThread(() =>
-            {
-                if (useFocusTarget)
-                    targetManager.FocusTarget = CreateGameObject(addr);
-                else
-                    targetManager.Target = CreateGameObject(addr);
-            }).ConfigureAwait(false);
-        });
+
+        mediator.Subscribe<TargetPairMessage>(this, (msg) => TargetPairByTargetType(msg.Pair, msg.TargetType));
+
         IsWine = Util.IsWine();
         _cid = RebuildCID();
     }
@@ -170,12 +158,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
     public bool IsWine { get; init; }
 
-    public unsafe GameObject* GposeTarget
-    {
-        get => TargetSystem.Instance()->GPoseTarget;
-        set => TargetSystem.Instance()->GPoseTarget = value;
-    }
-
     public string TargetName
     {
         get => _targetManager.Target?.Name.TextValue ?? string.Empty;
@@ -184,7 +166,27 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     {
         get => _targetManager.Target?.Address ?? nint.Zero;
     }
-
+    public string SoftTargetName
+    {
+        get => _targetManager.SoftTarget?.Name.TextValue ?? string.Empty;
+    }
+    public unsafe nint SoftTargetAddress
+    {
+        get => _targetManager.SoftTarget?.Address ?? nint.Zero;
+    }
+    public string MouseOverTargetName
+    {
+        get => _targetManager.MouseOverTarget?.Name.TextValue ?? string.Empty;
+    }
+    public unsafe nint MouseOverTargetAddress
+    {
+        get => _targetManager.MouseOverTarget?.Address ?? nint.Zero;
+    }
+    public unsafe GameObject* GposeTarget
+    {
+        get => TargetSystem.Instance()->GPoseTarget;
+        set => TargetSystem.Instance()->GPoseTarget = value;
+    }
     private unsafe bool HasGposeTarget => GposeTarget != null;
     private unsafe int GPoseTargetIdx => !HasGposeTarget ? -1 : GposeTarget->ObjectIndex;
 
@@ -683,6 +685,48 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         }
 
         return result;
+    }
+
+    private void TargetPairByTargetType(Pair? pair, TargetType targetType)
+    {
+        if (_clientState.IsPvP) return;
+
+        IGameObject? objectToTarget;
+        if (pair is null)
+            objectToTarget = null;
+        else
+        {
+
+            var name = pair.PlayerName;
+            if (string.IsNullOrEmpty(name))
+                return;
+
+            var addr = _playerCharas.FirstOrDefault(f => string.Equals(f.Value.Name, name, StringComparison.Ordinal)).Value.Address;
+            if (addr == nint.Zero)
+                return;
+
+            objectToTarget = CreateGameObject(addr);
+        }
+        _ = RunOnFrameworkThread(() =>
+        {
+            switch (targetType)
+            {
+                case TargetType.Target:
+                    _targetManager.Target = objectToTarget;
+                    break;
+                case TargetType.SoftTarget:
+                    _targetManager.SoftTarget = objectToTarget;
+                    break;
+                case TargetType.FocusTarget:
+                    _targetManager.FocusTarget = objectToTarget;
+                    break;
+                case TargetType.MouseOverTarget:
+                    _targetManager.MouseOverTarget = objectToTarget;
+                    break;
+                default:
+                    break;
+            }
+        }).ConfigureAwait(false);
     }
 
     private unsafe void CheckCharacterForDrawing(nint address, string characterName)

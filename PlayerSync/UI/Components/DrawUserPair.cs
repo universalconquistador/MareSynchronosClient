@@ -12,6 +12,7 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
+using MareSynchronos.Services.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.Handlers;
@@ -34,6 +35,7 @@ public class DrawUserPair
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly UiSharedService _uiSharedService;
     private readonly PlayerPerformanceConfigService _performanceConfigService;
+    private readonly MareConfigService _configService;
     private readonly CharaDataManager _charaDataManager;
     private readonly IpcManager _ipcManager;
     private float _menuWidth = -1;
@@ -47,7 +49,7 @@ public class DrawUserPair
         MareMediator mareMediator, SelectTagForPairUi selectTagForPairUi,
         ServerConfigurationManager serverConfigurationManager,
         UiSharedService uiSharedService, PlayerPerformanceConfigService performanceConfigService,
-        CharaDataManager charaDataManager, IpcManager ipcManager)
+        MareConfigService mareConfigService, CharaDataManager charaDataManager, IpcManager ipcManager)
     {
         _id = id;
         _pair = entry;
@@ -60,6 +62,7 @@ public class DrawUserPair
         _serverConfigurationManager = serverConfigurationManager;
         _uiSharedService = uiSharedService;
         _performanceConfigService = performanceConfigService;
+        _configService = mareConfigService;
         _charaDataManager = charaDataManager;
         _ipcManager = ipcManager;
     }
@@ -362,7 +365,8 @@ public class DrawUserPair
             userPairText = _pair.UserData.AliasOrUID + " is visible: " + _pair.PlayerName + Environment.NewLine + "Click to target this player";
             if (ImGui.IsItemClicked())
             {
-                _mediator.Publish(new TargetPairMessage(_pair));
+                var useFocusTarget = _configService.Current.UseFocusTarget;
+                _mediator.Publish(new TargetPairMessage(_pair, useFocusTarget ? TargetType.FocusTarget : TargetType.Target));
             }
         }
         else
