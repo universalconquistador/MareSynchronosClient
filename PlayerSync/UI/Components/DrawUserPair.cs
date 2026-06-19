@@ -12,17 +12,19 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
+using MareSynchronos.Services.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
-using System.Numerics;
 
 
 namespace MareSynchronos.UI.Components;
 
 public class DrawUserPair
 {
+    private static Pair? _lastSoftTarget;
+
     protected readonly ApiController _apiController;
     protected readonly IdDisplayHandler _displayHandler;
     protected readonly MareMediator _mediator;
@@ -34,12 +36,14 @@ public class DrawUserPair
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly UiSharedService _uiSharedService;
     private readonly PlayerPerformanceConfigService _performanceConfigService;
+    private readonly MareConfigService _configService;
     private readonly CharaDataManager _charaDataManager;
     private readonly IpcManager _ipcManager;
     private float _menuWidth = -1;
     private float _pauseMenuWidth = -1;
     private bool _wasHovered = false;
     private List<AddressBookEntry>? _addressBookCache;
+    private bool _shouldBeSoftTarget = false;
 
     public DrawUserPair(string id, Pair entry, List<GroupFullInfoDto> syncedGroups,
         GroupFullInfoDto? currentGroup,
@@ -47,7 +51,7 @@ public class DrawUserPair
         MareMediator mareMediator, SelectTagForPairUi selectTagForPairUi,
         ServerConfigurationManager serverConfigurationManager,
         UiSharedService uiSharedService, PlayerPerformanceConfigService performanceConfigService,
-        CharaDataManager charaDataManager, IpcManager ipcManager)
+        MareConfigService mareConfigService, CharaDataManager charaDataManager, IpcManager ipcManager)
     {
         _id = id;
         _pair = entry;
@@ -60,6 +64,7 @@ public class DrawUserPair
         _serverConfigurationManager = serverConfigurationManager;
         _uiSharedService = uiSharedService;
         _performanceConfigService = performanceConfigService;
+        _configService = mareConfigService;
         _charaDataManager = charaDataManager;
         _ipcManager = ipcManager;
     }
@@ -80,8 +85,29 @@ public class DrawUserPair
             DrawName(posX, rightSide);
             _displayHandler.DrawProfileIcon(_pair);
         }
-        _wasHovered = ImGui.IsItemHovered();
         color.Dispose();
+
+        _wasHovered = ImGui.IsItemHovered();
+
+        if (_configService.Current.SoftTargetPairsOnHover)
+        {
+            bool thisPairIsSelected = _lastSoftTarget?.UserData.UID == _pair.UserData.UID;
+            Pair? softTarget = null;
+            if (_wasHovered && !thisPairIsSelected)
+                softTarget = _pair;
+
+            if ((_lastSoftTarget == null && softTarget != null) || (softTarget != null && (_lastSoftTarget?.PlayerName != softTarget.PlayerName)))
+            {
+                _lastSoftTarget = softTarget;
+                _mediator.Publish(new TargetPairMessage(softTarget, TargetType.SoftTarget));
+            }
+
+            if (!TableHelper.IsMouseWithinWindow() && _lastSoftTarget != null && _lastSoftTarget == _pair && !string.IsNullOrEmpty(_uiSharedService.PlayerSoftTargetname))
+            {
+                _lastSoftTarget = null;
+                _mediator.Publish(new TargetPairMessage(null, TargetType.SoftTarget));
+            }
+        }
     }
 
     private void DrawCommonClientMenu()
@@ -362,7 +388,8 @@ public class DrawUserPair
             userPairText = _pair.UserData.AliasOrUID + " is visible: " + _pair.PlayerName + Environment.NewLine + "Click to target this player";
             if (ImGui.IsItemClicked())
             {
-                _mediator.Publish(new TargetPairMessage(_pair));
+                var useFocusTarget = _configService.Current.UseFocusTarget;
+                _mediator.Publish(new TargetPairMessage(_pair, useFocusTarget ? TargetType.FocusTarget : TargetType.Target));
             }
         }
         else

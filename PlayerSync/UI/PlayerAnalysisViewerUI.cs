@@ -10,6 +10,7 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
+using MareSynchronos.Services.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.ModernUi;
@@ -37,6 +38,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private readonly Dictionary<string, UserPermissions> _edited = new(StringComparer.Ordinal);
     public float idmaxl = ImGui.CalcTextSize("WWWWWWWWWWWW").X; //calculate width of 11 W's, UID are only 10 and w are usually max width as far as the glyphs advance is concerned, so using it as a width anchor, is fine. so this provides ample padding but still consistent. The number of W's can be adjusted to your liking but 11 suffices visually.
     private readonly UiTheme _theme;
+    private Pair? _lastSoftTarget = null;
+    private bool _softTargetOnRowSelect = false;
 
     public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
         UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService, ServerConfigurationManager serverConfigurationManager,
@@ -120,7 +123,10 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
         DrawFPS();
 
-        Ui.DrawHorizontalRule(_theme);
+        //Ui.DrawHorizontalRule(_theme);
+        ImGuiHelpers.ScaledDummy(2f);
+        ImGui.Separator();
+        ImGuiHelpers.ScaledDummy(2f);
 
         _selectedTabAnalysis.TabAction.Invoke();
     }
@@ -158,20 +164,22 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         }
 
         var headerStart = ImGui.GetCursorPos();
+        ImGui.SetCursorPosY(headerStart.Y - 8f * ImGuiHelpers.GlobalScale);
         _uiSharedService.BigText($"Visible Players ({_cachedVisiblePairs.Count})");
-        var headerSize = ImGui.GetItemRectSize();
+        ImGui.SameLine();
+        ImGui.SetCursorPosY(headerStart.Y);
+        ImGui.Checkbox("Enable SoftTarget on row selection.", ref _softTargetOnRowSelect);
 
         var style = ImGui.GetStyle();
         float comboW = 150f * ImGuiHelpers.GlobalScale;
         float updateW = ImGui.CalcTextSize("Update").X + style.FramePadding.X * 2f;
         float controlsW = comboW + style.ItemSpacing.X + updateW;
-
         float contentMinX = ImGui.GetWindowContentRegionMin().X;
         float contentMaxX = ImGui.GetWindowContentRegionMax().X;
         float controlsX = MathF.Max(contentMinX, contentMaxX - controlsW);
-        float controlsY = headerStart.Y + (headerSize.Y - ImGui.GetFrameHeight()) * 0.5f;
 
-        ImGui.SetCursorPos(new Vector2(controlsX, controlsY));
+        ImGui.SameLine(controlsX);
+        ImGui.SetCursorPosY(headerStart.Y);
         ImGui.SetNextItemWidth(comboW);
         _uiSharedService.DrawCombo("###refreshInterval", [RefreshMode.Live, RefreshMode.Sec5, RefreshMode.Sec30, RefreshMode.Manual],
             (s) => s switch
@@ -196,15 +204,13 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                 }
             }, RefreshMode.Live);
         ImGui.SameLine();
+        ImGui.SetCursorPosY(headerStart.Y);
         if (ImGui.Button("Update"))
         {
             _manualRefresh = true;
         }
 
-        float rowBottomY = MathF.Max(headerStart.Y + headerSize.Y, controlsY + ImGui.GetFrameHeight());
-        ImGui.SetCursorPos(new Vector2(headerStart.X, rowBottomY));
-
-        ImGuiHelpers.ScaledDummy(8f);
+        ImGuiHelpers.ScaledDummy(2f);
         ImGui.Separator();
 
         if (shouldUpdate || _manualRefresh)
@@ -379,14 +385,14 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         maxVRAMWidth = vrwidth;
                 }
 
+                Pair? softTarget = null;
+
                 // time to draw table data.
                 foreach (var pair in sortedPairs)
                 {
                     ImGui.PushID(pair.UserData.UID);
 
-                    bool shouldHighlight = !string.IsNullOrWhiteSpace(_dalamudUtilService.TargetName)
-                        && !string.IsNullOrWhiteSpace(pair.PlayerName)
-                        && _dalamudUtilService.TargetName == pair.PlayerName;
+                    var highlighter = _uiSharedService.ShouldHighlightOnHover(pair);
 
                     float rowStartHeightStart = ImGui.GetCursorPosY();
 
@@ -402,12 +408,12 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     _uiSharedService.IconText(FontAwesomeIcon.Eye, ImGuiColors.ParsedGreen);
                     UiSharedService.AttachToolTip("Target " + pair.PlayerName);
                     if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-                    if (ImGui.IsItemClicked()) Mediator.Publish(new TargetPairMessage(pair));
+                    if (ImGui.IsItemClicked()) Mediator.Publish(new TargetPairMessage(pair, TargetType.Target));
 
                     // UID Column                     
                     ImGui.TableSetColumnIndex(1);
                     ImGui.AlignTextToFramePadding();
-                    using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
+                    using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(highlighter.Item2), highlighter.Item1);
                     TableHelper.CText(pair.UserData.UID, centerHorizontally: false, leftPadding: 0f);
                     targetColor.Dispose();
                     if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
@@ -442,7 +448,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     // Alias/vanity Column
                     ImGui.TableSetColumnIndex(2);
                     ImGui.AlignTextToFramePadding();
-                    using var aliasColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
+                    using var aliasColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(highlighter.Item2), highlighter.Item1);
                     TableHelper.CText(pair.UserData.Alias ?? "", centerHorizontally: false, leftPadding: 0f);
                     aliasColor.Dispose();                    
 
@@ -605,16 +611,28 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     {
                         _ = _apiController.CyclePauseAsync(pair.UserData);
                     }
- 
+
+                    
                     if (TableHelper.SRowhovered(rowStartHeightStart, ImGui.GetCursorPosY()))
                     {
                         var rowIndex = ImGui.TableGetRowIndex();
                         //uint color = ImGui.ColorConvertFloat4ToU32(new Vector4(0.4f, 0.6f, 1.0f, 0.5f));
                         var color = ImGui.GetColorU32(ImGuiCol.HeaderHovered);
                         ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg1, color, rowIndex);
+                        softTarget = pair;
                     }
 
                     ImGui.PopID();
+                }
+
+                if (_softTargetOnRowSelect)
+                {
+                    if ((_lastSoftTarget == null && softTarget != null) || (_lastSoftTarget?.PlayerName != softTarget?.PlayerName))
+                    {
+                        _lastSoftTarget = softTarget;
+                        Mediator.Publish(new TargetPairMessage(softTarget, TargetType.SoftTarget));
+                        _logger.LogTrace("PAV SoftTarget: {name}", softTarget?.PlayerName ?? "None");
+                    }
                 }
             }
             finally
@@ -631,6 +649,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         bool FilterPausedUsers(KeyValuePair<Pair, List<GroupFullInfoDto>> u) => u.Key.IsPaused;
         var allPausedPairs = ImmutablePairList(allPairs.Where(FilterPausedUsers));
 
+        var headerStart = ImGui.GetCursorPos();
+        ImGui.SetCursorPosY(headerStart.Y - 8f * ImGuiHelpers.GlobalScale);
         _uiSharedService.BigText("Paused Pairs");
         ImGuiHelpers.ScaledDummy(2f);
         ImGui.Separator();
@@ -700,12 +720,13 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private void DrawPermissions()
     {
         using var imGuiUid = ImRaii.PushId("permissions");
+        var headerStart = ImGui.GetCursorPos();
+        ImGui.SetCursorPosY(headerStart.Y - 8f * ImGuiHelpers.GlobalScale);
         _uiSharedService.BigText("Permissions Matrix");
         ImGuiHelpers.ScaledDummy(2f);
         ImGui.Separator();
 
-        UiSharedService.TextWrapped("Checking Preferred Permissions means Syncshells won't overwrite permissions, such as pause/unpause.");
-        ImGui.Separator();
+        UiSharedService.ColorTextWrapped("Checking Preferred Permissions means Syncshells won't overwrite permissions, such as pause/unpause.", ImGuiColors.DalamudRed);
         UiSharedService.ColorTextWrapped("Checking the permission boxes means disabling that permission.", ImGuiColors.DalamudYellow);
         UiSharedService.TextWrapped("Both sides must have the permission enabled for it to take effect on either side.");
         UiSharedService.TextWrapped("This means, make sure you uncheck the box and click save to enable permissions with the paired player.");
@@ -777,10 +798,8 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     bool ownSound = edit.IsDisableSounds();
                     bool ownAnimations = edit.IsDisableAnimations();
                     bool ownVfx = edit.IsDisableVFX();
-                    
-                    bool shouldHighlight = !string.IsNullOrWhiteSpace(_dalamudUtilService.TargetName) 
-                        && !string.IsNullOrWhiteSpace(pair.PlayerName)
-                        && _dalamudUtilService.TargetName == pair.PlayerName;
+
+                    var highlighter = _uiSharedService.ShouldHighlightOnHover(pair);
 
                     // Track change for state
                     bool changed = false;
@@ -791,8 +810,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     // UID
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
-                    using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(ImGuiColors.ParsedGreen), shouldHighlight);
+                    using var targetColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(highlighter.Item2), highlighter.Item1);
                     ImGui.TextUnformatted(uid);
+                    targetColor.Dispose();
                     if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
                     if (ImGui.IsItemClicked())
                     {
@@ -803,8 +823,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     // Alias
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
+                    using var aliasColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(highlighter.Item2), highlighter.Item1);
                     ImGui.TextUnformatted(pair.UserData.Alias ?? "");
-                    targetColor.Dispose();
+                    aliasColor.Dispose();
 
                     // Preferred
                     ImGui.TableNextColumn();

@@ -9,6 +9,7 @@ using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Events;
+using MareSynchronos.Services.Models;
 using MareSynchronos.WebAPI.Files.Models;
 using System.Collections.Concurrent;
 using System.Numerics;
@@ -97,7 +98,7 @@ public record OpenSyncshellProfilePanel(GroupFullInfoDto GroupInfo) : MessageBas
 public record OpenPermissionWindow(Pair Pair) : MessageBase;
 public record DownloadLimitChangedMessage() : SameThreadMessage;
 public record CensusUpdateMessage(byte Gender, byte RaceId, byte TribeId) : MessageBase;
-public record TargetPairMessage(Pair Pair) : MessageBase;
+public record TargetPairMessage(Pair? Pair, TargetType TargetType) : MessageBase;
 public record CombatOrPerformanceStartMessage : MessageBase;
 public record CombatOrPerformanceEndMessage : MessageBase;
 public record EventMessage(Event Event) : MessageBase;

@@ -98,7 +98,15 @@ public class IdDisplayHandler
         {
             ImGui.AlignTextToFramePadding();
 
-            using (ImRaii.PushFont(UiBuilder.MonoFont, textIsUid)) ImGui.TextUnformatted(playerText);
+            var highlighter = _uiSharedService.ShouldHighlightOnHover(pair);
+
+            using (ImRaii.PushFont(UiBuilder.MonoFont, textIsUid))
+            {
+                using (ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(highlighter.Item2), highlighter.Item1))
+                {
+                    ImGui.TextUnformatted(playerText);
+                }
+            }
 
             if (ImGui.IsItemHovered())
             {
