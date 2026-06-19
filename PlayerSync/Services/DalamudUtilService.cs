@@ -692,23 +692,22 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         if (_clientState.IsPvP) return;
 
         IGameObject? objectToTarget;
-        if (pair is null)
-            objectToTarget = null;
-        else
+        nint addr = nint.Zero;
+        if (pair != null)
         {
-
             var name = pair.PlayerName;
             if (string.IsNullOrEmpty(name))
                 return;
 
-            var addr = _playerCharas.FirstOrDefault(f => string.Equals(f.Value.Name, name, StringComparison.Ordinal)).Value.Address;
+            addr = _playerCharas.FirstOrDefault(f => string.Equals(f.Value.Name, name, StringComparison.Ordinal)).Value.Address;
             if (addr == nint.Zero)
                 return;
-
-            objectToTarget = CreateGameObject(addr);
         }
+            
         _ = RunOnFrameworkThread(() =>
         {
+            objectToTarget = pair != null ? CreateGameObject(addr) : null;
+
             switch (targetType)
             {
                 case TargetType.Target:

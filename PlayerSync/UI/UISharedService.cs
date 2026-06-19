@@ -129,7 +129,6 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
                 SizePx = 23
             }));
         });
-
         GameFont = _pluginInterface.UiBuilder.FontAtlas.NewGameFontHandle(new(GameFontFamilyAndSize.Axis12));
         IconFont = _pluginInterface.UiBuilder.IconFontFixedWidthHandle;
     }
@@ -149,7 +148,8 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
     public Dictionary<uint, string> JobData => _dalamudUtil.JobData.Value;
     public string PlayerName => _dalamudUtil.PlayerName;
-
+    public string PlayerTargetName => _dalamudUtil.TargetName;
+    public string PlayerSoftTargetname => _dalamudUtil.SoftTargetName;
     public IFontHandle UidFont { get; init; }
     public IFontHandle HeaderFont { get; init; }
     public Dictionary<ushort, string> WorldData => _dalamudUtil.WorldData.Value;
@@ -193,7 +193,6 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             ImGui.EndTooltip();
         }
     }
-
 
     public static string ByteToString(long bytes, bool addSuffix = true)
     {
@@ -261,6 +260,27 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     {
         using var raiicolor = ImRaii.PushColor(ImGuiCol.Text, color);
         TextWrapped(text, wrapPos);
+    }
+
+    public (bool, Vector4) ShouldHighlightOnHover(Pair pair)
+    {
+        bool shouldHighlightTarget = !string.IsNullOrWhiteSpace(_dalamudUtil.TargetName)
+                        && !string.IsNullOrWhiteSpace(pair.PlayerName)
+                        && _dalamudUtil.TargetName == pair.PlayerName;
+
+        bool shouldHighlightSoftTarget = !string.IsNullOrWhiteSpace(_dalamudUtil.SoftTargetName)
+            && !string.IsNullOrWhiteSpace(pair.PlayerName)
+            && _dalamudUtil.SoftTargetName == pair.PlayerName;
+
+
+        bool shouldHighlightMouseOverTarget = !string.IsNullOrWhiteSpace(_dalamudUtil.MouseOverTargetName)
+            && !string.IsNullOrWhiteSpace(pair.PlayerName)
+            && _dalamudUtil.MouseOverTargetName == pair.PlayerName;
+
+        bool shouldHighlight = shouldHighlightTarget || shouldHighlightSoftTarget || shouldHighlightMouseOverTarget;
+        var highlightColor = shouldHighlightTarget ? ImGuiColors.ParsedGreen : shouldHighlightSoftTarget ? ImGuiColors.TankBlue : ImGuiColors.DalamudYellow;
+
+        return (shouldHighlight, highlightColor);
     }
 
     public static bool CtrlPressed() => (GetKeyState(0xA2) & 0x8000) != 0 || (GetKeyState(0xA3) & 0x8000) != 0;

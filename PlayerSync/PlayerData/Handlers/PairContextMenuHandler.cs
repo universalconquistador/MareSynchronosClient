@@ -101,7 +101,8 @@ namespace MareSynchronos.PlayerData.Handlers
             if (string.Equals(args.AddonName, "ChatLog", StringComparison.OrdinalIgnoreCase))
                 AddUserPairChatContextMenu(args);
 
-            var target = _dalamudUtilService.TargetAddress;
+            var target = _dalamudUtilService.SoftTargetAddress != nint.Zero ? _dalamudUtilService.SoftTargetAddress : _dalamudUtilService.TargetAddress;
+            if (target == nint.Zero) return;
             var pairs = _pairManager.GetVisiblePairs();
             var currentTargetPair = pairs.SingleOrDefault(u => u.Address == target);
             if (currentTargetPair != null)

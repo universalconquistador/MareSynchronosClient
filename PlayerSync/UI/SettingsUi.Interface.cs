@@ -69,6 +69,7 @@ public partial class SettingsUi
         var showCompactStats = _configService.Current.ShowCompactStats;
         var mysterySetting = _configService.Current.MysterySetting;
         var showProfileIcon = _configService.Current.ShowProfileIconByNames;
+        var softTargetOnPairHover = _configService.Current.SoftTargetPairsOnHover;
 
         _uiShared.BigText("PlayerSync UI");
         ImGuiHelpers.ScaledDummy(2);
@@ -106,6 +107,12 @@ public partial class SettingsUi
                 _configService.Save();
             }
             if (!showAnalysisOnUi) ImGui.EndDisabled();
+        }
+
+        if (ImGui.Checkbox("SoftTarget players in game when moused over in the UI list.", ref softTargetOnPairHover))
+        {
+            _configService.Current.SoftTargetPairsOnHover = softTargetOnPairHover;
+            _configService.Save();
         }
 
         if (ImGui.Checkbox("Show separate Visible group", ref showVisibleSeparate))
