@@ -64,7 +64,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         //Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
         Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
-        Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData, msg.Reason));
+        Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData, msg.Reason, msg.PauseDuration));
+        Mediator.Subscribe<UnPauseMessage>(this, (msg) => _ = UnPauseAsync(msg.UserData, msg.Notification));
         Mediator.Subscribe<UserPairStickyPauseAndRemoveMessage>(this, (msg) => _ = UserPairStickyPauseAndRemove(msg.UserData));
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (msg) => _ = PauseServerConnection());
         Mediator.Subscribe<ResumeSyncMessage>(this, (msg) => _ = ResumeServerConnection());
@@ -433,13 +434,31 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         return Task.CompletedTask;
     }
 
-    public async Task PauseAsync(UserData userData, PauseReason reason)
+    public async Task PauseAsync(UserData userData, PauseReason reason, PauseDuration? pauseDuration)
     {
         var pair = _pairManager.GetOnlineUserPairs().Single(p => p.UserPair != null && p.UserData == userData);
         var perm = pair.UserPair!.OwnPermissions;
         perm.SetPaused(paused: true);
         await UserSetPairPermissions(new UserPermissionsDto(userData, perm)).ConfigureAwait(false);
         _serverManager.SetPauseReasonForUid(userData.UID, reason);
+        if (pauseDuration != null && pauseDuration != PauseDuration.Indefinitely)
+            _serverManager.SetPauseTimeoutForUid(userData.UID, pauseDuration.Value);
+    }
+
+    public async Task UnPauseAsync(UserData userData, bool notification = false)
+    {
+        var uid = userData.UID;
+        var pair = _pairManager.GetPairByUID(uid);
+        if (pair == null)
+        {
+            Logger.LogWarning("Called to unpause user but UID does not exist: {uid}", uid);
+            return;
+        }
+        var perm = pair.UserPair!.OwnPermissions;
+        perm.SetPaused(paused: false);
+        await UserSetPairPermissions(new UserPermissionsDto(userData, perm)).ConfigureAwait(false);
+        if (notification)
+            Mediator.Publish(new NotificationMessage("Auto Unpause", $"Auto unpausing UID/Alias: {pair.UserData.AliasOrUID}", NotificationType.Info));
     }
 
     // Perma pause is basically like blacklisting a user on sync

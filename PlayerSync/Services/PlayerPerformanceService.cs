@@ -141,16 +141,17 @@ public class PlayerPerformanceService
         if (CheckForThreshold(config.AutoPausePlayersExceedingThresholds, config.TrisAutoPauseThresholdThousands * 1000,
             triUsage, config.AutoPausePlayersWithPreferredPermissionsExceedingThresholds, isPrefPerm))
         {
+            var pauseDuration = _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingThresholds;
             _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
                 $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured triangle auto pause threshold (" +
                 $"{triUsage}/{config.TrisAutoPauseThresholdThousands * 1000} triangles)" +
-                $" and has been automatically paused.",
+                $" and has been automatically paused " + GetPauseDurationText(pauseDuration),
                 MareConfiguration.Models.NotificationType.Warning));
 
             _mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
                 $"Exceeds triangle threshold: automatically paused ({triUsage}/{config.TrisAutoPauseThresholdThousands * 1000} triangles)")));
 
-            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdTriangles));
+            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdTriangles, pauseDuration));
 
             return false;
         }
@@ -220,13 +221,14 @@ public class PlayerPerformanceService
         if (CheckForThreshold(config.AutoPausePlayersExceedingThresholds, config.VRAMSizeAutoPauseThresholdMiB * 1024 * 1024,
             vramUsage, config.AutoPausePlayersWithPreferredPermissionsExceedingThresholds, isPrefPerm))
         {
+            var pauseDuration = _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingThresholds;
             _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
                 $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured VRAM auto pause threshold (" +
                 $"{UiSharedService.ByteToString(vramUsage, addSuffix: true)}/{config.VRAMSizeAutoPauseThresholdMiB}MiB)" +
-                $" and has been automatically paused.",
+                $" and has been automatically paused " + GetPauseDurationText(pauseDuration),
                 MareConfiguration.Models.NotificationType.Warning));
 
-            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdVram));
+            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdVram, pauseDuration));
 
             _mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
                 $"Exceeds VRAM threshold: automatically paused ({UiSharedService.ByteToString(vramUsage, addSuffix: true)}/{config.VRAMSizeAutoPauseThresholdMiB} MiB)")));
@@ -293,19 +295,32 @@ public class PlayerPerformanceService
 
         if (pauseRspExceeded)
         {
+            var pauseDuration = _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingHeightThresholds;
             _logger.LogInformation("Pair {name} exceeds your height min/max threshold and will be paused.", pair.PlayerName);
             if (shouldWarn)
             {
                 var threshold = manualHeight ? maxHeight : maxThreshold;
                 _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
-                $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured player height threshold and has been automatically paused. " +
+                $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured player height threshold and has been automatically paused " + GetPauseDurationText(pauseDuration) +
                 $"Their height: {actualHeight:F2}, your threshold: {threshold:F2}",
                 MareConfiguration.Models.NotificationType.Warning));
             }
-            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdHeight));
+            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdHeight, pauseDuration));
 
             return false;
         }
         return true;
+    }
+
+    private static string GetPauseDurationText(PauseDuration pauseDuration)
+    {
+        return pauseDuration switch
+        {
+            PauseDuration.ThirtyMinutes => "for 30 minutes. ",
+            PauseDuration.FourHours => "for 4 hours. ",
+            PauseDuration.EightHours => "for 8 hours. ",
+            PauseDuration.Indefinitely => "until you unpause them. ",
+            _ => string.Empty
+        };
     }
 }

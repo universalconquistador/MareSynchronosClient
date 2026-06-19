@@ -106,10 +106,11 @@ public class MareConfig : IMareConfiguration
         ContextMenuItemId.PairData,
         ContextMenuItemId.InviteToSyncshell,
         ContextMenuItemId.AddToOverrides,
-        ContextMenuItemId.PauseForever
+        ContextMenuItemId.PausePair
     };
     public bool[] SPriority { get; set; } = new bool[5];
     public bool ShowProfileIconByNames { get; set; } = true;
+    public bool SoftTargetPairsOnHover { get; set; } = false;
     public bool EnableValidationChecks { get; set; } = true;
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
