@@ -503,7 +503,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         {
             _serverConfigurationManager.EnableGatewayDiscovery = useGatewayDiscovery;
         }
-        _uiShared.DrawHelpText("Automatically finds the closests PlayerSync gateway.");
+        _uiShared.DrawHelpText("Automatically selects the closest PlayerSync gateway.");
 
         if (_useLegacyLogin)
         {
