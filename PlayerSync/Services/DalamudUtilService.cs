@@ -691,7 +691,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     {
         if (_clientState.IsPvP) return;
 
-        IGameObject? objectToTarget;
         nint addr = nint.Zero;
         if (pair != null)
         {
@@ -706,7 +705,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             
         _ = RunOnFrameworkThread(() =>
         {
-            objectToTarget = pair != null ? CreateGameObject(addr) : null;
+            IGameObject? objectToTarget = pair != null ? CreateGameObject(addr) : null;
 
             switch (targetType)
             {

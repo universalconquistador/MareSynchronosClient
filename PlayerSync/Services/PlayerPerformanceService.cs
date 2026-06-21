@@ -141,12 +141,16 @@ public class PlayerPerformanceService
         if (CheckForThreshold(config.AutoPausePlayersExceedingThresholds, config.TrisAutoPauseThresholdThousands * 1000,
             triUsage, config.AutoPausePlayersWithPreferredPermissionsExceedingThresholds, isPrefPerm))
         {
-            var pauseDuration = _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingThresholds;
-            _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
-                $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured triangle auto pause threshold (" +
-                $"{triUsage}/{config.TrisAutoPauseThresholdThousands * 1000} triangles)" +
-                $" and has been automatically paused " + GetPauseDurationText(pauseDuration),
-                MareConfiguration.Models.NotificationType.Warning));
+            var pauseDuration = config.PauseDurationAutoPauseExceedingThresholds;
+
+            if (config.WarnOnPausedExceedingThresholds)
+            {
+                _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
+                    $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured triangle auto pause threshold (" +
+                    $"{triUsage}/{config.TrisAutoPauseThresholdThousands * 1000} triangles)" +
+                    $" and has been automatically paused " + GetPauseDurationText(pauseDuration),
+                    MareConfiguration.Models.NotificationType.Warning));
+            }
 
             _mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
                 $"Exceeds triangle threshold: automatically paused ({triUsage}/{config.TrisAutoPauseThresholdThousands * 1000} triangles)")));
@@ -221,17 +225,21 @@ public class PlayerPerformanceService
         if (CheckForThreshold(config.AutoPausePlayersExceedingThresholds, config.VRAMSizeAutoPauseThresholdMiB * 1024 * 1024,
             vramUsage, config.AutoPausePlayersWithPreferredPermissionsExceedingThresholds, isPrefPerm))
         {
-            var pauseDuration = _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingThresholds;
-            _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
+            var pauseDuration = config.PauseDurationAutoPauseExceedingThresholds;
+
+            if (config.WarnOnPausedExceedingThresholds)
+            {
+                _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
                 $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured VRAM auto pause threshold (" +
                 $"{UiSharedService.ByteToString(vramUsage, addSuffix: true)}/{config.VRAMSizeAutoPauseThresholdMiB}MiB)" +
                 $" and has been automatically paused " + GetPauseDurationText(pauseDuration),
                 MareConfiguration.Models.NotificationType.Warning));
-
-            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdVram, pauseDuration));
+            }
 
             _mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
                 $"Exceeds VRAM threshold: automatically paused ({UiSharedService.ByteToString(vramUsage, addSuffix: true)}/{config.VRAMSizeAutoPauseThresholdMiB} MiB)")));
+
+            _mediator.Publish(new PauseMessage(pair.UserData, PauseReason.ThresholdVram, pauseDuration));
 
             return false;
         }
@@ -245,9 +253,9 @@ public class PlayerPerformanceService
     // Height check
     public bool CheckForRspHeight(PairHandler pairHandler, CharacterData charaData)
     {
-        // don't check stuff if it's not set to run
-        if (!_playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds)
-            return true;
+        //// don't check stuff if it's not set to run
+        //if (!_playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds)
+        //    return true;
 
         // whitelist check
         if (_playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing
@@ -260,10 +268,12 @@ public class PlayerPerformanceService
             return true;
 
         var pair = pairHandler.Pair;
+        var doAutoPausing = _playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds;
         var maxHeight = _playerPerformanceConfigService.Current.MaxHeightAbsolute;
         var manualHeight = _playerPerformanceConfigService.Current.MaxHeightManual;
         var multiMax = _playerPerformanceConfigService.Current.MaxHeightMultiplier;
         var shouldWarn = _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold;
+        var shouldWarnOnPaused = _playerPerformanceConfigService.Current.WarnOnPausedAutoHeightExceedingThreshold;
         var pauseRspExceeded = false;
 
         // grab player data from glamourer string
@@ -293,11 +303,19 @@ public class PlayerPerformanceService
             pauseRspExceeded = actualHeight > maxHeight;
         }
 
-        if (pauseRspExceeded)
+        if (shouldWarn && pauseRspExceeded && !doAutoPausing)
         {
-            var pauseDuration = _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingHeightThresholds;
+            var threshold = manualHeight ? maxHeight : maxThreshold;
+            _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) threshold warning",
+            $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured player height threshold. Their height: {actualHeight:F2}, your threshold: {threshold:F2}",
+            MareConfiguration.Models.NotificationType.Warning));
+        }
+
+        if (pauseRspExceeded && doAutoPausing)
+        {
             _logger.LogInformation("Pair {name} exceeds your height min/max threshold and will be paused.", pair.PlayerName);
-            if (shouldWarn)
+            var pauseDuration = _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingHeightThresholds;
+            if (shouldWarnOnPaused)
             {
                 var threshold = manualHeight ? maxHeight : maxThreshold;
                 _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
@@ -309,6 +327,7 @@ public class PlayerPerformanceService
 
             return false;
         }
+
         return true;
     }
 

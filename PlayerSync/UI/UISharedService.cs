@@ -1333,17 +1333,17 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
     public static Vector4 TimePassedIconColor(TimeSpan timepassed)
     {
-        if (timepassed.TotalSeconds <= 15)
+        float seconds = (float)timepassed.TotalSeconds;
+        Vector4 fadeColor = ImGuiColors.HealerGreen;
+
+        if (seconds <= 15f)
         {
-            return ImGuiColors.HealerGreen;
+            return fadeColor;
         }
 
-        if (timepassed.TotalSeconds < 300)
-        {
-            return ImGuiColors.DalamudYellow;
-        }
+        float timefade = Math.Min((seconds - 15f) / 285f, 1f);
+        float alpha = 0.70f - (0.55f * timefade);
 
-        return ImGuiColors.DalamudRed;
-        
+        return new Vector4(fadeColor.X, fadeColor.Y, fadeColor.Z, alpha);
     }
 }
