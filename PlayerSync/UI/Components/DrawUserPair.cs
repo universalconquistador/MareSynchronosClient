@@ -680,11 +680,25 @@ public class DrawUserPair
 
         if (Pair.LastLoadedSoundSinceRedraw != null)
         {
+            var individualSoundsDisabled = (_pair.UserPair?.OwnPermissions.IsDisableSounds() ?? false) || (_pair.UserPair?.OtherPermissions.IsDisableSounds() ?? false);
+            var individualAnimDisabled = (_pair.UserPair?.OwnPermissions.IsDisableAnimations() ?? false) || (_pair.UserPair?.OtherPermissions.IsDisableAnimations() ?? false);
+            var individualVFXDisabled = (_pair.UserPair?.OwnPermissions.IsDisableVFX() ?? false) || (_pair.UserPair?.OtherPermissions.IsDisableVFX() ?? false);
+            var individualIsSticky = _pair.UserPair!.OwnPermissions.IsSticky();
+            var individualIcon = individualIsSticky ? FontAwesomeIcon.ArrowCircleUp : FontAwesomeIcon.InfoCircle;
             var timepassed = DateTimeOffset.UtcNow - Pair.LastLoadedSoundSinceRedraw.Value;
 
             FontAwesomeIcon icon = FontAwesomeIcon.VolumeOff;
+            float iconspacing = _uiSharedService.GetIconSize(individualIcon).X + spacingX;
 
             var color = UiSharedService.TimePassedIconColor(timepassed);
+            if (individualAnimDisabled || individualSoundsDisabled || individualVFXDisabled || individualIsSticky)
+            {
+                ImGui.SameLine(currentRightSide);
+            }
+            else
+            {
+                currentRightSide -= iconspacing;
+            }
 
             currentRightSide -= _uiSharedService.GetIconSize(icon).X + spacingX;
             ImGui.SameLine(currentRightSide);
