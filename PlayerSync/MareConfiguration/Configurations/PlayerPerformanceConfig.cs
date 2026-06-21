@@ -60,6 +60,8 @@ public class PlayerPerformanceConfig : IMareConfiguration
     public List<string> UIDsToOverride { get; set; } = new();
     public PauseDuration PauseDurationAutoPauseExceedingThresholds { get; set; } = PauseDuration.Indefinitely;
     public PauseDuration PauseDurationAutoPauseExceedingHeightThresholds { get; set; } = PauseDuration.Indefinitely;
+    public bool WarnOnPausedExceedingThresholds { get; set; } = true;
+    public bool WarnOnPausedAutoHeightExceedingThreshold { get; set; } = true;
 }
 
 public static class PlayerPerformanceConfigExtensions
