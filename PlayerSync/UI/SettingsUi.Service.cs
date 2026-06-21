@@ -142,7 +142,7 @@ public partial class SettingsUi
             _serverConfigurationManager.EnableGatewayDiscovery = useGatewayDiscovery;
             _ = _apiController.CreateConnectionsAsync();
         }
-        _uiShared.DrawHelpText("Automatically finds the closests PlayerSync gateway.");
+        _uiShared.DrawHelpText("Automatically selects the closest PlayerSync gateway.");
 
         var idx = _uiShared.DrawServiceSelection();
         if (_lastSelectedServerIndex != idx)
