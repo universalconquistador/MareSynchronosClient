@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using static FFXIVClientStructs.FFXIV.Common.Component.BGCollision.MeshPCB;
 
 namespace MareSynchronos.WebAPI.Files;
 
@@ -413,6 +414,23 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         else
         {
             Logger.LogDebug("All files were already on the server.");
+        }
+
+        var hashesNotNeedingUpload = unverifiedUploadHashes
+            .Where(hash => !filesToUpload
+            .Where(f => !f.IsForbidden)
+            .DistinctBy(f => f.Hash)
+            .Select(f => f.Hash)
+            .ToHashSet(StringComparer.Ordinal)
+            .Contains(hash))
+            .ToList();
+
+        Logger.LogDebug("Number of hashes already uploaded and verified: {num}", hashesNotNeedingUpload.Count);
+
+        foreach (var hash in hashesNotNeedingUpload)
+        {
+            _verifiedUploadedHashes[hash] = DateTime.UtcNow;
+            Logger.LogTrace("[{hash}] last verified now set to {time}", hash, DateTime.UtcNow);
         }
     }
 }
