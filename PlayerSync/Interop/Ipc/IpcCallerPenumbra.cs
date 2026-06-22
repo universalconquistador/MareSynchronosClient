@@ -255,9 +255,11 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
     public async Task RedrawAsync(ILogger logger, GameObjectHandler handler, Guid applicationId, CancellationToken token)
     {
         if (!APIAvailable || _dalamudUtil.IsZoning) return;
+        bool acquired = false;
         try
         {
             await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
+            acquired = true; // only release what we actually took (a cancelled WaitAsync acquires nothing)
             // science
             //await _redrawManager.CoalescedRedrawAsync(logger, handler, applicationId, (chara) =>
             await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
@@ -269,7 +271,7 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
         }
         finally
         {
-            _redrawManager.RedrawSemaphore.Release();
+            if (acquired) _redrawManager.RedrawSemaphore.Release();
         }
     }
 
