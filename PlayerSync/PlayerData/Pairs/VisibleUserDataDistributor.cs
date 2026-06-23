@@ -1,4 +1,7 @@
 ﻿using MareSynchronos.API.Data;
+using MareSynchronos.API.Data.Enum;
+using MareSynchronos.FileCache;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Utils;
@@ -14,6 +17,8 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
     private readonly DalamudUtilService _dalamudUtil;
     private readonly FileUploadManager _fileTransferManager;
     private readonly PairManager _pairManager;
+    private readonly MareConfigService _configService;
+    private readonly FileCacheManager _fileCacheManager;
     private CharacterData? _lastCreatedData;
     private CharacterData? _uploadingCharacterData = null;
     private readonly List<UserData> _previouslyVisiblePlayers = [];
@@ -21,15 +26,18 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
     private readonly HashSet<UserData> _usersToPushDataTo = [];
     private readonly SemaphoreSlim _pushDataSemaphore = new(1, 1);
     private readonly CancellationTokenSource _runtimeCts = new();
+    private readonly HashSet<string> _filesTooLargeHashes = new HashSet<string>();
 
 
     public VisibleUserDataDistributor(ILogger<VisibleUserDataDistributor> logger, ApiController apiController, DalamudUtilService dalamudUtil,
-        PairManager pairManager, MareMediator mediator, FileUploadManager fileTransferManager) : base(logger, mediator)
+        PairManager pairManager, MareMediator mediator, FileUploadManager fileTransferManager, MareConfigService mareConfigService, FileCacheManager fileCacheManager) : base(logger, mediator)
     {
         _apiController = apiController;
         _dalamudUtil = dalamudUtil;
         _pairManager = pairManager;
         _fileTransferManager = fileTransferManager;
+        _configService = mareConfigService;
+        _fileCacheManager = fileCacheManager;
         Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, (_) => FrameworkOnUpdate());
         Mediator.Subscribe<CharacterDataCreatedMessage>(this, (msg) =>
         {
@@ -106,6 +114,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             if (_fileUploadTask == null || (_fileUploadTask?.IsCompleted ?? false) || forced)
             {
                 _uploadingCharacterData = _lastCreatedData.DeepClone();
+                RemoveFilesThatAreTooLarge(); // psync allows for 200 MiB to the server, 300 MiB once decompressed
                 Logger.LogDebug("Starting UploadTask for {hash}, Reason: TaskIsNull: {task}, TaskIsCompleted: {taskCpl}, Forced: {frc}",
                     _lastCreatedData.DataHash, _fileUploadTask == null, _fileUploadTask?.IsCompleted ?? false, forced);
                 _fileUploadTask = _fileTransferManager.UploadFiles(_uploadingCharacterData, [.. _usersToPushDataTo]);
@@ -128,5 +137,53 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                 }
             }
         });
+    }
+
+    private void RemoveFilesThatAreTooLarge()
+    {
+        try
+        {
+            // check for files that are larger than what the server allows for
+            Dictionary<ObjectKind, List<FileReplacementData>> filesTooLarge = new();
+            foreach (var fileReplacements in _uploadingCharacterData!.FileReplacements)
+            {
+                foreach (var replacement in fileReplacements.Value)
+                {
+                    var cache = _fileCacheManager.GetFileCacheByHash(replacement.Hash);
+                    if (cache == null)
+                        continue;
+
+                    if ((cache.Size != null && cache.Size > 300 * 1024 * 1024) || (cache.CompressedSize != null && cache.CompressedSize > 200 * 1024 * 1024))
+                    {
+                        Logger.LogWarning("File {file} exceeds the size limit to sync and will not be sent. (300 MiB, or 200 MiB compressed)", cache.ResolvedFilepath);
+                        if (!filesTooLarge.Keys.Contains(fileReplacements.Key))
+                        {
+                            filesTooLarge[fileReplacements.Key] = new();
+                        }
+                        filesTooLarge[fileReplacements.Key].Add(replacement);
+
+                        if (!_filesTooLargeHashes.Contains(cache.Hash) && _configService.Current.ShowFileUnableToSyncNotification)
+                        {
+                            var isTexFile = cache.ResolvedFilepath.EndsWith(".tex", StringComparison.OrdinalIgnoreCase);
+                            var texInfo = isTexFile ? " Ensure it is compressed and consider reducing its resolution." : "";
+                            Mediator.Publish(new NotificationMessage("File Size Error", $"The file {cache.ResolvedFilepath} exceeds the size limit and will not sync. (300 MiB, or 200 MiB compressed)" + texInfo, MareConfiguration.Models.NotificationType.Warning));
+
+                            _filesTooLargeHashes.Add(cache.Hash);
+                        }
+                    }
+                }
+            }
+            foreach (var replacements in filesTooLarge)
+            {
+                foreach (var replacement in replacements.Value)
+                {
+                    _uploadingCharacterData.FileReplacements[replacements.Key].Remove(replacement);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to properly detect if files to upload are too large.");
+        }   
     }
 }

@@ -12,7 +12,6 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using static FFXIVClientStructs.FFXIV.Common.Component.BGCollision.MeshPCB;
 
 namespace MareSynchronos.WebAPI.Files;
 
@@ -24,6 +23,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
     private readonly ServerConfigurationManager _serverManager;
     private readonly Dictionary<string, DateTime> _verifiedUploadedHashes = new(StringComparer.Ordinal);
     private CancellationTokenSource? _uploadCancellationTokenSource = new();
+    private readonly HashSet<string> _hashesThatAreReportedFileSizeTooLarge = new(StringComparer.Ordinal);
 
     private readonly ConcurrentDictionary<string, UploadFileTransfer> _pendingUploads = new(StringComparer.Ordinal);
 
@@ -227,6 +227,12 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         HashSet<string> unverifiedUploadHashes = new(StringComparer.Ordinal);
         foreach (var item in data.FileReplacements.SelectMany(c => c.Value.Where(f => string.IsNullOrEmpty(f.FileSwapPath)).Select(v => v.Hash).Distinct(StringComparer.Ordinal)).Distinct(StringComparer.Ordinal).ToList())
         {
+            if (_hashesThatAreReportedFileSizeTooLarge.Contains(item))
+            {
+                Logger.LogWarning("File hash {hash} was reported too large by the server and will not be checked nor uploaded again.", item);
+                continue;
+            }
+
             if (!_verifiedUploadedHashes.TryGetValue(item, out var verifiedTime))
             {
                 verifiedTime = DateTime.MinValue;
@@ -307,6 +313,15 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         HttpResponseMessage response;
         response = await _orchestrator.SendRequestStreamAsync(HttpMethod.Post, MareFiles.ServerFilesUploadFullPath(_orchestrator.FilesCdnUri!, fileHash, _orchestrator.TimeZoneUtcOffsetMinutes, filenameExtension), streamContent, uploadToken).ConfigureAwait(false);
         Logger.LogDebug("[{hash}] Upload Status: {status}", fileHash, response.StatusCode);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.RequestEntityTooLarge)
+        {
+            _hashesThatAreReportedFileSizeTooLarge.Add(fileHash);
+            Mediator.Publish(new NotificationMessage("File Upload Error", $"The server reported the file hash {fileHash} exceeded the upload limit of 300 MiB.", MareConfiguration.Models.NotificationType.Error));
+            Logger.LogError("The server reported the file hash {hash} exceeded the upload limit of 300 MiB.", fileHash);
+
+            throw new InvalidDataException($"The server reported the file hash {fileHash} exceeded the upload limit of 300 MiB.");
+        }
     }
 
     private async Task PerformUpload(UploadFileTransfer transfer, CancellationToken token)
