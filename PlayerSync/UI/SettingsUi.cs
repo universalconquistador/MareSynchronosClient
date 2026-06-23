@@ -49,6 +49,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private readonly UiSharedService _uiShared;
     private readonly IProgress<(int, int, FileCacheEntity)> _validationProgress;
     private readonly IBroadcastManager _broadcastManager;
+    private readonly PreloaderService _preloaderService;
     private (int, int, FileCacheEntity) _currentProgress;
     private bool _deleteAccountPopupModalShown = false;
     private bool _deleteFilesPopupModalShown = false;
@@ -83,7 +84,8 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         FileCompactor fileCompactor, ApiController apiController,
         IpcManager ipcManager, CacheMonitor cacheMonitor,
         IBroadcastManager broadcastManager,
-        DalamudUtilService dalamudUtilService, HttpClient httpClient, UiTheme theme) : base(logger, mediator, "PlayerSync Settings", performanceCollector)
+        DalamudUtilService dalamudUtilService, HttpClient httpClient, UiTheme theme,
+        PreloaderService preloaderService) : base(logger, mediator, "PlayerSync Settings", performanceCollector)
     {
         _configService = configService;
         _pairManager = pairManager;
@@ -102,6 +104,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         _fileCompactor = fileCompactor;
         _uiShared = uiShared;
         _broadcastManager = broadcastManager;
+        _preloaderService = preloaderService;
         _theme = theme;
 
         _validationProgress = new Progress<(int, int, FileCacheEntity)>(v => _currentProgress = v);
