@@ -474,6 +474,7 @@ public partial class SettingsUi
         var onlineNotifsPairsOnly = _configService.Current.ShowOnlineNotificationsOnlyForIndividualPairs;
         var onlineNotifsNamedOnly = _configService.Current.ShowOnlineNotificationsOnlyForNamedPairs;
         var lifestreamInvitesDirectPairsOnly = _configService.Current.LifestreamInvitesDirectPairsOnly;
+        var notifyCannotSyncFiles = _configService.Current.ShowFileUnableToSyncNotification;
 
         _uiShared.BigText("Notifications");
         ImGuiHelpers.ScaledDummy(2);
@@ -535,6 +536,13 @@ public partial class SettingsUi
             _configService.Save();
         }
         _uiShared.DrawHelpText("Enabling this will not show any \"Warning\" labeled messages for missing optional plugins.");
+
+        if (ImGui.Checkbox("Enable warning for files that cannot sync", ref notifyCannotSyncFiles))
+        {
+            _configService.Current.ShowFileUnableToSyncNotification = notifyCannotSyncFiles;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Enabling this will show chat notifications when trying to use mod files that will not sync.");
 
         if (ImGui.Checkbox("Enable sync conflict notifications", ref syncConflictNotifs))
         {
