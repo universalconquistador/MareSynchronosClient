@@ -15,25 +15,28 @@ public class PairFactory
     private readonly MareMediator _mareMediator;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly MareConfigService _configService;
+    private readonly ZoneSyncConfigService _zoneSyncConfigService;
 
     public PairFactory(ILoggerFactory loggerFactory, PairHandlerFactory cachedPlayerFactory,
-        MareMediator mareMediator, ServerConfigurationManager serverConfigurationManager, MareConfigService mareConfigService)
+        MareMediator mareMediator, ServerConfigurationManager serverConfigurationManager, 
+        MareConfigService mareConfigService, ZoneSyncConfigService zoneSyncConfigService)
     {
         _loggerFactory = loggerFactory;
         _cachedPlayerFactory = cachedPlayerFactory;
         _mareMediator = mareMediator;
         _serverConfigurationManager = serverConfigurationManager;
         _configService = mareConfigService;
+        _zoneSyncConfigService = zoneSyncConfigService;
     }
 
     public Pair Create(UserFullPairDto userPairDto)
     {
-        return new Pair(_loggerFactory.CreateLogger<Pair>(), userPairDto, _cachedPlayerFactory, _mareMediator, _serverConfigurationManager, _configService);
+        return new Pair(_loggerFactory.CreateLogger<Pair>(), userPairDto, _cachedPlayerFactory, _mareMediator, _serverConfigurationManager, _configService, _zoneSyncConfigService);
     }
 
     public Pair Create(UserPairDto userPairDto)
     {
         return new Pair(_loggerFactory.CreateLogger<Pair>(), new(userPairDto.User, userPairDto.IndividualPairStatus, [], userPairDto.OwnPermissions, userPairDto.OtherPermissions),
-            _cachedPlayerFactory, _mareMediator, _serverConfigurationManager, _configService);
+            _cachedPlayerFactory, _mareMediator, _serverConfigurationManager, _configService, _zoneSyncConfigService);
     }
 }

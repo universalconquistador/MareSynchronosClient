@@ -9,6 +9,7 @@ using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Events;
+using MareSynchronos.Services.Models;
 using MareSynchronos.WebAPI.Files.Models;
 using System.Collections.Concurrent;
 using System.Numerics;
@@ -81,7 +82,8 @@ public record PlayerUploadingMessage(GameObjectHandler Handler, bool IsUploading
 public record ClearProfileDataMessage(UserData? UserData = null, bool UpdateProfileStatus = false) : MessageBase;
 public record UserPairStickyPauseAndRemoveMessage(UserData UserData) : MessageBase;
 public record CyclePauseMessage(UserData UserData) : MessageBase;
-public record PauseMessage(UserData UserData, PauseReason Reason) : MessageBase;
+public record PauseMessage(UserData UserData, PauseReason Reason, PauseDuration? PauseDuration) : MessageBase;
+public record UnPauseMessage(UserData UserData, bool Notification) : MessageBase;
 public record ProfilePopoutToggle(Pair? Pair) : MessageBase;
 public record CompactUiChange(Vector2 Size, Vector2 Position) : MessageBase;
 public record ProfileOpenStandaloneMessage(Pair Pair) : MessageBase;
@@ -96,7 +98,7 @@ public record OpenSyncshellProfilePanel(GroupFullInfoDto GroupInfo) : MessageBas
 public record OpenPermissionWindow(Pair Pair) : MessageBase;
 public record DownloadLimitChangedMessage() : SameThreadMessage;
 public record CensusUpdateMessage(byte Gender, byte RaceId, byte TribeId) : MessageBase;
-public record TargetPairMessage(Pair Pair) : MessageBase;
+public record TargetPairMessage(Pair? Pair, TargetType TargetType) : MessageBase;
 public record CombatOrPerformanceStartMessage : MessageBase;
 public record CombatOrPerformanceEndMessage : MessageBase;
 public record EventMessage(Event Event) : MessageBase;

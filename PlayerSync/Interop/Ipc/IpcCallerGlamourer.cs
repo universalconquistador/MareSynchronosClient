@@ -157,9 +157,9 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
     public async Task RevertAsync(ILogger logger, GameObjectHandler handler, Guid applicationId, CancellationToken token)
     {
         if ((!APIAvailable) || _dalamudUtil.IsZoning) return;
+        await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
             // science
             //await _redrawManager.CoalescedRedrawAsync(logger, handler, applicationId, (chara) =>
             await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>

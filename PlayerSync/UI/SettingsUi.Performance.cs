@@ -7,6 +7,7 @@ using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.UI.ModernUi;
 using MareSynchronos.Services.Mediator;
 using System.Numerics;
+using MareSynchronos.MareConfiguration.Models;
 
 namespace MareSynchronos.UI;
 
@@ -187,6 +188,7 @@ public partial class SettingsUi
         ImGui.Dummy(new Vector2(10));
         bool autoPause = _playerPerformanceConfigService.Current.AutoPausePlayersExceedingThresholds;
         bool autoPauseEveryone = _playerPerformanceConfigService.Current.AutoPausePlayersWithPreferredPermissionsExceedingThresholds;
+        bool notifyOnPause = _playerPerformanceConfigService.Current.WarnOnPausedExceedingThresholds;
         if (ImGui.Checkbox("Automatically pause players exceeding thresholds", ref autoPause))
         {
             _playerPerformanceConfigService.Current.AutoPausePlayersExceedingThresholds = autoPause;
@@ -198,6 +200,12 @@ public partial class SettingsUi
         using (ImRaii.Disabled(!autoPause))
         {
             using var indent = ImRaii.PushIndent(2);
+            if (ImGui.Checkbox("Warn when automatically pausing a pair", ref notifyOnPause))
+            {
+                _playerPerformanceConfigService.Current.WarnOnPausedExceedingThresholds = notifyOnPause;
+                _playerPerformanceConfigService.Save();
+            }
+            _uiShared.DrawHelpText("PlayerSync will print a warning in chat when a player is paused for exceeding a threshold.");
             if (ImGui.Checkbox("Automatically pause also players with preferred permissions", ref autoPauseEveryone))
             {
                 _playerPerformanceConfigService.Current.AutoPausePlayersWithPreferredPermissionsExceedingThresholds = autoPauseEveryone;
@@ -227,7 +235,28 @@ public partial class SettingsUi
             ImGui.Text("(thousand triangles)");
             _uiShared.DrawHelpText("When a loading in player and their triangle count exceeds this amount, automatically pauses the synced player." + UiSharedService.TooltipSeparator
                 + "Default: 250 thousand");
+            ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+            _uiShared.DrawCombo("Auto Pause Duration##autoPauseThreshold", [
+                PauseDuration.ThirtyMinutes,
+                PauseDuration.FourHours,
+                PauseDuration.EightHours,
+                PauseDuration.Indefinitely
+            ],
+            (s) => s switch
+            {
+                PauseDuration.ThirtyMinutes => "Pause for 30 minutes",
+                PauseDuration.FourHours => "Pause for 4 hours",
+                PauseDuration.EightHours => "Pause for 8 hours",
+                PauseDuration.Indefinitely => "Indefinitely",
+                _ => throw new NotSupportedException()
+            }, (s) =>
+            {
+                _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingThresholds = s;
+                _playerPerformanceConfigService.Save();
+            }, PauseDuration.Indefinitely);
         }
+        _uiShared.DrawHelpText("Pairs paused indefinitely require a manual unpause unless unpaused via a Syncshell resume.");
+
         ImGui.Dummy(new Vector2(10));
         _uiShared.BigText("Whitelisted UIDs");
         UiSharedService.TextWrapped("The entries in the list below will be ignored for all warnings and auto pause operations.");
@@ -285,11 +314,18 @@ public partial class SettingsUi
         var shouldPauseHeight = _playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds;
         var shouldNotifyOnHeight = _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold;
         var noAutoPausePairs = _playerPerformanceConfigService.Current.NoAutoPauseDirectPairs;
+        var notifyOnPausedHeightThreshold = _playerPerformanceConfigService.Current.WarnOnPausedAutoHeightExceedingThreshold;
 
         _uiShared.BigText("Auto Height Pausing");
 
         UiSharedService.TextWrapped("Configure auto pausing for players based on their scaled height.");
         ImGui.Dummy(new Vector2(10));
+
+        if (ImGui.Checkbox("Warn on loading player who exceed your height thresholds", ref shouldNotifyOnHeight))
+        {
+            _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold = shouldNotifyOnHeight;
+            _playerPerformanceConfigService.Save();
+        }
 
         if (ImGui.Checkbox("Auto pause players exceeding thresholds", ref shouldPauseHeight))
         {
@@ -301,7 +337,7 @@ public partial class SettingsUi
             }
         }
         UiSharedService.ColorTextWrapped("Toggle this feature off/on again after changing values to refresh pairs immediately.", ImGuiColors.DalamudRed);
-
+        
         if (ImGui.Checkbox("Don't auto pause direct pairs exceeding thresholds", ref noAutoPausePairs))
         {
             _playerPerformanceConfigService.Current.NoAutoPauseDirectPairs = noAutoPausePairs;
@@ -312,11 +348,34 @@ public partial class SettingsUi
             }
         }
 
-        if (ImGui.Checkbox("Warn on loading player who exceed your height thresholds", ref shouldNotifyOnHeight))
+        if (ImGui.Checkbox("Warn when automatically pausing a pair##height", ref notifyOnPausedHeightThreshold))
         {
-            _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold = shouldNotifyOnHeight;
+            _playerPerformanceConfigService.Current.WarnOnPausedAutoHeightExceedingThreshold = notifyOnPausedHeightThreshold;
             _playerPerformanceConfigService.Save();
         }
+        _uiShared.DrawHelpText("PlayerSync will print a warning in chat when a player is paused for exceeding a threshold.");
+
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        _uiShared.DrawCombo("Auto Pause Duration##autoPauseHeight", [
+                PauseDuration.ThirtyMinutes,
+                PauseDuration.FourHours,
+                PauseDuration.EightHours,
+                PauseDuration.Indefinitely
+            ],
+            (s) => s switch
+            {
+                PauseDuration.ThirtyMinutes => "Pause for 30 minutes",
+                PauseDuration.FourHours => "Pause for 4 hours",
+                PauseDuration.EightHours => "Pause for 8 hours",
+                PauseDuration.Indefinitely => "Indefinitely",
+                _ => throw new NotSupportedException()
+            }, (s) =>
+            {
+                _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingHeightThresholds = s;
+                _playerPerformanceConfigService.Save();
+            }, PauseDuration.Indefinitely);
+        _uiShared.DrawHelpText("Pairs paused indefinitely require a manual unpause unless unpaused via a Syncshell resume.");
+
         ImGui.Dummy(new Vector2(4));
         UiSharedService.ColorTextWrapped("Values are scaled by race and M/F vanilla defaults.", ImGuiColors.DalamudYellow);
         UiSharedService.ColorTextWrapped("Set slider to 100% to pause anyone not vanilla height.", ImGuiColors.DalamudYellow);
@@ -326,7 +385,7 @@ public partial class SettingsUi
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("Pause players above ");
             ImGui.SameLine();
-            ImGui.SetNextItemWidth(200f);
+            ImGui.SetNextItemWidth(130f * ImGuiHelpers.GlobalScale);
             if (ImGui.SliderFloat("##max", ref maxHeightMultiplier, 100.0f, 500.0f, "%.0f%%"))
             {
                 _playerPerformanceConfigService.Current.MaxHeightMultiplier = maxHeightMultiplier;
@@ -356,7 +415,7 @@ public partial class SettingsUi
             ImGui.SameLine();
 
             // Feet
-            ImGui.SetNextItemWidth(60);
+            ImGui.SetNextItemWidth(40 * ImGuiHelpers.GlobalScale);
             changedImperial |= ImGui.InputInt("##maxFeet", ref _maxHeightFeet);
             ImGui.SameLine();
             ImGui.TextUnformatted("feet");
@@ -364,7 +423,7 @@ public partial class SettingsUi
             ImGui.SameLine();
 
             // Inches
-            ImGui.SetNextItemWidth(60);
+            ImGui.SetNextItemWidth(40 * ImGuiHelpers.GlobalScale);
             changedImperial |= ImGui.InputInt("##maxInches", ref _maxHeightInches);
             ImGui.SameLine();
             ImGui.TextUnformatted("inches or");
@@ -372,7 +431,7 @@ public partial class SettingsUi
             ImGui.SameLine();
 
             // Centimeters
-            ImGui.SetNextItemWidth(60);
+            ImGui.SetNextItemWidth(40 * ImGuiHelpers.GlobalScale);
             changedMetric |= ImGui.InputInt("##maxCm", ref _maxHeightCm);
             ImGui.SameLine();
             ImGui.TextUnformatted("cm");
@@ -401,7 +460,7 @@ public partial class SettingsUi
             }
         }
 
-        UiSharedService.ColorTextWrapped("Paused pairs must be manually unpaused.", ImGuiColors.DalamudYellow);
+        //UiSharedService.ColorTextWrapped("Paused pairs must be manually unpaused.", ImGuiColors.DalamudYellow);
         ImGui.Dummy(new Vector2(10));
 
         _uiShared.BigText("Whitelisted UIDs");

@@ -15,4 +15,7 @@ public class ZoneSyncConfig : IMareConfiguration
     public bool EnablePvpSync { get; set; } = true;
     public int ZoneJoinDelayTime { get; set; } = 10;
     public Dictionary<string, bool> ZoneSyncEnabledPerCharacter { get; set; } = new(StringComparer.Ordinal);
+    public bool ZoneSyncFilterAnimations { get; set; } = false;
+    public bool ZoneSyncFilterSounds { get; set; } = false;
+    public bool ZoneSyncFilterVfx { get; set; } = false;
 }
