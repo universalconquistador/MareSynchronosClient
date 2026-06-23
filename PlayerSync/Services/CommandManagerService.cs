@@ -1,4 +1,6 @@
 ﻿using Dalamud.Game.Command;
+using MareSynchronos.Interop.Ipc;
+using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Plugin.Services;
 using MareSynchronos.FileCache;
 using MareSynchronos.MareConfiguration;
@@ -7,8 +9,11 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI;
 using MareSynchronos.WebAPI;
+using MareSynchronos.WebAPI.Files;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using MareSynchronos.Utils;
 
 namespace MareSynchronos.Services;
@@ -26,9 +31,19 @@ public sealed class CommandManagerService : IDisposable
     private readonly CacheMonitor _cacheMonitor;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
+    private readonly DeferredDrawService _deferredDraw;
+    private readonly FileDialogManager _fileDialogManager;
+    private readonly IpcManager _ipcManager;
+    private readonly FileCacheManager _fileCacheManager;
+    private readonly FileUploadManager _fileUploadManager;
 
     private readonly IChatGui _chat;
     private readonly IPluginLog _log;
+
+    private sealed record PenumbraOption(
+        [property: JsonPropertyName("Files")] Dictionary<string, string>? Files);
+    private sealed record PenumbraGroup(
+        [property: JsonPropertyName("Options")] List<PenumbraOption>? Options);
 
     /// <summary>
     /// The alias to reference in user-facing text. "/sync" if available, otherwise "/psync".
@@ -44,6 +59,11 @@ public sealed class CommandManagerService : IDisposable
         MareMediator mediator,
         MareConfigService mareConfigService,
         ZoneSyncConfigService zoneSyncConfigService,
+        DeferredDrawService deferredDraw,
+        FileDialogManager fileDialogManager,
+        IpcManager ipcManager,
+        FileCacheManager fileCacheManager,
+        FileUploadManager fileUploadManager,
         IChatGui chat,
         IPluginLog log)
     {
@@ -55,6 +75,11 @@ public sealed class CommandManagerService : IDisposable
         _mediator = mediator;
         _mareConfigService = mareConfigService;
         _zoneSyncConfigService = zoneSyncConfigService;
+        _deferredDraw = deferredDraw;
+        _fileDialogManager = fileDialogManager;
+        _ipcManager = ipcManager;
+        _fileCacheManager = fileCacheManager;
+        _fileUploadManager = fileUploadManager;
         _chat = chat;
         _log = log;
 
@@ -297,6 +322,69 @@ public sealed class CommandManagerService : IDisposable
         else if (string.Equals(splitArgs[0], "settings", StringComparison.OrdinalIgnoreCase))
         {
             _mediator.Publish(new UiToggleMessage(typeof(SettingsUi)));
+        }
+        else if (string.Equals(splitArgs[0], "preloadplaylist", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!_apiController.IsConnected)
+            {
+                _chat.PrintError("[PlayerSync] Not connected to server.");
+                return;
+            }
+            var startDir = _ipcManager.Penumbra.ModDirectory;
+            _deferredDraw.Enqueue(() => _fileDialogManager.OpenFileDialog("Select Penumbra Group JSON", ".json", (ok, paths) =>
+            {
+                if (!ok || paths.FirstOrDefault() is not string path) return;
+                _ = Task.Run(() => PreloadPlaylistAsync(path));
+            }, 1, string.IsNullOrEmpty(startDir) ? null : startDir));
+        }
+    }
+
+    private async Task PreloadPlaylistAsync(string jsonPath)
+    {
+        try
+        {
+            var json = await File.ReadAllTextAsync(jsonPath).ConfigureAwait(false);
+            var group = JsonSerializer.Deserialize<PenumbraGroup>(json);
+
+            var modDir = Path.GetDirectoryName(jsonPath)!;
+            var scdPaths = (group?.Options ?? [])
+                .SelectMany(o => o.Files ?? [])
+                .Where(kv => kv.Value.EndsWith(".scd", StringComparison.OrdinalIgnoreCase))
+                .Select(kv => Path.Combine(modDir, kv.Value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (scdPaths.Length == 0)
+            {
+                _chat.Print("[PlayerSync] No SCD files found in that group.");
+                return;
+            }
+
+            _chat.Print($"[PlayerSync] Found {scdPaths.Length} SCD file(s), uploading...");
+
+            var cacheEntries = _fileCacheManager.GetFileCachesByPaths(scdPaths);
+            var hashes = cacheEntries.Values
+                .Where(e => e != null)
+                .Select(e => e!.Hash)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (hashes.Count == 0)
+            {
+                _chat.PrintError("[PlayerSync] SCD files were found but none are indexed in the file cache. Try running a rescan first.");
+                return;
+            }
+
+            var progress = new Progress<string>(msg => _log.Debug("[PreloadPlaylist] {msg}", msg));
+            var failed = await _fileUploadManager.UploadFiles(hashes, progress).ConfigureAwait(false);
+
+            var pushed = hashes.Count - failed.Count;
+            _chat.Print($"[PlayerSync] SCD preload done — {pushed} uploaded, {failed.Count} failed.");
+        }
+        catch (Exception ex)
+        {
+            _log.Error(ex, "PreloadPlaylist failed");
+            _chat.PrintError($"[PlayerSync] SCD preload failed: {ex.Message}");
         }
     }
 }

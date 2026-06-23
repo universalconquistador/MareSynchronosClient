@@ -14,6 +14,7 @@ public sealed class UiService : DisposableMediatorSubscriberBase
     private readonly List<WindowMediatorSubscriberBase> _createdWindows = [];
     private readonly IUiBuilder _uiBuilder;
     private readonly FileDialogManager _fileDialogManager;
+    private readonly DeferredDrawService _deferredDraw;
     private readonly ILogger<UiService> _logger;
     private readonly MareConfigService _mareConfigService;
     private readonly WindowSystem _windowSystem;
@@ -23,7 +24,7 @@ public sealed class UiService : DisposableMediatorSubscriberBase
         MareConfigService mareConfigService, WindowSystem windowSystem,
         IEnumerable<WindowMediatorSubscriberBase> windows,
         UiFactory uiFactory, FileDialogManager fileDialogManager,
-        MareMediator mareMediator) : base(logger, mareMediator)
+        MareMediator mareMediator, DeferredDrawService deferredDraw) : base(logger, mareMediator)
     {
         _logger = logger;
         _logger.LogTrace("Creating {type}", GetType().Name);
@@ -32,6 +33,7 @@ public sealed class UiService : DisposableMediatorSubscriberBase
         _windowSystem = windowSystem;
         _uiFactory = uiFactory;
         _fileDialogManager = fileDialogManager;
+        _deferredDraw = deferredDraw;
 
         _uiBuilder.DisableGposeUiHide = true;
         _uiBuilder.Draw += Draw;
@@ -136,6 +138,7 @@ public sealed class UiService : DisposableMediatorSubscriberBase
 
     private void Draw()
     {
+        _deferredDraw.Execute();
         _windowSystem.Draw();
         _fileDialogManager.Draw();
     }
