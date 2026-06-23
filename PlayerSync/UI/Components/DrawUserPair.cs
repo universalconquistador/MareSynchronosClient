@@ -519,15 +519,25 @@ public class DrawUserPair
 
         currentRightSide -= (pauseButtonSize.X + spacingX);
         ImGui.SameLine(currentRightSide);
+        var pausePopupId = $"PausePopup##{_pair.UserData.UID}";
         if (_uiSharedService.IconButton(pauseIcon))
         {
-            ImGui.OpenPopup("PausePopup");
+            if (!_pair.IsPaused)
+            {
+                ImGui.OpenPopup(pausePopupId);
+            }
+            else
+            {
+                _mediator.Publish(new UnPauseMessage(_pair.UserData, false));
+            }
+                
         }
-        if (ImGui.BeginPopup("PausePopup"))
+        UiSharedService.AttachToolTip(!_pair.UserPair!.OwnPermissions.IsPaused() ? ("Pause pairing with " + _pair.UserData.AliasOrUID) : "Resume pairing with " + _pair.UserData.AliasOrUID);
+        if (ImGui.BeginPopup(pausePopupId))
         {
             using (ImRaii.PushId($"pausePopup-{_pair.UserData.UID}"))
             {
-                DrawPairPauseContent(_pauseMenuWidth);
+                DrawPairPauseContent(_pauseMenuWidth, true);
                 if (_pauseMenuWidth <= 0)
                 {
                     _pauseMenuWidth = ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X;
@@ -808,25 +818,29 @@ public class DrawUserPair
         }
     }
 
-    private void DrawPairPauseContent(float width)
+    private void DrawPairPauseContent(float width, bool close = false)
     {
         ImGui.TextUnformatted($"Pair {_pair.UserData.AliasOrUID}");
         ImGui.Separator();
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Pause, "Pause", width, true))
         {
             _mediator.Publish(new PauseMessage(_pair.UserData, PauseReason.Manual, PauseDuration.Indefinitely));
+            if (close) ImGui.CloseCurrentPopup();
         }
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Pause, "Pause for 30 minutes", width, true))
         {
             _mediator.Publish(new PauseMessage(_pair.UserData, PauseReason.Manual, PauseDuration.ThirtyMinutes));
+            if (close) ImGui.CloseCurrentPopup();
         }
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Pause, "Pause for 4 hours", width, true))
         {
             _mediator.Publish(new PauseMessage(_pair.UserData, PauseReason.Manual, PauseDuration.FourHours));
+            if (close) ImGui.CloseCurrentPopup();
         }
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Pause, "Pause for 8 hours", width, true))
         {
             _mediator.Publish(new PauseMessage(_pair.UserData, PauseReason.Manual, PauseDuration.EightHours));
+            if (close) ImGui.CloseCurrentPopup();
         }
         ImGui.Separator();
         using (ImRaii.Disabled(!UiSharedService.CtrlPressed()))
@@ -834,6 +848,7 @@ public class DrawUserPair
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Times, "Block Pairing", width, true))
             {
                 _mediator.Publish(new UserPairStickyPauseAndRemoveMessage(_pair.UserData));
+                if (close) ImGui.CloseCurrentPopup();
             }
         }
         UiSharedService.AttachToolTip("Hold CTRL and click to block pairing with " + _pair.UserData.AliasOrUID 
