@@ -2,7 +2,9 @@
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Havok.Animation;
 using FFXIVClientStructs.Havok.Common.Base.Container.Array;
+using FFXIVClientStructs.Havok.Common.Base.Object;
 using FFXIVClientStructs.Havok.Common.Base.Types;
+using FFXIVClientStructs.Havok.Common.Serialize.Resource;
 using FFXIVClientStructs.Havok.Common.Serialize.Util;
 using MareSynchronos.FileCache;
 using MareSynchronos.Interop.GameModel;
@@ -97,6 +99,7 @@ public sealed class XivDataAnalyzer
         var output = new Dictionary<string, List<ushort>>(StringComparer.OrdinalIgnoreCase);
         var tempHavokDataPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()) + ".hkx";
         var tempHavokDataPathAnsi = Marshal.StringToHGlobalAnsi(tempHavokDataPath);
+        hkResource* resource = null;
 
         try
         {
@@ -110,7 +113,7 @@ public sealed class XivDataAnalyzer
                 Storage = (int)(hkSerializeUtil.LoadOptionBits.Default)
             };
 
-            var resource = hkSerializeUtil.LoadFromFile((byte*)tempHavokDataPathAnsi, null, loadoptions);
+            resource = hkSerializeUtil.LoadFromFile((byte*)tempHavokDataPathAnsi, null, loadoptions);
             if (resource == null)
                 throw new InvalidOperationException("Resource was null after loading");
 
@@ -183,6 +186,10 @@ public sealed class XivDataAnalyzer
         }
         finally
         {
+            if (resource != null)
+            {
+                ((hkReferencedObject*)resource)->RemoveReference();
+            }
             Marshal.FreeHGlobal(tempHavokDataPathAnsi);
             File.Delete(tempHavokDataPath);
         }
