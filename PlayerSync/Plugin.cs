@@ -137,6 +137,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton(s => new VfxSpawnManager(s.GetRequiredService<ILogger<VfxSpawnManager>>(),
                 gameInteropProvider, s.GetRequiredService<MareMediator>()));
             collection.AddSingleton((s) => new BlockedCharacterHandler(s.GetRequiredService<ILogger<BlockedCharacterHandler>>(), gameInteropProvider));
+            collection.AddSingleton((s) => new AnimationBindGuard(s.GetRequiredService<ILogger<AnimationBindGuard>>(), gameInteropProvider, s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton((s) => new IpcProvider(s.GetRequiredService<ILogger<IpcProvider>>(),
                 pluginInterface,
                 s.GetRequiredService<CharaDataManager>(),
@@ -286,6 +287,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddHostedService(p => p.GetRequiredService<EmoteSyncManagerService>());
             collection.AddHostedService(p => p.GetRequiredService<PairContextMenuHandler>());
             collection.AddHostedService(p => p.GetRequiredService<JsonDataTypeHandlerService>());
+            collection.AddHostedService(p => p.GetRequiredService<AnimationBindGuard>());
         })
         .Build();
 
