@@ -436,6 +436,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public async Task PauseAsync(UserData userData, PauseReason reason, PauseDuration? pauseDuration)
     {
+        Logger.LogTrace("{methodName} {userData} {reason} {pauseDuration}", nameof(PauseAsync), userData, reason, pauseDuration);
+
         var uid = userData.UID;
         var pair = _pairManager.GetPairByUID(userData.UID);
         if (pair == null)
@@ -458,6 +460,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public async Task UnPauseAsync(UserData userData, bool notification = false)
     {
+        Logger.LogTrace("{methodName} {userData} {notification}", nameof(UnPauseAsync), userData, notification);
+
         var uid = userData.UID;
         var pair = _pairManager.GetPairByUID(uid);
         if (pair == null)
