@@ -702,9 +702,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
             ImGui.AlignTextToFramePadding();
             if (ImGui.Button($"Unpause##{pair.UserData.UID}"))
             {
-                var perm = pair.UserPair!.OwnPermissions;
-                perm.SetPaused(paused: false);
-                _ = _apiController.UserSetPairPermissions(new(pair.UserData, perm));
+                Mediator.Publish(new UnPauseMessage(pair.UserData, false));
             }
 
             // Row highlighting
