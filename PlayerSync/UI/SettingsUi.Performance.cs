@@ -235,26 +235,26 @@ public partial class SettingsUi
             ImGui.Text("(thousand triangles)");
             _uiShared.DrawHelpText("When a loading in player and their triangle count exceeds this amount, automatically pauses the synced player." + UiSharedService.TooltipSeparator
                 + "Default: 250 thousand");
-            ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
-            _uiShared.DrawCombo("Auto Pause Duration##autoPauseThreshold", [
-                PauseDuration.ThirtyMinutes,
+        }
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        _uiShared.DrawCombo("Auto Pause Duration##autoPauseThreshold", [
+            PauseDuration.ThirtyMinutes,
                 PauseDuration.FourHours,
                 PauseDuration.EightHours,
                 PauseDuration.Indefinitely
-            ],
-            (s) => s switch
-            {
-                PauseDuration.ThirtyMinutes => "Pause for 30 minutes",
-                PauseDuration.FourHours => "Pause for 4 hours",
-                PauseDuration.EightHours => "Pause for 8 hours",
-                PauseDuration.Indefinitely => "Indefinitely",
-                _ => throw new NotSupportedException()
-            }, (s) =>
-            {
-                _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingThresholds = s;
-                _playerPerformanceConfigService.Save();
-            }, PauseDuration.Indefinitely);
-        }
+        ],
+        (s) => s switch
+        {
+            PauseDuration.ThirtyMinutes => "Pause for 30 minutes",
+            PauseDuration.FourHours => "Pause for 4 hours",
+            PauseDuration.EightHours => "Pause for 8 hours",
+            PauseDuration.Indefinitely => "Indefinitely",
+            _ => throw new NotSupportedException()
+        }, (s) =>
+        {
+            _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingThresholds = s;
+            _playerPerformanceConfigService.Save();
+        }, PauseDuration.Indefinitely);
         _uiShared.DrawHelpText("Pairs paused indefinitely require a manual unpause unless unpaused via a Syncshell resume.");
 
         ImGui.Dummy(new Vector2(10));
