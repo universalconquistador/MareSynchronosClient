@@ -29,6 +29,8 @@ public partial class IntroUi : WindowMediatorSubscriberBase
     private readonly UiSharedService _uiShared;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private int _currentLanguage;
+    private long _lastFsCheckMs = 0;
+    private bool _cacheFolderExists = false;
 
     private string _secretKey = string.Empty;
     private string[]? _tosParagraphs;
@@ -86,6 +88,18 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         };
 
         GetToSLocalization();
+
+        // situations where a user might copy their config folder to another PC
+        if (!string.IsNullOrEmpty(_configService.Current.CacheFolder) || _configService.Current.InitialScanComplete)
+        {
+            _cacheFolderExists = Directory.Exists(_configService.Current.CacheFolder);
+            if (!_cacheFolderExists)
+            {
+                _configService.Current.CacheFolder = string.Empty;
+                _configService.Current.InitialScanComplete = false;
+                _configService.Save();
+            }
+        }
 
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (_) => IsOpen = false);
         Mediator.Subscribe<SwitchToIntroUiMessage>(this, (_) =>
@@ -156,14 +170,20 @@ public partial class IntroUi : WindowMediatorSubscriberBase
     private bool CanGoNextPage()
     {
         if (_currentSetupPageId == IntroUiPages.Agreement)
+        {
             return _configService.Current.AcceptedAgreement;
+        }
 
         if (_currentSetupPageId == IntroUiPages.Storage)
-            return _configService.Current.InitialScanComplete && !string.IsNullOrEmpty(_configService.Current.CacheFolder);
+        {
+            return _configService.Current.InitialScanComplete && !string.IsNullOrEmpty(_configService.Current.CacheFolder) && _cacheFolderExists;
+        }
 
         if (_currentSetupPageId == IntroUiPages.Account)
+        {
             return _uiShared.ApiController.ServerAlive;
-
+        }
+            
         return true;
     }
 
@@ -199,7 +219,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             && _uiShared.ApiController.ServerAlive
             && _configService.Current.InitialScanComplete
             && !string.IsNullOrEmpty(_configService.Current.CacheFolder)
-            && Directory.Exists(_configService.Current.CacheFolder))
+            && _cacheFolderExists)
         {
             FinishSetup();
         }
@@ -419,6 +439,16 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         _uiShared.BigText("File Storage Setup");
         ImGui.Separator();
 
+        var now = Environment.TickCount64;
+        if (now - _lastFsCheckMs > 3000)
+        {
+            _lastFsCheckMs = now;
+            if (!string.IsNullOrEmpty(_configService.Current.CacheFolder))
+            {
+                _cacheFolderExists = Directory.Exists(_configService.Current.CacheFolder);
+            }
+        }
+
         if (!_uiShared.HasValidPenumbraModPath)
         {
             UiSharedService.ColorTextWrapped("You do not have a valid Penumbra path set. Open Penumbra and set up a valid path for the mod directory.", ImGuiColors.DalamudRed);
@@ -435,7 +465,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             _uiShared.DrawCacheDirectorySetting();
         }
 
-        if (!_cacheMonitor.IsScanRunning && !string.IsNullOrEmpty(_configService.Current.CacheFolder) && _uiShared.HasValidPenumbraModPath && Directory.Exists(_configService.Current.CacheFolder))
+        if (!_cacheMonitor.IsScanRunning && !string.IsNullOrEmpty(_configService.Current.CacheFolder) && _uiShared.HasValidPenumbraModPath && _cacheFolderExists)
         {
             if (ImGui.Button("Start Scan##startScan"))
             {
