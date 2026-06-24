@@ -452,6 +452,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         if (pair == null)
         {
             Logger.LogWarning("Called to unpause user but UID does not exist: {uid}", uid);
+            _serverManager.RemovePauseReasonForUid(uid);
+            _serverManager.RemovePendingPauseForUid(uid);
             return;
         }
         var perm = pair.UserPair!.OwnPermissions;
