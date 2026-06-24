@@ -1,5 +1,4 @@
 ﻿using Dalamud.Utility;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
