@@ -26,7 +26,7 @@ public sealed class PairLifecycleManager : DisposableMediatorSubscriberBase
 
         Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) => _isZoning = true);
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (_) => _isZoning = false);
-        Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, (_) => InitializePairs());
+        Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => InitializePairs());
 
         Logger.LogTrace("{class} created.", nameof(PairLifecycleManager));
     }
@@ -44,20 +44,15 @@ public sealed class PairLifecycleManager : DisposableMediatorSubscriberBase
             }
 
             var visiblePlayerIdents = _dalamudUtilService.GetVisiblePlayerIdents();
-            if (visiblePlayerIdents == null || !visiblePlayerIdents.Any())
-            {
-                return;
-            }
 
-            var allUninitializedPairs = _pairManager.GetAllUninitializedPairs();
-            var pairsToInitialize = allUninitializedPairs.Where(pair => visiblePlayerIdents.Contains(pair.Ident, StringComparer.OrdinalIgnoreCase));
-            if (pairsToInitialize == null || !pairsToInitialize.Any())
+            foreach (var playerIdent in visiblePlayerIdents)
             {
-                return;
-            }
+                var pair = _pairManager.GetPairByCID(playerIdent);
+                if (pair == null || pair.HasCachedPlayer)
+                {
+                    continue;
+                }
 
-            foreach (var pair in pairsToInitialize)
-            {
                 if (string.IsNullOrEmpty(pair.PlayerName))
                 {
                     var pc = _dalamudUtilService.FindPlayerByNameHash(pair.Ident); // This kicks everything off once we can discern the Pair's character name
