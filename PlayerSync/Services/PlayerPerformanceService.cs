@@ -253,9 +253,9 @@ public class PlayerPerformanceService
     // Height check
     public bool CheckForRspHeight(PairHandler pairHandler, CharacterData charaData)
     {
-        //// don't check stuff if it's not set to run
-        //if (!_playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds)
-        //    return true;
+        // don't check stuff if it's not needed
+        if (!(_playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds || _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold))
+            return true;
 
         // whitelist check
         if (_playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing
@@ -313,7 +313,7 @@ public class PlayerPerformanceService
 
         if (pauseRspExceeded && doAutoPausing)
         {
-            _logger.LogInformation("Pair {name} exceeds your height min/max threshold and will be paused.", pair.PlayerName);
+            _logger.LogWarning("Pair {name} exceeds your height min/max threshold and will be paused.", pair.PlayerName);
             var pauseDuration = _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingHeightThresholds;
             if (shouldWarnOnPaused)
             {
