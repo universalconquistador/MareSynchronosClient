@@ -1052,8 +1052,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         });
 
         _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection.Value, _charaHandler.GetGameObject()!.ObjectIndex).GetAwaiter().GetResult();
-
-        Pair.State = PairState.Initialized;
     }
 
     private async Task RevertCustomizationDataAsync(ObjectKind objectKind, string name, Guid applicationId, CancellationToken cancelToken)

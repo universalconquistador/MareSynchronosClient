@@ -1,4 +1,5 @@
-﻿using MareSynchronos.API.Data;
+﻿using FFXIVClientStructs.FFXIV.Client.Game;
+using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
@@ -6,6 +7,8 @@ using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Factories;
+using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.Services;
 using MareSynchronos.Services.Events;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
@@ -24,24 +27,33 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private readonly MareConfigService _configurationService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly PairFactory _pairFactory;
+    private readonly DalamudUtilService _dalamudUtilService;
     private Lazy<List<Pair>> _directPairsInternal;
     private Lazy<Dictionary<GroupFullInfoDto, List<Pair>>> _groupPairsInternal;
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
     private PairApplyQueue? _applyQueue = null;
+    private int _isInitializePairsRunning;
+    private bool _isZoning = false;
 
     private CancellationTokenSource? _periodicCts;
     private Task? _periodicTask;
 
-    public PairManager(ILogger<PairManager> logger, PairFactory pairFactory,
+    public PairManager(ILogger<PairManager> logger, PairFactory pairFactory, DalamudUtilService dalamudUtilService,
                 MareConfigService configurationService, ServerConfigurationManager serverConfigurationManager, MareMediator mediator)
         : base(logger, mediator)
     {
         _pairFactory = pairFactory;
         _configurationService = configurationService;
         _serverConfigurationManager = serverConfigurationManager;
+        _dalamudUtilService = dalamudUtilService;
+
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPairs());
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => ReapplyPairData());
         Mediator.Subscribe<ChangeFilterMessage>(this, (_) => ReapplyPairData());
+        Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) => _isZoning = true);
+        Mediator.Subscribe<ZoneSwitchEndMessage>(this, (_) => _isZoning = false);
+        Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => InitializePairs());
+
         _directPairsInternal = DirectPairsLazy();
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
@@ -186,7 +198,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public List<UserData> GetVisibleUsers() => [.. _allClientPairs.Where(p => p.Value.IsVisible).Select(p => p.Key)];
 
     public List<Pair> GetVisiblePairs() => [.. _allClientPairs.Where(p => p.Value.IsVisible).Select(p => p.Value)];
-    public List<Pair> GetAllUninitializedPairs() => [.. _allClientPairs.Where(clientPair => clientPair.Value.State == PairState.None).Select(clientPair => clientPair.Value)];
 
     public void MarkPairOffline(UserData user)
     {
@@ -546,6 +557,46 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
         Mediator.Publish(new RefreshUiMessage());
+    }
+
+    private void InitializePairs()
+    {
+        if (Interlocked.Exchange(ref _isInitializePairsRunning, 1) == 1)
+            return;
+
+        try
+        {
+            if (_isZoning)
+            {
+                return;
+            }
+
+            var visiblePlayerIdents = _dalamudUtilService.GetVisiblePlayerIdents();
+
+            foreach (var playerIdent in visiblePlayerIdents)
+            {
+                var pair = GetPairByCID(playerIdent);
+                if (pair == null || pair.HasCachedPlayer)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(pair.PlayerName))
+                {
+                    var pc = _dalamudUtilService.FindPlayerByNameHash(pair.Ident); // This kicks everything off once we can discern the Pair's hashed ident
+                    if (pc == default((string, nint))) return;
+                    Logger.LogDebug("One-Time Initializing {uid}:{name}", pair.UserData.UID, pc.Name);
+                    pair.Initialize(pc.Name);
+                    Logger.LogDebug("One-Time Initialized {uid}:{name}", pair.UserData.UID, pair.PlayerName);
+                    Mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PairHandler), EventSeverity.Informational,
+                        $"Initializing User For Character {pc.Name}")));
+                }
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref _isInitializePairsRunning, 0);
+        }
     }
 
     private async Task PausedPairExpiredTimerCheckTask(CancellationToken ct)

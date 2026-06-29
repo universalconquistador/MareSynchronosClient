@@ -36,7 +36,6 @@ public class Pair
         _zoneSyncConfig = zoneSyncConfig;
     }
 
-    public PairState State { get; set; } = PairState.None;
     public bool HasCachedPlayer => CachedPlayer != null && !string.IsNullOrEmpty(CachedPlayer.PlayerName) && _onlineUserIdentDto != null;
     public IndividualPairStatus IndividualPairStatus => UserPair.IndividualPairStatus;
     public bool IsDirectlyPaired => IndividualPairStatus != IndividualPairStatus.None;
@@ -191,10 +190,10 @@ public class Pair
 
     public void SetOnlinePlayerDto(OnlineUserIdentDto? dto = null)
     {
+        _creationSemaphore.Wait();
+
         try
         {
-            _creationSemaphore.Wait();
-
             if (dto == null && _onlineUserIdentDto == null)
             {
                 CachedPlayer?.Dispose();
@@ -205,25 +204,6 @@ public class Pair
             {
                 _onlineUserIdentDto = dto;
             }
-        }
-        finally
-        {
-            _creationSemaphore.Release();
-        }
-    }
-
-    private void CreateCachedPlayer()
-    {
-        try
-        {
-            _creationSemaphore.Wait();
-
-            if (CachedPlayer != null) return;
-            if (_onlineUserIdentDto == null) return;
-
-            CachedPlayer?.Dispose();
-            _logger.LogTrace("Creating cached player for {pair}", Ident);
-            CachedPlayer = _cachedPlayerFactory.Create(this);
         }
         finally
         {
@@ -266,10 +246,11 @@ public class Pair
 
     public void MarkOffline(bool wait = true)
     {
+        if (wait)
+            _creationSemaphore.Wait();
+
         try
-        {
-            if (wait)
-                _creationSemaphore.Wait();
+        {    
             LastReceivedCharacterData = null;
             var player = CachedPlayer;
             CachedPlayer = null;
@@ -292,6 +273,18 @@ public class Pair
     internal void SetIsUploading()
     {
         CachedPlayer?.SetUploading();
+    }
+
+    private void CreateCachedPlayer()
+    {
+        if (CachedPlayer != null || _onlineUserIdentDto == null)
+        {
+            return;
+        }
+
+        CachedPlayer?.Dispose();
+        _logger.LogTrace("Creating cached player for {pair}", Ident);
+        CachedPlayer = _cachedPlayerFactory.Create(this);
     }
 
     private CharacterData? RemoveNotSyncedFiles(CharacterData? data)
