@@ -591,14 +591,18 @@ public class ServerConfigurationManager
 
     internal void RemovePauseReasonForUid(string uid)
     {
-        CurrentNotesStorage().PausedUids.Remove(uid);
-        _notesConfig.Save();
+        if (CurrentNotesStorage().PausedUids.Remove(uid))
+        {
+            _notesConfig.Save();
+        }
     }
 
     internal void RemovePendingPauseForUid(string uid)
     {
-        CurrentNotesStorage().PendingPausedPairs.Remove(uid);
-        _notesConfig.Save();
+        if (CurrentNotesStorage().PendingPausedPairs.Remove(uid))
+        {
+            _notesConfig.Save();
+        }
     }
 
     internal void RemovePendingRequestForIdent(string ident)
