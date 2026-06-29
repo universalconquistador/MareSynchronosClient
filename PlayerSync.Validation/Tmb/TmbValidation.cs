@@ -57,11 +57,11 @@ public static class TmbValidation
             yield break;
         }
 
-        //if (tmbFile.Verified != VfxEditor.Utils.VerifiedStatus.VERIFIED)
-        //{
-        //    yield return TMB000B;
-        //    yield break;
-        //}
+        if (tmbFile.Verified != VfxEditor.Utils.VerifiedStatus.VERIFIED)
+        {
+            yield return TMB000B;
+            yield break;
+        }
 
         foreach (var actor in tmbFile.Actors)
         {
