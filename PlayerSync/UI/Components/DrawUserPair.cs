@@ -503,6 +503,7 @@ public class DrawUserPair
 
     private float DrawRightSide()
     {
+        var usingSingleClickPause = _configService.Current.NoPauseSubmenuForPairsOnMainUi;
         var pauseIcon = _pair.UserPair!.OwnPermissions.IsPaused() ? FontAwesomeIcon.Play : FontAwesomeIcon.Pause;
         var pauseButtonSize = _uiSharedService.GetIconButtonSize(pauseIcon);
         var barButtonSize = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.EllipsisV);
@@ -519,34 +520,60 @@ public class DrawUserPair
 
         currentRightSide -= (pauseButtonSize.X + spacingX);
         ImGui.SameLine(currentRightSide);
-        var pausePopupId = $"PausePopup##{_pair.UserData.UID}";
-        if (_uiSharedService.IconButton(pauseIcon))
+        if (usingSingleClickPause)
         {
-            if (!_pair.IsPaused)
+            if (_uiSharedService.IconButton(pauseIcon))
             {
-                ImGui.OpenPopup(pausePopupId);
-            }
-            else
-            {
-                _mediator.Publish(new UnPauseMessage(_pair.UserData, false));
-            }
-                
-        }
-        UiSharedService.AttachToolTip(!_pair.UserPair!.OwnPermissions.IsPaused() ? ("Pause pairing with " + _pair.UserData.AliasOrUID) : "Resume pairing with " + _pair.UserData.AliasOrUID);
-        if (ImGui.BeginPopup(pausePopupId))
-        {
-            using (ImRaii.PushId($"pausePopup-{_pair.UserData.UID}"))
-            {
-                DrawPairPauseContent(_pauseMenuWidth, true);
-                if (_pauseMenuWidth <= 0)
+                var perm = _pair.UserPair!.OwnPermissions;
+
+                if (UiSharedService.CtrlPressed() && !perm.IsPaused())
                 {
-                    _pauseMenuWidth = ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X;
+                    perm.SetSticky(true);
                 }
+
+                if (!_pair.IsPaused)
+                    _serverConfigurationManager.SetPauseReasonForUid(_pair.UserData.UID, PauseReason.Manual);
+
+                perm.SetPaused(!perm.IsPaused());
+                _ = _apiController.UserSetPairPermissions(new(_pair.UserData, perm));
             }
-
-            ImGui.EndPopup();
+            UiSharedService.AttachToolTip(!_pair.UserPair!.OwnPermissions.IsPaused()
+                ? ("Pause pairing with " + _pair.UserData.AliasOrUID
+                    + (_pair.UserPair!.OwnPermissions.IsSticky()
+                        ? string.Empty
+                        : UiSharedService.TooltipSeparator + "Hold CTRL to enable preferred permissions while pausing." + Environment.NewLine + "This will leave this pair paused even if unpausing syncshells including this pair."))
+                : "Resume pairing with " + _pair.UserData.AliasOrUID);
         }
+        else
+        {
+            var pausePopupId = $"PausePopup##{_pair.UserData.UID}";
+            if (_uiSharedService.IconButton(pauseIcon))
+            {
+                if (!_pair.IsPaused)
+                {
+                    ImGui.OpenPopup(pausePopupId);
+                }
+                else
+                {
+                    _mediator.Publish(new UnPauseMessage(_pair.UserData, false));
+                }
 
+            }
+            UiSharedService.AttachToolTip(!_pair.UserPair!.OwnPermissions.IsPaused() ? ("Pause pairing with " + _pair.UserData.AliasOrUID) : "Resume pairing with " + _pair.UserData.AliasOrUID);
+            if (ImGui.BeginPopup(pausePopupId))
+            {
+                using (ImRaii.PushId($"pausePopup-{_pair.UserData.UID}"))
+                {
+                    DrawPairPauseContent(_pauseMenuWidth, true);
+                    if (_pauseMenuWidth <= 0)
+                    {
+                        _pauseMenuWidth = ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X;
+                    }
+                }
+
+                ImGui.EndPopup();
+            }
+        }
         if (_pair.IsPaired)
         {
             var individualSoundsDisabled = (_pair.UserPair?.OwnPermissions.IsDisableSounds() ?? false) || (_pair.UserPair?.OtherPermissions.IsDisableSounds() ?? false);
