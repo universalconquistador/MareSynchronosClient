@@ -39,6 +39,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private readonly PlayerPerformanceConfigService _performanceConfig;
     private readonly IDataManager _dataManager;
     private readonly MareConfigService _configService;
+    private readonly PlayerIdleStatusService _idleStatusService;
     private CancellationTokenSource? _applicationCancellationTokenSource = new();
     private Guid _applicationId;
     private Task? _applicationTask;
@@ -70,7 +71,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         ICompressedAlternateManager compressedAlternateManager,
         MareConfigService configService,
         PlayerPerformanceConfigService performanceConfig,
-        IDataManager dataManager) : base(logger, mediator)
+        IDataManager dataManager,
+        PlayerIdleStatusService playerIdleStatusService
+        ) : base(logger, mediator)
     {
         Pair = pair;
         _gameObjectHandlerFactory = gameObjectHandlerFactory;
@@ -86,6 +89,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _performanceConfig = performanceConfig;
         _dataManager = dataManager;
         _configService = configService;
+        _idleStatusService = playerIdleStatusService;
         //_penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
         _isVanillaEnforced = IsVanillaEnforced();
 
@@ -127,6 +131,31 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             _dataReceivedInDowntime = null;
             _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate();
             _applicationCancellationTokenSource = _applicationCancellationTokenSource?.CancelRecreate();
+        });
+
+        Mediator.Subscribe<PlayerIdleStartMessage>(this, _ =>
+        {
+            _dataReceivedInDowntime = null;
+            _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate();
+            _applicationCancellationTokenSource = _applicationCancellationTokenSource?.CancelRecreate();
+        });
+        Mediator.Subscribe<PlayerIdleEndMessage>(this, _ =>
+        {
+            if (IsVisible && _dataReceivedInDowntime != null)
+            {
+                Logger.LogTrace("Applying deferred pair data for {uid} after IDLE has become ACTIVE.", Pair.UserData.UID);
+                ApplyCharacterData(_dataReceivedInDowntime.ApplicationId,
+                    _dataReceivedInDowntime.CharacterData, _dataReceivedInDowntime.Forced);
+                _dataReceivedInDowntime = null;
+            }
+            else if(!IsVisible && _dataReceivedInDowntime != null)
+            {
+                Logger.LogTrace("Removing deferred pair data for {uid} after IDLE has become ACTIVE.", Pair.UserData.UID);
+                // we should really consider just doing what a lot of the Dispose does here, but that could be a lot of pairs if idle for a long time...
+                _charaHandler?.Invalidate();
+                _cachedData = null; // there could be weird one-way visibility concerns with doing this
+                _dataReceivedInDowntime = null;
+            }
         });
 
         if (!_configService.Current.DebugDisableSoundIndicators)
@@ -197,6 +226,16 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
                 "Cannot apply character data: you are in combat or performing music, deferring application")));
             Logger.LogDebug("[BASE-{appBase}] Received data but player is in combat or performing", applicationBase);
+            _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
+            SetUploading(isUploading: false);
+            return Task.CompletedTask;
+        }
+
+        if (_idleStatusService.IsPlayerIdle)
+        {
+            Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
+                "Cannot apply character data: you are currently marked as idle, deferring application")));
+            Logger.LogDebug("[BASE-{appBase}] Received data but you are in an idle status", applicationBase);
             _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
             SetUploading(isUploading: false);
             return Task.CompletedTask;
@@ -1296,31 +1335,118 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     //////////////////////////// EXPERIMENTAL \\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 
+    // It'd be nice if plugins were classes and not enums and strings
+
     public async Task HandleOptionalPluginDataAsync(AddonPlugin plugin, CharacterData charaData)
     {
-        if (_charaHandler == null) return;
-        if (_charaHandler.Address == nint.Zero) return;
+        bool isCharacterInvalid = false;
+        bool isCharacterInDowntime = false;
+
+        if ((_charaHandler == null || (PlayerCharacter == IntPtr.Zero)) && _cachedData is not null)
+            isCharacterInvalid = true;
+
+        if (_dalamudUtil.IsInCombatOrPerforming || _idleStatusService.IsPlayerIdle)
+        {
+            if (_dataReceivedInDowntime is null)
+                return; // we only update partials after a full cache data is present
+
+            isCharacterInDowntime = true;
+        }
 
         switch (plugin)
         {
             case AddonPlugin.Honorific:
+                if (isCharacterInvalid)
+                {
+                    _cachedData!.HonorificData = charaData.HonorificData;
+                    return;
+                }
+
+                if (isCharacterInDowntime)
+                {
+                    _dataReceivedInDowntime!.CharacterData.HonorificData = charaData.HonorificData;
+                    return;
+                }
+
+                if (string.Equals(_cachedData!.HonorificData, charaData.HonorificData, StringComparison.Ordinal))
+                    return;
+
                 await ApplyHonorificDataASync(charaData).ConfigureAwait(false);
                 return;
 
             case AddonPlugin.Heels:
+                if (isCharacterInvalid)
+                {
+                    _cachedData!.HeelsData = charaData.HeelsData;
+                    return;
+                }
+
+                if (isCharacterInDowntime)
+                {
+                    _dataReceivedInDowntime!.CharacterData.HeelsData = charaData.HeelsData;
+                    return;
+                }
+
+                if (string.Equals(_cachedData!.HeelsData, charaData.HeelsData, StringComparison.Ordinal))
+                    return;
+
                 await ApplyHeelsDataAsync(charaData).ConfigureAwait(false);
                 return;
 
             case AddonPlugin.Moodles:
+                if (isCharacterInvalid)
+                {
+                    _cachedData!.MoodlesData = charaData.MoodlesData;
+                    return;
+                }
+
+                if (isCharacterInDowntime)
+                {
+                    _dataReceivedInDowntime!.CharacterData.MoodlesData = charaData.MoodlesData;
+                    return;
+                }
+
+                if (string.Equals(_cachedData!.MoodlesData, charaData.MoodlesData, StringComparison.Ordinal))
+                    return;
+
                 await ApplyMoodlesDataAsync(charaData).ConfigureAwait(false);
                 return;
 
             case AddonPlugin.PetNames:
+                if (isCharacterInvalid)
+                {
+                    _cachedData!.PetNamesData = charaData.PetNamesData;
+                    return;
+                }
+
+                if (isCharacterInDowntime)
+                {
+                    _dataReceivedInDowntime!.CharacterData.PetNamesData = charaData.PetNamesData;
+                    return;
+                }
+
+                if (string.Equals(_cachedData!.PetNamesData, charaData.PetNamesData, StringComparison.Ordinal))
+                    return;
+
                 await ApplyPetNicknamesDataAsync(charaData).ConfigureAwait(false);
                 return;
 
             case AddonPlugin.Loci:
-                await ApplyLociDtaaASync(charaData).ConfigureAwait(false);
+                if (isCharacterInvalid)
+                {
+                    _cachedData!.LociData = charaData.LociData;
+                    return;
+                }
+
+                if (isCharacterInDowntime)
+                {
+                    _dataReceivedInDowntime!.CharacterData.LociData = charaData.LociData;
+                    return;
+                }
+
+                // not going to bother with a dictionary equality right now
+
+                await ApplyLociDataASync(charaData).ConfigureAwait(false);
                 return;
 
             default:
@@ -1364,7 +1490,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
     }
 
-    private async Task ApplyLociDtaaASync(CharacterData charaData)
+    private async Task ApplyLociDataASync(CharacterData charaData)
     {
         if (charaData.LociData is null) return;
 

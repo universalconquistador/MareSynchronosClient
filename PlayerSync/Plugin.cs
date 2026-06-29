@@ -164,6 +164,7 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>()));
             collection.AddSingleton((s) => new JsonDataTypeHandlerService(s.GetRequiredService<ILogger<JsonDataTypeHandlerService>>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<IpcManager>(), chatGui));
+            collection.AddSingleton((s) => new PlayerIdleStatusService(s.GetRequiredService<ILogger<PlayerIdleStatusService>>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<DalamudUtilService>()));
             collection.AddSingleton((s) => new PairContextMenuHandler(s.GetRequiredService<ILogger<PairContextMenuHandler>>(), s.GetRequiredService<MareMediator>(), contextMenu, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<ServerConfigurationManager>(), 
                 s.GetRequiredService<PairInviteManager>(), s.GetRequiredService<PlayerPerformanceConfigService>(), s.GetRequiredService<IpcManager>()));
@@ -291,6 +292,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddHostedService(p => p.GetRequiredService<PairContextMenuHandler>());
             collection.AddHostedService(p => p.GetRequiredService<JsonDataTypeHandlerService>());
             collection.AddHostedService(p => p.GetRequiredService<AnimationBindGuard>());
+            collection.AddHostedService(p => p.GetRequiredService<PlayerIdleStatusService>());
         })
         .Build();
 

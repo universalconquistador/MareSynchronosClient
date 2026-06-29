@@ -30,13 +30,14 @@ public class PairHandlerFactory
     private readonly PlayerPerformanceConfigService _performanceConfig;
     private readonly MareConfigService _mareConfigService;
     private readonly IDataManager _dataManager;
+    private readonly PlayerIdleStatusService _playerIdleStatusService;
 
     public PairHandlerFactory(ILoggerFactory loggerFactory, GameObjectHandlerFactory gameObjectHandlerFactory, IpcManager ipcManager,
         FileDownloadManagerFactory fileDownloadManagerFactory, DalamudUtilService dalamudUtilService,
         PluginWarningNotificationService pluginWarningNotificationManager, IHostApplicationLifetime hostApplicationLifetime,
         FileCacheManager fileCacheManager, MareMediator mareMediator, PlayerPerformanceService playerPerformanceService,
         ServerConfigurationManager serverConfigManager, ICompressedAlternateManager compressedAlternateManager,
-        PlayerPerformanceConfigService performanceConfig, MareConfigService mareConfigService, IDataManager dataManager)
+        PlayerPerformanceConfigService performanceConfig, MareConfigService mareConfigService, IDataManager dataManager, PlayerIdleStatusService playerIdleStatusService)
     {
         _loggerFactory = loggerFactory;
         _gameObjectHandlerFactory = gameObjectHandlerFactory;
@@ -53,6 +54,7 @@ public class PairHandlerFactory
         _performanceConfig = performanceConfig;
         _mareConfigService = mareConfigService;
         _dataManager = dataManager;
+        _playerIdleStatusService = playerIdleStatusService;
     }
 
     public PairHandler Create(Pair pair)
@@ -60,6 +62,6 @@ public class PairHandlerFactory
         return new PairHandler(_loggerFactory.CreateLogger<PairHandler>(), pair, _gameObjectHandlerFactory,_ipcManager, 
             _fileDownloadManagerFactory.Create(), _pluginWarningNotificationManager, _dalamudUtilService, _hostApplicationLifetime,
             _fileCacheManager, _mareMediator, _playerPerformanceService, _serverConfigManager, _compressedAlternateManager, 
-            _mareConfigService, _performanceConfig, _dataManager);
+            _mareConfigService, _performanceConfig, _dataManager, _playerIdleStatusService);
     }
 }
