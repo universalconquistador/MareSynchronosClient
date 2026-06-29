@@ -83,6 +83,29 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             AddCacheToCreate(msg.ObjectToCreateFor.ObjectKind);
         });
 
+        // Penumbra
+        Mediator.Subscribe<PenumbraModSettingChangedMessage>(this, (msg) =>
+        {
+            Logger.LogDebug("Received Penumbra Mod settings change, updating everything");
+            AddCacheToCreate(ObjectKind.Player);
+            AddCacheToCreate(ObjectKind.Pet);
+            AddCacheToCreate(ObjectKind.MinionOrMount);
+            AddCacheToCreate(ObjectKind.Companion);
+        });
+
+        // Glamourer
+        Mediator.Subscribe<GlamourerChangedMessage>(this, (msg) =>
+        {
+            if (_isZoning) return;
+            var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
+            if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType))
+            {
+                Logger.LogDebug("Received GlamourerChangedMessage for {kind}", changedType);
+                AddCacheToCreate(changedType.Key);
+            }
+        });
+
+        // Customize+
         Mediator.Subscribe<CustomizePlusMessage>(this, (msg) =>
         {
             if (_isZoning) return;
@@ -95,43 +118,16 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             }
         });
 
-        //Mediator.Subscribe<HeelsOffsetMessage>(this, (msg) =>
-        //{
-        //    if (_isZoning) return;
-        //    Logger.LogDebug("Received Heels Offset change, updating player");
-        //    AddCacheToCreate();
-        //});
-
-        // Experimental
+        // Heels
         Mediator.Subscribe<HeelsOffsetMessage>(this, (msg) =>
         {
             if (_isZoning) return;
             Logger.LogDebug("Received Heels Offset change, updating player changes");
-            AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Heels);
+            if (EnableExperimental) AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Heels);
+            else AddCacheToCreate(ObjectKind.Player);
         });
 
-        Mediator.Subscribe<GlamourerChangedMessage>(this, (msg) =>
-        {
-            if (_isZoning) return;
-            var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
-            if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType))
-            {
-                Logger.LogDebug("Received GlamourerChangedMessage for {kind}", changedType);
-                AddCacheToCreate(changedType.Key);
-            }
-        });
-
-        //Mediator.Subscribe<HonorificMessage>(this, (msg) =>
-        //{
-        //    if (_isZoning) return;
-        //    if (!string.Equals(msg.NewHonorificTitle, _playerData.HonorificData, StringComparison.Ordinal))
-        //    {
-        //        Logger.LogDebug("Received Honorific change, updating player");
-        //        AddCacheToCreate(ObjectKind.Player);
-        //    }
-        //});
-
-        // Experimental
+        // Honorific
         Mediator.Subscribe<HonorificMessage>(this, (msg) =>
         {
             if (_isZoning) return;
@@ -139,22 +135,24 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             if (!string.Equals(msg.NewHonorificTitle, _playerData.HonorificData, StringComparison.Ordinal))
             {
                 Logger.LogDebug("Received Honorific change, updating player changes");
-                AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Honorific);
+                if (EnableExperimental) AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Honorific);
+                else AddCacheToCreate(ObjectKind.Player);
             }
         });
 
-        //Mediator.Subscribe<MoodlesMessage>(this, (msg) =>
-        //{
-        //    if (_isZoning) return;
-        //    var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
-        //    if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType) && changedType.Key == ObjectKind.Player)
-        //    {
-        //        Logger.LogDebug("Received Moodles change, updating player");
-        //        AddCacheToCreate(ObjectKind.Player);
-        //    }
-        //});
+        // Pet Names
+        Mediator.Subscribe<PetNamesMessage>(this, (msg) =>
+        {
+            if (_isZoning) return;
+            if (!string.Equals(msg.PetNicknamesData, _playerData.PetNamesData, StringComparison.Ordinal))
+            {
+                Logger.LogDebug("Received Pet Nicknames change, updating player changes");
+                if (EnableExperimental) AddPlayerAddonPluginChangesToUpdate(PlayerChanges.PetNames);
+                else AddCacheToCreate(ObjectKind.Player);
+            }
+        });
 
-        // Experimental
+        // Moodles
         Mediator.Subscribe<MoodlesMessage>(this, (msg) =>
         {
             if (_isZoning) return;
@@ -162,10 +160,12 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType) && changedType.Key == ObjectKind.Player)
             {
                 Logger.LogDebug("Received Moodles change, updating player changes");
-                AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Moodles);
+                if (EnableExperimental) AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Moodles);
+                else AddCacheToCreate(ObjectKind.Player);
             }
         });
 
+        // Loci
         Mediator.Subscribe<LociUpdateMessage>(this, (msg) =>
         {
             if (_isZoning) return;
@@ -177,45 +177,14 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             }
         });
 
-        //Mediator.Subscribe<PetNamesMessage>(this, (msg) =>
-        //{
-        //    if (_isZoning) return;
-        //    if (!string.Equals(msg.PetNicknamesData, _playerData.PetNamesData, StringComparison.Ordinal))
-        //    {
-        //        Logger.LogDebug("Received Pet Nicknames change, updating player");
-        //        AddCacheToCreate(ObjectKind.Player);
-        //    }
-        //});
-
-        // Experimental
-        Mediator.Subscribe<PetNamesMessage>(this, (msg) =>
-        {
-            if (_isZoning) return;
-            if (!string.Equals(msg.PetNicknamesData, _playerData.PetNamesData, StringComparison.Ordinal))
-            {
-                Logger.LogDebug("Received Pet Nicknames change, updating player changes");
-                AddPlayerAddonPluginChangesToUpdate(PlayerChanges.PetNames);
-            }
-        });
-
-        Mediator.Subscribe<PenumbraModSettingChangedMessage>(this, (msg) =>
-        {
-            Logger.LogDebug("Received Penumbra Mod settings change, updating everything");
-            AddCacheToCreate(ObjectKind.Player);
-            AddCacheToCreate(ObjectKind.Pet);
-            AddCacheToCreate(ObjectKind.MinionOrMount);
-            AddCacheToCreate(ObjectKind.Companion);
-        });
-
-        //Mediator.Subscribe<FrameworkUpdateMessage>(this, (msg) => ProcessCacheCreation());
-
-        // Experimental
         Mediator.Subscribe<FrameworkUpdateMessage>(this, (msg) =>
         {
             ProcessCacheCreation();
-            ProcessAddonPluginChanges();
+            if (EnableExperimental) ProcessAddonPluginChanges();
         });
     }
+
+    private bool EnableExperimental { get; set; } = false;
 
     protected override void Dispose(bool disposing)
     {

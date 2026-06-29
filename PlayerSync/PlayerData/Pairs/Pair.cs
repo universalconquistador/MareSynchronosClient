@@ -36,11 +36,12 @@ public class Pair
         _zoneSyncConfig = zoneSyncConfig;
     }
 
+    public PairState State { get; set; } = PairState.None;
     public bool HasCachedPlayer => CachedPlayer != null && !string.IsNullOrEmpty(CachedPlayer.PlayerName) && _onlineUserIdentDto != null;
     public IndividualPairStatus IndividualPairStatus => UserPair.IndividualPairStatus;
     public bool IsDirectlyPaired => IndividualPairStatus != IndividualPairStatus.None;
     public bool IsOneSidedPair => IndividualPairStatus == IndividualPairStatus.OneSided;
-    public bool IsOnline => CachedPlayer != null;
+    public bool IsOnline { get; set; } = false;
 
     public bool IsPaired => IndividualPairStatus == IndividualPairStatus.Bidirectional || UserPair.Groups.Any();
     public bool IsZoneSyncOnlyPair => IndividualPairStatus != IndividualPairStatus.Bidirectional && UserPair.Groups.All(g => g.StartsWith(Constants.GroupZoneSyncPrefix));
@@ -75,6 +76,16 @@ public class Pair
         set
         {
             _hasProfile = value;
+        }
+    }
+
+    public void Initialize(string playerName)
+    {
+        CreateCachedPlayer();
+
+        if (CachedPlayer != null && !string.IsNullOrEmpty(playerName))
+        {
+            CachedPlayer.Initialize(playerName);
         }
     }
 
@@ -178,13 +189,11 @@ public class Pair
         return CachedPlayer.ApplyCharacterDataAsync(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
     }
 
-    public void CreateCachedPlayer(OnlineUserIdentDto? dto = null)
+    public void SetOnlinePlayerDto(OnlineUserIdentDto? dto = null)
     {
         try
         {
             _creationSemaphore.Wait();
-
-            if (CachedPlayer != null) return;
 
             if (dto == null && _onlineUserIdentDto == null)
             {
@@ -196,8 +205,24 @@ public class Pair
             {
                 _onlineUserIdentDto = dto;
             }
+        }
+        finally
+        {
+            _creationSemaphore.Release();
+        }
+    }
+
+    private void CreateCachedPlayer()
+    {
+        try
+        {
+            _creationSemaphore.Wait();
+
+            if (CachedPlayer != null) return;
+            if (_onlineUserIdentDto == null) return;
 
             CachedPlayer?.Dispose();
+            _logger.LogTrace("Creating cached player for {pair}", Ident);
             CachedPlayer = _cachedPlayerFactory.Create(this);
         }
         finally
@@ -231,7 +256,7 @@ public class Pair
 
     public string GetPlayerNameHash()
     {
-        return CachedPlayer?.PlayerNameHash ?? string.Empty;
+        return CachedPlayer != null ? CachedPlayer.PlayerNameHash : Ident ?? string.Empty;
     }
 
     public bool HasAnyConnection()
@@ -250,6 +275,7 @@ public class Pair
             CachedPlayer = null;
             player?.Dispose();
             _onlineUserIdentDto = null;
+            IsOnline = false;
         }
         finally
         {

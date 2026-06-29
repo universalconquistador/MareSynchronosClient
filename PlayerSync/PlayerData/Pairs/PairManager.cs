@@ -62,6 +62,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public Dictionary<GroupData, GroupFullInfoDto> Groups => _allGroups.ToDictionary(k => k.Key, k => k.Value);
     public Pair? LastAddedUser { get; internal set; }
     public Dictionary<Pair, List<GroupFullInfoDto>> PairsWithGroups => _pairsWithGroupsInternal.Value;
+    public bool InitialLoading { get; set; } = true;
 
     public bool UseQueuedCharacterDataApplication
     {
@@ -185,6 +186,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public List<UserData> GetVisibleUsers() => [.. _allClientPairs.Where(p => p.Value.IsVisible).Select(p => p.Key)];
 
     public List<Pair> GetVisiblePairs() => [.. _allClientPairs.Where(p => p.Value.IsVisible).Select(p => p.Value)];
+    public List<Pair> GetAllUninitializedPairs() => [.. _allClientPairs.Where(clientPair => clientPair.Value.State == PairState.None).Select(clientPair => clientPair.Value)];
 
     public void MarkPairOffline(UserData user)
     {
@@ -200,8 +202,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public void MarkPairOnline(OnlineUserIdentDto dto, bool sendNotif = true)
     {
         if (!_allClientPairs.ContainsKey(dto.User)) throw new InvalidOperationException("No user found for " + dto);
-
-        //Mediator.Publish(new ClearProfileDataMessage(dto.User));
 
         var pair = _allClientPairs[dto.User];
         if (pair.HasCachedPlayer)
@@ -223,9 +223,14 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             Mediator.Publish(new NotificationMessage("User online", msg, NotificationType.Info, TimeSpan.FromSeconds(5)));
         }
 
-        pair.CreateCachedPlayer(dto);
+        pair.SetOnlinePlayerDto(dto);
 
-        RecreateLazy();
+        pair.IsOnline = true;
+
+        if (!InitialLoading)
+        {
+            RecreateLazy();
+        }
     }
 
     public void ReceiveCharaDataInternal(OnlineUserCharaDataDto dto)
@@ -535,7 +540,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         }
     }
 
-    private void RecreateLazy()
+    public void RecreateLazy()
     {
         _directPairsInternal = DirectPairsLazy();
         _groupPairsInternal = GroupPairsLazy();

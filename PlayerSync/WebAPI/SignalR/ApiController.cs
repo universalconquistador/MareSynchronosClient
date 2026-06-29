@@ -639,11 +639,14 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             Logger.LogDebug("Attaching Census Data: {data}", dto);
         }
 
+        _pairManager.InitialLoading = true;
         foreach (var entry in await UserGetOnlinePairs(dto).ConfigureAwait(false))
         {
             Logger.LogDebug("Pair online: {pair}", entry);
             _pairManager.MarkPairOnline(entry, sendNotif: false);
         }
+        _pairManager.InitialLoading = false;
+        _pairManager.RecreateLazy();
     }
 
     private void MareHubOnClosed(Exception? arg)

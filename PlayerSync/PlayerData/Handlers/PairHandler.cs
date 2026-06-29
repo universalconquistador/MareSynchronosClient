@@ -973,17 +973,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
     private void FrameworkUpdate()
     {
-        if (string.IsNullOrEmpty(PlayerName))
-        {
-            var pc = _dalamudUtil.FindPlayerByNameHash(Pair.Ident); // This kicks everything off once we can discern the Pair's character name
-            if (pc == default((string, nint))) return;
-            Logger.LogDebug("One-Time Initializing {this}", this);
-            Initialize(pc.Name);
-            Logger.LogDebug("One-Time Initialized {this}", this);
-            Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
-                $"Initializing User For Character {pc.Name}")));
-        }
-
         if (_charaHandler?.Address != nint.Zero) // We have a valid GameObjectHandler for this Pair
         {
             // Update pointers this frame as to not dereference old/stale/invalid ptr
@@ -1027,7 +1016,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
     }
 
-    private void Initialize(string name)
+    public void Initialize(string name)
     {
         PlayerName = name;
 
@@ -1063,6 +1052,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         });
 
         _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection.Value, _charaHandler.GetGameObject()!.ObjectIndex).GetAwaiter().GetResult();
+
+        Pair.State = PairState.Initialized;
     }
 
     private async Task RevertCustomizationDataAsync(ObjectKind objectKind, string name, Guid applicationId, CancellationToken cancelToken)
