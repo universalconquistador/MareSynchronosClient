@@ -70,6 +70,7 @@ public partial class SettingsUi
         var mysterySetting = _configService.Current.MysterySetting;
         var showProfileIcon = _configService.Current.ShowProfileIconByNames;
         var softTargetOnPairHover = _configService.Current.SoftTargetPairsOnHover;
+        var singleClickPairPause = _configService.Current.NoPauseSubmenuForPairsOnMainUi;
 
         _uiShared.BigText("PlayerSync UI");
         ImGuiHelpers.ScaledDummy(2);
@@ -109,11 +110,19 @@ public partial class SettingsUi
             if (!showAnalysisOnUi) ImGui.EndDisabled();
         }
 
-        if (ImGui.Checkbox("SoftTarget players in game when moused over in the UI list.", ref softTargetOnPairHover))
+        if (ImGui.Checkbox("SoftTarget players in game when moused over in the UI list", ref softTargetOnPairHover))
         {
             _configService.Current.SoftTargetPairsOnHover = softTargetOnPairHover;
             _configService.Save();
         }
+
+        if (ImGui.Checkbox("Single-click pause pairs in UI list", ref singleClickPairPause))
+        {
+            _configService.Current.NoPauseSubmenuForPairsOnMainUi = singleClickPairPause;
+            _configService.Save();
+            Mediator.Publish(new RefreshUiMessage());
+        }
+        _uiShared.DrawHelpText("This will pause pairs normally without adding a submenu for timed pause options.");
 
         if (ImGui.Checkbox("Show separate Visible group", ref showVisibleSeparate))
         {
