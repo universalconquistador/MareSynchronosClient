@@ -115,6 +115,7 @@ public class MareConfig : IMareConfiguration
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
     public bool LifestreamInvitesDirectPairsOnly { get; set; } = false;
+    public bool NoPauseSubmenuForPairsOnMainUi { get; set; } = false;
 
     // Experimentals
     public bool UseQueuedCharacterDataApplication {  get; set; } = false;

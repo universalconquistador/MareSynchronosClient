@@ -356,10 +356,17 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     {
         if (!_allClientPairs.TryGetValue(dto.User, out var pair))
         {
+            _serverConfigurationManager.RemovePauseReasonForUid(dto.User.UID);
+            _serverConfigurationManager.RemovePendingPauseForUid(dto.User.UID);
             throw new InvalidOperationException("No such pair for " + dto);
         }
 
-        if (pair.UserPair == null) throw new InvalidOperationException("No direct pair for " + dto);
+        if (pair.UserPair == null)
+        {
+            _serverConfigurationManager.RemovePauseReasonForUid(dto.User.UID);
+            _serverConfigurationManager.RemovePendingPauseForUid(dto.User.UID);
+            throw new InvalidOperationException("No direct pair for " + dto);
+        }
 
         if (pair.UserPair.OtherPermissions.IsPaused() != dto.Permissions.IsPaused())
         {
@@ -375,7 +382,11 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             pair.UserPair.OtherPermissions.IsDisableVFX());
 
         if (!pair.IsPaused)
+        {
+            _serverConfigurationManager.RemovePauseReasonForUid(pair.UserData.UID);
+            _serverConfigurationManager.RemovePendingPauseForUid(pair.UserData.UID);
             pair.ApplyLastReceivedData();
+        }
 
         RecreateLazy();
     }
@@ -384,18 +395,14 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     {
         if (!_allClientPairs.TryGetValue(dto.User, out var pair))
         {
+            _serverConfigurationManager.RemovePauseReasonForUid(dto.User.UID);
+            _serverConfigurationManager.RemovePendingPauseForUid(dto.User.UID);
             throw new InvalidOperationException("No such pair for " + dto);
         }
 
         if (pair.UserPair.OwnPermissions.IsPaused() != dto.Permissions.IsPaused())
         {
             Mediator.Publish(new ClearProfileDataMessage(dto.User));
-        }
-
-        if (pair.UserPair.OwnPermissions.IsPaused() && !dto.Permissions.IsPaused())
-        {
-            _serverConfigurationManager.RemovePauseReasonForUid(pair.UserData.UID);
-            _serverConfigurationManager.RemovePendingPauseForUid(pair.UserData.UID);
         }
 
         pair.UserPair.OwnPermissions = dto.Permissions;
@@ -407,7 +414,11 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             pair.UserPair.OwnPermissions.IsDisableVFX());
 
         if (!pair.IsPaused)
+        {
+            _serverConfigurationManager.RemovePauseReasonForUid(pair.UserData.UID);
+            _serverConfigurationManager.RemovePendingPauseForUid(pair.UserData.UID);
             pair.ApplyLastReceivedData();
+        }
 
         RecreateLazy();
     }
@@ -543,7 +554,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
                         Logger.LogTrace("Checking for paused pairs to unpause...");
 
                         var onlinePairs = GetOnlineUserPairs();
-                        List<string> stalePausedEntries = new List<string>();
 
                         var pendingPausedPairs = _serverConfigurationManager.GetPendingPausedPairUIDs();
                         List<string> pairsToUnPause = new List<string>();
@@ -551,22 +561,19 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
                         foreach (var pausedPair in pendingPausedPairs)
                         {
                             var uid = pausedPair.Key;
-
-                            if (onlinePairs.Any(p => string.Equals(p.UserData.UID, uid, StringComparison.OrdinalIgnoreCase)))
+                            var pair = GetPairByUID(uid);
+                            if (onlinePairs.Any(p => string.Equals(p.UserData.UID, uid, StringComparison.OrdinalIgnoreCase)) || pair == null || !pair.IsPaused)
                             {
-                                stalePausedEntries.Add(uid);
+                                Logger.LogDebug("Removing stale paused pair entry for UID: {uid}", uid);
+                                _serverConfigurationManager.RemovePauseReasonForUid(uid);
+                                _serverConfigurationManager.RemovePendingPauseForUid(uid);
                                 continue;
                             }
 
                             if (DateTimeOffset.UtcNow >= pausedPair.Value)
+                            {
                                 pairsToUnPause.Add(uid);
-                        }
-
-                        foreach (var staleEntryUid in stalePausedEntries)
-                        {
-                            Logger.LogDebug("Removing stale paused pair entry for UID: {uid}", staleEntryUid);
-                            _serverConfigurationManager.RemovePauseReasonForUid(staleEntryUid);
-                            _serverConfigurationManager.RemovePendingPauseForUid(staleEntryUid);
+                            }
                         }
 
                         foreach (var uidToUnpause in pairsToUnPause)
