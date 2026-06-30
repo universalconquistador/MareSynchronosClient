@@ -562,7 +562,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
                         {
                             var uid = pausedPair.Key;
                             var pair = GetPairByUID(uid);
-                            if (onlinePairs.Any(p => string.Equals(p.UserData.UID, uid, StringComparison.OrdinalIgnoreCase)) || pair == null)
+                            if (onlinePairs.Any(p => string.Equals(p.UserData.UID, uid, StringComparison.OrdinalIgnoreCase)) || pair == null || !pair.IsPaused)
                             {
                                 Logger.LogDebug("Removing stale paused pair entry for UID: {uid}", uid);
                                 _serverConfigurationManager.RemovePauseReasonForUid(uid);
