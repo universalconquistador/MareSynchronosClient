@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
@@ -21,6 +22,7 @@ public partial class SettingsUi
     [
         new(TransfersTabs.Bandwidth, "Bandwidth", DrawTransfersBandwidth),
         new(TransfersTabs.Overlay, "Overlay", DrawTransfersOverlay),
+        new(TransfersTabs.Preload, "Preload", DrawTransfersPreload),
         new(TransfersTabs.Current, "Current", DrawTransfersCurrent),
     ];
 
@@ -28,6 +30,7 @@ public partial class SettingsUi
     {
         Bandwidth,
         Overlay,
+        Preload,
         Current
     }
 
@@ -255,6 +258,40 @@ public partial class SettingsUi
             }
 
             ImGui.EndTabBar();
+        }
+    }
+
+    private void DrawTransfersPreload()
+    {
+        _uiShared.BigText("Preload");
+        ImGuiHelpers.ScaledDummy(2);
+        ImGui.TextUnformatted("Upload all replacement files from one or more Penumbra group JSON files so paired users can download them immediately.");
+        ImGuiHelpers.ScaledDummy(4);
+
+        if (!_apiController.IsConnected)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudYellow, "You must be connected to the server to preload files.");
+            return;
+        }
+
+        if (_uiShared.IconTextButton(FontAwesomeIcon.Upload, "Select Penumbra Group JSON(s)..."))
+        {
+            var savedDir = _configService.Current.LastPreloadPlaylistFolder;
+            var startDir = !string.IsNullOrEmpty(savedDir) && Directory.Exists(savedDir)
+                ? savedDir : _ipcManager.Penumbra.ModDirectory;
+
+            _uiShared.FileDialogManager.OpenFileDialog("Select Penumbra Group JSON(s)", ".json", (ok, paths) =>
+            {
+                if (!ok || paths.Count == 0) return;
+                var dir = Path.GetDirectoryName(paths[0]);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    _configService.Current.LastPreloadPlaylistFolder = dir;
+                    _configService.Save();
+                }
+                foreach (var path in paths)
+                    _ = Task.Run(() => _preloaderService.RunAsync(path), CancellationToken.None);
+            }, 0, string.IsNullOrEmpty(startDir) ? null : startDir);
         }
     }
 
