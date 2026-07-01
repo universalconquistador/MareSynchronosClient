@@ -32,8 +32,8 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private Lazy<Dictionary<GroupFullInfoDto, List<Pair>>> _groupPairsInternal;
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
     private PairApplyQueue? _applyQueue = null;
-    private int _isInitializePairsRunning;
     private bool _isZoning = false;
+    private ConcurrentDictionary<string, Pair> _identToUserPairs = new();
 
     private CancellationTokenSource? _periodicCts;
     private Task? _periodicTask;
@@ -185,9 +185,10 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public void ClearPairs()
     {
         Logger.LogDebug("Clearing all Pairs");
-        DisposePairs();
+        DisposePairs(); // this must come first as it references _allClientPairs
         _allClientPairs.Clear();
         _allGroups.Clear();
+        _identToUserPairs.Clear();
         RecreateLazy();
     }
 
@@ -204,8 +205,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         if (_allClientPairs.TryGetValue(user, out var pair))
         {
             Mediator.Publish(new ClearProfileDataMessage(pair.UserData));
+            _identToUserPairs.TryRemove(pair.Ident, out _);
             pair.MarkOffline();
-        }
+        }      
 
         RecreateLazy();
     }
@@ -237,6 +239,8 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         pair.SetOnlinePlayerDto(dto);
 
         pair.IsOnline = true;
+
+        _identToUserPairs.AddOrUpdate(dto.Ident, pair, (_, _) => pair);
 
         if (!InitialLoading)
         {
@@ -561,41 +565,33 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
     private void InitializePairs()
     {
-        if (Interlocked.Exchange(ref _isInitializePairsRunning, 1) == 1)
+        if (_isZoning)
+        {
             return;
-
-        try
-        {
-            if (_isZoning)
-            {
-                return;
-            }
-
-            var visiblePlayerIdents = _dalamudUtilService.GetVisiblePlayerIdents();
-
-            foreach (var playerIdent in visiblePlayerIdents)
-            {
-                var pair = GetPairByCID(playerIdent);
-                if (pair == null || pair.HasCachedPlayer)
-                {
-                    continue;
-                }
-
-                if (string.IsNullOrEmpty(pair.PlayerName))
-                {
-                    var pc = _dalamudUtilService.FindPlayerByNameHash(pair.Ident); // This kicks everything off once we can discern the Pair's hashed ident
-                    if (pc == default((string, nint))) return;
-                    Logger.LogDebug("One-Time Initializing {uid}:{name}", pair.UserData.UID, pc.Name);
-                    pair.Initialize(pc.Name);
-                    Logger.LogDebug("One-Time Initialized {uid}:{name}", pair.UserData.UID, pair.PlayerName);
-                    Mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PairHandler), EventSeverity.Informational,
-                        $"Initializing User For Character {pc.Name}")));
-                }
-            }
         }
-        finally
+
+        var visiblePlayerIdents = _dalamudUtilService.GetVisiblePlayerIdents();
+
+        foreach (var playerIdent in visiblePlayerIdents)
         {
-            Volatile.Write(ref _isInitializePairsRunning, 0);
+            if (!_identToUserPairs.TryGetValue(playerIdent, out var pair) || pair == null || pair.HasCachedPlayer)
+            {
+                continue;
+            }
+
+            var playerCharacter = _dalamudUtilService.FindPlayerByNameHash(pair.Ident); // This kicks everything off once we can discern the Pair's hashed ident
+            if (playerCharacter == default((string, nint)))
+            {
+                continue;
+            }
+
+            Logger.LogDebug("One-Time Initializing {uid}:{name}", pair.UserData.UID, playerCharacter.Name);
+
+            pair.Initialize(playerCharacter.Name); // this should not take long and can be called on Framework thread
+
+            Logger.LogDebug("One-Time Initialized {uid}:{name}", pair.UserData.UID, pair.PlayerName);
+            Mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PairHandler), EventSeverity.Informational,
+                $"Initializing User For Character {pair.PlayerName}")));
         }
     }
 
