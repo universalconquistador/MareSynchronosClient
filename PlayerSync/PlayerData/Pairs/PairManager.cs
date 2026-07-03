@@ -22,19 +22,19 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 {
     private readonly TimeSpan PausedPairCheckInterval = TimeSpan.FromMinutes(1);
 
-    private readonly ConcurrentDictionary<UserData, Pair> _allClientPairs = new(UserDataComparer.Instance);
-    private readonly ConcurrentDictionary<GroupData, GroupFullInfoDto> _allGroups = new(GroupDataComparer.Instance);
     private readonly MareConfigService _configurationService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly PairFactory _pairFactory;
     private readonly DalamudUtilService _dalamudUtilService;
+
+    private readonly ConcurrentDictionary<UserData, Pair> _allClientPairs = new(UserDataComparer.Instance);
+    private readonly ConcurrentDictionary<GroupData, GroupFullInfoDto> _allGroups = new(GroupDataComparer.Instance);
+    private readonly ConcurrentDictionary<string, Pair> _identToUserPairs = new();
+
     private Lazy<List<Pair>> _directPairsInternal;
     private Lazy<Dictionary<GroupFullInfoDto, List<Pair>>> _groupPairsInternal;
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
-    private PairApplyQueue? _applyQueue = null;
     private bool _isZoning = false;
-    private ConcurrentDictionary<string, Pair> _identToUserPairs = new();
-
     private CancellationTokenSource? _periodicCts;
     private Task? _periodicTask;
 
@@ -58,9 +58,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
 
-        if (_configurationService.Current.UseQueuedCharacterDataApplication)
-            _applyQueue = new(_configurationService.Current.MaxConcurrentApplications);
-
         _periodicCts?.Dispose();
         _periodicCts = new CancellationTokenSource();
         _periodicTask = PausedPairExpiredTimerCheckTask(_periodicCts.Token);
@@ -75,40 +72,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public Pair? LastAddedUser { get; internal set; }
     public Dictionary<Pair, List<GroupFullInfoDto>> PairsWithGroups => _pairsWithGroupsInternal.Value;
     public bool InitialLoading { get; set; } = true;
-
-    public bool UseQueuedCharacterDataApplication
-    {
-        get
-        {
-            return _configurationService.Current.UseQueuedCharacterDataApplication;
-        }
-        set
-        {
-            if (value && _applyQueue == null)
-                _applyQueue = new(MaxConcurrentApplications);
-
-            _configurationService.Current.UseQueuedCharacterDataApplication = value;
-            _configurationService.Save();
-        }
-    }
-
-    public int MaxConcurrentApplications
-    {
-        get
-        {
-            return _configurationService.Current.MaxConcurrentApplications;
-        }
-        set
-        {
-            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
-
-            if (_applyQueue != null)
-                _applyQueue.SetMaxConcurrency(value);
-
-            _configurationService.Current.MaxConcurrentApplications = value;
-            _configurationService.Save();
-        }
-    }
 
     public void AddGroup(GroupFullInfoDto dto)
     {
@@ -259,14 +222,8 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             pair.ApplyAddonPluginUpdate(dto);
             return;
         }
-
-        // normal pair processing flow for full update
-        var isQueuedPath = _configurationService.Current.UseQueuedCharacterDataApplication;  // ex setting
-        if (isQueuedPath)
-            ReceiveCharaDataQueued(dto, pair);
-        else if (_applyQueue?.PendingCount > 0 || _applyQueue?.InFlightCount > 0) // keep using the queue once disabled until empty
-            ReceiveCharaDataQueued(dto, pair);
-        else ReceiveCharaData(dto, pair);
+        
+        ReceiveCharaData(dto, pair);
     }
 
     public void ReceiveCharaData(OnlineUserCharaDataDto dto, Pair pair)
@@ -275,45 +232,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
         Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Character Data")));
         _allClientPairs[dto.User].ApplyData(dto);
-    }
-
-    /// <summary>
-    /// Experimental
-    /// </summary>
-    /// <param name="dto"></param>
-    /// <exception cref="InvalidOperationException"></exception>
-    public void ReceiveCharaDataQueued(OnlineUserCharaDataDto dto, Pair pair)
-    {
-        //    if (!_allClientPairs.TryGetValue(dto.User, out var pair))
-        //        throw new InvalidOperationException("No user found for " + dto.User);
-
-        Logger.LogTrace("{class} - Pair Character Data in queue: {count}", nameof(ReceiveCharaData), _applyQueue.PendingCount.ToString());
-        Logger.LogDebug("{method} - Received character data for {pair}", nameof(ReceiveCharaData), !string.IsNullOrWhiteSpace(pair.PlayerName) ? pair.PlayerName : pair.UserData.UID);
-        Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Character Data")));
-
-        _applyQueue.Enqueue(pair.UserData.UID, async ct =>
-        {
-            try
-            {
-                Logger.LogTrace("{class} - Pair Character Data in flight: {count}", nameof(ReceiveCharaData), _applyQueue.InFlightCount.ToString());
-                Logger.LogDebug("{method} - Starting data application for {pair}", nameof(ReceiveCharaData), !string.IsNullOrWhiteSpace(pair.PlayerName) ? pair.PlayerName : pair.UserData.UID);
-                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Starting data application.")));
-
-                await pair.ApplyDataAsync(dto).ConfigureAwait(false);
-
-                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Finished data application.")));
-                Logger.LogDebug("{method} - Finished data application for {pair}", nameof(ReceiveCharaData), !string.IsNullOrWhiteSpace(pair.PlayerName) ? pair.PlayerName : pair.UserData.UID);
-                Logger.LogTrace("{class} - Pair Character Data in queue: {count}", nameof(ReceiveCharaData), _applyQueue.PendingCount.ToString());
-            }
-            catch (TaskCanceledException)
-            {
-                //
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Failed to apply pair data.");
-            }
-        });
     }
 
     public void RemoveGroup(GroupData data)
@@ -499,8 +417,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _periodicCts = null;
         cts?.Cancel();
         cts?.Dispose();
-
-        _applyQueue?.Dispose();
 
         DisposePairs();
     }

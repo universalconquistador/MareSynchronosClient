@@ -31,34 +31,33 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private readonly FileCacheManager _fileDbManager;
     private readonly GameObjectHandlerFactory _gameObjectHandlerFactory;
     private readonly IpcManager _ipcManager;
-    private readonly IHostApplicationLifetime _lifetime;
     private readonly PlayerPerformanceService _playerPerformanceService;
     private readonly ServerConfigurationManager _serverConfigManager;
     private readonly PluginWarningNotificationService _pluginWarningNotificationManager;
-    private readonly ICompressedAlternateManager _compressedAlternateManager;
     private readonly PlayerPerformanceConfigService _performanceConfig;
-    private readonly IDataManager _dataManager;
     private readonly MareConfigService _configService;
     private readonly PlayerIdleStatusService _idleStatusService;
-    private CancellationTokenSource? _applicationCancellationTokenSource = new();
-    private Guid _applicationId;
-    private Task? _applicationTask;
-    private CharacterData? _cachedData = null;
-    private GameObjectHandler? _charaHandler;
+    private readonly IHostApplicationLifetime _lifetime;
+    private readonly ICompressedAlternateManager _compressedAlternateManager;
+    private readonly IDataManager _dataManager;
+
     private readonly Dictionary<ObjectKind, Guid?> _customizeIds = [];
     private readonly Dictionary<ObjectKind, bool> _lociRegistrations = [];
+
+    private GameObjectHandler? _charaHandler;
+    private CharacterData? _cachedData = null;
     private CombatData? _dataReceivedInDowntime;
+    private Guid _applicationId;
+    private Guid? _penumbraCollection;
+    private Task? _applicationTask;
     private CancellationTokenSource? _downloadCancellationTokenSource = new();
+    private CancellationTokenSource? _applicationCancellationTokenSource = new();
     private bool _forceApplyMods = false;
     private bool _isVisible;
-    private Guid? _penumbraCollection;
     private bool _redrawOnNextApplication = false;
     private int _isRedrawVanillaRunning = 0;
     private bool _isVanillaEnforced;
     private bool _isLocked = false;
-
-    // science
-    //private static readonly ConcurrentDictionary<string, SemaphoreSlim> _actorLocks = new(StringComparer.Ordinal);
 
     public PairHandler(ILogger<PairHandler> logger, Pair pair,
         GameObjectHandlerFactory gameObjectHandlerFactory,
@@ -90,16 +89,17 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _dataManager = dataManager;
         _configService = configService;
         _idleStatusService = playerIdleStatusService;
-        //_penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
         _isVanillaEnforced = IsVanillaEnforced();
 
         Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => FrameworkUpdate());
+
         Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) =>
         {
             _downloadCancellationTokenSource?.CancelDispose();
             _charaHandler?.Invalidate();
             IsVisible = false;
         });
+
         Mediator.Subscribe<PenumbraInitializedMessage>(this, (_) =>
         {
             _penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
@@ -110,6 +110,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 _charaHandler = null;
             }
         });
+
         Mediator.Subscribe<ClassJobChangedMessage>(this, (msg) =>
         {
             if (msg.GameObjectHandler == _charaHandler)
@@ -117,6 +118,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 _redrawOnNextApplication = true;
             }
         });
+
         Mediator.Subscribe<CombatOrPerformanceEndMessage>(this, (msg) =>
         {
             if (IsVisible && _dataReceivedInDowntime != null)
@@ -126,6 +128,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 _dataReceivedInDowntime = null;
             }
         });
+
         Mediator.Subscribe<CombatOrPerformanceStartMessage>(this, _ =>
         {
             _dataReceivedInDowntime = null;
@@ -139,6 +142,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate();
             _applicationCancellationTokenSource = _applicationCancellationTokenSource?.CancelRecreate();
         });
+
         Mediator.Subscribe<PlayerIdleEndMessage>(this, _ =>
         {
             if (IsVisible && _dataReceivedInDowntime != null)
@@ -159,12 +163,16 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         });
 
         if (!_configService.Current.DebugDisableSoundIndicators)
+        {
             Mediator.Subscribe<PenumbraResourceLoadMessage>(this, OnPenumbraResourceLoaded);
+        }
 
         Mediator.Subscribe<PlayerDrawEndMessage>(this, (msg) =>
         {
             if (msg.PlayerName == Pair.PlayerName && _isVanillaEnforced)
+            {
                 CheckForVanillaLoadingOfPair();
+            }
         });
 
         LastAppliedDataBytes = -1;
@@ -179,8 +187,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             {
                 _isVisible = value;
                 string text = "User Visibility Changed, now: " + (_isVisible ? "Is Visible" : "Is not Visible");
-                Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler),
-                    EventSeverity.Informational, text)));
+                Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational, text)));
                 Mediator.Publish(new RefreshUiMessage());
             }
         }
@@ -201,25 +208,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     // Maps from hash in the last applied data to compressed hash
     public ConcurrentDictionary<string, string> ActiveCompressionRedirects { get; private set; } = new ConcurrentDictionary<string, string>();
 
-    // wrapper for the internal method to preserve existing references
     public void ApplyCharacterData(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
-    {
-        _ = ApplyCharacterDataInternal(applicationBase, characterData, forceApplyCustomization, awaitCompletion: false);
-    }
-
-    /// <summary>
-    /// Experimental
-    /// </summary>
-    /// <param name="applicationBase"></param>
-    /// <param name="characterData"></param>
-    /// <param name="forceApplyCustomization"></param>
-    /// <returns></returns>
-    public Task ApplyCharacterDataAsync(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
-    {
-        return ApplyCharacterDataInternal(applicationBase, characterData, forceApplyCustomization, awaitCompletion: true);
-    }
-
-    private Task ApplyCharacterDataInternal(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization, bool awaitCompletion)
     {
         if (_dalamudUtil.IsInCombatOrPerforming)
         {
@@ -228,17 +217,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             Logger.LogDebug("[BASE-{appBase}] Received data but player is in combat or performing", applicationBase);
             _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
             SetUploading(isUploading: false);
-            return Task.CompletedTask;
-        }
-
-        if (_idleStatusService.IsPlayerIdle)
-        {
-            Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
-                "Cannot apply character data: you are currently marked as idle, deferring application")));
-            Logger.LogDebug("[BASE-{appBase}] Received data but you are in an idle status", applicationBase);
-            _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
-            SetUploading(isUploading: false);
-            return Task.CompletedTask;
+            return;
         }
 
         if (_charaHandler == null || (PlayerCharacter == IntPtr.Zero))
@@ -253,7 +232,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             _forceApplyMods = hasDiffMods || _forceApplyMods || (PlayerCharacter == IntPtr.Zero && _cachedData == null);
             _cachedData = characterData;
             Logger.LogDebug("[BASE-{appBase}] Setting data: {hash}, forceApplyMods: {force}", applicationBase, _cachedData.DataHash.Value, _forceApplyMods);
-            return Task.CompletedTask;
+            return;
         }
 
         SetUploading(isUploading: false);
@@ -265,24 +244,19 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
 
         if (_isVanillaEnforced)
-            return Task.CompletedTask;
+            return;
 
-        Logger.LogDebug("[BASE-{appbase}] Applying data for {player}, forceApplyCustomization: {forced}, forceApplyMods: {forceMods}",
-            applicationBase, this, forceApplyCustomization, _forceApplyMods);
-        Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}",
-            applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
+        Logger.LogDebug("[BASE-{appbase}] Applying data for {player}, forceApplyCustomization: {forced}, forceApplyMods: {forceMods}", applicationBase, this, forceApplyCustomization, _forceApplyMods);
+        Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}", applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
 
-        // Check if this the same character data we've already applied
-        if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization)
-            return Task.CompletedTask;
+        if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization) return;
 
-        if (_dalamudUtil.IsInCutscene || _dalamudUtil.IsOccupiedInCutSceneEvent || _dalamudUtil.IsInGpose || !_ipcManager.Penumbra.APIAvailable || !_ipcManager.Glamourer.APIAvailable)
+        if (_dalamudUtil.IsInCutscene || _dalamudUtil.IsInGpose || !_ipcManager.Penumbra.APIAvailable || !_ipcManager.Glamourer.APIAvailable)
         {
             Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
                 "Cannot apply character data: you are in GPose, a Cutscene or Penumbra/Glamourer is not available")));
-            Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning",
-                applicationBase, this);
-            return Task.CompletedTask;
+            Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning", applicationBase, this);
+            return;
         }
 
         Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
@@ -290,7 +264,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
         _forceApplyMods |= forceApplyCustomization;
 
-        // this is supposed to figure out what's actually changed/what needs updating
         var charaDataToUpdate = characterData.CheckUpdatedData(applicationBase, _cachedData?.DeepClone() ?? new(), Logger, this, forceApplyCustomization, _forceApplyMods);
 
         if (_charaHandler != null && _forceApplyMods)
@@ -311,188 +284,12 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
         Logger.LogDebug("[BASE-{appbase}] Downloading and applying character for {name}", applicationBase, this);
 
-        var cloned = characterData.DeepClone();
-
-        if (!awaitCompletion)
-        {
-            DownloadAndApplyCharacter(applicationBase, cloned, charaDataToUpdate);
-            return Task.CompletedTask;
-        }
-
-        return QueuedDownloadAndApplyCharacterAsync(applicationBase, cloned, charaDataToUpdate);
+        DownloadAndApplyCharacter(applicationBase, characterData.DeepClone(), charaDataToUpdate);
     }
-
-    //public void ApplyCharacterData(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
-    //{
-    //    if (_dalamudUtil.IsInCombatOrPerforming)
-    //    {
-    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
-    //            "Cannot apply character data: you are in combat or performing music, deferring application")));
-    //        Logger.LogDebug("[BASE-{appBase}] Received data but player is in combat or performing", applicationBase);
-    //        _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
-    //        SetUploading(isUploading: false);
-    //        return;
-    //    }
-
-    //    if (_charaHandler == null || (PlayerCharacter == IntPtr.Zero))
-    //    {
-    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
-    //            "Cannot apply character data: Receiving Player is in an invalid state, deferring application")));
-    //        Logger.LogDebug("[BASE-{appBase}] Received data but player was in invalid state, charaHandlerIsNull: {charaIsNull}, playerPointerIsNull: {ptrIsNull}",
-    //            applicationBase, _charaHandler == null, PlayerCharacter == IntPtr.Zero);
-    //        var hasDiffMods = characterData.CheckUpdatedData(applicationBase, _cachedData, Logger,
-    //            this, forceApplyCustomization, forceApplyMods: false)
-    //            .Any(p => p.Value.Contains(PlayerChanges.ModManip) || p.Value.Contains(PlayerChanges.ModFiles));
-    //        _forceApplyMods = hasDiffMods || _forceApplyMods || (PlayerCharacter == IntPtr.Zero && _cachedData == null);
-    //        _cachedData = characterData;
-    //        Logger.LogDebug("[BASE-{appBase}] Setting data: {hash}, forceApplyMods: {force}", applicationBase, _cachedData.DataHash.Value, _forceApplyMods);
-    //        return;
-    //    }
-
-    //    SetUploading(isUploading: false);
-
-    //    if (_isVanillaEnforced && !_isLocked)
-    //    {
-    //        _isLocked = true;
-    //        CheckForVanillaLoadingOfPair();
-    //    }
-
-    //    if (_isVanillaEnforced)
-    //        return;
-
-    //    Logger.LogDebug("[BASE-{appbase}] Applying data for {player}, forceApplyCustomization: {forced}, forceApplyMods: {forceMods}", applicationBase, this, forceApplyCustomization, _forceApplyMods);
-    //    Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}", applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
-
-    //    if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization) return;
-
-    //    if (_dalamudUtil.IsInCutscene || _dalamudUtil.IsInGpose || !_ipcManager.Penumbra.APIAvailable || !_ipcManager.Glamourer.APIAvailable)
-    //    {
-    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
-    //            "Cannot apply character data: you are in GPose, a Cutscene or Penumbra/Glamourer is not available")));
-    //        Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning", applicationBase, this);
-    //        return;
-    //    }
-
-    //    Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
-    //        "Applying Character Data")));
-
-    //    _forceApplyMods |= forceApplyCustomization;
-    //    //_forceApplyMods = true;
-
-    //    var charaDataToUpdate = characterData.CheckUpdatedData(applicationBase, _cachedData?.DeepClone() ?? new(), Logger, this, forceApplyCustomization, _forceApplyMods);
-
-    //    if (_charaHandler != null && _forceApplyMods)
-    //    {
-    //        _forceApplyMods = false;
-    //    }
-
-    //    if (_redrawOnNextApplication && charaDataToUpdate.TryGetValue(ObjectKind.Player, out var player))
-    //    {
-    //        player.Add(PlayerChanges.ForcedRedraw);
-    //        _redrawOnNextApplication = false;
-    //    }
-
-    //    if (charaDataToUpdate.TryGetValue(ObjectKind.Player, out var playerChanges))
-    //    {
-    //        _pluginWarningNotificationManager.NotifyForMissingPlugins(Pair.UserData, PlayerName!, playerChanges);
-    //    }
-
-    //    Logger.LogDebug("[BASE-{appbase}] Downloading and applying character for {name}", applicationBase, this);
-
-    //    DownloadAndApplyCharacter(applicationBase, characterData.DeepClone(), charaDataToUpdate);
-    //}
-
-    ///// <summary>
-    ///// Experimental
-    ///// </summary>
-    ///// <param name="applicationBase"></param>
-    ///// <param name="characterData"></param>
-    ///// <param name="forceApplyCustomization"></param>
-    ///// <returns></returns>
-    //public async Task ApplyCharacterDataAsync(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
-    //{
-    //    if (_dalamudUtil.IsInCombatOrPerforming)
-    //    {
-    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
-    //            "Cannot apply character data: you are in combat or performing music, deferring application")));
-    //        Logger.LogDebug("[BASE-{appBase}] Received data but player is in combat or performing", applicationBase);
-    //        _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
-    //        SetUploading(isUploading: false);
-    //        return;
-    //    }
-
-    //    if (_charaHandler == null || (PlayerCharacter == IntPtr.Zero))
-    //    {
-    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
-    //            "Cannot apply character data: Receiving Player is in an invalid state, deferring application")));
-    //        Logger.LogDebug("[BASE-{appBase}] Received data but player was in invalid state, charaHandlerIsNull: {charaIsNull}, playerPointerIsNull: {ptrIsNull}",
-    //            applicationBase, _charaHandler == null, PlayerCharacter == IntPtr.Zero);
-    //        var hasDiffMods = characterData.CheckUpdatedData(applicationBase, _cachedData, Logger,
-    //            this, forceApplyCustomization, forceApplyMods: false)
-    //            .Any(p => p.Value.Contains(PlayerChanges.ModManip) || p.Value.Contains(PlayerChanges.ModFiles));
-    //        _forceApplyMods = hasDiffMods || _forceApplyMods || (PlayerCharacter == IntPtr.Zero && _cachedData == null);
-    //        _cachedData = characterData;
-    //        Logger.LogDebug("[BASE-{appBase}] Setting data: {hash}, forceApplyMods: {force}", applicationBase, _cachedData.DataHash.Value, _forceApplyMods);
-    //        return;
-    //    }
-
-    //    SetUploading(isUploading: false);
-
-    //    if (_isVanillaEnforced && !_isLocked)
-    //    {
-    //        _isLocked = true;
-    //        CheckForVanillaLoadingOfPair();
-    //    }
-
-    //    if (_isVanillaEnforced)
-    //        return;
-
-    //    Logger.LogDebug("[BASE-{appbase}] Applying data for {player}, forceApplyCustomization: {forced}, forceApplyMods: {forceMods}", applicationBase, this, forceApplyCustomization, _forceApplyMods);
-    //    Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}", applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
-
-    //    if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization) return;
-
-    //    if (_dalamudUtil.IsInCutscene || _dalamudUtil.IsInGpose || !_ipcManager.Penumbra.APIAvailable || !_ipcManager.Glamourer.APIAvailable)
-    //    {
-    //        Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
-    //            "Cannot apply character data: you are in GPose, a Cutscene or Penumbra/Glamourer is not available")));
-    //        Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning", applicationBase, this);
-    //        return;
-    //    }
-
-    //    Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
-    //        "Applying Character Data")));
-
-    //    _forceApplyMods |= forceApplyCustomization;
-
-    //    var charaDataToUpdate = characterData.CheckUpdatedData(applicationBase, _cachedData?.DeepClone() ?? new(), Logger, this, forceApplyCustomization, _forceApplyMods);
-
-    //    if (_charaHandler != null && _forceApplyMods)
-    //    {
-    //        _forceApplyMods = false;
-    //    }
-
-    //    if (_redrawOnNextApplication && charaDataToUpdate.TryGetValue(ObjectKind.Player, out var player))
-    //    {
-    //        player.Add(PlayerChanges.ForcedRedraw);
-    //        _redrawOnNextApplication = false;
-    //    }
-
-    //    if (charaDataToUpdate.TryGetValue(ObjectKind.Player, out var playerChanges))
-    //    {
-    //        _pluginWarningNotificationManager.NotifyForMissingPlugins(Pair.UserData, PlayerName!, playerChanges);
-    //    }
-
-    //    Logger.LogDebug("[BASE-{appbase}] Downloading and applying character for {name}", applicationBase, this);
-
-    //    await QueuedDownloadAndApplyCharacterAsync(applicationBase, characterData.DeepClone(), charaDataToUpdate).ConfigureAwait(false);
-    //}
 
     public override string ToString()
     {
-        return Pair == null
-            ? base.ToString() ?? string.Empty
-            : Pair.UserData.AliasOrUID + ":" + PlayerName + ":" + (PlayerCharacter != nint.Zero ? "HasChar" : "NoChar");
+        return Pair == null ? base.ToString() ?? string.Empty : Pair.UserData.AliasOrUID + ":" + PlayerName + ":" + (PlayerCharacter != nint.Zero ? "HasChar" : "NoChar");
     }
 
     internal void SetUploading(bool isUploading = true)
@@ -613,8 +410,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             }
 
             Logger.LogDebug("[{applicationId}] Applying Customization Data for {handler}", applicationId, handler);
-            var waitTimeMs = _configService.Current.CharacterIsDrawingTimeoutMilliseconds; // ex
-            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, handler, applicationId, waitTimeMs, token).ConfigureAwait(false);
+            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, handler, applicationId, 30000, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             foreach (var change in changes.Value.OrderBy(p => (int)p))
             {
@@ -706,6 +502,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         if (!updatedData.Any())
         {
             Logger.LogDebug("[BASE-{appBase}] Nothing to update for {obj}", applicationBase, this);
+
             return;
         }
 
@@ -716,38 +513,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         var downloadToken = _downloadCancellationTokenSource.Token;
 
         _ = DownloadAndApplyCharacterAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, downloadToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Experimental
-    /// </summary>
-    /// <param name="applicationBase"></param>
-    /// <param name="charaData"></param>
-    /// <param name="updatedData"></param>
-    /// <returns></returns>
-    private async Task QueuedDownloadAndApplyCharacterAsync(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData)
-    {
-        if (!updatedData.Any())
-        {
-            Logger.LogDebug("[BASE-{appBase}] Nothing to update for {obj}", applicationBase, this);
-            return;
-        }
-
-        var updateModdedPaths = updatedData.Values.Any(v => v.Any(p => p == PlayerChanges.ModFiles));
-        var updateManip = updatedData.Values.Any(v => v.Any(p => p == PlayerChanges.ModManip));
-
-        _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate() ?? new CancellationTokenSource();
-        var downloadToken = _downloadCancellationTokenSource.Token;
-
-        var beforeApplicationTask = _applicationTask;
-
-        await DownloadAndApplyCharacterAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, downloadToken).ConfigureAwait(false);
-
-        var afterApplicationTask = _applicationTask;
-        if (afterApplicationTask != null && !ReferenceEquals(afterApplicationTask, beforeApplicationTask))
-        {
-            await afterApplicationTask.ConfigureAwait(false);
-        }
     }
 
     /// <summary>
@@ -798,6 +563,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 if (!_playerPerformanceService.ComputeAndAutoPauseOnVRAMUsageThresholds(this, charaData, toDownloadFiles))
                 {
                     _downloadManager.ClearDownload();
+
                     return;
                 }
 
@@ -808,6 +574,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 if (downloadToken.IsCancellationRequested)
                 {
                     Logger.LogTrace("[BASE-{appBase}] Detected cancellation", applicationBase);
+
                     return;
                 }
 
@@ -822,25 +589,30 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             }
 
             if (!await _playerPerformanceService.CheckBothThresholds(this, charaData).ConfigureAwait(false))
+            {
                 return;
+            }
 
             if (!_playerPerformanceService.CheckForRspHeight(this, charaData))
+            {
                 return;
+            }
         }
 
         downloadToken.ThrowIfCancellationRequested();
 
         var appToken = _applicationCancellationTokenSource?.Token;
-        while ((!_applicationTask?.IsCompleted ?? false)
-               && !downloadToken.IsCancellationRequested
-               && (!appToken?.IsCancellationRequested ?? false))
+        while ((!_applicationTask?.IsCompleted ?? false) && !downloadToken.IsCancellationRequested && (!appToken?.IsCancellationRequested ?? false))
         {
             // block until current application is done
             Logger.LogDebug("[BASE-{appBase}] Waiting for current data application (Id: {id}) for player ({handler}) to finish", applicationBase, _applicationId, PlayerName);
             await Task.Delay(250).ConfigureAwait(false);
         }
 
-        if (downloadToken.IsCancellationRequested || (appToken?.IsCancellationRequested ?? false)) return;
+        if (downloadToken.IsCancellationRequested || (appToken?.IsCancellationRequested ?? false))
+        {
+            return;
+        }
 
         _applicationCancellationTokenSource = _applicationCancellationTokenSource.CancelRecreate() ?? new CancellationTokenSource();
         var token = _applicationCancellationTokenSource.Token;
@@ -904,11 +676,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
         try
         {
-
             Logger.LogDebug("[BASE-{applicationId}] Starting application task for {this}: {appId}", applicationBase, this, _applicationId);
 
             Logger.LogDebug("[{applicationId}] Waiting for initial draw for for {handler}", _applicationId, _charaHandler);
-            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, _charaHandler!, _applicationId, 30000, token).ConfigureAwait(false);
+            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, _charaHandler!, _applicationId, 30000, token).ConfigureAwait(false); // this one
 
             token.ThrowIfCancellationRequested();
 
@@ -965,12 +736,11 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 Logger.LogWarning(ex, "[{applicationId}] Cancelled", _applicationId);
             }
         }
-        finally
-        {
-            //gate.Release();
-        }
     }
 
+    // This framework update tick is used by the PairHandler to check if the pair's CharacterHandler is still valid or not.
+    // If we have a valid CharacterHandler but the pair was not visible, we mark them as visible and reapply cached data if available.
+    // If we no longer have a valid CharacterHandler, we zero out the Ptrs and invalidate the CharacterHandler
     private void FrameworkUpdate()
     {
         if (_charaHandler?.Address != nint.Zero) // We have a valid GameObjectHandler for this Pair
@@ -983,7 +753,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             if (!IsVisible) // We can now "see" the player in game
             {
                 Guid appData = Guid.NewGuid();
-                IsVisible = true;
+                IsVisible = true; // This is the only time we mark a pair as visible = true
                 if (_cachedData != null) // Apply cached data so we're not always recreating the player
                 {
                     Logger.LogTrace("[BASE-{appBase}] {this} visibility changed, now: {visi}, cached data exists", appData, this, IsVisible);
@@ -1019,9 +789,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     public void Initialize(string name)
     {
         PlayerName = name;
-
-        _penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(Logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
-
+        
         _charaHandler = _gameObjectHandlerFactory.Create(ObjectKind.Player, () => _dalamudUtil.GetPlayerCharacterFromCachedTableByIdent(Pair.Ident), isWatched: false).GetAwaiter().GetResult();
 
         _serverConfigManager.AutoPopulateNoteForUid(Pair.UserData.UID, name);
@@ -1051,6 +819,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             await _ipcManager.Loci.SetActorManager(_charaHandler.Address, data).ConfigureAwait(false);
         });
 
+        _penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionAsync(Logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
         _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection.Value, _charaHandler.GetGameObject()!.ObjectIndex).GetAwaiter().GetResult();
     }
 
@@ -1257,7 +1026,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private async Task ReloadAndLockVanillaState(nint address, Guid applicationBase)
     {
         if (Interlocked.Exchange(ref _isRedrawVanillaRunning, 1) == 1)
+        {
             return;
+        }
 
         try
         {
@@ -1292,13 +1063,19 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         var address = Pair.Address;
 
         if (address == nint.Zero)
+        {
             Logger.LogTrace("Vanilla check bad address");
-
+        }
+            
         if (_charaHandler != null && _charaHandler.Address != address)
+        {
             Logger.LogTrace("Vanilla check not address for {this}", this);
+        }   
 
         if (!Pair.IsVisible)
+        {
             Logger.LogTrace("Vanilla check pair not visible");
+        }
 
         var applicationBase = Guid.NewGuid();
 
@@ -1332,12 +1109,16 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         bool isCharacterInDowntime = false;
 
         if ((_charaHandler == null || (PlayerCharacter == IntPtr.Zero)) && _cachedData is not null)
+        {
             isCharacterInvalid = true;
+        }
 
         if (_dalamudUtil.IsInCombatOrPerforming || _idleStatusService.IsPlayerIdle)
         {
             if (_dataReceivedInDowntime is null)
+            {
                 return; // we only update partials after a full cache data is present
+            }
 
             isCharacterInDowntime = true;
         }
@@ -1348,94 +1129,117 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 if (isCharacterInvalid)
                 {
                     _cachedData!.HonorificData = charaData.HonorificData;
+
                     return;
                 }
 
                 if (isCharacterInDowntime)
                 {
                     _dataReceivedInDowntime!.CharacterData.HonorificData = charaData.HonorificData;
+
                     return;
                 }
 
                 if (string.Equals(_cachedData!.HonorificData, charaData.HonorificData, StringComparison.Ordinal))
+                {
                     return;
+                }
 
                 await ApplyHonorificDataASync(charaData).ConfigureAwait(false);
+
                 return;
 
             case AddonPlugin.Heels:
                 if (isCharacterInvalid)
                 {
                     _cachedData!.HeelsData = charaData.HeelsData;
+
                     return;
                 }
 
                 if (isCharacterInDowntime)
                 {
                     _dataReceivedInDowntime!.CharacterData.HeelsData = charaData.HeelsData;
+
                     return;
                 }
 
                 if (string.Equals(_cachedData!.HeelsData, charaData.HeelsData, StringComparison.Ordinal))
+                {
                     return;
+                }
 
                 await ApplyHeelsDataAsync(charaData).ConfigureAwait(false);
+
                 return;
 
             case AddonPlugin.Moodles:
                 if (isCharacterInvalid)
                 {
                     _cachedData!.MoodlesData = charaData.MoodlesData;
+
                     return;
                 }
 
                 if (isCharacterInDowntime)
                 {
                     _dataReceivedInDowntime!.CharacterData.MoodlesData = charaData.MoodlesData;
+
                     return;
                 }
 
                 if (string.Equals(_cachedData!.MoodlesData, charaData.MoodlesData, StringComparison.Ordinal))
+                {
                     return;
+                }
 
                 await ApplyMoodlesDataAsync(charaData).ConfigureAwait(false);
+
                 return;
 
             case AddonPlugin.PetNames:
                 if (isCharacterInvalid)
                 {
                     _cachedData!.PetNamesData = charaData.PetNamesData;
+
                     return;
                 }
 
                 if (isCharacterInDowntime)
                 {
                     _dataReceivedInDowntime!.CharacterData.PetNamesData = charaData.PetNamesData;
+
                     return;
                 }
 
                 if (string.Equals(_cachedData!.PetNamesData, charaData.PetNamesData, StringComparison.Ordinal))
+                {
                     return;
+                }
 
                 await ApplyPetNicknamesDataAsync(charaData).ConfigureAwait(false);
+
                 return;
 
             case AddonPlugin.Loci:
                 if (isCharacterInvalid)
                 {
                     _cachedData!.LociData = charaData.LociData;
+
                     return;
                 }
 
                 if (isCharacterInDowntime)
                 {
                     _dataReceivedInDowntime!.CharacterData.LociData = charaData.LociData;
+
                     return;
                 }
 
                 // not going to bother with a dictionary equality right now
 
                 await ApplyLociDataASync(charaData).ConfigureAwait(false);
+
                 return;
 
             default:
@@ -1489,7 +1293,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             {
                 _lociRegistrations[ObjectKind.Player] = await _ipcManager.Loci.RegisterActor(_charaHandler!.Address).ConfigureAwait(false);
             }
+
             var lociDataToApply = charaData.LociData.GetValueOrDefault(ObjectKind.Player, string.Empty);
+
             await _ipcManager.Loci.SetActorManager(_charaHandler!.Address, lociDataToApply).ConfigureAwait(false);
         }
         catch (Exception ex)

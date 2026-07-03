@@ -258,8 +258,6 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
         await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            // science
-            //await _redrawManager.CoalescedRedrawAsync(logger, handler, applicationId, (chara) =>
             await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
             {
                 logger.LogDebug("[{appid}] Calling on IPC: PenumbraRedraw", applicationId);

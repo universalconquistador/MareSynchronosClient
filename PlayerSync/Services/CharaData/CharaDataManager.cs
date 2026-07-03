@@ -25,15 +25,17 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly CharaDataFileHandler _fileHandler;
     private readonly IpcManager _ipcManager;
-    private readonly ConcurrentDictionary<string, CharaDataMetaInfoExtendedDto?> _metaInfoCache = [];
-    private readonly List<CharaDataMetaInfoExtendedDto> _nearbyData = [];
+    private readonly PairManager _pairManager;
     private readonly CharaDataNearbyManager _nearbyManager;
     private readonly CharaDataCharacterHandler _characterHandler;
-    private readonly PairManager _pairManager;
+
+    private readonly ConcurrentDictionary<string, CharaDataMetaInfoExtendedDto?> _metaInfoCache = [];
+    private readonly List<CharaDataMetaInfoExtendedDto> _nearbyData = [];
     private readonly Dictionary<string, CharaDataFullExtendedDto> _ownCharaData = [];
     private readonly Dictionary<string, Task> _sharedMetaInfoTimeoutTasks = [];
     private readonly Dictionary<UserData, List<CharaDataMetaInfoExtendedDto>> _sharedWithYouData = [];
     private readonly Dictionary<string, CharaDataExtendedUpdateDto> _updateDtos = [];
+
     private CancellationTokenSource _applicationCts = new();
     private CancellationTokenSource _charaDataCreateCts = new();
     private CancellationTokenSource _connectCts = new();
@@ -847,7 +849,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             DataApplicationProgress = "Applying Glamourer and redrawing Character";
             await _ipcManager.Glamourer.ApplyAllAsync(Logger, tempHandler, glamourerData, applicationId, token).ConfigureAwait(false);
             await _ipcManager.Penumbra.RedrawAsync(Logger, tempHandler, applicationId, token).ConfigureAwait(false);
-            await _dalamudUtilService.WaitWhileCharacterIsDrawing(Logger, tempHandler, applicationId, ct: token).ConfigureAwait(false);
+            await _dalamudUtilService.WaitWhileCharacterIsDrawing(Logger, tempHandler, applicationId, 5000, ct: token).ConfigureAwait(false);
             Logger.LogTrace("[{appId}] Removing collection", applicationId);
             await _ipcManager.Penumbra.RemoveTemporaryCollectionAsync(Logger, applicationId, penumbraCollection).ConfigureAwait(false);
 

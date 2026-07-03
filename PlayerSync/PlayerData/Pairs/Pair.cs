@@ -15,12 +15,14 @@ namespace MareSynchronos.PlayerData.Pairs;
 
 public class Pair
 {
-    private readonly PairHandlerFactory _cachedPlayerFactory;
-    private readonly SemaphoreSlim _creationSemaphore = new(1);
     private readonly ILogger<Pair> _logger;
+    private readonly PairHandlerFactory _cachedPlayerFactory;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly MareConfigService _configService;
     private readonly ZoneSyncConfigService _zoneSyncConfig;
+
+    private readonly SemaphoreSlim _creationSemaphore = new(1);
+
     private CancellationTokenSource _applicationCts = new();
     private OnlineUserIdentDto? _onlineUserIdentDto = null;
     private bool? _hasProfile = null;
@@ -125,67 +127,12 @@ public class Pair
 
         ApplyLastReceivedData();
     }
-
-    /// <summary>
-    /// Experimental
-    /// </summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
-    public async Task ApplyDataAsync(OnlineUserCharaDataDto data)
-    {
-        _applicationCts = _applicationCts.CancelRecreate();
-        LastReceivedCharacterData = data.CharaData;
-
-        if (CachedPlayer == null)
-        {
-            _logger.LogDebug("Received Data for {uid} but CachedPlayer does not exist, waiting", data.User.UID);
-
-            try
-            {
-                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
-                var appToken = _applicationCts.Token;
-                using var combined = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, appToken);
-
-                while (CachedPlayer == null && !combined.Token.IsCancellationRequested)
-                {
-                    await Task.Delay(250, combined.Token).ConfigureAwait(false);
-                }
-
-                if (combined.IsCancellationRequested)
-                {
-                    return;
-                }
-            }
-            catch (TaskCanceledException)
-            {
-                return;
-            }
-
-            _logger.LogDebug("Applying delayed data for {uid}", data.User.UID);
-        }
-
-        await ApplyLastReceivedDataAsync().ConfigureAwait(false);
-    }
-
     public void ApplyLastReceivedData(bool forced = false)
     {
         if (CachedPlayer == null) return;
         if (LastReceivedCharacterData == null) return;
 
         CachedPlayer.ApplyCharacterData(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
-    }
-
-    /// <summary>
-    /// Experimental
-    /// </summary>
-    /// <param name="forced"></param>
-    /// <returns></returns>
-    public Task ApplyLastReceivedDataAsync(bool forced = false)
-    {
-        if (CachedPlayer == null) return Task.CompletedTask;
-        if (LastReceivedCharacterData == null) return Task.CompletedTask;
-
-        return CachedPlayer.ApplyCharacterDataAsync(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
     }
 
     public void SetOnlinePlayerDto(OnlineUserIdentDto? dto = null)

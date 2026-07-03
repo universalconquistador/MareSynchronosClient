@@ -14,13 +14,15 @@ namespace MareSynchronos.PlayerData.Handlers;
 public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighPriorityMediatorSubscriber
 {
     private readonly DalamudUtilService _dalamudUtil;
+    private readonly PerformanceCollectorService _performanceCollector;
+
     private readonly Func<IntPtr> _getAddress;
     private readonly bool _isOwnedObject;
-    private readonly PerformanceCollectorService _performanceCollector;
+
+    private CancellationTokenSource _zoningCts = new();
     private byte _classJob = 0;
     private Task? _delayedZoningTask;
     private bool _haltProcessing = false;
-    private CancellationTokenSource _zoningCts = new();
 
     public GameObjectHandler(ILogger<GameObjectHandler> logger, PerformanceCollectorService performanceCollector,
         MareMediator mediator, DalamudUtilService dalamudUtil, ObjectKind objectKind, Func<IntPtr> getAddress, bool ownedObject = true) : base(logger, mediator)
@@ -51,17 +53,20 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
         Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => FrameworkUpdate());
 
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (_) => ZoneSwitchEnd());
+
         Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) => ZoneSwitchStart());
 
         Mediator.Subscribe<CutsceneStartMessage>(this, (_) =>
         {
             _haltProcessing = true;
         });
+
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) =>
         {
             _haltProcessing = false;
             ZoneSwitchEnd();
         });
+
         Mediator.Subscribe<PenumbraStartRedrawMessage>(this, (msg) =>
         {
             if (msg.Address == Address)
@@ -69,6 +74,7 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
                 _haltProcessing = true;
             }
         });
+
         Mediator.Subscribe<PenumbraEndRedrawMessage>(this, (msg) =>
         {
             if (msg.Address == Address)
@@ -359,13 +365,14 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
     {
         if (_haltProcessing) CheckAndUpdateObject();
 
-        if (_dalamudUtil.IsAnythingDrawing)
-        {
-            Logger.LogTrace("[{this}] IsBeingDrawn, Global draw block", this);
-            return true;
-        }
+            if (_dalamudUtil.IsAnythingDrawing)
+            {
+                Logger.LogTrace("[{this}] IsBeingDrawn, Global draw block", this);
+                return true;
+            }
 
-        Logger.LogTrace("[{this}] IsBeingDrawn, Condition: {cond}", this, CurrentDrawCondition);
+            Logger.LogTrace("[{this}] IsBeingDrawn, Condition: {cond}", this, CurrentDrawCondition);
+        
         return CurrentDrawCondition != DrawCondition.None;
     }
 
