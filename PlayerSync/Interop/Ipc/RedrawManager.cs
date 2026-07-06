@@ -15,7 +15,7 @@ public class RedrawManager
     private readonly ConcurrentDictionary<nint, bool> _penumbraRedrawRequests = [];
     private CancellationTokenSource _disposalCts = new();
 
-    public SemaphoreSlim RedrawSemaphore { get; init; } = new(2, 2);
+    public SemaphoreSlim RedrawSemaphore { get; init; } = new(4, 4);
 
     public RedrawManager(MareMediator mareMediator, DalamudUtilService dalamudUtil)
     {
@@ -38,7 +38,7 @@ public class RedrawManager
             await handler.ActOnFrameworkAfterEnsureNoDrawAsync(action, combinedToken).ConfigureAwait(false);
 
             if (!_disposalCts.Token.IsCancellationRequested)
-                await _dalamudUtil.WaitWhileCharacterIsDrawing(logger, handler, applicationId, 30000, combinedToken).ConfigureAwait(false);
+                await _dalamudUtil.WaitWhileCharacterIsDrawing(logger, handler, applicationId, 3000, false, combinedToken).ConfigureAwait(false);
         }
         finally
         {

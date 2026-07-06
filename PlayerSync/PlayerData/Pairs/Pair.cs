@@ -97,9 +97,14 @@ public class Pair
         _ = CachedPlayer.HandleOptionalPluginDataAsync(data.AddonPlugin!.Value, data.CharaData);
     }
 
+    /// <summary>
+    /// Step 1
+    /// Ensures a cached player exists, or, waits up to 120 seconds for the cache player to be created, before applying character data from the received dto.
+    /// </summary>
+    /// <param name="data"></param>
     public void ApplyData(OnlineUserCharaDataDto data)
     {
-        _applicationCts = _applicationCts.CancelRecreate();
+        _applicationCts = _applicationCts.CancelRecreate(); // this should cancel anything in flight and start over, essentially
         LastReceivedCharacterData = data.CharaData;
 
         if (CachedPlayer == null)
@@ -127,11 +132,18 @@ public class Pair
 
         ApplyLastReceivedData();
     }
+
+    /// <summary>
+    /// Step 2
+    /// This is called as part of the data application pipeline as well as manually to reapply pair data.
+    /// </summary>
+    /// <param name="forced"></param>
     public void ApplyLastReceivedData(bool forced = false)
     {
         if (CachedPlayer == null) return;
         if (LastReceivedCharacterData == null) return;
 
+        // Called from the PairHandler of this pair.
         CachedPlayer.ApplyCharacterData(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
     }
 

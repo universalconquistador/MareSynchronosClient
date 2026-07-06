@@ -1,5 +1,4 @@
-﻿using FFXIVClientStructs.FFXIV.Client.Game;
-using MareSynchronos.API.Data;
+﻿using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
@@ -35,6 +34,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private Lazy<Dictionary<GroupFullInfoDto, List<Pair>>> _groupPairsInternal;
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
     private bool _isZoning = false;
+    private bool _isConnected = false;
     private CancellationTokenSource? _periodicCts;
     private Task? _periodicTask;
 
@@ -47,7 +47,13 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _serverConfigurationManager = serverConfigurationManager;
         _dalamudUtilService = dalamudUtilService;
 
-        Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPairs());
+        Mediator.Subscribe<DisconnectedMessage>(this, (_) =>
+        {
+            _isConnected = false;
+            ClearPairs();
+        });
+
+        Mediator.Subscribe<ConnectedMessage>(this, (_) => _isConnected = true);
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => ReapplyPairData());
         Mediator.Subscribe<ChangeFilterMessage>(this, (_) => ReapplyPairData());
         Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) => _isZoning = true);
@@ -66,7 +72,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     }
 
     public List<Pair> DirectPairs => _directPairsInternal.Value;
-
     public Dictionary<GroupFullInfoDto, List<Pair>> GroupPairs => _groupPairsInternal.Value;
     public Dictionary<GroupData, GroupFullInfoDto> Groups => _allGroups.ToDictionary(k => k.Key, k => k.Value);
     public Pair? LastAddedUser { get; internal set; }
@@ -211,7 +216,13 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         }
     }
 
-    public void ReceiveCharaDataInternal(OnlineUserCharaDataDto dto)
+    /// <summary>
+    /// Entry point for the pair data application pipeline, called via SignralR.
+    /// Application processing is forked based on the existance of an AddonPlugin in the dto.
+    /// </summary>
+    /// <param name="dto"></param>
+    /// <exception cref="InvalidOperationException"></exception>
+    public void ReceiveCharaData(OnlineUserCharaDataDto dto)
     {
         if (!_allClientPairs.TryGetValue(dto.User, out var pair)) throw new InvalidOperationException("No user found for " + dto.User);
 
@@ -219,19 +230,14 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         if (dto.AddonPlugin is not null)
         {
             Logger.LogTrace("CharaData received with AddonPlugin: {plugin}", dto.AddonPlugin);
+            Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received AddonPlugin Data")));
             pair.ApplyAddonPluginUpdate(dto);
-            return;
         }
-        
-        ReceiveCharaData(dto, pair);
-    }
-
-    public void ReceiveCharaData(OnlineUserCharaDataDto dto, Pair pair)
-    {
-        //if (!_allClientPairs.TryGetValue(dto.User, out var pair)) throw new InvalidOperationException("No user found for " + dto.User);
-
-        Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Character Data")));
-        _allClientPairs[dto.User].ApplyData(dto);
+        else
+        {
+            Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Full Character Data")));
+            pair.ApplyData(dto);
+        }
     }
 
     public void RemoveGroup(GroupData data)
@@ -418,6 +424,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         cts?.Cancel();
         cts?.Dispose();
 
+        _isConnected = false;
         DisposePairs();
     }
 
@@ -481,7 +488,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
     private void InitializePairs()
     {
-        if (_isZoning)
+        if (_isZoning || !_isConnected)
         {
             return;
         }
@@ -523,7 +530,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             {
                 try
                 {
-                    if (!_serverConfigurationManager.CurrentServer.FullPause)
+                    if (_isConnected)
                     {
                         Logger.LogTrace("Checking for paused pairs to unpause...");
 

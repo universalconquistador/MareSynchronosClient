@@ -849,7 +849,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             DataApplicationProgress = "Applying Glamourer and redrawing Character";
             await _ipcManager.Glamourer.ApplyAllAsync(Logger, tempHandler, glamourerData, applicationId, token).ConfigureAwait(false);
             await _ipcManager.Penumbra.RedrawAsync(Logger, tempHandler, applicationId, token).ConfigureAwait(false);
-            await _dalamudUtilService.WaitWhileCharacterIsDrawing(Logger, tempHandler, applicationId, 5000, ct: token).ConfigureAwait(false);
+            await _dalamudUtilService.WaitWhileCharacterIsDrawing(Logger, tempHandler, applicationId, 5000, false, ct: token).ConfigureAwait(false);
             Logger.LogTrace("[{appId}] Removing collection", applicationId);
             await _ipcManager.Penumbra.RemoveTemporaryCollectionAsync(Logger, applicationId, penumbraCollection).ConfigureAwait(false);
 

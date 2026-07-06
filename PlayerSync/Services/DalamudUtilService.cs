@@ -589,7 +589,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return Task.CompletedTask;
     }
 
-    public async Task WaitWhileCharacterIsDrawing(ILogger logger, GameObjectHandler handler, Guid redrawId, int timeOut = 5000, CancellationToken? ct = null)
+    public async Task WaitWhileCharacterIsDrawing(ILogger logger, GameObjectHandler handler, Guid redrawId, int timeOut = 5000, bool doGlobalBlocking = true, CancellationToken? ct = null)
     {
         if (!_clientState.IsLoggedIn) return;
 
@@ -606,11 +606,16 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
             while ((!ct.Value.IsCancellationRequested)
                    && curWaitTime < timeOut
-                   && await handler.IsBeingDrawnRunOnFrameworkAsync().ConfigureAwait(false)) // 0b100000000000 is "still rendering" or something
+                   && await handler.IsBeingDrawnRunOnFrameworkAsync(doGlobalBlocking).ConfigureAwait(false)) // 0b100000000000 is "still rendering" or something
             {
                 logger.LogTrace("[{redrawId}] Waiting for {handler} to finish drawing", redrawId, handler);
                 curWaitTime += tick;
-                await Task.Delay(tick).ConfigureAwait(true);
+                await Task.Delay(tick, ct.Value).ConfigureAwait(false);
+            }
+
+            if (curWaitTime >= timeOut)
+            {
+                throw new TimeoutException("Pair did not draw within the required time.");
             }
 
             logger.LogTrace("[{redrawId}] Finished drawing after {curWaitTime}ms", redrawId, curWaitTime);
@@ -622,6 +627,10 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         catch (AccessViolationException ex)
         {
             logger.LogWarning(ex, "Error accessing {handler}, object does not exist anymore?", handler);
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogWarning(ex, "Error accessing {handler}, object did not draw in time?", handler);
         }
     }
 
