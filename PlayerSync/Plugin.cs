@@ -30,6 +30,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NReco.Logging.File;
 using PlayerSync.FileCache;
+using PlayerSync.Interop.CrashHacks;
 using PlayerSync.PlayerData.Pairs;
 using PlayerSync.Services;
 using PlayerSync.Validation;

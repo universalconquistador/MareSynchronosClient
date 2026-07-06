@@ -5,7 +5,7 @@ using MareSynchronos.MareConfiguration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace MareSynchronos.Interop;
+namespace PlayerSync.Interop.CrashHacks;
 
 /// <summary>
 /// When an animation clip is evaluated while a character's skeleton is mid-rebuild during a
