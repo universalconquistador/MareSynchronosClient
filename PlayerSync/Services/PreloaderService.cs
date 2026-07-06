@@ -1,6 +1,8 @@
-using Dalamud.Plugin.Services;
 using MareSynchronos.FileCache;
+using MareSynchronos.MareConfiguration.Models;
+using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI.Files;
+using Dalamud.Plugin.Services;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -10,8 +12,7 @@ public sealed class PreloaderService
 {
     private readonly FileCacheManager _fileCacheManager;
     private readonly FileUploadManager _fileUploadManager;
-    private readonly DalamudUtilService _dalamudUtil;
-    private readonly IChatGui _chat;
+    private readonly MareMediator _mediator;
     private readonly IPluginLog _log;
 
     private sealed record PenumbraOption(
@@ -22,21 +23,19 @@ public sealed class PreloaderService
     public PreloaderService(
         FileCacheManager fileCacheManager,
         FileUploadManager fileUploadManager,
-        DalamudUtilService dalamudUtil,
-        IChatGui chat,
+        MareMediator mediator,
         IPluginLog log)
     {
         _fileCacheManager = fileCacheManager;
         _fileUploadManager = fileUploadManager;
-        _dalamudUtil = dalamudUtil;
-        _chat = chat;
+        _mediator = mediator;
         _log = log;
     }
 
     public async Task RunAsync(string jsonPath)
     {
-        Task Print(string msg) => _dalamudUtil.RunOnFrameworkThread(() => _chat.Print(msg));
-        Task PrintError(string msg) => _dalamudUtil.RunOnFrameworkThread(() => _chat.PrintError(msg));
+        void Notify(string msg, NotificationType type = NotificationType.Info) =>
+            _mediator.Publish(new NotificationMessage("PlayerSync", msg, type));
 
         try
         {
@@ -52,11 +51,11 @@ public sealed class PreloaderService
 
             if (filePaths.Length == 0)
             {
-                await Print("[PlayerSync] No files found in that group.").ConfigureAwait(false);
+                Notify("No files found in that group.");
                 return;
             }
 
-            await Print($"[PlayerSync] Found {filePaths.Length} file(s), uploading...").ConfigureAwait(false);
+            Notify($"Found {filePaths.Length} file(s), uploading...");
 
             var cacheEntries = _fileCacheManager.GetFileCachesByPaths(filePaths);
             var hashes = cacheEntries.Values
@@ -89,14 +88,14 @@ public sealed class PreloaderService
 
             var failedNames = uploadFailures.Concat(uncachedFailures).ToList();
 
-            await Print($"[PlayerSync] Preload done — {pushed} uploaded, {failedNames.Count} failed.").ConfigureAwait(false);
+            Notify($"Preload done — {pushed} uploaded, {failedNames.Count} failed.");
             if (failedNames.Count > 0)
-                await PrintError($"[PlayerSync] Failed files: {string.Join(", ", failedNames)}").ConfigureAwait(false);
+                Notify($"Failed files: {string.Join(", ", failedNames)}", NotificationType.Warning);
         }
         catch (Exception ex)
         {
             _log.Error(ex, "PreloadPlaylist failed");
-            await PrintError($"[PlayerSync] Preload failed: {ex.Message}").ConfigureAwait(false);
+            Notify($"Preload failed: {ex.Message}", NotificationType.Error);
         }
     }
 }
