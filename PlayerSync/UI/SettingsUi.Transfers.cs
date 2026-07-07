@@ -265,12 +265,12 @@ public partial class SettingsUi
     {
         _uiShared.BigText("Preload");
         ImGuiHelpers.ScaledDummy(2);
-        ImGui.TextUnformatted("Upload all replacement files from one or more Penumbra group JSON files so paired users can download them immediately.");
+        ImGui.TextWrapped("Upload all replacement files from one or more Penumbra group JSON files so paired users can download them immediately.");
         ImGuiHelpers.ScaledDummy(4);
 
         if (!_apiController.IsConnected)
         {
-            ImGui.TextColored(ImGuiColors.DalamudYellow, "You must be connected to the server to preload files.");
+            ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "You must be connected to the server to preload files.");
             return;
         }
 
