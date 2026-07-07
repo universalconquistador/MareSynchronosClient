@@ -99,7 +99,8 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<FileDialogManager>();
             collection.AddSingleton(new Dalamud.Localization("PlayerSync.Localization.", "", useEmbedded: true));
 
-            collection.AddSingleton<IDataManager>(gameData);
+            collection.AddSingleton(gameData);
+            collection.AddSingleton(gameInteropProvider);
 
             // add mare related singletons
             collection.AddSingleton<MareMediator>();
@@ -138,7 +139,6 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton(s => new VfxSpawnManager(s.GetRequiredService<ILogger<VfxSpawnManager>>(),
                 gameInteropProvider, s.GetRequiredService<MareMediator>()));
             collection.AddSingleton((s) => new BlockedCharacterHandler(s.GetRequiredService<ILogger<BlockedCharacterHandler>>(), gameInteropProvider));
-            collection.AddSingleton((s) => new AnimationBindGuard(s.GetRequiredService<ILogger<AnimationBindGuard>>(), gameInteropProvider, s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton((s) => new IpcProvider(s.GetRequiredService<ILogger<IpcProvider>>(),
                 pluginInterface,
                 s.GetRequiredService<CharaDataManager>(),
@@ -291,7 +291,8 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddHostedService(p => p.GetRequiredService<EmoteSyncManagerService>());
             collection.AddHostedService(p => p.GetRequiredService<PairContextMenuHandler>());
             collection.AddHostedService(p => p.GetRequiredService<JsonDataTypeHandlerService>());
-            collection.AddHostedService(p => p.GetRequiredService<AnimationBindGuard>());
+            collection.AddHostedService<AnimationBindGuard>();
+            collection.AddHostedService<AnimationFreeGuard>();
         })
         .Build();
 
