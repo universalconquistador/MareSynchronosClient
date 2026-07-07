@@ -31,12 +31,9 @@ public sealed class PreloaderService
         _mediator = mediator;
         _log = log;
     }
-
+    
     public async Task RunAsync(string jsonPath)
     {
-        void Notify(string msg, NotificationType type = NotificationType.Info) =>
-            _mediator.Publish(new NotificationMessage("PlayerSync", msg, type));
-
         try
         {
             var json = await File.ReadAllTextAsync(jsonPath).ConfigureAwait(false);
@@ -51,11 +48,11 @@ public sealed class PreloaderService
 
             if (filePaths.Length == 0)
             {
-                Notify("No files found in that group.");
+                _mediator.Publish(new NotificationMessage("No Files Found", "No files found in that group.", NotificationType.Info));
                 return;
             }
 
-            Notify($"Found {filePaths.Length} file(s), uploading...");
+            _mediator.Publish(new NotificationMessage("Preload Started", $"Found {filePaths.Length} file(s), uploading...", NotificationType.Info));
 
             var cacheEntries = _fileCacheManager.GetFileCachesByPaths(filePaths);
             var hashes = cacheEntries.Values
@@ -88,14 +85,14 @@ public sealed class PreloaderService
 
             var failedNames = uploadFailures.Concat(uncachedFailures).ToList();
 
-            Notify($"Preload done — {pushed} uploaded, {failedNames.Count} failed.");
+            _mediator.Publish(new NotificationMessage("Preload Complete", $"Preload done — {pushed} uploaded, {failedNames.Count} failed.", NotificationType.Info));
             if (failedNames.Count > 0)
-                Notify($"Failed files: {string.Join(", ", failedNames)}", NotificationType.Warning);
+                _mediator.Publish(new NotificationMessage("Preload Failures", $"Failed files: {string.Join(", ", failedNames)}", NotificationType.Warning));
         }
         catch (Exception ex)
         {
             _log.Error(ex, "PreloadPlaylist failed");
-            Notify($"Preload failed: {ex.Message}", NotificationType.Error);
+            _mediator.Publish(new NotificationMessage("Preload Failed", $"Preload failed: {ex.Message}", NotificationType.Error));
         }
     }
 }
