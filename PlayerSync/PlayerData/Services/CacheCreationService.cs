@@ -121,54 +121,70 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         // Heels
         Mediator.Subscribe<HeelsOffsetMessage>(this, (msg) =>
         {
-            if (_isZoning) return;
+            if (_isZoning)
+            {
+                return;
+            }
+
             Logger.LogDebug("Received Heels Offset change, updating player changes");
-            if (EnableExperimental) AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Heels);
-            else AddCacheToCreate(ObjectKind.Player);
+            AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Heels);
         });
 
         // Honorific
         Mediator.Subscribe<HonorificMessage>(this, (msg) =>
         {
-            if (_isZoning) return;
+            if (_isZoning)
+            {
+                return;
+            }
+
             Logger.LogTrace("Current Honorific title: {old}  Changed title: {new}", _playerData.HonorificData, msg.NewHonorificTitle);
             if (!string.Equals(msg.NewHonorificTitle, _playerData.HonorificData, StringComparison.Ordinal))
             {
                 Logger.LogDebug("Received Honorific change, updating player changes");
-                if (EnableExperimental) AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Honorific);
-                else AddCacheToCreate(ObjectKind.Player);
+                AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Honorific);
             }
         });
 
         // Pet Names
         Mediator.Subscribe<PetNamesMessage>(this, (msg) =>
         {
-            if (_isZoning) return;
+            if (_isZoning)
+            {
+                return;
+            }
+
             if (!string.Equals(msg.PetNicknamesData, _playerData.PetNamesData, StringComparison.Ordinal))
             {
                 Logger.LogDebug("Received Pet Nicknames change, updating player changes");
-                if (EnableExperimental) AddPlayerAddonPluginChangesToUpdate(PlayerChanges.PetNames);
-                else AddCacheToCreate(ObjectKind.Player);
+                AddPlayerAddonPluginChangesToUpdate(PlayerChanges.PetNames);
             }
         });
 
         // Moodles
         Mediator.Subscribe<MoodlesMessage>(this, (msg) =>
         {
-            if (_isZoning) return;
+            if (_isZoning)
+            {
+                return;
+            }
+
             var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
             if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType) && changedType.Key == ObjectKind.Player)
             {
                 Logger.LogDebug("Received Moodles change, updating player changes");
-                if (EnableExperimental) AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Moodles);
-                else AddCacheToCreate(ObjectKind.Player);
+                AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Moodles);
             }
         });
 
         // Loci
         Mediator.Subscribe<LociUpdateMessage>(this, (msg) =>
         {
-            if (_isZoning) return;
+            if (_isZoning)
+            {
+                return;
+            }
+
             var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
             if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType))
             {
@@ -180,11 +196,9 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         Mediator.Subscribe<FrameworkUpdateMessage>(this, (msg) =>
         {
             ProcessCacheCreation();
-            if (EnableExperimental) ProcessAddonPluginChanges();
+            ProcessAddonPluginChanges();
         });
     }
-
-    private bool EnableExperimental { get; set; } = false;
 
     protected override void Dispose(bool disposing)
     {
@@ -398,7 +412,10 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             _playerChangesLock.Release();
         }
 
-        if (playerChangesToProcess.Count == 0) return;
+        if (playerChangesToProcess.Count == 0)
+        {
+            return;
+        }
 
         _ = Task.Run(async () =>
         {
@@ -418,7 +435,7 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
 
                     _playerData.SetAddonPluginPlayerData(change, data); // update our own local data for each type so we can detect future changes
 
-                    Mediator.Publish(new AddonPluginChangesCreatedMessage(change, data));
+                    Mediator.Publish(new AddonPluginChangesCreatedMessage(change, data)); // this could be aggregated with a list of plugins so we only send 1 update
                 }
             }
             catch (OperationCanceledException)

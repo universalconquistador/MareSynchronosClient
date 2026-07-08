@@ -544,17 +544,18 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         {
             Logger.LogDebug("[BASE-{applicationId}] Starting application task for {this}: {appId}", applicationBase, this, _applicationId);
             Logger.LogDebug("[{applicationId}] Waiting for initial draw for for {handler}", _applicationId, _charaHandler);
-            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, _charaHandler!, _applicationId, 3000, true, token).ConfigureAwait(false);
+            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, _charaHandler!, _applicationId, 10000, true, token).ConfigureAwait(false);
 
             token.ThrowIfCancellationRequested();
 
             if (updateModdedPaths)
             {
                 // ensure collection is set
-                // This call can sometimes fail with a no ref
+                // This call can sometimes fail with a no ref if the player is no longer visible
+                // The catch clause covers the mitigating result- this should be reworked.
                 var objIndex = await _dalamudUtil.RunOnFrameworkThread(() => _charaHandler!.GetGameObject()!.ObjectIndex).ConfigureAwait(false);
-                await _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection.Value, objIndex).ConfigureAwait(false);
 
+                await _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection.Value, objIndex).ConfigureAwait(false);
                 string? pairUid = String.IsNullOrWhiteSpace(Pair.UserData.UID) ? null : Pair.UserData.UID;
                 await _ipcManager.Penumbra.SetTemporaryModsAsync(Logger, _applicationId, _penumbraCollection.Value,
                     moddedPaths.ToDictionary(k => k.Key.GamePath, k => k.Value, StringComparer.Ordinal), pairUid).ConfigureAwait(false);
@@ -589,19 +590,16 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
             Logger.LogDebug("[{applicationId}] Application finished", _applicationId);
         }
+        catch (AggregateException ex) when (ex.InnerExceptions.Any(e => e is NullReferenceException or ArgumentNullException))
+        {
+            IsVisible = false;
+            _forceApplyMods = true;
+            _cachedData = charaData;
+            Logger.LogDebug("[{applicationId}] Cancelled, player turned null during application", _applicationId);
+        }
         catch (Exception ex)
         {
-            if (ex is AggregateException aggr && aggr.InnerExceptions.Any(e => e is ArgumentNullException))
-            {
-                IsVisible = false;
-                _forceApplyMods = true;
-                _cachedData = charaData;
-                Logger.LogDebug("[{applicationId}] Cancelled, player turned null during application", _applicationId);
-            }
-            else
-            {
-                Logger.LogWarning(ex, "[{applicationId}] Cancelled", _applicationId);
-            }
+            Logger.LogWarning(ex, "[{applicationId}] Cancelled", _applicationId);
         }
     }
 
@@ -635,7 +633,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             }
 
             Logger.LogDebug("[{applicationId}] Applying Customization Data for {handler}", applicationId, handler);
-            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, handler, applicationId, 3000, false, token).ConfigureAwait(false);
+            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, handler, applicationId, 5000, false, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
 
             foreach (var change in changes.Value.OrderBy(p => (int)p))
@@ -885,7 +883,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         // whitelist check
         if (_performanceConfig.Current.UIDsToOverride
             .Exists(uid => string.Equals(uid, Pair.UserData.Alias, StringComparison.Ordinal) || string.Equals(uid, Pair.UserData.UID, StringComparison.Ordinal)))
+        {
             return CompressedAlternateUsage.AlwaysSourceQuality;
+        }
 
         // TODO: Implement finer-grained rules around whether this pair should use compressed alternate files
         return _performanceConfig.Current.TextureCompressionModeOrDefault;
@@ -894,7 +894,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private async Task RevertCustomizationDataAsync(ObjectKind objectKind, string name, Guid applicationId, CancellationToken cancelToken)
     {
         nint address = _dalamudUtil.GetPlayerCharacterFromCachedTableByIdent(Pair.Ident);
-        if (address == nint.Zero) return;
+        if (address == nint.Zero)
+        {
+            return;
+        }
 
         Logger.LogDebug("[{applicationId}] Reverting all Customization for {alias}/{name} {objectKind}", applicationId, Pair.UserData.AliasOrUID, name, objectKind);
 
@@ -1228,7 +1231,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
                 if (string.Equals(_cachedData!.HeelsData, charaData.HeelsData, StringComparison.Ordinal))
                 {
-                    return;
+                    Logger.LogDebug("Got Heels Data that is identical, applying anyway...");
+                    //return;
                 }
 
                 await ApplyHeelsDataAsync(charaData).ConfigureAwait(false);
@@ -1347,7 +1351,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
     private async Task ApplyLociDataASync(CharacterData charaData)
     {
-        if (charaData.LociData is null) return;
+        if (charaData.LociData is null)
+        {
+            return;
+        }
 
         try
         {

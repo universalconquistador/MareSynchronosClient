@@ -93,7 +93,10 @@ public class Pair
     // Experimental
     public void ApplyAddonPluginUpdate(OnlineUserCharaDataDto data)
     {
-        if (CachedPlayer == null) return;
+        if (CachedPlayer == null)
+        {
+            return;
+        }
         _ = CachedPlayer.HandleOptionalPluginDataAsync(data.AddonPlugin!.Value, data.CharaData);
     }
 
@@ -104,7 +107,7 @@ public class Pair
     /// <param name="data"></param>
     public void ApplyData(OnlineUserCharaDataDto data)
     {
-        _applicationCts = _applicationCts.CancelRecreate(); // this should cancel anything in flight and start over, essentially
+        _applicationCts = _applicationCts.CancelRecreate();
         LastReceivedCharacterData = data.CharaData;
 
         if (CachedPlayer == null)
@@ -140,10 +143,15 @@ public class Pair
     /// <param name="forced"></param>
     public void ApplyLastReceivedData(bool forced = false)
     {
-        if (CachedPlayer == null) return;
-        if (LastReceivedCharacterData == null) return;
+        if (CachedPlayer == null || LastReceivedCharacterData == null)
+        {
+            _logger.LogDebug("Called to apply last received data but CachedPlayer is null: {player} and CharacterData is null: {data}", CachedPlayer == null, LastReceivedCharacterData == null);
+
+            return;
+        }
 
         // Called from the PairHandler of this pair.
+        // This is kinda hacky as RemoveNotSyncedFiles handles perms/filtering by removing files before they are applied.
         CachedPlayer.ApplyCharacterData(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
     }
 

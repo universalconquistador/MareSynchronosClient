@@ -19,14 +19,16 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly MareConfigService _configService;
     private readonly FileCacheManager _fileCacheManager;
-    private CharacterData? _lastCreatedData;
-    private CharacterData? _uploadingCharacterData = null;
+
     private readonly List<UserData> _previouslyVisiblePlayers = [];
-    private Task<CharacterData>? _fileUploadTask = null;
     private readonly HashSet<UserData> _usersToPushDataTo = [];
     private readonly SemaphoreSlim _pushDataSemaphore = new(1, 1);
     private readonly CancellationTokenSource _runtimeCts = new();
     private readonly HashSet<string> _filesTooLargeHashes = new HashSet<string>();
+
+    private Task<CharacterData>? _fileUploadTask = null;
+    private CharacterData? _lastCreatedData;
+    private CharacterData? _uploadingCharacterData = null;
 
 
     public VisibleUserDataDistributor(ILogger<VisibleUserDataDistributor> logger, ApiController apiController, DalamudUtilService dalamudUtil,
@@ -38,6 +40,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
         _fileTransferManager = fileTransferManager;
         _configService = mareConfigService;
         _fileCacheManager = fileCacheManager;
+
         Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, (_) => FrameworkOnUpdate());
         Mediator.Subscribe<CharacterDataCreatedMessage>(this, (msg) =>
         {
@@ -88,27 +91,37 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
 
     private void FrameworkOnUpdate()
     {
-        if (!_dalamudUtil.GetIsPlayerPresent() || !_apiController.IsConnected) return;
+        if (!_dalamudUtil.GetIsPlayerPresent() || !_apiController.IsConnected)
+        {
+            return;
+        }
 
         var allVisibleUsers = _pairManager.GetVisibleUsers();
         var newVisibleUsers = allVisibleUsers.Except(_previouslyVisiblePlayers).ToList();
+
         _previouslyVisiblePlayers.Clear();
         _previouslyVisiblePlayers.AddRange(allVisibleUsers);
-        if (newVisibleUsers.Count == 0) return;
 
-        Logger.LogDebug("Scheduling character data push of {data} to {users}",
-            _lastCreatedData?.DataHash.Value ?? string.Empty,
-            string.Join(", ", newVisibleUsers.Select(k => k.AliasOrUID)));
+        if (newVisibleUsers.Count == 0)
+        {
+            return;
+        }
+
+        Logger.LogDebug("Scheduling character data push of {data} to {users}", _lastCreatedData?.DataHash.Value ?? string.Empty, string.Join(", ", newVisibleUsers.Select(k => k.AliasOrUID)));
         foreach (var user in newVisibleUsers)
         {
             _usersToPushDataTo.Add(user);
         }
+
         PushCharacterData();
     }
 
     private void PushCharacterData(bool forced = false)
     {
-        if (_lastCreatedData == null || _usersToPushDataTo.Count == 0) return;
+        if (_lastCreatedData == null || _usersToPushDataTo.Count == 0)
+        {
+            return;
+        }
 
         _ = Task.Run(async () =>
         {
@@ -117,9 +130,12 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             if (_fileUploadTask == null || (_fileUploadTask?.IsCompleted ?? false) || forced)
             {
                 _uploadingCharacterData = _lastCreatedData.DeepClone();
+
                 RemoveFilesThatAreTooLarge(); // psync allows for 200 MiB to the server, 300 MiB once decompressed
+
                 Logger.LogDebug("Starting UploadTask for {hash}, Reason: TaskIsNull: {task}, TaskIsCompleted: {taskCpl}, Forced: {frc}",
                     _lastCreatedData.DataHash, _fileUploadTask == null, _fileUploadTask?.IsCompleted ?? false, forced);
+
                 _fileUploadTask = _fileTransferManager.UploadFiles(_uploadingCharacterData, [.. _usersToPushDataTo]);
             }
 
@@ -129,9 +145,15 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                 await _pushDataSemaphore.WaitAsync(_runtimeCts.Token).ConfigureAwait(false);
                 try
                 {
-                    if (_usersToPushDataTo.Count == 0) return;
+                    if (_usersToPushDataTo.Count == 0)
+                    {
+                        return;
+                    }
+
                     Logger.LogDebug("Pushing {data} to {users}", dataToSend.DataHash, string.Join(", ", _usersToPushDataTo.Select(k => k.AliasOrUID)));
+
                     await _apiController.PushCharacterData(dataToSend, [.. _usersToPushDataTo]).ConfigureAwait(false);
+
                     _usersToPushDataTo.Clear();
                 }
                 finally
@@ -154,7 +176,9 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                 {
                     var cache = _fileCacheManager.GetFileCacheByHash(replacement.Hash);
                     if (cache == null)
+                    {
                         continue;
+                    }
 
                     if ((cache.Size != null && cache.Size > 300 * 1024 * 1024) || (cache.CompressedSize != null && cache.CompressedSize > 200 * 1024 * 1024))
                     {
@@ -169,7 +193,8 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                         {
                             var isTexFile = cache.ResolvedFilepath.EndsWith(".tex", StringComparison.OrdinalIgnoreCase);
                             var texInfo = isTexFile ? " Ensure it is compressed and consider reducing its resolution." : "";
-                            Mediator.Publish(new NotificationMessage("File Size Error", $"The file {cache.ResolvedFilepath} exceeds the size limit and will not sync. (300 MiB, or 200 MiB compressed)" + texInfo, MareConfiguration.Models.NotificationType.Warning));
+                            Mediator.Publish(new NotificationMessage("File Size Error", $"The file {cache.ResolvedFilepath} exceeds the size limit and will not sync. (300 MiB, or 200 MiB compressed)" 
+                                + texInfo, MareConfiguration.Models.NotificationType.Warning));
 
                             _filesTooLargeHashes.Add(cache.Hash);
                         }
@@ -206,32 +231,40 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
     }
 
     // Experimental
+    // Send full CharacterData for now to maintain backwards compatability.
     private async Task PushAddonPluginPlayerChangesInternal(PlayerChanges playerChanges, string data)
     {
-        if (_usersToPushDataTo.Count == 0) return;
+        if (_usersToPushDataTo.Count == 0 || _lastCreatedData == null)
+        {
+            return;
+        }
 
-        CharacterData characterData = new();
+        //CharacterData characterData = new();
         AddonPlugin plugin;
         
         switch (playerChanges)
         {
             case PlayerChanges.Honorific:
-                characterData.HonorificData = data;
+                //characterData.HonorificData = data;
+                _lastCreatedData.HonorificData = data;
                 plugin = AddonPlugin.Honorific;
                 break;
 
             case PlayerChanges.Heels:
-                characterData.HeelsData = data;
+                //characterData.HeelsData = data;
+                _lastCreatedData.HeelsData = data;
                 plugin = AddonPlugin.Heels;
                 break;
 
             case PlayerChanges.Moodles:
-                characterData.MoodlesData = data;
+                //characterData.MoodlesData = data;
+                _lastCreatedData.MoodlesData = data;
                 plugin = AddonPlugin.Moodles;
                 break;
 
             case PlayerChanges.PetNames:
-                characterData.PetNamesData = data;
+                //characterData.PetNamesData = data;
+                _lastCreatedData.PetNamesData = data;
                 plugin = AddonPlugin.PetNames;
                 break;
 
@@ -241,8 +274,12 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
 
         try
         {
+            _uploadingCharacterData = _lastCreatedData.DeepClone(); // do this so we don't push again on next DelayedFrameworkUpdate
+
             await _pushDataSemaphore.WaitAsync(_runtimeCts.Token).ConfigureAwait(false);
-            await _apiController.UserPushData(new([.. _usersToPushDataTo], characterData, null, plugin)).ConfigureAwait(false);
+            //await _apiController.UserPushData(new([.. _usersToPushDataTo], characterData, null, plugin)).ConfigureAwait(false);
+            await _apiController.UserPushData(new([.. _usersToPushDataTo], _uploadingCharacterData, null, plugin)).ConfigureAwait(false);
+            
         }
         finally
         {
