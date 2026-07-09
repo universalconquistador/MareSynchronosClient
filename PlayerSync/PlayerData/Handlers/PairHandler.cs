@@ -409,7 +409,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         Stopwatch stopwatch;
         Dictionary<(string GamePath, string? Hash), string> moddedPaths = [];
         HashSet<string> locallyPresentFiles;
-        int numberOfFilesToDownload = 0;
+        int numberOfFilesToDownload = -1;
         var compressedAlternateUsage = ComputeCompressedAlternateUsage(); // check if we are using comp alts or not for this pair
 
         if (updateModdedPaths)
@@ -439,7 +439,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 Dictionary<string, string> compressionSubstitutions = new Dictionary<string, string>();
                 // This gets a list of file download dtos from the file server that we need for this pair, not the actual files. This contains meta data and download links for each file.
                 var toDownloadFiles = await _downloadManager.InitiateDownloadList(_charaHandler!, toDownloadReplacements, compressedAlternateUsage, compressionSubstitutions, locallyPresentFiles, downloadToken).ConfigureAwait(false);
-
+                if (numberOfFilesToDownload < 0)
+                {
+                    numberOfFilesToDownload = toDownloadFiles.Count;
+                }
                 // basically check the meta data for each of the files before we even download them to see if it'll exceed thresholds
                 if (!_playerPerformanceService.ComputeAndAutoPauseOnVRAMUsageThresholds(this, charaData, toDownloadFiles))
                 {
@@ -481,10 +484,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 throw new InvalidOperationException($"Failed to download one or more required files for {PlayerName}:{Pair.UserData.UID}");
             }
 
-            if (attempts > 0 && numberOfFilesToDownload > 0) // we may not have needed to download anything, so don't report it
+            if (numberOfFilesToDownload > 0) // we may not have needed to download anything, so don't report it
             {
-                Logger.LogDebug("[BASE-{appBase}] It took {attempts} tries in total to download {count} files for {player}:{uid} in {elapsedMs}ms",
-                applicationBase, attempts, numberOfFilesToDownload, PlayerName, Pair.UserData.UID, stopwatch.ElapsedMilliseconds);
+                Logger.LogDebug("[BASE-{appBase}] Downloaded {count} file(s) in {attempts} total attempt(s) for {player}:{uid} in {elapsedMs}ms",
+                applicationBase, numberOfFilesToDownload, attempts, PlayerName, Pair.UserData.UID, stopwatch.ElapsedMilliseconds);
             }
 
             if (!await _playerPerformanceService.CheckBothThresholds(this, charaData).ConfigureAwait(false))
