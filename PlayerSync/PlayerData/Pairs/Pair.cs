@@ -100,59 +100,83 @@ public class Pair
         _ = CachedPlayer.HandleOptionalPluginDataAsync(data.AddonPlugin!.Value, data.CharaData);
     }
 
-    /// <summary>
-    /// Step 1
-    /// Ensures a cached player exists, or, waits up to 120 seconds for the cache player to be created, before applying character data from the received dto.
-    /// </summary>
-    /// <param name="data"></param>
-    public void ApplyData(OnlineUserCharaDataDto data)
+    public void ApplyData(Guid applicationBase, OnlineUserCharaDataDto data)
+    {
+        _ = ApplyDataAsync(applicationBase, data);
+    }
+
+    ///// <summary>
+    ///// Step 1
+    ///// Ensures a cached player exists, or, waits up to 120 seconds for the cache player to be created, before applying character data from the received dto.
+    ///// </summary>
+    public async Task ApplyDataAsync(Guid applicationBase, OnlineUserCharaDataDto data)
     {
         _applicationCts = _applicationCts.CancelRecreate();
         LastReceivedCharacterData = data.CharaData;
 
         if (CachedPlayer == null)
         {
-            _logger.LogDebug("Received Data for {uid} but CachedPlayer does not exist, waiting", data.User.UID);
-            _ = Task.Run(async () =>
+            _logger.LogDebug("[BASE-{appBase}] Received Data for {uid} but CachedPlayer does not exist, waiting", applicationBase, data.User.UID);
+
+            using var timeoutCts = new CancellationTokenSource();
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(120));
+
+            var appToken = _applicationCts.Token;
+            using var combined = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, appToken);
+
+            try
             {
-                using var timeoutCts = new CancellationTokenSource();
-                timeoutCts.CancelAfter(TimeSpan.FromSeconds(120));
-                var appToken = _applicationCts.Token;
-                using var combined = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, appToken);
                 while (CachedPlayer == null && !combined.Token.IsCancellationRequested)
                 {
                     await Task.Delay(250, combined.Token).ConfigureAwait(false);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
 
-                if (!combined.IsCancellationRequested)
-                {
-                    _logger.LogDebug("Applying delayed data for {uid}", data.User.UID);
-                    ApplyLastReceivedData();
-                }
-            });
-            return;
+            if (combined.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _logger.LogDebug("[BASE-{appBase}] Applying delayed data for {uid}", applicationBase, data.User.UID);
         }
 
-        ApplyLastReceivedData();
+        await ApplyLastReceivedDataAsync(applicationBase: applicationBase).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Step 2
-    /// This is called as part of the data application pipeline as well as manually to reapply pair data.
-    /// </summary>
-    /// <param name="forced"></param>
-    public void ApplyLastReceivedData(bool forced = false)
+    public void ApplyLastReceivedData(bool forced = false, Guid? applicationBase = null)
+    {
+        if (applicationBase == null)
+        {
+            applicationBase = Guid.NewGuid();
+        }
+        _ = ApplyLastReceivedDataAsync(forced, applicationBase.Value);
+    }
+
+    ///// <summary>
+    ///// Step 2
+    ///// This is called as part of the data application pipeline as well as manually to reapply pair data.
+    ///// </summary>
+    public Task ApplyLastReceivedDataAsync(bool forced = false, Guid? applicationBase = null)
     {
         if (CachedPlayer == null || LastReceivedCharacterData == null)
         {
             _logger.LogDebug("Called to apply last received data but CachedPlayer is null: {player} and CharacterData is null: {data}", CachedPlayer == null, LastReceivedCharacterData == null);
 
-            return;
+            return Task.CompletedTask;
+        }
+
+        if (applicationBase == null)
+        {
+            applicationBase = Guid.NewGuid();
         }
 
         // Called from the PairHandler of this pair.
         // This is kinda hacky as RemoveNotSyncedFiles handles perms/filtering by removing files before they are applied.
-        CachedPlayer.ApplyCharacterData(Guid.NewGuid(), RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
+        return CachedPlayer.ApplyCharacterDataAsync(applicationBase.Value, RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
     }
 
     public void SetOnlinePlayerDto(OnlineUserIdentDto? dto = null)

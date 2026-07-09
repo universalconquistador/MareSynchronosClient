@@ -26,6 +26,7 @@ public partial class SettingsUi
         new(SyncTabs.Duty, "Duty Pause", DrawDutyPause),
         new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
         new(SyncTabs.Permissions, "Permissions", GoToPermissions),
+        new(SyncTabs.Experimental, "Experimental", DrawExperimental),
     ];
 
     private enum SyncTabs
@@ -35,7 +36,8 @@ public partial class SettingsUi
         Pairs,
         Duty,
         Filter,
-        Permissions
+        Permissions,
+        Experimental
     }
 
     private string PlayerName => _uiShared.PlayerName;
@@ -542,5 +544,30 @@ public partial class SettingsUi
         _selectedNavItem = new(SettingsNav.Service, "Service Settings", DrawServiceSettings, FontAwesomeIcon.Server);
         DrawService();
         _selectedTabService = new(ServiceTabs.Permissions, "Permissions", DrawServicePermissions);
+    }
+
+    private void DrawExperimental()
+    {
+        int maxConcurrent = _configService.Current.MaxConcurrentApplications;
+
+        _uiShared.BigText("Experimental");
+        ImGuiHelpers.ScaledDummy(2);
+        UiSharedService.ColorTextWrapped("You should not mess with these settings unless instructed to, or you like to live on the edge.", ImGuiColors.DalamudRed);
+        ImGuiHelpers.ScaledDummy(5f);
+
+        ImGui.TextUnformatted("Max Concurrent Applications");
+        ImGui.SetNextItemWidth(200f * ImGuiHelpers.GlobalScale);
+        if (ImGui.SliderInt("##maxConcurrent", ref maxConcurrent, 0, 20))
+        {
+            if (maxConcurrent < 0 || maxConcurrent > 99)
+            {
+                maxConcurrent = 0;
+            }
+            _pairManager.MaxConcurrentApplyData = maxConcurrent;
+        }
+        _uiShared.DrawHelpText("This affects how many pairs you download/apply mods to at the same time." + UiSharedService.TooltipSeparator +
+            "Setting this to any number above 0 will limit the concurrent data applications. A lower number may help smooth loading and prevent lag/lockups for " +
+            "PCs with modest specs.");
+        ImGui.TextUnformatted("0 = Unlimited/Max");
     }
 }

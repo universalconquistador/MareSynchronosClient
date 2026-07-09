@@ -264,12 +264,17 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, _penumbraCollection.Value, _charaHandler.GetGameObject()!.ObjectIndex).GetAwaiter().GetResult();
     }
 
+    public void ApplyCharacterData(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
+    {
+        _ = ApplyCharacterDataAsync(applicationBase, characterData, forceApplyCustomization);
+    }
+
     /// <summary>
     /// Step 3
     /// This step provides many of the preflight checks prior to starting any downloads.
     /// There is a LOT going on here, best to review carefully.
     /// </summary>
-    public void ApplyCharacterData(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
+    public Task ApplyCharacterDataAsync(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
     {
         // Check if we are in combat or performing and need to defer pair loading
         if (_dalamudUtil.IsInCombatOrPerforming)
@@ -280,24 +285,27 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
             SetUploading(isUploading: false);
 
-            return;
+            return Task.CompletedTask;
         }
 
         // Check if the pair is in an invalid state and we need to defer loading
-        if (_charaHandler == null || (PlayerCharacter == IntPtr.Zero))
+        if (_charaHandler == null || PlayerCharacter == IntPtr.Zero)
         {
             Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
                 "Cannot apply character data: Receiving Player is in an invalid state, deferring application")));
             Logger.LogDebug("[BASE-{appBase}] Received data but player was in invalid state, charaHandlerIsNull: {charaIsNull}, playerPointerIsNull: {ptrIsNull}",
                 applicationBase, _charaHandler == null, PlayerCharacter == IntPtr.Zero);
+
             var hasDiffMods = characterData.CheckUpdatedData(applicationBase, _cachedData, Logger,
                 this, forceApplyCustomization, forceApplyMods: false)
                 .Any(p => p.Value.Contains(PlayerChanges.ModManip) || p.Value.Contains(PlayerChanges.ModFiles));
+
             _forceApplyMods = hasDiffMods || _forceApplyMods || (PlayerCharacter == IntPtr.Zero && _cachedData == null);
             _cachedData = characterData;
+
             Logger.LogDebug("[BASE-{appBase}] Setting data: {hash}, forceApplyMods: {force}", applicationBase, _cachedData.DataHash.Value, _forceApplyMods);
 
-            return;
+            return Task.CompletedTask;
         }
 
         // Reset pair upload status
@@ -313,16 +321,18 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         // We don't apply data to vanilla pairs (when we're filtering them)
         if (_isVanillaEnforced)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        Logger.LogDebug("[BASE-{appbase}] Applying data for {player}, forceApplyCustomization: {forced}, forceApplyMods: {forceMods}", applicationBase, this, forceApplyCustomization, _forceApplyMods);
-        Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}", applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
+        Logger.LogDebug("[BASE-{appbase}] Applying data for {player}, forceApplyCustomization: {forced}, forceApplyMods: {forceMods}",
+            applicationBase, this, forceApplyCustomization, _forceApplyMods);
+        Logger.LogDebug("[BASE-{appbase}] Hash for data is {newHash}, current cache hash is {oldHash}",
+            applicationBase, characterData.DataHash.Value, _cachedData?.DataHash.Value ?? "NODATA");
 
         // Check if the pairs data is what we already expect, if we're not forcing it, just stop here
         if (string.Equals(characterData.DataHash.Value, _cachedData?.DataHash.Value ?? string.Empty, StringComparison.Ordinal) && !forceApplyCustomization)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         // More safety/sanity checks
@@ -330,9 +340,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         {
             Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
                 "Cannot apply character data: you are in GPose, a Cutscene or Penumbra/Glamourer is not available")));
-            Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning", applicationBase, this);
+            Logger.LogInformation("[BASE-{appbase}] Application of data for {player} while in cutscene/gpose or Penumbra/Glamourer unavailable, returning",
+                applicationBase, this);
 
-            return;
+            return Task.CompletedTask;
         }
 
         Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational, "Applying Character Data")));
@@ -363,20 +374,20 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         Logger.LogDebug("[BASE-{appbase}] Downloading and applying character for {name}", applicationBase, this);
 
         // Move on to downloading
-        DownloadAndApplyCharacter(applicationBase, characterData.DeepClone(), charaDataToUpdate);
+        return DownloadAndApplyCharacter(applicationBase, characterData.DeepClone(), charaDataToUpdate);
     }
 
     /// <summary>
     /// Step 4
     /// Prepare update data and fire and forget async task
     /// </summary>
-    private void DownloadAndApplyCharacter(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData)
+    private Task DownloadAndApplyCharacter(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData)
     {
         if (!updatedData.Any())
         {
             Logger.LogDebug("[BASE-{appBase}] Nothing to update for {obj}", applicationBase, this);
 
-            return;
+            return Task.CompletedTask;
         }
 
         var updateModdedPaths = updatedData.Values.Any(v => v.Any(p => p == PlayerChanges.ModFiles));
@@ -385,7 +396,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate() ?? new CancellationTokenSource();
         var downloadToken = _downloadCancellationTokenSource.Token;
 
-        _ = DownloadAndApplyCharacterAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, downloadToken).ConfigureAwait(false);
+        return DownloadAndApplyCharacterAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, downloadToken);
     }
 
     /// <summary>
@@ -395,20 +406,26 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private async Task DownloadAndApplyCharacterAsync(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData,
         bool updateModdedPaths, bool updateManip, CancellationToken downloadToken)
     {
+        Stopwatch stopwatch;
         Dictionary<(string GamePath, string? Hash), string> moddedPaths = [];
         HashSet<string> locallyPresentFiles;
+        int numberOfFilesToDownload = 0;
         var compressedAlternateUsage = ComputeCompressedAlternateUsage(); // check if we are using comp alts or not for this pair
 
         if (updateModdedPaths)
         {
+            int maxAttempts = 10;
             int attempts = 0;
             ActiveCompressionRedirects.Clear();
-            // This part does a ton of lifting
+            // This part does a ton of lifting, but basically checks for mod files we do not have yet that we will need for this pair
             List<FileReplacementData> toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, downloadToken);
 
+            stopwatch = Stopwatch.StartNew();
             // We go through the download loop up to 10 times in case any of the downloads fail. This is honestly hacky and should be better handled based on failure reason.
-            while (toDownloadReplacements.Count > 0 && attempts++ <= 10 && !downloadToken.IsCancellationRequested)
+            while (toDownloadReplacements.Count > 0 && attempts < maxAttempts && !downloadToken.IsCancellationRequested)
             {
+                attempts++;
+
                 if (_pairDownloadTask != null && !_pairDownloadTask.IsCompleted)
                 {
                     Logger.LogDebug("[BASE-{appBase}] Finishing prior running download task for player {name}, {kind}", applicationBase, PlayerName, updatedData);
@@ -420,8 +437,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Informational,
                     $"Starting download for {toDownloadReplacements.Count} files")));
                 Dictionary<string, string> compressionSubstitutions = new Dictionary<string, string>();
+                // This gets a list of file download dtos from the file server that we need for this pair, not the actual files. This contains meta data and download links for each file.
                 var toDownloadFiles = await _downloadManager.InitiateDownloadList(_charaHandler!, toDownloadReplacements, compressedAlternateUsage, compressionSubstitutions, locallyPresentFiles, downloadToken).ConfigureAwait(false);
 
+                // basically check the meta data for each of the files before we even download them to see if it'll exceed thresholds
                 if (!_playerPerformanceService.ComputeAndAutoPauseOnVRAMUsageThresholds(this, charaData, toDownloadFiles))
                 {
                     _downloadManager.ClearDownload();
@@ -429,6 +448,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     return;
                 }
 
+                // start background task to download needed files
                 _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(_charaHandler!, toDownloadReplacements, compressionSubstitutions, downloadToken).ConfigureAwait(false));
 
                 await _pairDownloadTask.ConfigureAwait(false);
@@ -440,6 +460,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     return;
                 }
 
+                // check again if we have files we still need to download, if so, this loop begins again
                 toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, downloadToken);
 
                 if (toDownloadReplacements.TrueForAll(c => _downloadManager.ForbiddenTransfers.Exists(f => string.Equals(f.Hash, c.Hash, StringComparison.Ordinal))))
@@ -448,6 +469,22 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(2), downloadToken).ConfigureAwait(false);
+            }
+
+            stopwatch.Stop();
+
+            // we should have all of our files by now, if not, we need to investigate/mitigate the root cause
+            if (toDownloadReplacements.Count > 0 && !downloadToken.IsCancellationRequested)
+            {
+                Logger.LogError("[BASE-{appBase}] Failed to download {count} hashes for {player}:{uid} Hashes: {hashes}", 
+                    applicationBase, toDownloadReplacements.Count, PlayerName, Pair.UserData.UID, string.Join(',', toDownloadReplacements.Select(file => file.Hash)));
+                throw new InvalidOperationException($"Failed to download one or more required files for {PlayerName}:{Pair.UserData.UID}");
+            }
+
+            if (attempts > 0 && numberOfFilesToDownload > 0) // we may not have needed to download anything, so don't report it
+            {
+                Logger.LogDebug("[BASE-{appBase}] It took {attempts} tries in total to download {count} files for {player}:{uid} in {elapsedMs}ms",
+                applicationBase, attempts, numberOfFilesToDownload, PlayerName, Pair.UserData.UID, stopwatch.ElapsedMilliseconds);
             }
 
             if (!await _playerPerformanceService.CheckBothThresholds(this, charaData).ConfigureAwait(false))
@@ -480,6 +517,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         var token = _applicationCancellationTokenSource.Token;
 
         _applicationTask = ApplyCharacterDataAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, moddedPaths, token);
+        await _applicationTask.ConfigureAwait(false);
     }
 
     /// <summary>
@@ -909,22 +947,29 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         if (objectKind == ObjectKind.Player)
         {
             using GameObjectHandler tempHandler = await _gameObjectHandlerFactory.Create(ObjectKind.Player, () => address, isWatched: false).ConfigureAwait(false);
-            tempHandler.CompareNameAndThrow(name);
+
+            tempHandler.CompareNameAndThrow(name); // FFFFFFFFFFFFFFF
             Logger.LogDebug("[{applicationId}] Restoring Customization and Equipment for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
             await _ipcManager.Glamourer.RevertAsync(Logger, tempHandler, applicationId, cancelToken).ConfigureAwait(false);
-            tempHandler.CompareNameAndThrow(name);
+
+            tempHandler.CompareNameAndThrow(name); // FFFFFFFFFFFFFFF
             Logger.LogDebug("[{applicationId}] Restoring Heels for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
             await _ipcManager.Heels.RestoreOffsetForPlayerAsync(address).ConfigureAwait(false);
-            tempHandler.CompareNameAndThrow(name);
+
+            tempHandler.CompareNameAndThrow(name); // FFFFFFFFFFFFFFF
             Logger.LogDebug("[{applicationId}] Restoring C+ for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
             await _ipcManager.CustomizePlus.RevertByIdAsync(customizeId).ConfigureAwait(false);
-            tempHandler.CompareNameAndThrow(name);
+
+            tempHandler.CompareNameAndThrow(name); // FFFFFFFFFFFFFFF
             Logger.LogDebug("[{applicationId}] Restoring Honorific for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
             await _ipcManager.Honorific.ClearTitleAsync(address).ConfigureAwait(false);
+
             Logger.LogDebug("[{applicationId}] Restoring Moodles for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
             await _ipcManager.Moodles.RevertStatusAsync(address).ConfigureAwait(false);
+
             Logger.LogDebug("[{applicationId}] Restoring Pet Nicknames for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
             await _ipcManager.PetNames.ClearPlayerData(address).ConfigureAwait(false);
+
             Logger.LogDebug("[{applicationId}] Unregistering Loci for {alias}/{name}", applicationId, Pair.UserData.AliasOrUID, name);
             await _ipcManager.Loci.UnregisterActor(address).ConfigureAwait(false);
         }

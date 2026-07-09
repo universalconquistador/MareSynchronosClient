@@ -118,4 +118,5 @@ public class MareConfig : IMareConfiguration
     public string LastPreloadPlaylistFolder { get; set; } = string.Empty;
     public bool NoPauseSubmenuForPairsOnMainUi { get; set; } = false;
     public bool ShowFileUnableToSyncNotification { get; set; } = true;
+    public int MaxConcurrentApplications { get; set; } = 0;
 }
