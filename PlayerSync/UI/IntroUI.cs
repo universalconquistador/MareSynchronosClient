@@ -183,6 +183,14 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         {
             return _uiShared.ApiController.ServerAlive;
         }
+
+        if (_currentSetupPageId == IntroUiPages.Service)
+        {
+            if (_useLegacyLogin)
+            {
+                return false; // we don't need to move on from here once the server connects
+            }
+        }
             
         return true;
     }
@@ -551,7 +559,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(text);
             ImGui.SameLine();
-            ImGui.SetNextItemWidth(UiSharedService.GetWindowContentRegionWidth() - ImGui.GetWindowContentRegionMin().X - buttonWidth - textSize.X);
+            ImGui.SetNextItemWidth((UiSharedService.GetWindowContentRegionWidth() - ImGui.GetWindowContentRegionMin().X - buttonWidth - textSize.X) *.90f);
             ImGui.InputText("", ref _secretKey, 64);
             if (_secretKey.Length > 0 && _secretKey.Length != 64)
             {
