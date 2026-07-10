@@ -119,4 +119,5 @@ public class MareConfig : IMareConfiguration
     public bool NoPauseSubmenuForPairsOnMainUi { get; set; } = false;
     public bool ShowFileUnableToSyncNotification { get; set; } = true;
     public int MaxConcurrentApplications { get; set; } = 0;
+    public bool DisableIdleCheck { get; set; } = false;
 }
