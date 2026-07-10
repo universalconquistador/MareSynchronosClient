@@ -45,18 +45,29 @@ public sealed class UiService : DisposableMediatorSubscriberBase
 
         Mediator.Subscribe<ProfileOpenStandaloneMessage>(this, msg =>
         {
-            var window = _createdWindows.OfType<StandaloneProfileUi>().FirstOrDefault(ui => string.Equals(ui.Pair.UserData.AliasOrUID,
-                msg.Pair.UserData.AliasOrUID,StringComparison.Ordinal)) ?? _uiFactory.CreateStandaloneProfileUi(msg.Pair);
+            var existingWindow = _createdWindows.OfType<StandaloneProfileUi>().FirstOrDefault();
 
-            if (!_createdWindows.Contains(window))
+            if (existingWindow == null)
             {
+                var window = _uiFactory.CreateStandaloneProfileUi(msg.Pair);
                 _createdWindows.Add(window);
                 _windowSystem.AddWindow(window);
             }
+            else if (string.Equals(existingWindow.Pair.UserData.UID, msg.Pair.UserData.UID, StringComparison.Ordinal))
+            {
+                existingWindow.IsOpen = false;
+            }
             else
             {
-                window.IsOpen = false;
-            }              
+                existingWindow.ResetProfileData();
+                _windowSystem.RemoveWindow(existingWindow);
+                _createdWindows.Remove(existingWindow);
+                existingWindow.Dispose();
+
+                var newWindow = _uiFactory.CreateStandaloneProfileUi(msg.Pair);
+                _createdWindows.Add(newWindow);
+                _windowSystem.AddWindow(newWindow);
+            }               
         });
 
         Mediator.Subscribe<OpenSyncshellAdminPanel>(this, (msg) =>
