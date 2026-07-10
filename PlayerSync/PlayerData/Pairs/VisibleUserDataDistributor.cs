@@ -57,9 +57,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             }
         });
 
-        // Experimental
         Mediator.Subscribe<AddonPluginChangesCreatedMessage>(this, (msg) => PushAddonPluginPlayerChanges(msg.PlayerChanges, msg.Data));
-
         Mediator.Subscribe<ConnectedMessage>(this, (_) => PushToAllVisibleUsers());
         Mediator.Subscribe<DisconnectedMessage>(this, (_) => _previouslyVisiblePlayers.Clear());
     }
@@ -215,7 +213,6 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
         }   
     }
 
-    // Experimental
     private void PushAddonPluginPlayerChanges(PlayerChanges playerChanges, string data)
     {
         foreach (var user in _pairManager.GetVisibleUsers())
@@ -230,7 +227,6 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
         }
     }
 
-    // Experimental
     // Send full CharacterData for now to maintain backwards compatability.
     private async Task PushAddonPluginPlayerChangesInternal(PlayerChanges playerChanges, string data)
     {

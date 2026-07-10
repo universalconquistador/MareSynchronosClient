@@ -379,7 +379,6 @@ public class PlayerDataFactory
         return pathsToResolve;
     }
 
-    // Experimental
     public async Task<string> GetAddonPluginPlayerData(PlayerChanges playerChanges)
     {
         switch (playerChanges)

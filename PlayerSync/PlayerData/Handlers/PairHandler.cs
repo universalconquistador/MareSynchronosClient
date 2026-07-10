@@ -1209,10 +1209,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         return (_configService.Current.FilterMods && !overrideFilterPair && !overrideFilterUid);
     }
 
-    //////////////////////////// EXPERIMENTAL \\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    /// Please don't use/rely on the code below this point.
-    //////////////////////////// EXPERIMENTAL \\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
 
     // It'd be nice if plugins were classes and not enums and strings
 
@@ -1280,7 +1276,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 if (string.Equals(_cachedData!.HeelsData, charaData.HeelsData, StringComparison.Ordinal))
                 {
                     Logger.LogDebug("Got Heels Data that is identical, applying anyway...");
-                    //return;
+                    //return; // this may be a bug? or something, need to investigate (freeze/resume state for livepose)
                 }
 
                 await ApplyHeelsDataAsync(charaData).ConfigureAwait(false);

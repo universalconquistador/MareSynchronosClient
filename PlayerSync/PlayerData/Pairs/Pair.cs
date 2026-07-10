@@ -90,7 +90,6 @@ public class Pair
         }
     }
 
-    // Experimental
     public void ApplyAddonPluginUpdate(OnlineUserCharaDataDto data)
     {
         if (CachedPlayer == null)

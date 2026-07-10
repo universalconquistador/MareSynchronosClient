@@ -43,7 +43,6 @@ public class CharacterData
         }
     }
 
-    // Experimental
     public void SetAddonPluginPlayerData(PlayerChanges playerChanges, string data)
     {
         switch (playerChanges)

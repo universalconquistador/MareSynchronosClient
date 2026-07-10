@@ -11,34 +11,40 @@ namespace MareSynchronos.PlayerData.Services;
 
 public sealed class CacheCreationService : DisposableMediatorSubscriberBase
 {
-    private readonly SemaphoreSlim _cacheCreateLock = new(1);
-    private readonly HashSet<ObjectKind> _cachesToCreate = [];
     private readonly PlayerDataFactory _characterDataFactory;
+    private readonly CharacterData _playerData = new();
+
+    private readonly SemaphoreSlim _cacheCreateLock = new(1);
+    private readonly SemaphoreSlim _playerChangesLock = new(1);
+    private readonly HashSet<ObjectKind> _cachesToCreate = [];
     private readonly HashSet<ObjectKind> _currentlyCreating = [];
     private readonly HashSet<ObjectKind> _debouncedObjectCache = [];
-    private readonly CharacterData _playerData = new();
-    private readonly Dictionary<ObjectKind, GameObjectHandler> _playerRelatedObjects = [];
-    private readonly CancellationTokenSource _runtimeCts = new();
-    private CancellationTokenSource _creationCts = new();
-    private CancellationTokenSource _debounceCts = new();
-    private bool _haltCharaDataCreation;
-    private bool _isZoning = false;
-
-    // Experimental
-    private readonly SemaphoreSlim _playerChangesLock = new(1);
-
     private readonly HashSet<PlayerChanges> _debouncedPlayerChanges = [];
     private readonly HashSet<PlayerChanges> _queuedPlayerChanges = [];
     private readonly HashSet<PlayerChanges> _currentlyProcessingPlayerChanges = [];
+    private readonly Dictionary<ObjectKind, GameObjectHandler> _playerRelatedObjects = [];
+    private readonly CancellationTokenSource _runtimeCts = new();
     private readonly Queue<PlayerChanges> _playerChangesToUpdate = [];
 
+    private CancellationTokenSource _creationCts = new();
+    private CancellationTokenSource _debounceCts = new();
     private CancellationTokenSource _playerChangesCts = new();
     private CancellationTokenSource _playerChangesDebounceCts = new();
+    private bool _haltCharaDataCreation;
+    private bool _isZoning = false;
 
     public CacheCreationService(ILogger<CacheCreationService> logger, MareMediator mediator, GameObjectHandlerFactory gameObjectHandlerFactory,
         PlayerDataFactory characterDataFactory, DalamudUtilService dalamudUtil) : base(logger, mediator)
     {
         _characterDataFactory = characterDataFactory;
+        _playerRelatedObjects[ObjectKind.Player] = gameObjectHandlerFactory.Create(ObjectKind.Player, dalamudUtil.GetPlayerPtr, isWatched: true)
+            .GetAwaiter().GetResult();
+        _playerRelatedObjects[ObjectKind.MinionOrMount] = gameObjectHandlerFactory.Create(ObjectKind.MinionOrMount, () => dalamudUtil.GetMinionOrMountPtr(), isWatched: true)
+            .GetAwaiter().GetResult();
+        _playerRelatedObjects[ObjectKind.Pet] = gameObjectHandlerFactory.Create(ObjectKind.Pet, () => dalamudUtil.GetPetPtr(), isWatched: true)
+            .GetAwaiter().GetResult();
+        _playerRelatedObjects[ObjectKind.Companion] = gameObjectHandlerFactory.Create(ObjectKind.Companion, () => dalamudUtil.GetCompanionPtr(), isWatched: true)
+            .GetAwaiter().GetResult();
 
         Mediator.Subscribe<ZoneSwitchStartMessage>(this, (msg) => _isZoning = true);
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (msg) => _isZoning = false);
@@ -54,15 +60,6 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             AddCacheToCreate(msg.ObjectToCreateFor.ObjectKind);
         });
 
-        _playerRelatedObjects[ObjectKind.Player] = gameObjectHandlerFactory.Create(ObjectKind.Player, dalamudUtil.GetPlayerPtr, isWatched: true)
-            .GetAwaiter().GetResult();
-        _playerRelatedObjects[ObjectKind.MinionOrMount] = gameObjectHandlerFactory.Create(ObjectKind.MinionOrMount, () => dalamudUtil.GetMinionOrMountPtr(), isWatched: true)
-            .GetAwaiter().GetResult();
-        _playerRelatedObjects[ObjectKind.Pet] = gameObjectHandlerFactory.Create(ObjectKind.Pet, () => dalamudUtil.GetPetPtr(), isWatched: true)
-            .GetAwaiter().GetResult();
-        _playerRelatedObjects[ObjectKind.Companion] = gameObjectHandlerFactory.Create(ObjectKind.Companion, () => dalamudUtil.GetCompanionPtr(), isWatched: true)
-            .GetAwaiter().GetResult();
-
         Mediator.Subscribe<ClassJobChangedMessage>(this, (msg) =>
         {
             if (msg.GameObjectHandler == _playerRelatedObjects[ObjectKind.Player])
@@ -77,6 +74,7 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             if (msg.ObjectToCreateFor.ObjectKind == ObjectKind.Pet)
             {
                 Logger.LogTrace("Received clear cache for {obj}, ignoring", msg.ObjectToCreateFor);
+
                 return;
             }
             Logger.LogDebug("Clearing cache for {obj}", msg.ObjectToCreateFor);
@@ -210,7 +208,6 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         _creationCts.Cancel();
         _creationCts.Dispose();
 
-        // Experimental
         _playerChangesCts.Cancel();
         _playerChangesCts.Dispose();
         _playerChangesDebounceCts.Cancel();
@@ -231,12 +228,16 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         _ = Task.Run(async () =>
         {
             await Task.Delay(TimeSpan.FromSeconds(1), token).ConfigureAwait(false);
+
             Logger.LogTrace("Debounce complete, inserting objects to create for: {obj}", string.Join(", ", _debouncedObjectCache));
+
             await _cacheCreateLock.WaitAsync(token).ConfigureAwait(false);
+
             foreach (var item in _debouncedObjectCache)
             {
                 _cachesToCreate.Add(item);
             }
+
             _debouncedObjectCache.Clear();
             _cacheCreateLock.Release();
         });
@@ -252,6 +253,7 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             not (GameObjectHandler.DrawCondition.None or GameObjectHandler.DrawCondition.DrawObjectZero or GameObjectHandler.DrawCondition.ObjectZero)))
         {
             Logger.LogDebug("Waiting for draw to finish before executing cache creation");
+
             return;
         }
 
@@ -259,11 +261,13 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         _creationCts.Dispose();
         _creationCts = new();
         _cacheCreateLock.Wait(_creationCts.Token);
+
         var objectKindsToCreate = _cachesToCreate.ToList();
         foreach (var creationObj in objectKindsToCreate)
         {
             _currentlyCreating.Add(creationObj);
         }
+
         _cachesToCreate.Clear();
         _cacheCreateLock.Release();
 
@@ -306,7 +310,6 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         });
     }
 
-    // Experimental
     private void AddPlayerAddonPluginChangesToUpdate(PlayerChanges playerChanges)
     {
         _playerChangesDebounceCts.Cancel();
@@ -362,7 +365,6 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         });
     }
 
-    // Experimental
     private void ProcessAddonPluginChanges()
     {
         if (_isZoning || _haltCharaDataCreation) return;
@@ -449,6 +451,7 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             finally
             {
                 await _playerChangesLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+
                 try
                 {
                     foreach (var playerChange in playerChangesToProcess)
@@ -466,7 +469,6 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         });
     }
 
-    // Experimental
     private bool HasPendingPlayerChanges()
     {
         _playerChangesLock.Wait();
