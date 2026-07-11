@@ -24,6 +24,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using GameObject = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
+using Framework = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework;
 using TargetType = MareSynchronos.Services.Models.TargetType;
 
 namespace MareSynchronos.Services;
@@ -31,6 +32,7 @@ namespace MareSynchronos.Services;
 public class DalamudUtilService : IHostedService, IMediatorSubscriber
 {
     private readonly List<uint> _classJobIdsIgnoredForPets = [30];
+    private readonly ulong _presentExpansions; // each bit is whether the corresponding expansion is installed, with bit 0 being the base game
     private readonly IClientState _clientState;
     private readonly ICondition _condition;
     private readonly IDataManager _gameData;
@@ -142,6 +144,26 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
         IsWine = Util.IsWine();
         _cid = RebuildCID();
+
+        _presentExpansions = 0;
+        unsafe
+        {
+            ReadOnlySpan<byte> noneVersionString = "none\0"u8;
+            for (int i = 0; i < Framework.Instance()->ExVersions.Length; i++)
+            {
+                var versionSpan = i == 0 ? Framework.Instance()->GameVersion : Framework.Instance()->ExVersions[i - 1].Version;
+
+                if (versionSpan[0] == 0)
+                {
+                    break;
+                }
+
+                if (!versionSpan.StartsWith(noneVersionString))
+                {
+                    _presentExpansions |= 1UL << i;
+                }
+            }
+        }
     }
 
     public string GetWorldName(int worldId)
@@ -152,6 +174,16 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public string GetTerritoryName(int terrirotyId)
     {
         return TerritoryData.Value.TryGetValue((ushort)terrirotyId, out var territoryName) ? territoryName : string.Empty;
+    }
+
+    /// <summary>
+    /// Checks whether the given expansion is installed.
+    /// </summary>
+    /// <param name="index">The expansion to check, with 0 being the base game and 1 being Heavensward.</param>
+    /// <returns>Whether the given expansion is installed.</returns>
+    public bool IsExpansionInstalled(int index)
+    {
+        return (_presentExpansions & (1UL << index)) != 0;
     }
 
     private Lazy<ulong> RebuildCID() =>  new(GetCID);
