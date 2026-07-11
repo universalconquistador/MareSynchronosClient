@@ -1020,6 +1020,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     {
         base.Dispose(disposing);
 
+        Stopwatch stopwatch = Stopwatch.StartNew();
         SetUploading(isUploading: false);
         var name = PlayerName;
         Logger.LogDebug("Disposing {name} ({user})", name, Pair);
@@ -1045,8 +1046,12 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             {
                 Logger.LogTrace("[{applicationId}] Restoring state for {name} ({OnlineUser})", applicationId, name, Pair.UserPair);
                 Logger.LogDebug("[{applicationId}] Removing Temp Collection for {name} ({user})", applicationId, name, Pair.UserPair);
+
                 if (_penumbraCollection is not null)
+                {
                     _ipcManager.Penumbra.RemoveTemporaryCollectionAsync(Logger, applicationId, _penumbraCollection.Value).GetAwaiter().GetResult();
+                }
+
                 if (!IsVisible)
                 {
                     Logger.LogDebug("[{applicationId}] Restoring Glamourer for {name} ({user})", applicationId, name, Pair.UserPair);
@@ -1084,7 +1089,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             PlayerName = null;
             _penumbraCollection = null;
             _cachedData = null;
-            Logger.LogDebug("Disposing {name} complete", name);
+            stopwatch.Stop();
+            Logger.LogDebug("Disposing {name} complete in {elapsedMs}ms", name, stopwatch.ElapsedMilliseconds);
         }
     }
 

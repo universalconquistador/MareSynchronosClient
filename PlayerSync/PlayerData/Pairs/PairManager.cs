@@ -194,6 +194,8 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             _runningApplyDataTasks.Clear();
         }
 
+        Logger.LogDebug("Data queue cleared");
+
         DisposePairs(); // this must come first as it references _allClientPairs
         _allClientPairs.Clear();
         _allGroups.Clear();
