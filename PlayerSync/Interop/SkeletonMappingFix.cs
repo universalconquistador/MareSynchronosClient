@@ -38,34 +38,51 @@ internal unsafe class SkeletonMappingFix : IHostedService, IDisposable
 
     private void SetupSkeletonMappingDetour(hkaSkeletonMapper* skeletonMapper, hkaAnimationBinding* animationBinding, hkArray<short>* srcBoneToTrackIndices, hkArray<short>* dstBoneToTrackIndices, hkArray<short>* dstTrackToBoneIndices)
     {
-        ResizeIfNecessary(skeletonMapper, animationBinding, srcBoneToTrackIndices);
-        _setupSkeletonMappingHook!.Original!.Invoke(skeletonMapper, animationBinding, srcBoneToTrackIndices, dstBoneToTrackIndices, dstTrackToBoneIndices);
+        if (ResizeIfNecessary(skeletonMapper, animationBinding, srcBoneToTrackIndices))
+        {
+            _setupSkeletonMappingHook!.Original!.Invoke(skeletonMapper, animationBinding, srcBoneToTrackIndices, dstBoneToTrackIndices, dstTrackToBoneIndices);
+        }
     }
 
-    private void ResizeIfNecessary(hkaSkeletonMapper* skeletonMapper, hkaAnimationBinding* animationBinding, hkArray<short>* srcBoneToTrackIndices)
+    // Returns false (and skips the original call) only for a malformed binding with a negative bone index.
+    private bool ResizeIfNecessary(hkaSkeletonMapper* skeletonMapper, hkaAnimationBinding* animationBinding, hkArray<short>* srcBoneToTrackIndices)
     {
         if (skeletonMapper == null || animationBinding == null || srcBoneToTrackIndices == null)
         {
-            return;
+            return true;
         }
 
         var skeleton = skeletonMapper->Mapping.SkeletonA.ptr;
         if (skeleton == null)
         {
-            return;
+            return true;
         }
 
-        // The game function resizes `srcBoneToTrackIndices` to fit `skeletonMapper`'s Skeleton A bone count, but just assumes
-        // that `animationBinding`'s `TransformTrackToBoneIndices` has the same number of tracks, which it might not.
+        // The game writes each track index to srcBoneToTrackIndices[boneIndex], indexing by the VALUE from the
+        // binding's TransformTrackToBoneIndices -- so the buffer must fit max(boneIndex) + 1, not the track count
+        // (independent, both untrusted). A negative value writes before the buffer and no growth can make it safe.
         int skeletonBoneCount = skeleton->Bones.Length;
-        int bindingTrackCount = animationBinding->TransformTrackToBoneIndices.Length;
+        var trackToBone = animationBinding->TransformTrackToBoneIndices;
+        int maxBoneIndex = -1;
+        for (int i = 0; i < trackToBone.Length; i++)
+        {
+            int boneIndex = trackToBone[i];
+            if (boneIndex < 0)
+            {
+                _logger.LogWarning("Skipping malformed animation binding with negative bone index {index}.", boneIndex);
+                return false;
+            }
+            if (boneIndex > maxBoneIndex) maxBoneIndex = boneIndex;
+        }
 
-        if (bindingTrackCount > skeletonBoneCount && bindingTrackCount > 0)
+        if (maxBoneIndex >= skeletonBoneCount)
         {
             _logger.LogWarning("Fixing binding issue!");
             int successFlag = 0;
-            _hkArrayUtilReserve(&successFlag, (void*)_globalHavokAllocator, srcBoneToTrackIndices, bindingTrackCount, sizeof(short));
+            _hkArrayUtilReserve(&successFlag, (void*)_globalHavokAllocator, srcBoneToTrackIndices, maxBoneIndex + 1, sizeof(short));
         }
+
+        return true;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
