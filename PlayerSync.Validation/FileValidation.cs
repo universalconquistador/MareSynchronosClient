@@ -1,5 +1,6 @@
 ﻿using Dalamud.Plugin;
 using Lumina.Excel;
+using PlayerSync.Validation.Avfx;
 using PlayerSync.Validation.Tmb;
 using System;
 using System.Collections.Generic;
@@ -25,12 +26,17 @@ public static class FileValidation
     /// <param name="extension">The extension of the file, as a testing hint. Pass a blank string if unknown.</param>
     /// <param name="validatePath">A callback used to determine whether the given game path exists.</param>
     /// <returns>The validation messages.</returns>
-    public static IEnumerable<ValidationMessage> ValidateFile(ExcelModule excelModule, byte[] fileData, string extension, Func<string, bool>? validatePath)
+    public static IEnumerable<ValidationMessage> ValidateFile(ExcelModule excelModule, ulong installedExpansions, byte[] fileData, string extension, Func<string, bool>? validatePath)
     {
         if (extension.Equals(".tmb", StringComparison.OrdinalIgnoreCase)
             || (fileData.Length >= sizeof(uint) && MemoryMarshal.Read<uint>(fileData) == TmbValidation.TmbMagic))
         {
             return TmbValidation.ValidateTmbFile(excelModule, fileData, validatePath);
+        }
+        else if (extension.Equals(".avfx", StringComparison.OrdinalIgnoreCase)
+            || (fileData.Length >= sizeof(uint) && MemoryMarshal.Read<UInt128>(fileData) == AvfxValidation.AvfxMagic))
+        {
+            return AvfxValidation.ValidateAvfxFile(installedExpansions, fileData, validatePath);
         }
         else
         {

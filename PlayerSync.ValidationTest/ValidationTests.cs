@@ -45,7 +45,7 @@ public sealed class ValidationTests
         var gameData = new Lumina.GameData(gameDataPath);
 
         byte[] fileData = File.ReadAllBytes(Path.Combine("TestFiles", test.TestFilePath));
-        var result = FileValidation.ValidateFile(gameData.Excel, fileData, Path.GetExtension(test.TestFilePath), path => path.Contains('/') && gameData.FileExists(path));
+        var result = FileValidation.ValidateFile(gameData.Excel, ulong.MaxValue, fileData, Path.GetExtension(test.TestFilePath), path => path.Contains('/') && gameData.FileExists(path));
 
         Console.WriteLine($"{test.TestFilePath}: {string.Join(", ", result.Select(message => $"[{message.ID}]: {message.Title}"))}");
         if (test.ExpectedFailure != null)

@@ -32,7 +32,7 @@ namespace MareSynchronos.Services;
 public class DalamudUtilService : IHostedService, IMediatorSubscriber
 {
     private readonly List<uint> _classJobIdsIgnoredForPets = [30];
-    private readonly ulong _presentExpansions; // each bit is whether the corresponding expansion is installed, with bit 0 being the base game
+    public readonly ulong InstalledExpansions; // each bit is whether the corresponding expansion is installed, with bit 0 being the base game
     private readonly IClientState _clientState;
     private readonly ICondition _condition;
     private readonly IDataManager _gameData;
@@ -145,7 +145,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         IsWine = Util.IsWine();
         _cid = RebuildCID();
 
-        _presentExpansions = 0;
+        InstalledExpansions = 0;
         unsafe
         {
             ReadOnlySpan<byte> noneVersionString = "none\0"u8;
@@ -160,7 +160,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
                 if (!versionSpan.StartsWith(noneVersionString))
                 {
-                    _presentExpansions |= 1UL << i;
+                    InstalledExpansions |= 1UL << i;
                 }
             }
         }
@@ -183,7 +183,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     /// <returns>Whether the given expansion is installed.</returns>
     public bool IsExpansionInstalled(int index)
     {
-        return (_presentExpansions & (1UL << index)) != 0;
+        return (InstalledExpansions & (1UL << index)) != 0;
     }
 
     private Lazy<ulong> RebuildCID() =>  new(GetCID);

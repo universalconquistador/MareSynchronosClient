@@ -852,7 +852,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                         try
                         {
                             var bytes = await File.ReadAllBytesAsync(filePath);
-                            var validationMessages = FileValidation.ValidateFile(_dataManager.Excel, bytes, extension, path => path.Contains('/') && (_dataManager.FileExists(path) || charaData.FileReplacements.Values.SelectMany(value => value).Any(replacement => replacement.GamePaths.Contains(path)))).ToArray();
+                            var validationMessages = FileValidation.ValidateFile(_dataManager.Excel, _dalamudUtil.InstalledExpansions, bytes, extension, path => path.Contains('/') && (_dataManager.FileExists(path) || charaData.FileReplacements.Values.SelectMany(value => value).Any(replacement => replacement.GamePaths.Contains(path)))).ToArray();
 
                             if (validationMessages.Length > 0)
                             {
