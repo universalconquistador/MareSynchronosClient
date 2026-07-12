@@ -424,6 +424,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                 await Task.Delay(250, cts.Token).ConfigureAwait(false);
                 Logger.LogTrace("Waiting for permissions change for {data}", userData);
             }
+            Mediator.Publish(new PairOfflineMessage(pair));
             // This works around the condition where we may cycle someone's IsVisible state before the visibility loop can catch it.
             // Basically if you have low latency to the server and the server is too fast, you can "skip" the proper behavior
             await Task.Delay(1000, cts.Token).ConfigureAwait(false);

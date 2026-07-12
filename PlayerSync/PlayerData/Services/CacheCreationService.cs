@@ -60,6 +60,14 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             AddCacheToCreate(msg.ObjectToCreateFor.ObjectKind);
         });
 
+        Mediator.Subscribe<CreateCacheForEverythingMessage>(this, (msg) =>
+        {
+            AddCacheToCreate(ObjectKind.Player);
+            AddCacheToCreate(ObjectKind.Pet);
+            AddCacheToCreate(ObjectKind.MinionOrMount);
+            AddCacheToCreate(ObjectKind.Companion);
+        });
+
         Mediator.Subscribe<ClassJobChangedMessage>(this, (msg) =>
         {
             if (msg.GameObjectHandler == _playerRelatedObjects[ObjectKind.Player])

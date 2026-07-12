@@ -242,7 +242,7 @@ public class Pair
             _creationSemaphore.Wait();
 
         try
-        {    
+        {   
             LastReceivedCharacterData = null;
             var player = CachedPlayer;
             CachedPlayer = null;

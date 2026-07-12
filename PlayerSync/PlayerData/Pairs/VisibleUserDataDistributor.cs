@@ -21,14 +21,18 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
     private readonly FileCacheManager _fileCacheManager;
 
     private readonly List<UserData> _previouslyVisiblePlayers = [];
+    private readonly object _pushDataLock = new();
     private readonly HashSet<UserData> _usersToPushDataTo = [];
     private readonly SemaphoreSlim _pushDataSemaphore = new(1, 1);
     private readonly CancellationTokenSource _runtimeCts = new();
     private readonly HashSet<string> _filesTooLargeHashes = new HashSet<string>();
+    private readonly TimeSpan _cacheCreationDelay = TimeSpan.FromSeconds(5);
 
     private Task<CharacterData>? _fileUploadTask = null;
     private CharacterData? _lastCreatedData;
     private CharacterData? _uploadingCharacterData = null;
+    private int _cacheCreationRequestCount = 0;
+    private DateTimeOffset _lastCacheCreationRequest = DateTimeOffset.MinValue;
 
 
     public VisibleUserDataDistributor(ILogger<VisibleUserDataDistributor> logger, ApiController apiController, DalamudUtilService dalamudUtil,
@@ -41,7 +45,6 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
         _configService = mareConfigService;
         _fileCacheManager = fileCacheManager;
 
-        Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, (_) => FrameworkOnUpdate());
         Mediator.Subscribe<CharacterDataCreatedMessage>(this, (msg) =>
         {
             var newData = msg.CharacterData;
@@ -57,9 +60,28 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             }
         });
 
+        Mediator.Subscribe<PairOfflineMessage>(this, (msg) =>
+        {
+            lock (_pushDataLock)
+            {
+                _previouslyVisiblePlayers.Remove(msg.Pair.UserData);
+                _usersToPushDataTo.Remove(msg.Pair.UserData);
+            }
+            
+        });
+
+        Mediator.Subscribe<DisconnectedMessage>(this, (_) =>
+        {
+            lock (_pushDataLock)
+            {
+                _previouslyVisiblePlayers.Clear();
+            }
+        });
+
+        Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, (_) => FrameworkOnUpdate());
         Mediator.Subscribe<AddonPluginChangesCreatedMessage>(this, (msg) => PushAddonPluginPlayerChanges(msg.PlayerChanges, msg.Data));
         Mediator.Subscribe<ConnectedMessage>(this, (_) => PushToAllVisibleUsers());
-        Mediator.Subscribe<DisconnectedMessage>(this, (_) => _previouslyVisiblePlayers.Clear());
+        
     }
 
     protected override void Dispose(bool disposing)
@@ -95,10 +117,15 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
         }
 
         var allVisibleUsers = _pairManager.GetVisibleUsers();
-        var newVisibleUsers = allVisibleUsers.Except(_previouslyVisiblePlayers).ToList();
+        List<UserData> newVisibleUsers;
 
-        _previouslyVisiblePlayers.Clear();
-        _previouslyVisiblePlayers.AddRange(allVisibleUsers);
+        lock (_pushDataLock)
+        {
+            newVisibleUsers = allVisibleUsers.Except(_previouslyVisiblePlayers).ToList();
+
+            _previouslyVisiblePlayers.Clear();
+            _previouslyVisiblePlayers.AddRange(allVisibleUsers);
+        }
 
         if (newVisibleUsers.Count == 0)
         {
@@ -116,8 +143,26 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
 
     private void PushCharacterData(bool forced = false)
     {
-        if (_lastCreatedData == null || _usersToPushDataTo.Count == 0)
+        if (_usersToPushDataTo.Count == 0)
         {
+            return;
+        }
+
+        if (_lastCreatedData == null || string.IsNullOrEmpty(_lastCreatedData?.DataHash.Value))
+        {
+            _cacheCreationRequestCount++;
+            Logger.LogDebug("Requested to push character data but character data was null. Total requests: {count}.", _cacheCreationRequestCount);
+
+            var now = DateTimeOffset.UtcNow;
+            if (now - _lastCacheCreationRequest < _cacheCreationDelay)
+            {
+                return;
+            }
+
+            _lastCacheCreationRequest = now;
+            Logger.LogDebug("Sending request to create player cache");
+            Mediator.Publish(new CreateCacheForEverythingMessage());
+
             return;
         }
 

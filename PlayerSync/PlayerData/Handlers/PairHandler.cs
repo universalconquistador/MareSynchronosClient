@@ -1020,6 +1020,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     {
         base.Dispose(disposing);
 
+        Mediator.Publish(new PairOfflineMessage(Pair));
+
         Stopwatch stopwatch = Stopwatch.StartNew();
         SetUploading(isUploading: false);
         var name = PlayerName;
