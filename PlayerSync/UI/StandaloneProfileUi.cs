@@ -44,7 +44,7 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
     public StandaloneProfileUi(ILogger<StandaloneProfileUi> logger, MareMediator mediator, UiSharedService uiBuilder,
         ServerConfigurationManager serverManager, MareProfileManager mareProfileManager, PairManager pairManager, Pair pair, MareConfigService mareConfigService,
         PerformanceCollectorService performanceCollector, UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairInviteManager pairRequestManager)
-        : base(logger, mediator, "PlayerSync Profile of " + pair.UserData.AliasOrUID + "##PlayerSyncStandaloneProfileUI" + pair.UserData.UID, performanceCollector)
+        : base(logger, mediator, "PlayerSync Profile##PlayerSyncStandaloneProfileUI", performanceCollector)
     {
         _uiSharedService = uiBuilder;
         _serverManager = serverManager;
@@ -122,6 +122,14 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
 
     public override void OnClose()
     {
+        ResetProfileData();
+        Mediator.Publish(new RemoveWindowMessage(this));
+
+        base.OnClose();
+    }
+
+    public void ResetProfileData()
+    {
         _profileImageDownloadCts?.CancelDispose();
         _profileImageDownloadCts = null;
 
@@ -131,13 +139,9 @@ public class StandaloneProfileUi : WindowMediatorSubscriberBase
         _playerSyncWatermark = null;
 
         _lastProfilePicture = null;
-
         _profileImageDownloadTask = null;
-
-        Mediator.Publish(new RemoveWindowMessage(this));
+        
         _mareProfileManager.RemoveMareProfile(Pair.UserData);
-
-        base.OnClose();
     }
 
     protected override void DrawInternal()
