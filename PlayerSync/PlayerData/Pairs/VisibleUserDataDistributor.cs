@@ -13,6 +13,8 @@ namespace MareSynchronos.PlayerData.Pairs;
 
 public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
 {
+    private readonly TimeSpan _cacheCreationDelay = TimeSpan.FromSeconds(5);
+
     private readonly ApiController _apiController;
     private readonly DalamudUtilService _dalamudUtil;
     private readonly FileUploadManager _fileTransferManager;
@@ -26,7 +28,6 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
     private readonly SemaphoreSlim _pushDataSemaphore = new(1, 1);
     private readonly CancellationTokenSource _runtimeCts = new();
     private readonly HashSet<string> _filesTooLargeHashes = new HashSet<string>();
-    private readonly TimeSpan _cacheCreationDelay = TimeSpan.FromSeconds(5);
 
     private Task<CharacterData>? _fileUploadTask = null;
     private CharacterData? _lastCreatedData;
@@ -141,13 +142,8 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
         PushCharacterData();
     }
 
-    private void PushCharacterData(bool forced = false)
+    private bool HasCacheOrCreateIfEmpty()
     {
-        if (_usersToPushDataTo.Count == 0)
-        {
-            return;
-        }
-
         if (_lastCreatedData == null || string.IsNullOrEmpty(_lastCreatedData?.DataHash.Value))
         {
             _cacheCreationRequestCount++;
@@ -156,13 +152,23 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             var now = DateTimeOffset.UtcNow;
             if (now - _lastCacheCreationRequest < _cacheCreationDelay)
             {
-                return;
+                return false;
             }
 
             _lastCacheCreationRequest = now;
             Logger.LogDebug("Sending request to create player cache");
-            Mediator.Publish(new CreateCacheForEverythingMessage());
+            Mediator.Publish(new CreateCacheForEverythingMessage()); // this will eventually call back here via CharacterDataCreatedMessage
 
+            return false;
+        }
+
+        return true;
+    }
+
+    private void PushCharacterData(bool forced = false)
+    {
+        if (_usersToPushDataTo.Count == 0 || !HasCacheOrCreateIfEmpty())
+        {
             return;
         }
 
@@ -275,7 +281,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
     // Send full CharacterData for now to maintain backwards compatability.
     private async Task PushAddonPluginPlayerChangesInternal(PlayerChanges playerChanges, string data)
     {
-        if (_usersToPushDataTo.Count == 0 || _lastCreatedData == null)
+        if (_usersToPushDataTo.Count == 0 || !HasCacheOrCreateIfEmpty())
         {
             return;
         }
