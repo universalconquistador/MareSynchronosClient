@@ -77,13 +77,13 @@ public static class AvfxValidation
             {
                 yield return AVFX100B;
             }
-            else if (validatePath != null && !validatePath.Invoke(gamePath))
-            {
-                yield return AVFX100C;
-            }
             else if (!ValidationUtils.IsExpansionInstalled(installedExpansions, ValidationUtils.ParseExpansionId(gamePath)))
             {
                 yield return AVFX100D;
+            }
+            else if (validatePath != null && !validatePath.Invoke(gamePath))
+            {
+                yield return AVFX100C;
             }
         }
     }
