@@ -583,6 +583,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     // This runs through the queue and kicks off the data application task per queued pair entry
     private void ProcessApplyDataQueue()
     {
+        Logger.LogTrace("Current apply data queue count: {count}", _applyDataQueue.Count);
         List<(Pair, OnlineUserCharaDataDto)> dataToApply = [];
 
         lock (_applyDataLock)

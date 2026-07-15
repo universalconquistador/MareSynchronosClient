@@ -174,7 +174,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
 
         _ = Task.Run(async () =>
         {
-            forced |= _uploadingCharacterData?.DataHash != _lastCreatedData.DataHash;
+            forced |= _uploadingCharacterData?.DataHash != _lastCreatedData!.DataHash;
 
             if (_fileUploadTask == null || (_fileUploadTask?.IsCompleted ?? false) || forced)
             {
