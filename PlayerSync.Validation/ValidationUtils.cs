@@ -71,6 +71,41 @@ public static class ValidationUtils
     ];
 
     /// <summary>
+    /// Determines which expansion the given path is from.
+    /// </summary>
+    /// <param name="gamePath">The game path to get the expansion ID of.</param>
+    /// <returns>The ID of the expansion, e.g. 0 for A Realm Reborn, 1 for Heavensward, etc.</returns>
+    public static int ParseExpansionId(string gamePath)
+    {
+        int firstSlashIndex = gamePath.IndexOf('/');
+        int secondSlashIndex = firstSlashIndex >= 0 ? gamePath.IndexOf('/', firstSlashIndex + 1) : -1;
+
+        if (firstSlashIndex > -1 && secondSlashIndex > -1
+            && (secondSlashIndex == firstSlashIndex + 4 || secondSlashIndex == firstSlashIndex + 5)
+            && gamePath[firstSlashIndex + 1] == 'e'
+            && gamePath[firstSlashIndex + 2] == 'x'
+            && int.TryParse(gamePath.AsSpan(firstSlashIndex + 3, secondSlashIndex - firstSlashIndex - 3), out var expansionId))
+        {
+            return expansionId;
+        }
+        else
+        {
+            // No second-level directory means no expansion directory
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether the given expansion is installed.
+    /// </summary>
+    /// <param name="index">The expansion to check, with 0 being the base game and 1 being Heavensward.</param>
+    /// <returns>Whether the given expansion is installed.</returns>
+    public static bool IsExpansionInstalled(ulong installedExpansions, int index)
+    {
+        return (installedExpansions & (1UL << index)) != 0;
+    }
+
+    /// <summary>
     /// Determines whether the given string can be parsed by FFXIV as a game path without crashing.
     /// </summary>
     /// <remarks>

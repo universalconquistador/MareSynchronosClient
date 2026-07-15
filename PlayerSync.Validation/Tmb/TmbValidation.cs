@@ -1,6 +1,7 @@
 ﻿using Lumina.Excel;
 using Lumina.Excel.Sheets;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using VfxEditor.TmbFormat;
 using VfxEditor.TmbFormat.Entries;
 
@@ -14,7 +15,6 @@ public static class TmbValidation
     public const uint TmbMagic = 0x424C4D54;
 
     public static readonly ValidationMessage TMB000A = new ValidationMessage(nameof(TMB000A), "TMB file invalid", "The TMB file could not be loaded.", MessageLevel.Crash);
-    public static readonly ValidationMessage TMB000B = new ValidationMessage(nameof(TMB000B), "TMB verification failed", "The TMB file was not verified.", MessageLevel.Warning);
 
     public static readonly ValidationMessage TMB002A = new ValidationMessage(nameof(TMB002A), "TMB C002 path empty", "The TMB file has a TMB entry (C002) whose Path is empty.", MessageLevel.Crash);
     public static readonly ValidationMessage TMB002B = new ValidationMessage(nameof(TMB002B), "TMB C002 path invalid", "The TMB file has a TMB entry (C002) whose Path is invalid.", MessageLevel.Crash);
@@ -40,6 +40,23 @@ public static class TmbValidation
 
     public static IEnumerable<ValidationMessage> ValidateTmbFile(ExcelModule excelModule, byte[] fileData, Func<string, bool>? validatePath)
     {
+        if (fileData.Length >= 4)
+        {
+            var magic = MemoryMarshal.Read<uint>(fileData);
+            if (magic != TmbMagic)
+            {
+                // Wrong magic; isn't a valid TMB file
+                yield return TMB000A;
+                yield break;
+            }
+        }
+        else
+        {
+            // <4 bytes long isn't a valid TMB file
+            yield return TMB000A;
+            yield break;
+        }
+
         using var stream = new MemoryStream(fileData);
         using var reader = new BinaryReader(stream);
 
@@ -54,12 +71,6 @@ public static class TmbValidation
         if (tmbFile == null)
         {
             yield return TMB000A;
-            yield break;
-        }
-
-        if (tmbFile.Verified != VfxEditor.Utils.VerifiedStatus.VERIFIED)
-        {
-            yield return TMB000B;
             yield break;
         }
 
