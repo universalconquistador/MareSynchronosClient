@@ -96,6 +96,16 @@ public static class ValidationUtils
     }
 
     /// <summary>
+    /// Checks whether the given expansion is installed.
+    /// </summary>
+    /// <param name="index">The expansion to check, with 0 being the base game and 1 being Heavensward.</param>
+    /// <returns>Whether the given expansion is installed.</returns>
+    public static bool IsExpansionInstalled(ulong installedExpansions, int index)
+    {
+        return (installedExpansions & (1UL << index)) != 0;
+    }
+
+    /// <summary>
     /// Determines whether the given string can be parsed by FFXIV as a game path without crashing.
     /// </summary>
     /// <remarks>

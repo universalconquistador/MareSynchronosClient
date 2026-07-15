@@ -34,9 +34,9 @@ public static class FileValidation
             return TmbValidation.ValidateTmbFile(excelModule, fileData, validatePath);
         }
         else if (extension.Equals(".avfx", StringComparison.OrdinalIgnoreCase)
-            || (fileData.Length >= sizeof(uint) && MemoryMarshal.Read<UInt128>(fileData) == AvfxValidation.AvfxMagic))
+            || (fileData.Length >= sizeof(uint) && MemoryMarshal.Read<uint>(fileData) == AvfxValidation.AvfxMagic))
         {
-            return AvfxValidation.ValidateAvfxFile(installedExpansions, fileData, validatePath);
+            return AvfxValidation.ValidateAvfxFile(fileData, installedExpansions, validatePath);
         }
         else
         {
