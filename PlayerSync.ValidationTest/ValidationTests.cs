@@ -1,4 +1,5 @@
 ﻿using PlayerSync.Validation;
+using PlayerSync.Validation.Avfx;
 using PlayerSync.Validation.Tmb;
 
 namespace PlayerSync.ValidationTest;
@@ -6,7 +7,7 @@ namespace PlayerSync.ValidationTest;
 [TestClass]
 public sealed class ValidationTests
 {
-    public record class ValidationTest(string TestFilePath, ValidationMessage? ExpectedFailure);
+    public record class ValidationTest(string TestFilePath, ValidationMessage? ExpectedFailure, ulong InstalledExpansions = ulong.MaxValue);
 
     private static readonly ValidationTest[] Tests =
     {
@@ -25,6 +26,10 @@ public sealed class ValidationTests
         new("TMB\\TMB063A_Invalid_mon_sp001.tmb", TmbValidation.TMB063A),
         new("TMB\\TMB063B_Invalid_mon_sp001.tmb", TmbValidation.TMB063B),
         new("TMB\\TMB063_Valid_mon_sp001.tmb", null),
+
+        new("AVFX\\AVFX100D_expac_dawntrail.avfx", AvfxValidation.AVFX100D, 0b11111),
+        new("AVFX\\AVFX100D_expac_dawntrail.avfx", null, 0b111111),
+        new("AVFX\\AVFX100_Valid_limsa.avfx", null, 0b1),
     };
 
     public static IEnumerable<object[]> GetTestData()
@@ -45,7 +50,7 @@ public sealed class ValidationTests
         var gameData = new Lumina.GameData(gameDataPath);
 
         byte[] fileData = File.ReadAllBytes(Path.Combine("TestFiles", test.TestFilePath));
-        var result = FileValidation.ValidateFile(gameData.Excel, ulong.MaxValue, fileData, Path.GetExtension(test.TestFilePath), path => path.Contains('/') && gameData.FileExists(path));
+        var result = FileValidation.ValidateFile(gameData.Excel, test.InstalledExpansions, fileData, Path.GetExtension(test.TestFilePath), path => path.Contains('/') && gameData.FileExists(path));
 
         Console.WriteLine($"{test.TestFilePath}: {string.Join(", ", result.Select(message => $"[{message.ID}]: {message.Title}"))}");
         if (test.ExpectedFailure != null)
