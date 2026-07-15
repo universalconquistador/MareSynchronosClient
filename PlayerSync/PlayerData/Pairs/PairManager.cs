@@ -11,6 +11,7 @@ using MareSynchronos.Services;
 using MareSynchronos.Services.Events;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.Utils;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
@@ -33,6 +34,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private readonly object _applyDataLock = new();
     private readonly List<Pair> _applyDataQueue = [];
     private readonly Dictionary<Pair, OnlineUserCharaDataDto> _applyDataQueueDtos = [];
+    private readonly ConcurrentDictionary<Pair, OnlineUserCharaDataDto> _pairsPendingCachedPlayer = [];
     private readonly HashSet<Pair> _runningApplyDataTasks = [];
 
     private Lazy<List<Pair>> _directPairsInternal;
@@ -40,8 +42,10 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
     private bool _isZoning = false;
     private bool _isConnected = false;
-    private CancellationTokenSource? _periodicCts;
-    private Task? _periodicTask;
+    private CancellationTokenSource? _unpausePairCts;
+    private CancellationTokenSource? _pendingCachedCts;
+    private Task? _unpausePairTask;
+    private Task? _pendingCachedTask;
     private int _maxConcurrentApplyData;
 
     public PairManager(ILogger<PairManager> logger, PairFactory pairFactory, DalamudUtilService dalamudUtilService,
@@ -71,11 +75,17 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
 
-        _periodicCts?.Dispose();
-        _periodicCts = new CancellationTokenSource();
-        _periodicTask = PausedPairExpiredTimerCheckTask(_periodicCts.Token);
+        _unpausePairCts?.Dispose();
+        _unpausePairCts = new CancellationTokenSource();
+        _unpausePairTask = PausedPairExpiredTimerCheckTask(_unpausePairCts.Token);
+
+        _pendingCachedCts?.Dispose();
+        _pendingCachedCts = new CancellationTokenSource();
+        _pendingCachedTask = CheckForPairsPendingCachedPlayer(_pendingCachedCts.Token);
 
         Logger.LogTrace("{class} created.", nameof(PairManager));
+
+        
     }
 
     public List<Pair> DirectPairs => _directPairsInternal.Value;
@@ -193,6 +203,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             _applyDataQueueDtos.Clear();
             _runningApplyDataTasks.Clear();
         }
+        _pairsPendingCachedPlayer.Clear();
 
         Logger.LogDebug("Data queue cleared");
 
@@ -281,7 +292,16 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         else
         {
             Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Full Character Data")));
-            AddApplyDataToQueue(pair, dto);
+            if (!pair.HasCachedPlayer)
+            {
+                // defer this pair for now
+                Logger.LogTrace("Pair does not have CachedPlayer for data application: {pair}", pair.PairUIDName);
+                _pairsPendingCachedPlayer.AddOrUpdate(pair, dto, (_, _) => dto);
+            }
+            else
+            {
+                AddApplyDataToQueue(pair, dto);
+            }
         }
     }
 
@@ -463,11 +483,8 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     {
         base.Dispose(disposing);
 
-        CancellationTokenSource? cts;
-        cts = _periodicCts;
-        _periodicCts = null;
-        cts?.Cancel();
-        cts?.Dispose();
+        _unpausePairCts?.CancelDispose();
+        _pendingCachedCts?.CancelDispose();
 
         _isConnected = false;
         DisposePairs();
@@ -616,19 +633,19 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
             stopwatch = Stopwatch.StartNew();
 
-            Logger.LogDebug("[BASE-{appBase}] Starting queued data application for {player}:{uid}", applicationBase, pair.PlayerName, pair.UserData.UID);
+            Logger.LogDebug("[BASE-{appBase}] Starting queued data application for {pair}", applicationBase, pair.PairUIDName);
             // The entire pipeline chains a Task so we know when it's finished (or fails)
             await pair.ApplyDataAsync(applicationBase, dto).ConfigureAwait(false); // original pipeline entry point
         }
         catch (OperationCanceledException)
         {
             hadErrors = true;
-            Logger.LogDebug("[BASE-{appBase}] Queued data application was cancelled for {player}:{uid}", applicationBase, pair.PlayerName, pair.UserData.UID);
+            Logger.LogDebug("[BASE-{appBase}] Queued data application was cancelled for {pair}", applicationBase, pair.PairUIDName);
         }
         catch (Exception ex)
         {
             hadErrors = true;
-            Logger.LogError(ex, "[BASE-{appBase}] Failed to apply queued pair data for {player}:{uid}", applicationBase, pair.PlayerName, pair.UserData.UID);
+            Logger.LogError(ex, "[BASE-{appBase}] Failed to apply queued pair data for {pair}", applicationBase, pair.PairUIDName);
         }
         finally
         {
@@ -637,11 +654,11 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             {
                 if (hadErrors)
                 {
-                    Logger.LogWarning("[BASE-{appBase}] Queued data application failed for {player}:{uid} after {elapsedMs}ms", applicationBase, pair.PlayerName, pair.UserData.UID, stopwatch.ElapsedMilliseconds);
+                    Logger.LogWarning("[BASE-{appBase}] Queued data application failed for {pair} after {elapsedMs}ms", applicationBase, pair.PairUIDName, stopwatch.ElapsedMilliseconds);
                 }
                 else
                 {
-                    Logger.LogDebug("[BASE-{appBase}] Queued data application finished for {player}:{uid} in {elapsedMs}ms", applicationBase, pair.PlayerName, pair.UserData.UID, stopwatch.ElapsedMilliseconds);
+                    Logger.LogDebug("[BASE-{appBase}] Queued data application finished for {pair} in {elapsedMs}ms", applicationBase, pair.PairUIDName, stopwatch.ElapsedMilliseconds);
                 }
             }
 
@@ -683,6 +700,27 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             Logger.LogDebug("One-Time Initialized {uid}:{name}", pair.UserData.UID, pair.PlayerName);
             Mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PairHandler), EventSeverity.Informational,
                 $"Initializing User For Character {pair.PlayerName}")));
+        }
+    }
+
+    private async Task CheckForPairsPendingCachedPlayer(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                foreach (Pair pair in _pairsPendingCachedPlayer.Keys)
+                {
+                    if (pair.HasCachedPlayer && _pairsPendingCachedPlayer.TryRemove(pair, out var dto))
+                    {
+                        Logger.LogTrace("Pair now has CachedPlayer for data application: {pair}", pair.PairUIDName);
+                        AddApplyDataToQueue(pair, dto);
+                    }
+                }
+            }
+            catch { }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(1000), ct).ConfigureAwait(false);
         }
     }
 
@@ -754,7 +792,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         }
         finally
         {
-            _periodicTask = null;
+            _unpausePairTask = null;
         }
     }
 }

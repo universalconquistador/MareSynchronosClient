@@ -50,6 +50,7 @@ public class Pair
     public bool IsVisible => CachedPlayer?.IsVisible ?? false;
     public CharacterData? LastReceivedCharacterData { get; set; }
     public string? PlayerName => CachedPlayer?.PlayerName ?? string.Empty;
+    public string PairUIDName => $"{UserData.UID}:{(string.IsNullOrWhiteSpace(PlayerName) ? "NULLPLAYER" : PlayerName)}";
     public long LastAppliedDataBytes => CachedPlayer?.LastAppliedDataBytes ?? -1;
     public long LastAppliedDataTris { get; set; } = -1;
     public long LastAppliedApproximateVRAMBytes { get; set; } = -1;
@@ -110,37 +111,11 @@ public class Pair
     ///// </summary>
     public async Task ApplyDataAsync(Guid applicationBase, OnlineUserCharaDataDto data)
     {
-        _applicationCts = _applicationCts.CancelRecreate();
         LastReceivedCharacterData = data.CharaData;
 
         if (CachedPlayer == null)
         {
-            _logger.LogDebug("[BASE-{appBase}] Received Data for {uid} but CachedPlayer does not exist, waiting", applicationBase, data.User.UID);
-
-            using var timeoutCts = new CancellationTokenSource();
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(120));
-
-            var appToken = _applicationCts.Token;
-            using var combined = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, appToken);
-
-            try
-            {
-                while (CachedPlayer == null && !combined.Token.IsCancellationRequested)
-                {
-                    await Task.Delay(250, combined.Token).ConfigureAwait(false);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-
-            if (combined.IsCancellationRequested)
-            {
-                return;
-            }
-
-            _logger.LogDebug("[BASE-{appBase}] Applying delayed data for {uid}", applicationBase, data.User.UID);
+            _logger.LogWarning("Called to apply data for pair {uid} but CachePlayer is null!", UserData.UID);
         }
 
         await ApplyLastReceivedDataAsync(applicationBase: applicationBase).ConfigureAwait(false);
