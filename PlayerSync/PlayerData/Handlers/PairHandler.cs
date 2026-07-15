@@ -481,7 +481,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             {
                 Logger.LogError("[BASE-{appBase}] Failed to download {count} hashes for {player}:{uid} Hashes: {hashes}", 
                     applicationBase, toDownloadReplacements.Count, PlayerName, Pair.UserData.UID, string.Join(',', toDownloadReplacements.Select(file => file.Hash)));
-                throw new InvalidOperationException($"Failed to download one or more required files for {PlayerName}:{Pair.UserData.UID}");
+                Logger.LogDebug("[BASE-{appBase}] Failed files: {files}", applicationBase, string.Join(',', toDownloadReplacements.Select(file => file.FileSwapPath)));
+                //throw new InvalidOperationException($"Failed to download one or more required files for {PlayerName}:{Pair.UserData.UID}");
             }
 
             if (numberOfFilesToDownload > 0) // we may not have needed to download anything, so don't report it
@@ -503,18 +504,18 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
         downloadToken.ThrowIfCancellationRequested();
 
-        var appToken = _applicationCancellationTokenSource?.Token;
-        while ((!_applicationTask?.IsCompleted ?? false) && !downloadToken.IsCancellationRequested && (!appToken?.IsCancellationRequested ?? false))
-        {
-            // block until current application is done
-            Logger.LogDebug("[BASE-{appBase}] Waiting for current data application (Id: {id}) for player ({handler}) to finish", applicationBase, _applicationId, PlayerName);
-            await Task.Delay(250).ConfigureAwait(false);
-        }
+        //var appToken = _applicationCancellationTokenSource?.Token;
+        //while ((!_applicationTask?.IsCompleted ?? false) && !downloadToken.IsCancellationRequested && (!appToken?.IsCancellationRequested ?? false))
+        //{
+        //    // block until current application is done
+        //    Logger.LogDebug("[BASE-{appBase}] Waiting for current data application (Id: {id}) for player ({handler}) to finish", applicationBase, _applicationId, PlayerName);
+        //    await Task.Delay(250).ConfigureAwait(false);
+        //}
 
-        if (downloadToken.IsCancellationRequested || (appToken?.IsCancellationRequested ?? false))
-        {
-            return;
-        }
+        //if (downloadToken.IsCancellationRequested || (appToken?.IsCancellationRequested ?? false))
+        //{
+        //    return;
+        //}
 
         _applicationCancellationTokenSource = _applicationCancellationTokenSource.CancelRecreate() ?? new CancellationTokenSource();
         var token = _applicationCancellationTokenSource.Token;
