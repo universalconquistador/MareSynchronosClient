@@ -24,8 +24,6 @@ namespace MareSynchronos.PlayerData.Handlers;
 
 public sealed class PairHandler : DisposableMediatorSubscriberBase
 {
-    private sealed record CombatData(Guid ApplicationId, CharacterData CharacterData, bool Forced);
-
     private readonly DalamudUtilService _dalamudUtil;
     private readonly FileDownloadManager _downloadManager;
     private readonly FileCacheManager _fileDbManager;
@@ -36,7 +34,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     private readonly PluginWarningNotificationService _pluginWarningNotificationManager;
     private readonly PlayerPerformanceConfigService _performanceConfig;
     private readonly MareConfigService _configService;
-    private readonly PlayerIdleStatusService _idleStatusService;
     private readonly IHostApplicationLifetime _lifetime;
     private readonly ICompressedAlternateManager _compressedAlternateManager;
     private readonly IDataManager _dataManager;
@@ -46,7 +43,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
     private GameObjectHandler? _charaHandler;
     private CharacterData? _cachedData = null;
-    private CombatData? _dataReceivedInDowntime;
     private Guid _applicationId;
     private Guid? _penumbraCollection;
     private Task? _applicationTask;
@@ -70,8 +66,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         ICompressedAlternateManager compressedAlternateManager,
         MareConfigService configService,
         PlayerPerformanceConfigService performanceConfig,
-        IDataManager dataManager,
-        PlayerIdleStatusService playerIdleStatusService
+        IDataManager dataManager
         ) : base(logger, mediator)
     {
         Pair = pair;
@@ -88,7 +83,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _performanceConfig = performanceConfig;
         _dataManager = dataManager;
         _configService = configService;
-        _idleStatusService = playerIdleStatusService;
         _isVanillaEnforced = IsVanillaEnforced();
 
         Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => FrameworkUpdate());
@@ -119,46 +113,13 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             }
         });
 
-        Mediator.Subscribe<CombatOrPerformanceEndMessage>(this, (msg) =>
-        {
-            if (IsVisible && _dataReceivedInDowntime != null)
-            {
-                ApplyCharacterData(_dataReceivedInDowntime.ApplicationId,
-                    _dataReceivedInDowntime.CharacterData, _dataReceivedInDowntime.Forced);
-                _dataReceivedInDowntime = null;
-            }
-        });
-
-        Mediator.Subscribe<CombatOrPerformanceStartMessage>(this, _ =>
-        {
-            _dataReceivedInDowntime = null;
-            _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate();
-            _applicationCancellationTokenSource = _applicationCancellationTokenSource?.CancelRecreate();
-        });
-
-        Mediator.Subscribe<PlayerIdleStartMessage>(this, _ =>
-        {
-            _dataReceivedInDowntime = null;
-            _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate();
-            _applicationCancellationTokenSource = _applicationCancellationTokenSource?.CancelRecreate();
-        });
-
         Mediator.Subscribe<PlayerIdleEndMessage>(this, _ =>
         {
-            if (IsVisible && _dataReceivedInDowntime != null)
-            {
-                Logger.LogTrace("Applying deferred pair data for {uid} after IDLE has become ACTIVE.", Pair.UserData.UID);
-                ApplyCharacterData(_dataReceivedInDowntime.ApplicationId,
-                    _dataReceivedInDowntime.CharacterData, _dataReceivedInDowntime.Forced);
-                _dataReceivedInDowntime = null;
-            }
-            else if(!IsVisible && _dataReceivedInDowntime != null)
+            if(!IsVisible)
             {
                 Logger.LogTrace("Removing deferred pair data for {uid} after IDLE has become ACTIVE.", Pair.UserData.UID);
-                // we should really consider just doing what a lot of the Dispose does here, but that could be a lot of pairs if idle for a long time...
                 _charaHandler?.Invalidate();
-                _cachedData = null; // there could be weird one-way visibility concerns with doing this
-                _dataReceivedInDowntime = null;
+                _cachedData = null;
             }
         });
 
@@ -277,12 +238,11 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     public Task ApplyCharacterDataAsync(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
     {
         // Check if we are in combat or performing and need to defer pair loading
-        if (_dalamudUtil.IsInCombatOrPerforming)
+        if ((_configService.Current.AutoPauseDataApplicationWhenPerforming && _dalamudUtil.IsPerforming) || _dalamudUtil.IsInCombat)
         {
             Mediator.Publish(new EventMessage(new Event(PlayerName, Pair.UserData, nameof(PairHandler), EventSeverity.Warning,
                 "Cannot apply character data: you are in combat or performing music, deferring application")));
             Logger.LogDebug("[BASE-{appBase}] Received data but player is in combat or performing", applicationBase);
-            _dataReceivedInDowntime = new(applicationBase, characterData, forceApplyCustomization);
             SetUploading(isUploading: false);
 
             return Task.CompletedTask;
@@ -503,19 +463,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
 
         downloadToken.ThrowIfCancellationRequested();
-
-        //var appToken = _applicationCancellationTokenSource?.Token;
-        //while ((!_applicationTask?.IsCompleted ?? false) && !downloadToken.IsCancellationRequested && (!appToken?.IsCancellationRequested ?? false))
-        //{
-        //    // block until current application is done
-        //    Logger.LogDebug("[BASE-{appBase}] Waiting for current data application (Id: {id}) for player ({handler}) to finish", applicationBase, _applicationId, PlayerName);
-        //    await Task.Delay(250).ConfigureAwait(false);
-        //}
-
-        //if (downloadToken.IsCancellationRequested || (appToken?.IsCancellationRequested ?? false))
-        //{
-        //    return;
-        //}
 
         _applicationCancellationTokenSource = _applicationCancellationTokenSource.CancelRecreate() ?? new CancellationTokenSource();
         var token = _applicationCancellationTokenSource.Token;
@@ -1243,23 +1190,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
     public async Task HandleOptionalPluginDataAsync(AddonPlugin plugin, CharacterData charaData)
     {
-        bool isCharacterInvalid = false;
-        bool isCharacterInDowntime = false;
-
-        if ((_charaHandler == null || (PlayerCharacter == IntPtr.Zero)) && _cachedData is not null)
-        {
-            isCharacterInvalid = true;
-        }
-
-        if (_dalamudUtil.IsInCombatOrPerforming || _idleStatusService.IsPlayerIdle)
-        {
-            if (_dataReceivedInDowntime is null)
-            {
-                return; // we only update partials after a full cache data is present
-            }
-
-            isCharacterInDowntime = true;
-        }
+        bool isCharacterInvalid = (_charaHandler == null || (PlayerCharacter == IntPtr.Zero)) && _cachedData is not null;
 
         switch (plugin)
         {
@@ -1267,13 +1198,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 if (isCharacterInvalid)
                 {
                     _cachedData!.HonorificData = charaData.HonorificData;
-
-                    return;
-                }
-
-                if (isCharacterInDowntime)
-                {
-                    _dataReceivedInDowntime!.CharacterData.HonorificData = charaData.HonorificData;
 
                     return;
                 }
@@ -1291,13 +1215,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 if (isCharacterInvalid)
                 {
                     _cachedData!.HeelsData = charaData.HeelsData;
-
-                    return;
-                }
-
-                if (isCharacterInDowntime)
-                {
-                    _dataReceivedInDowntime!.CharacterData.HeelsData = charaData.HeelsData;
 
                     return;
                 }
@@ -1320,13 +1237,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     return;
                 }
 
-                if (isCharacterInDowntime)
-                {
-                    _dataReceivedInDowntime!.CharacterData.MoodlesData = charaData.MoodlesData;
-
-                    return;
-                }
-
                 if (string.Equals(_cachedData!.MoodlesData, charaData.MoodlesData, StringComparison.Ordinal))
                 {
                     return;
@@ -1344,13 +1254,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     return;
                 }
 
-                if (isCharacterInDowntime)
-                {
-                    _dataReceivedInDowntime!.CharacterData.PetNamesData = charaData.PetNamesData;
-
-                    return;
-                }
-
                 if (string.Equals(_cachedData!.PetNamesData, charaData.PetNamesData, StringComparison.Ordinal))
                 {
                     return;
@@ -1364,13 +1267,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 if (isCharacterInvalid)
                 {
                     _cachedData!.LociData = charaData.LociData;
-
-                    return;
-                }
-
-                if (isCharacterInDowntime)
-                {
-                    _dataReceivedInDowntime!.CharacterData.LociData = charaData.LociData;
 
                     return;
                 }

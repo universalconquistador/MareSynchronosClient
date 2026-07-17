@@ -23,7 +23,7 @@ public partial class SettingsUi
         new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
         new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),
         new(SyncTabs.Pairs, "Pair Requests", DrawPairRequests),
-        new(SyncTabs.Duty, "Duty Pause", DrawDutyPause),
+        new(SyncTabs.Duty, "Sync Pause", DrawDutyPause),
         new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
         new(SyncTabs.Permissions, "Permissions", GoToPermissions),
         new(SyncTabs.Experimental, "Experimental", DrawExperimental),
@@ -344,13 +344,14 @@ public partial class SettingsUi
     private void DrawDutyPause()
     {
         bool disableSyncDuringDuty = _configService.Current.DisableSyncDuringDuty; bool disableSyncDuringPvP = _configService.Current.DisableSyncDuringPvP;
+        bool isPausingPerformance = _configService.Current.AutoPauseDataApplicationWhenPerforming;
         bool IsBoundByDuty = _dalamudUtilService.IsBoundByDuty;
         bool IsBoundByPvP = _dalamudUtilService.IsBoundByPvP;
         bool isConnectingOrConnected = _apiController.ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting;
 
-        _uiShared.BigText("Duty Pause");
-        ImGuiHelpers.ScaledDummy(2);
-        UiSharedService.TextWrapped("This option will disconnect from the service upon entering a duty and reconnect when you leave the instance.");
+        _uiShared.BigText("Sync Pause");
+        //ImGuiHelpers.ScaledDummy(2);
+        //UiSharedService.TextWrapped();
         ImGuiHelpers.ScaledDummy(5f);
         if (ImGui.Checkbox("Auto disconnect when bound by duty", ref disableSyncDuringDuty))
         {
@@ -368,6 +369,8 @@ public partial class SettingsUi
             _configService.Current.DisableSyncDuringDuty = disableSyncDuringDuty;
             _configService.Save();
         }
+        _uiShared.DrawHelpText("This option will disconnect from the service upon entering a duty and reconnect when you leave the instance.");
+
         if (ImGui.Checkbox("Auto disconnect when in PvP", ref disableSyncDuringPvP))
         {
             if (isConnectingOrConnected && !_serverConfigurationManager.CurrentServer.FullPause && IsBoundByPvP && disableSyncDuringPvP)
@@ -384,6 +387,14 @@ public partial class SettingsUi
             _configService.Current.DisableSyncDuringPvP = disableSyncDuringPvP;
             _configService.Save();
         }
+        _uiShared.DrawHelpText("This option will disconnect from the service upon entering PVP and reconnect when you leave the instance.");
+
+        if (ImGui.Checkbox("Pause data applications while in performance mode", ref isPausingPerformance))
+        {
+            _configService.Current.AutoPauseDataApplicationWhenPerforming = isPausingPerformance;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This option will stop loading new pairs while you are in performance mode.");
     }
 
     private void DrawSyncFilter()

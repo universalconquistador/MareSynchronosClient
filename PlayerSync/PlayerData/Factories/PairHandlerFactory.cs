@@ -30,7 +30,6 @@ public class PairHandlerFactory
     private readonly PlayerPerformanceConfigService _performanceConfig;
     private readonly MareConfigService _mareConfigService;
     private readonly IDataManager _dataManager;
-    private readonly PlayerIdleStatusService _playerIdleStatusService;
 
     public PairHandlerFactory(ILoggerFactory loggerFactory, GameObjectHandlerFactory gameObjectHandlerFactory, IpcManager ipcManager,
         FileDownloadManagerFactory fileDownloadManagerFactory, DalamudUtilService dalamudUtilService,
@@ -54,7 +53,6 @@ public class PairHandlerFactory
         _performanceConfig = performanceConfig;
         _mareConfigService = mareConfigService;
         _dataManager = dataManager;
-        _playerIdleStatusService = playerIdleStatusService;
     }
 
     public PairHandler Create(Pair pair)
@@ -62,6 +60,6 @@ public class PairHandlerFactory
         return new PairHandler(_loggerFactory.CreateLogger<PairHandler>(), pair, _gameObjectHandlerFactory,_ipcManager, 
             _fileDownloadManagerFactory.Create(), _pluginWarningNotificationManager, _dalamudUtilService, _hostApplicationLifetime,
             _fileCacheManager, _mareMediator, _playerPerformanceService, _serverConfigManager, _compressedAlternateManager, 
-            _mareConfigService, _performanceConfig, _dataManager, _playerIdleStatusService);
+            _mareConfigService, _performanceConfig, _dataManager);
     }
 }

@@ -241,7 +241,9 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public bool IsPvPExcludingDen => _clientState.IsPvPExcludingDen;
     public bool IsSyncPausedByDuty => IsBoundByDuty && _configService.Current.DisableSyncDuringDuty;
     public bool IsSyncPausedByPvP => IsBoundByPvP && _configService.Current.DisableSyncDuringPvP;
-    public bool IsInCombatOrPerforming { get; private set; } = false;
+    public bool IsInCombat { get; private set; } = false;
+    public bool IsPerforming { get; private set; } = false;
+    public bool IsInCombatOrPerforming => IsInCombat || IsPerforming;
     public bool HasModifiedGameFiles => _gameData.HasModifiedGameDataFiles;
     public uint ClassJobId => _classJobId!.Value;
     public Lazy<Dictionary<uint, string>> JobData { get; private set; }
@@ -894,17 +896,32 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 Mediator.Publish(new GposeEndMessage());
             }
 
-            if ((_condition[ConditionFlag.Performing] || _condition[ConditionFlag.InCombat]) && !IsInCombatOrPerforming)
+            if (_condition[ConditionFlag.InCombat] && !IsInCombat)
             {
-                _logger.LogDebug("Combat/Performance start");
-                IsInCombatOrPerforming = true;
+                _logger.LogTrace("Combat start");
+                IsInCombat = true;
                 Mediator.Publish(new CombatOrPerformanceStartMessage());
                 Mediator.Publish(new HaltScanMessage(nameof(IsInCombatOrPerforming)));
             }
-            else if ((!_condition[ConditionFlag.Performing] && !_condition[ConditionFlag.InCombat]) && IsInCombatOrPerforming)
+            else if (!_condition[ConditionFlag.InCombat] && IsInCombat)
             {
-                _logger.LogDebug("Combat/Performance end");
-                IsInCombatOrPerforming = false;
+                _logger.LogTrace("Combat end");
+                IsInCombat = false;
+                Mediator.Publish(new CombatOrPerformanceEndMessage());
+                Mediator.Publish(new ResumeScanMessage(nameof(IsInCombatOrPerforming)));
+            }
+
+            if (_condition[ConditionFlag.Performing] && !IsPerforming)
+            {
+                _logger.LogTrace("Performance start");
+                IsPerforming = true;
+                Mediator.Publish(new CombatOrPerformanceStartMessage());
+                Mediator.Publish(new HaltScanMessage(nameof(IsInCombatOrPerforming)));
+            }
+            else if (!_condition[ConditionFlag.Performing] && IsPerforming)
+            {
+                _logger.LogTrace("Performance end");
+                IsPerforming = false;
                 Mediator.Publish(new CombatOrPerformanceEndMessage());
                 Mediator.Publish(new ResumeScanMessage(nameof(IsInCombatOrPerforming)));
             }
@@ -951,14 +968,14 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 }
             }
 
-            if (_condition[ConditionFlag.WatchingCutscene] && !IsInCutscene)
+            if ((_condition[ConditionFlag.WatchingCutscene] || _condition[ConditionFlag.OccupiedInCutSceneEvent]) && !IsInCutscene)
             {
                 _logger.LogDebug("Cutscene start");
                 IsInCutscene = true;
                 Mediator.Publish(new CutsceneStartMessage());
                 Mediator.Publish(new HaltScanMessage(nameof(IsInCutscene)));
             }
-            else if (!_condition[ConditionFlag.WatchingCutscene] && IsInCutscene)
+            else if (!(_condition[ConditionFlag.WatchingCutscene] || _condition[ConditionFlag.OccupiedInCutSceneEvent]) && IsInCutscene)
             {
                 _logger.LogDebug("Cutscene end");
                 IsInCutscene = false;
@@ -1014,7 +1031,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 _playerName = localPlayer.Name.TextValue;
             }
 
-            if (!IsInCombatOrPerforming)
+            if (!((_configService.Current.AutoPauseDataApplicationWhenPerforming && IsPerforming) || IsInCombat))
                 Mediator.Publish(new FrameworkUpdateMessage());
 
             Mediator.Publish(new PriorityFrameworkUpdateMessage());
@@ -1057,7 +1074,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 IsLodEnabled = lodEnabled;
             }
 
-            if (IsInCombatOrPerforming)
+            if ((_configService.Current.AutoPauseDataApplicationWhenPerforming && IsPerforming) || IsInCombat)
                 Mediator.Publish(new FrameworkUpdateMessage());
 
             Mediator.Publish(new DelayedFrameworkUpdateMessage());
