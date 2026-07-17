@@ -3,6 +3,7 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
+using Dalamud.Utility.Signatures;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
@@ -22,9 +23,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
-using GameObject = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
 using Framework = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework;
+using GameObject = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
 using TargetType = MareSynchronos.Services.Models.TargetType;
 
 namespace MareSynchronos.Services;
@@ -57,9 +59,13 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     private Lazy<ulong> _cid;
     private string? _playerName;
 
+    // How to find: Look for xrefs to "/ex%d/ex%d.ver"
+    [Signature("E8 ?? ?? ?? ?? 48 8B D0 80 38 20")]
+    private readonly unsafe delegate* unmanaged<Framework*, int, bool, byte*> _getExVersion;
+
     public DalamudUtilService(ILogger<DalamudUtilService> logger, IClientState clientState, IObjectTable objectTable, IFramework framework,
         IGameGui gameGui, ICondition condition, IDataManager gameData, ITargetManager targetManager, IGameConfig gameConfig,
-        BlockedCharacterHandler blockedCharacterHandler, MareMediator mediator, PerformanceCollectorService performanceCollector,
+        IGameInteropProvider gameInteropProvider, BlockedCharacterHandler blockedCharacterHandler, MareMediator mediator, PerformanceCollectorService performanceCollector,
         MareConfigService configService)
     {
         _logger = logger;
@@ -75,6 +81,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         Mediator = mediator;
         _performanceCollector = performanceCollector;
         _configService = configService;
+        gameInteropProvider.InitializeFromAttributes(this);
         WorldData = new(() =>
         {
             return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
@@ -148,12 +155,12 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         InstalledExpansions = 0;
         unsafe
         {
-            ReadOnlySpan<byte> noneVersionString = "none\0"u8;
+            ReadOnlySpan<byte> noneVersionString = "none"u8;
             for (int i = 0; i < Framework.Instance()->ExVersions.Length; i++)
             {
-                var versionSpan = i == 0 ? Framework.Instance()->GameVersion : Framework.Instance()->ExVersions[i - 1].Version;
+                var versionSpan = MemoryMarshal.CreateReadOnlySpanFromNullTerminated(_getExVersion(Framework.Instance(), i, false));
 
-                if (versionSpan[0] == 0)
+                if (versionSpan.Length == 0)
                 {
                     break;
                 }
