@@ -38,6 +38,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private readonly Dictionary<Pair, OnlineUserCharaDataDto> _applyDataQueueDtos = [];
     private readonly ConcurrentDictionary<Pair, OnlineUserCharaDataDto> _deferredPairDataApplications = [];
     private readonly HashSet<Pair> _runningApplyDataTasks = [];
+    private readonly object _deferredApplicationLock = new();
 
     private Lazy<List<Pair>> _directPairsInternal;
     private Lazy<Dictionary<GroupFullInfoDto, List<Pair>>> _groupPairsInternal;
@@ -46,6 +47,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private bool _isConnected = false;
     private CancellationTokenSource? _unpausePairCts;
     private CancellationTokenSource? _deferredApplicationCts;
+    private CancellationTokenSource? _dataApplicationPipelineTopLevelCts;
     private Task? _unpausePairTask;
     private Task? _pendingDeferredTask;
     private int _maxConcurrentApplyData;
@@ -66,6 +68,11 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         Mediator.Subscribe<DisconnectedMessage>(this, (_) =>
         {
             _isConnected = false;
+            lock (_deferredApplicationLock)
+            {
+                _deferredPairDataApplications.Clear();
+            }
+            _dataApplicationPipelineTopLevelCts = _dataApplicationPipelineTopLevelCts.CancelRecreate();
             ClearPairs();
         });
 
@@ -73,7 +80,16 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         Mediator.Subscribe<ConnectedMessage>(this, (_) => _isConnected = true);
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => ReapplyPairData());
         Mediator.Subscribe<ChangeFilterMessage>(this, (_) => ReapplyPairData());
-        Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) => _isZoning = true);
+        Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) =>
+        {
+            _isZoning = true;
+            lock (_deferredApplicationLock)
+            {
+                _deferredPairDataApplications.Clear();
+            }
+            _dataApplicationPipelineTopLevelCts = _dataApplicationPipelineTopLevelCts.CancelRecreate();
+        });
+
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (_) => _isZoning = false);
         Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => InitializePairs());
         Mediator.Subscribe<CombatOrPerformanceStartMessage>(this, _ =>
@@ -83,6 +99,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
                 _deferringDataApplications = true;
             }
         });
+
         Mediator.Subscribe<CombatOrPerformanceEndMessage>(this, (msg) => _deferringDataApplications = false);
         Mediator.Subscribe<PlayerIdleStartMessage>(this, _ => _isPlayerIdle = true);
         Mediator.Subscribe<PlayerIdleEndMessage>(this, _ => _isPlayerIdle = false);
@@ -99,9 +116,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _deferredApplicationCts = new CancellationTokenSource();
         _pendingDeferredTask = CheckForDeferredPairDataApplication(_deferredApplicationCts.Token);
 
-        Logger.LogTrace("{class} created.", nameof(PairManager));
+        _dataApplicationPipelineTopLevelCts = _dataApplicationPipelineTopLevelCts.CancelRecreate();
 
-        
+        Logger.LogTrace("{class} created.", nameof(PairManager));   
     }
 
     public List<Pair> DirectPairs => _directPairsInternal.Value;
@@ -227,7 +244,11 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             _applyDataQueueDtos.Clear();
             _runningApplyDataTasks.Clear();
         }
-        _deferredPairDataApplications.Clear();
+
+        lock (_deferredApplicationLock)
+        {
+            _deferredPairDataApplications.Clear();
+        }
 
         Logger.LogDebug("Data queue cleared");
 
@@ -513,6 +534,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
         _unpausePairCts?.CancelDispose();
         _deferredApplicationCts?.CancelDispose();
+        _dataApplicationPipelineTopLevelCts?.CancelDispose();
 
         _isConnected = false;
         DisposePairs();
@@ -655,6 +677,8 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
         try
         {
+            _dataApplicationPipelineTopLevelCts.Token.ThrowIfCancellationRequested();
+
             if (!_allClientPairs.TryGetValue(pair.UserData, out var currentPair) || currentPair.UserData.UID != pair.UserData.UID)
             {
                 return;
@@ -664,7 +688,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
             Logger.LogDebug("[BASE-{appBase}] Starting queued data application for {pair}", applicationBase, pair.PairUIDName);
             // The entire pipeline chains a Task so we know when it's finished (or fails)
-            await pair.ApplyDataAsync(applicationBase, dto).ConfigureAwait(false); // original pipeline entry point
+            await pair.ApplyDataAsync(applicationBase, dto, _dataApplicationPipelineTopLevelCts.Token).ConfigureAwait(false); // original pipeline entry point
         }
         catch (OperationCanceledException)
         {
@@ -738,19 +762,26 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         {
             try
             {
-                foreach (Pair pair in _deferredPairDataApplications.Keys)
+                if (_isConnected && !_isZoning)
                 {
-                    if (pair.CanApplyModdedData && !DeferringDataApplications && _deferredPairDataApplications.TryRemove(pair, out var dto))
+                    foreach (Pair pair in _deferredPairDataApplications.Keys)
                     {
-                        Logger.LogDebug("Pair is no longer deferred and has data application: {pair}", pair.PairUIDName);
-                        Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Applying deferred pair data")));
-                        if (dto.AddonPlugin != null)
+                        lock (_deferredApplicationLock) // this gets cleared when you zone, we need to not be acting on it while it gets cleared
                         {
-                            pair.ApplyAddonPluginUpdate(dto);
-                        }
-                        else
-                        {
-                            AddApplyDataToQueue(pair, dto);
+                            if (pair.CanApplyModdedData && !DeferringDataApplications && _deferredPairDataApplications.TryRemove(pair, out var dto))
+                            {
+                                Logger.LogTrace("Pending deferred pair data applications remaining: {count}", _deferredPairDataApplications.Count);
+                                Logger.LogDebug("Pair is no longer deferred and has data application: {pair}", pair.PairUIDName);
+                                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Applying deferred pair data")));
+                                if (dto.AddonPlugin != null)
+                                {
+                                    pair.ApplyAddonPluginUpdate(dto);
+                                }
+                                else
+                                {
+                                    AddApplyDataToQueue(pair, dto);
+                                }
+                            }
                         }
                     }
                 }

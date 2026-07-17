@@ -103,14 +103,15 @@ public class Pair
 
     public void ApplyData(Guid applicationBase, OnlineUserCharaDataDto data)
     {
-        _ = ApplyDataAsync(applicationBase, data);
+        _ = ApplyDataAsync(applicationBase, data, CancellationToken.None);
     }
 
     ///// <summary>
     ///// Step 1
-    ///// Ensures a cached player exists, or, waits up to 120 seconds for the cache player to be created, before applying character data from the received dto.
+    ///// Ensures a cached player exists before applying character data from the received dto.
+    ///// There used to be a lot more here...
     ///// </summary>
-    public async Task ApplyDataAsync(Guid applicationBase, OnlineUserCharaDataDto data)
+    public async Task ApplyDataAsync(Guid applicationBase, OnlineUserCharaDataDto data, CancellationToken topLevelToken)
     {
         LastReceivedCharacterData = data.CharaData;
 
@@ -119,7 +120,7 @@ public class Pair
             _logger.LogWarning("Called to apply data for pair {uid} but CachePlayer is null!", UserData.UID);
         }
 
-        await ApplyLastReceivedDataAsync(applicationBase: applicationBase).ConfigureAwait(false);
+        await ApplyLastReceivedDataAsync(topLevelToken, applicationBase: applicationBase).ConfigureAwait(false);
     }
 
     public void ApplyLastReceivedData(bool forced = false, Guid? applicationBase = null)
@@ -128,14 +129,14 @@ public class Pair
         {
             applicationBase = Guid.NewGuid();
         }
-        _ = ApplyLastReceivedDataAsync(forced, applicationBase.Value);
+        _ = ApplyLastReceivedDataAsync(CancellationToken.None, forced, applicationBase.Value);
     }
 
     ///// <summary>
     ///// Step 2
     ///// This is called as part of the data application pipeline as well as manually to reapply pair data.
     ///// </summary>
-    public Task ApplyLastReceivedDataAsync(bool forced = false, Guid? applicationBase = null)
+    public Task ApplyLastReceivedDataAsync(CancellationToken topLevelToken, bool forced = false, Guid? applicationBase = null)
     {
         if (CachedPlayer == null || LastReceivedCharacterData == null)
         {
@@ -151,7 +152,7 @@ public class Pair
 
         // Called from the PairHandler of this pair.
         // This is kinda hacky as RemoveNotSyncedFiles handles perms/filtering by removing files before they are applied.
-        return CachedPlayer.ApplyCharacterDataAsync(applicationBase.Value, RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, forced);
+        return CachedPlayer.ApplyCharacterDataAsync(applicationBase.Value, RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, topLevelToken, forced);
     }
 
     public void SetOnlinePlayerDto(OnlineUserIdentDto? dto = null)

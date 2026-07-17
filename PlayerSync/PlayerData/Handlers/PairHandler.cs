@@ -227,7 +227,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
     public void ApplyCharacterData(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
     {
-        _ = ApplyCharacterDataAsync(applicationBase, characterData, forceApplyCustomization);
+        _ = ApplyCharacterDataAsync(applicationBase, characterData, CancellationToken.None, forceApplyCustomization);
     }
 
     /// <summary>
@@ -235,7 +235,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     /// This step provides many of the preflight checks prior to starting any downloads.
     /// There is a LOT going on here, best to review carefully.
     /// </summary>
-    public Task ApplyCharacterDataAsync(Guid applicationBase, CharacterData characterData, bool forceApplyCustomization = false)
+    public Task ApplyCharacterDataAsync(Guid applicationBase, CharacterData characterData, CancellationToken topLevelToken, bool forceApplyCustomization = false)
     {
         // Check if we are in combat or performing and need to defer pair loading
         if ((_configService.Current.AutoPauseDataApplicationWhenPerforming && _dalamudUtil.IsPerforming) || _dalamudUtil.IsInCombat)
@@ -334,14 +334,14 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         Logger.LogDebug("[BASE-{appbase}] Downloading and applying character for {name}", applicationBase, this);
 
         // Move on to downloading
-        return DownloadAndApplyCharacter(applicationBase, characterData.DeepClone(), charaDataToUpdate);
+        return DownloadAndApplyCharacter(applicationBase, characterData.DeepClone(), charaDataToUpdate, topLevelToken);
     }
 
     /// <summary>
     /// Step 4
     /// Prepare update data and fire and forget async task
     /// </summary>
-    private Task DownloadAndApplyCharacter(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData)
+    private Task DownloadAndApplyCharacter(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData, CancellationToken topLevelToken)
     {
         if (!updatedData.Any())
         {
@@ -356,7 +356,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         _downloadCancellationTokenSource = _downloadCancellationTokenSource?.CancelRecreate() ?? new CancellationTokenSource();
         var downloadToken = _downloadCancellationTokenSource.Token;
 
-        return DownloadAndApplyCharacterAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, downloadToken);
+        return DownloadAndApplyCharacterAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, downloadToken, topLevelToken);
     }
 
     /// <summary>
@@ -364,8 +364,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     /// This is he start of the spaghetti monster to check comp alts, download files, check VRAM/Tris.
     /// </summary>
     private async Task DownloadAndApplyCharacterAsync(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData,
-        bool updateModdedPaths, bool updateManip, CancellationToken downloadToken)
+        bool updateModdedPaths, bool updateManip, CancellationToken downloadToken, CancellationToken topLevelToken)
     {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(downloadToken, topLevelToken);
+
         Stopwatch stopwatch;
         Dictionary<(string GamePath, string? Hash), string> moddedPaths = [];
         HashSet<string> locallyPresentFiles;
@@ -378,11 +380,11 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             int attempts = 0;
             ActiveCompressionRedirects.Clear();
             // This part does a ton of lifting, but basically checks for mod files we do not have yet that we will need for this pair
-            List<FileReplacementData> toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, downloadToken);
+            List<FileReplacementData> toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, linkedCts.Token);
 
             stopwatch = Stopwatch.StartNew();
             // We go through the download loop up to 10 times in case any of the downloads fail. This is honestly hacky and should be better handled based on failure reason.
-            while (toDownloadReplacements.Count > 0 && attempts < maxAttempts && !downloadToken.IsCancellationRequested)
+            while (toDownloadReplacements.Count > 0 && attempts < maxAttempts && !linkedCts.IsCancellationRequested)
             {
                 attempts++;
 
@@ -398,7 +400,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     $"Starting download for {toDownloadReplacements.Count} files")));
                 Dictionary<string, string> compressionSubstitutions = new Dictionary<string, string>();
                 // This gets a list of file download dtos from the file server that we need for this pair, not the actual files. This contains meta data and download links for each file.
-                var toDownloadFiles = await _downloadManager.InitiateDownloadList(_charaHandler!, toDownloadReplacements, compressedAlternateUsage, compressionSubstitutions, locallyPresentFiles, downloadToken).ConfigureAwait(false);
+                var toDownloadFiles = await _downloadManager.InitiateDownloadList(_charaHandler!, toDownloadReplacements, compressedAlternateUsage, compressionSubstitutions, locallyPresentFiles, linkedCts.Token).ConfigureAwait(false);
                 if (numberOfFilesToDownload < 0)
                 {
                     numberOfFilesToDownload = toDownloadFiles.Count;
@@ -412,11 +414,11 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
 
                 // start background task to download needed files
-                _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(_charaHandler!, toDownloadReplacements, compressionSubstitutions, downloadToken).ConfigureAwait(false));
+                _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(_charaHandler!, toDownloadReplacements, compressionSubstitutions, linkedCts.Token).ConfigureAwait(false));
 
                 await _pairDownloadTask.ConfigureAwait(false);
 
-                if (downloadToken.IsCancellationRequested)
+                if (linkedCts.IsCancellationRequested)
                 {
                     Logger.LogTrace("[BASE-{appBase}] Detected cancellation", applicationBase);
 
@@ -424,20 +426,20 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
 
                 // check again if we have files we still need to download, if so, this loop begins again
-                toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, downloadToken);
+                toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, linkedCts.Token);
 
                 if (toDownloadReplacements.TrueForAll(c => _downloadManager.ForbiddenTransfers.Exists(f => string.Equals(f.Hash, c.Hash, StringComparison.Ordinal))))
                 {
                     break;
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(2), downloadToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(2), linkedCts.Token).ConfigureAwait(false);
             }
 
             stopwatch.Stop();
 
             // we should have all of our files by now, if not, we need to investigate/mitigate the root cause
-            if (toDownloadReplacements.Count > 0 && !downloadToken.IsCancellationRequested)
+            if (toDownloadReplacements.Count > 0 && !linkedCts.IsCancellationRequested)
             {
                 Logger.LogError("[BASE-{appBase}] Failed to download {count} hashes for {player}:{uid} Hashes: {hashes}", 
                     applicationBase, toDownloadReplacements.Count, PlayerName, Pair.UserData.UID, string.Join(',', toDownloadReplacements.Select(file => file.Hash)));
@@ -462,12 +464,12 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             }
         }
 
-        downloadToken.ThrowIfCancellationRequested();
+        linkedCts.Token.ThrowIfCancellationRequested();
 
         _applicationCancellationTokenSource = _applicationCancellationTokenSource.CancelRecreate() ?? new CancellationTokenSource();
         var token = _applicationCancellationTokenSource.Token;
 
-        _applicationTask = ApplyCharacterDataAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, moddedPaths, token);
+        _applicationTask = ApplyDataApplicationAsync(applicationBase, charaData, updatedData, updateModdedPaths, updateManip, moddedPaths, token, topLevelToken);
         await _applicationTask.ConfigureAwait(false);
     }
 
@@ -485,9 +487,11 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     /// Step 6
     /// This does file validation checks, then sets mods in Penumbra, then addons plugins + glamourer, then redraw
     /// </summary>
-    private async Task ApplyCharacterDataAsync(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData, bool updateModdedPaths, bool updateManip,
-        Dictionary<(string GamePath, string? Hash), string> moddedPaths, CancellationToken token)
+    private async Task ApplyDataApplicationAsync(Guid applicationBase, CharacterData charaData, Dictionary<ObjectKind, HashSet<PlayerChanges>> updatedData, bool updateModdedPaths, bool updateManip,
+        Dictionary<(string GamePath, string? Hash), string> moddedPaths, CancellationToken token, CancellationToken topLevelToken)
     {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, topLevelToken);
+
         _applicationId = Guid.NewGuid();
 
         if (_penumbraCollection is null)
@@ -553,9 +557,9 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         {
             Logger.LogDebug("[BASE-{applicationId}] Starting application task for {this}: {appId}", applicationBase, this, _applicationId);
             Logger.LogDebug("[{applicationId}] Waiting for initial draw for for {handler}", _applicationId, _charaHandler);
-            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, _charaHandler!, _applicationId, 10000, true, token).ConfigureAwait(false);
+            await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, _charaHandler!, _applicationId, 10000, true, linkedCts.Token).ConfigureAwait(false);
 
-            token.ThrowIfCancellationRequested();
+            linkedCts.Token.ThrowIfCancellationRequested();
 
             if (updateModdedPaths)
             {
@@ -586,13 +590,13 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 await _ipcManager.Penumbra.SetManipulationDataAsync(Logger, _applicationId, _penumbraCollection.Value, charaData.ManipulationData).ConfigureAwait(false);
             }
 
-            token.ThrowIfCancellationRequested();
+            linkedCts.Token.ThrowIfCancellationRequested();
 
             // This runs against each object kind, player, pet, etc. and applies the changes
             foreach (var kind in updatedData)
             {
-                await ApplyCustomizationDataAsync(_applicationId, kind, charaData, token).ConfigureAwait(false);
-                token.ThrowIfCancellationRequested();
+                await ApplyCustomizationDataAsync(_applicationId, kind, charaData, linkedCts.Token).ConfigureAwait(false);
+                linkedCts.Token.ThrowIfCancellationRequested();
             }
 
             _cachedData = charaData;
