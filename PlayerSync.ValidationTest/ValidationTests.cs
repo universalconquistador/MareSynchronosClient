@@ -5,6 +5,7 @@ using PlayerSync.Validation.Tmb;
 namespace PlayerSync.ValidationTest;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class ValidationTests
 {
     public record class ValidationTest(string TestFilePath, ValidationMessage? ExpectedFailure, ulong InstalledExpansions = ulong.MaxValue);
@@ -30,6 +31,7 @@ public sealed class ValidationTests
         new("AVFX\\AVFX100D_expac_dawntrail.avfx", AvfxValidation.AVFX100D, 0b11111),
         new("AVFX\\AVFX100D_expac_dawntrail.avfx", null, 0b111111),
         new("AVFX\\AVFX100_Valid_limsa.avfx", null, 0b1),
+        new("AVFX\\AVFX100_Valid_amon.avfx", null, 0b1),
     };
 
     public static IEnumerable<object[]> GetTestData()
