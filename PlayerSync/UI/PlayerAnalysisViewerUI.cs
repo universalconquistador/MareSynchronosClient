@@ -40,6 +40,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private readonly UiTheme _theme;
     private Pair? _lastSoftTarget = null;
     private bool _softTargetOnRowSelect = false;
+    private bool _pinuserprofiles = false;
 
     public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
         UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService, ServerConfigurationManager serverConfigurationManager,
@@ -168,7 +169,10 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         _uiSharedService.BigText($"Visible Players ({_cachedVisiblePairs.Count})");
         ImGui.SameLine();
         ImGui.SetCursorPosY(headerStart.Y);
-        ImGui.Checkbox("Enable SoftTarget on row selection.", ref _softTargetOnRowSelect);
+        ImGui.Checkbox("Enable SoftTarget on row selection", ref _softTargetOnRowSelect);
+        ImGui.SameLine();
+        ImGui.SetCursorPosY(headerStart.Y);
+        ImGui.Checkbox("Pin Users With Profiles", ref _pinuserprofiles);
 
         var style = ImGui.GetStyle();
         float comboW = 150f * ImGuiHelpers.GlobalScale;
@@ -307,10 +311,18 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     defaultSortApplied = true;
                 }
 
-                if (sortBy != SortByID.None)
+                if (sortBy != SortByID.None || _pinuserprofiles)
                 {
                     sortedPairs.Sort((a, b) =>
                     {
+                        if (_pinuserprofiles)
+                        {
+                            int profilecompare = b.HasProfile.CompareTo(a.HasProfile);//flipping this to (a.HasProfile.CompareTo(b.HasProfile) will pin to the bottom
+                            if (profilecompare != 0)
+                            {
+                                return profilecompare;
+                            }
+                        }
                         int cmp = sortBy switch
                         {
                             SortByID.Sound => Nullable.Compare(a.LastLoadedSoundSinceRedraw, b.LastLoadedSoundSinceRedraw),
