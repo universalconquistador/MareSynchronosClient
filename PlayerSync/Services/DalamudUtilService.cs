@@ -3,6 +3,7 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
+using Dalamud.Utility.Signatures;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
@@ -22,7 +23,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
+using Framework = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework;
 using GameObject = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
 using TargetType = MareSynchronos.Services.Models.TargetType;
 
@@ -31,6 +34,7 @@ namespace MareSynchronos.Services;
 public class DalamudUtilService : IHostedService, IMediatorSubscriber
 {
     private readonly List<uint> _classJobIdsIgnoredForPets = [30];
+    public readonly ulong InstalledExpansions; // each bit is whether the corresponding expansion is installed, with bit 0 being the base game
     private readonly IClientState _clientState;
     private readonly ICondition _condition;
     private readonly IDataManager _gameData;
@@ -55,9 +59,13 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     private Lazy<ulong> _cid;
     private string? _playerName;
 
+    // How to find: Look for xrefs to "/ex%d/ex%d.ver"
+    [Signature("E8 ?? ?? ?? ?? 48 8B D0 80 38 20")]
+    private readonly unsafe delegate* unmanaged<Framework*, int, bool, byte*> _getExVersion;
+
     public DalamudUtilService(ILogger<DalamudUtilService> logger, IClientState clientState, IObjectTable objectTable, IFramework framework,
         IGameGui gameGui, ICondition condition, IDataManager gameData, ITargetManager targetManager, IGameConfig gameConfig,
-        BlockedCharacterHandler blockedCharacterHandler, MareMediator mediator, PerformanceCollectorService performanceCollector,
+        IGameInteropProvider gameInteropProvider, BlockedCharacterHandler blockedCharacterHandler, MareMediator mediator, PerformanceCollectorService performanceCollector,
         MareConfigService configService)
     {
         _logger = logger;
@@ -73,6 +81,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         Mediator = mediator;
         _performanceCollector = performanceCollector;
         _configService = configService;
+        gameInteropProvider.InitializeFromAttributes(this);
         WorldData = new(() =>
         {
             return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
@@ -142,6 +151,26 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
         IsWine = Util.IsWine();
         _cid = RebuildCID();
+
+        InstalledExpansions = 0;
+        unsafe
+        {
+            ReadOnlySpan<byte> noneVersionString = "none"u8;
+            for (int i = 0; i < Framework.Instance()->ExVersions.Length; i++)
+            {
+                var versionSpan = MemoryMarshal.CreateReadOnlySpanFromNullTerminated(_getExVersion(Framework.Instance(), i, false));
+
+                if (versionSpan.Length == 0)
+                {
+                    break;
+                }
+
+                if (!versionSpan.StartsWith(noneVersionString))
+                {
+                    InstalledExpansions |= 1UL << i;
+                }
+            }
+        }
     }
 
     public string GetWorldName(int worldId)
@@ -152,6 +181,16 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public string GetTerritoryName(int terrirotyId)
     {
         return TerritoryData.Value.TryGetValue((ushort)terrirotyId, out var territoryName) ? territoryName : string.Empty;
+    }
+
+    /// <summary>
+    /// Checks whether the given expansion is installed.
+    /// </summary>
+    /// <param name="index">The expansion to check, with 0 being the base game and 1 being Heavensward.</param>
+    /// <returns>Whether the given expansion is installed.</returns>
+    public bool IsExpansionInstalled(int index)
+    {
+        return (InstalledExpansions & (1UL << index)) != 0;
     }
 
     private Lazy<ulong> RebuildCID() =>  new(GetCID);

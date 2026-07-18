@@ -30,6 +30,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NReco.Logging.File;
 using PlayerSync.FileCache;
+using PlayerSync.Interop;
 using PlayerSync.PlayerData.Pairs;
 using PlayerSync.Services;
 using PlayerSync.Validation;
@@ -99,6 +100,8 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton(new Dalamud.Localization("PlayerSync.Localization.", "", useEmbedded: true));
 
             collection.AddSingleton<IDataManager>(gameData);
+            collection.AddSingleton(gameInteropProvider);
+            collection.AddSingleton(sigScanner);
 
             // add mare related singletons
             collection.AddSingleton<MareMediator>();
@@ -146,7 +149,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton((s) => new EventAggregator(pluginInterface.ConfigDirectory.FullName,
                 s.GetRequiredService<ILogger<EventAggregator>>(), s.GetRequiredService<MareMediator>()));
             collection.AddSingleton((s) => new DalamudUtilService(s.GetRequiredService<ILogger<DalamudUtilService>>(),
-                clientState, objectTable, framework, gameGui, condition, gameData, targetManager, gameConfig,
+                clientState, objectTable, framework, gameGui, condition, gameData, targetManager, gameConfig, gameInteropProvider,
                 s.GetRequiredService<BlockedCharacterHandler>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<PerformanceCollectorService>(),
                 s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton(s => new PairManager(s.GetRequiredService<ILogger<PairManager>>(), s.GetRequiredService<PairFactory>(),
@@ -291,6 +294,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddHostedService(p => p.GetRequiredService<PairContextMenuHandler>());
             collection.AddHostedService(p => p.GetRequiredService<JsonDataTypeHandlerService>());
             collection.AddHostedService(p => p.GetRequiredService<AnimationBindGuard>());
+            collection.AddHostedService<SkeletonMappingFix>();
         })
         .Build();
 
