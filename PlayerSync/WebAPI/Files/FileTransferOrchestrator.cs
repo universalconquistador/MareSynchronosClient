@@ -17,6 +17,9 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     private readonly MareConfigService _mareConfig;
     private readonly TokenProvider _tokenProvider;
 
+    private readonly ConcurrentDictionary<string, (Guid, DownloadFileTransfer)> _claimedDownloadFileTransfers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _hashesReportedError404 = new(StringComparer.OrdinalIgnoreCase);
+
     // Download slots
     private readonly object _semaphoreModificationLock = new();
     private int _availableDownloadSlots;
@@ -114,6 +117,48 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
         {
             // ignore
         }
+    }
+
+    public bool TryClaimFileDownload(Guid ownerId, DownloadFileTransfer fileTransfer)
+    {
+        Logger.LogTrace("FILES-{manager} attemptiong to claim download for {hash}", ownerId, fileTransfer.Hash);
+
+        var success = _claimedDownloadFileTransfers.TryAdd(fileTransfer.Hash, (ownerId, fileTransfer));
+
+        if (!success)
+        {
+            Logger.LogTrace("FILES-{manager} another manager has already claimed the download for {hash}", ownerId, fileTransfer.Hash);
+        }
+
+        return success;
+    }
+
+    public bool TryReleaseFileDownloadClaim(Guid ownerId, string fileHash)
+    {
+        Logger.LogTrace("FILES-{manager} download claim released for {hash} initiated", ownerId, fileHash);
+        if (!_claimedDownloadFileTransfers.TryGetValue(fileHash, out var claim) || claim.Item1 != ownerId) // not every code path has the DownloadFileTransfer so we need look it up first
+        {
+            Logger.LogTrace("FILES-{manager} download claim released for {hash} failed", ownerId, fileHash);
+
+            return false;
+        }
+
+        // this can fail legitimately for files that were in flight and already marked done when a pair gets unloaded mid download/dispose
+        var success = _claimedDownloadFileTransfers.TryRemove(new KeyValuePair<string, (Guid OwnerId, DownloadFileTransfer Transfer)>(fileHash, claim));
+
+        Logger.LogTrace("FILES-{manager} download claim released for {hash} successfully: {success}", ownerId, fileHash, success);
+
+        return success;
+    }
+
+    public bool IsDownloadStillPendingCompletion(string fileHash)
+    {
+        return _claimedDownloadFileTransfers.TryGetValue(fileHash, out _);
+    }
+
+    public bool TryAddHashReportedError404(string fileHash)
+    {
+        return _hashesReportedError404.TryAdd(fileHash, 0);
     }
 
     public async Task<HttpResponseMessage> SendRequestAsync(HttpMethod method, Uri uri,
