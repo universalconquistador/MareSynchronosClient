@@ -169,7 +169,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
         _uiSharedService.BigText($"Visible Players ({_cachedVisiblePairs.Count})");
         ImGui.SameLine();
         ImGui.SetCursorPosY(headerStart.Y);
-        ImGui.Checkbox("Enable SoftTarget on row selection", ref _softTargetOnRowSelect);
+        ImGui.Checkbox("Enable SoftTarget On Row Selection", ref _softTargetOnRowSelect);
         ImGui.SameLine();
         ImGui.SetCursorPosY(headerStart.Y);
         ImGui.Checkbox("Pin Users With Profiles", ref _pinuserprofiles);
