@@ -28,7 +28,8 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
     private readonly object _downloadInfoLock = new object();
     private readonly List<ThrottledStream> _activeDownloadStreams;
     private static int _downloadHaltRefCount;
-    private readonly ConcurrentDictionary<string, byte> _reportedHashes = new(StringComparer.OrdinalIgnoreCase);
+    private List<DownloadFileTransfer> _downloadsPendingOtherManagers = [];
+    private readonly Guid _downloadManagerClaimId = Guid.NewGuid();
 
     public FileDownloadManager(ILogger<FileDownloadManager> logger, MareMediator mediator,
         FileTransferOrchestrator orchestrator,
@@ -122,7 +123,15 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
     protected override void Dispose(bool disposing)
     {
+        foreach (var download in CurrentDownloads)
+        {
+            _orchestrator.TryReleaseFileDownloadClaim(_downloadManagerClaimId, download.Hash);
+        }
+
+        _downloadsPendingOtherManagers.Clear();
+
         ClearDownload();
+
         lock (_downloadInfoLock)
         {
             foreach (var stream in _activeDownloadStreams.ToList())
@@ -207,7 +216,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 throw new InvalidDataException($"Http error {ex.StatusCode} (cancelled: {ct.IsCancellationRequested}): {requestUrl}", ex);
             }
 
-            return;
+            throw;
         }
 
         ThrottledStream? stream = null;
@@ -279,7 +288,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
     public async Task<List<DownloadFileTransfer>> InitiateDownloadList(GameObjectHandler gameObjectHandler, List<FileReplacementData> fileReplacement, CompressedAlternateUsage compressedAlternateUsage, Dictionary<string, string> compressedSubstitutions, HashSet<string> locallyPresentFiles, CancellationToken ct)
     {
-        Logger.LogDebug("Download start: {id}", gameObjectHandler.Name);
+        Logger.LogDebug("FILES-{manager} Download starting for id: {id}", _downloadManagerClaimId, gameObjectHandler.Name);
 
         List<DownloadFileDto> downloadFileInfoFromService =
         [
@@ -333,8 +342,24 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             }
         }
 
-        CurrentDownloads = downloadFileInfoFromService.Distinct().Select(d => new DownloadFileTransfer(d))
+        var allDownloads = downloadFileInfoFromService.Distinct().Select(d => new DownloadFileTransfer(d))
             .Where(d => d.CanBeTransferred).ToList();
+
+        _downloadsPendingOtherManagers.Clear();
+
+        foreach (var download in allDownloads)
+        {
+            if (_orchestrator.TryClaimFileDownload(_downloadManagerClaimId, download))
+            {
+                CurrentDownloads.Add(download);
+            }
+            else
+            {
+                _downloadsPendingOtherManagers.Add(download);
+            }
+        }
+
+        Logger.LogTrace("FILES-{manager} has claimed download count: {claimed}, pending other managers count: {others}", _downloadManagerClaimId, CurrentDownloads.Count, _downloadsPendingOtherManagers.Count);
 
         return CurrentDownloads;
     }
@@ -374,7 +399,11 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         async (directDownload, token) =>
         {
             if (!_downloadStatus.TryGetValue(directDownload.DirectDownloadUrl!, out var downloadTracker))
+            {
+                _orchestrator.TryReleaseFileDownloadClaim(_downloadManagerClaimId, directDownload.Hash);
+
                 return;
+            }
 
             Progress<long> progress = new((bytesDownloaded) =>
             {
@@ -397,7 +426,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             catch (OperationCanceledException ex)
             {
                 Logger.LogDebug("{hash}: Detected cancellation of file queued for direct download, canceling.", directDownload.Hash);
-                ClearDownload();
+                _orchestrator.TryReleaseFileDownloadClaim(_downloadManagerClaimId, directDownload.Hash);
                 return;
             }
 
@@ -428,21 +457,29 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 #endif
                 await DownloadFileThrottled(new Uri(directDownload.DirectDownloadUrl!), tempFilename, directDownload.Hash, progress, munge, token, withToken: false).ConfigureAwait(false);
             }
-            catch (OperationCanceledException ex)
-            {
-                Logger.LogDebug("{hash}: Detected cancellation of direct download, discarding file.", directDownload.Hash);
-                _orchestrator.ReleaseDownloadSlot();
-                File.Delete(tempFilename);
-                Logger.LogDebug(ex, "{hash}: Error during direct download.", directDownload.Hash);
-                ClearDownload();
-                return;
-            }
             catch (Exception ex)
             {
                 _orchestrator.ReleaseDownloadSlot();
-                File.Delete(tempFilename);
+
+                if (ex is OperationCanceledException)
+                {
+                    Logger.LogDebug(ex, "{hash}: Detected cancellation of direct download, discarding file.", directDownload.Hash);
+                }
+
+                try
+                {
+                    File.Delete(tempFilename);
+                }
+                catch (IOException deleteException) // catch this here vs propogating all the way up (file in use, etc.)
+                {
+                    Logger.LogDebug(deleteException, "{hash}: Could not delete temporary file {tempFilename}.", directDownload.Hash, tempFilename);
+                }
+
+                // wait to release the claim until after we've dealt with the temp file
+                _orchestrator.TryReleaseFileDownloadClaim(_downloadManagerClaimId, directDownload.Hash);
+
                 Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
-                ClearDownload();
+
                 return;
             }
 
@@ -470,15 +507,71 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             {
                 _orchestrator.ReleaseDownloadSlot();
                 File.Delete(tempFilename);
+                _orchestrator.TryReleaseFileDownloadClaim(_downloadManagerClaimId, directDownload.Hash); // once file is saved to disk, release the download claim
             }
         });
 
         // Wait for all the direct downloads to complete
         await directDownloadsTask.ConfigureAwait(false);
 
-        Logger.LogDebug("Download end: {id}", gameObjectHandler);
+        if (_downloadsPendingOtherManagers.Count > 0)
+        {
+            await WaitForPendingDownloadsFromOtherManagers(ct).ConfigureAwait(false);
+        }
+
+        Logger.LogDebug("FILES-{manager} Finished a set of downloads for id: {id}", _downloadManagerClaimId, gameObjectHandler);
 
         ClearDownload();
+    }
+
+    private async Task WaitForPendingDownloadsFromOtherManagers(CancellationToken ct)
+    {
+        const int secondsToWaitBeforeTimeout = 30;
+        var timeoutAfterTimeFromNowSeconds = DateTime.UtcNow.AddSeconds(secondsToWaitBeforeTimeout); // we can loop 10 times in PairHandler
+
+        // while a pair may be waiting for another to finish the download, they both need the same file, so they'd both be waiting, and possibly competing for the bandwidth, together
+        while (_downloadsPendingOtherManagers.Count > 0 && DateTime.UtcNow < timeoutAfterTimeFromNowSeconds) // yeah, there should be a more definitive way to do this
+        {
+            ct.ThrowIfCancellationRequested();
+
+            Logger.LogTrace("FILES-{manager} waiting for pending downloads from other managers, total: {others}", _downloadManagerClaimId, _downloadsPendingOtherManagers.Count);
+
+            var stillPending = new List<DownloadFileTransfer>();
+
+            foreach (var download in _downloadsPendingOtherManagers)
+            {
+                if (_fileDbManager.GetFileCacheByHash(download.Hash) != null)
+                {
+                    continue;
+                }
+
+                if (_orchestrator.IsDownloadStillPendingCompletion(download.Hash))
+                {
+                    stillPending.Add(download);
+
+                    continue;
+                }
+                
+                // no file and no claim, so it must have failed
+                // we let this fall through, the PairHandler will pick it up again in next loop
+            }
+
+            _downloadsPendingOtherManagers = stillPending;
+
+            if (_downloadsPendingOtherManagers.Count > 0)
+            {
+                await Task.Delay(250, ct).ConfigureAwait(false);
+            }
+        }
+
+        if (_downloadsPendingOtherManagers.Count > 0)
+        {
+            Logger.LogDebug("FILES-{manager} Timed out after {sec} waiting for {count} pending download(s) from other managers", _downloadManagerClaimId, secondsToWaitBeforeTimeout, _downloadsPendingOtherManagers.Count);
+        }
+        else
+        {
+            Logger.LogDebug("FILES-{manager} Finished waiting for pending downloads from other managers", _downloadManagerClaimId);
+        }
     }
 
     private async Task<List<DownloadFileDto>> FilesGetSizes(List<string> hashes, CancellationToken ct)
@@ -490,13 +583,15 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
     private async Task ReportFileMissing(string hash, CancellationToken ct)
     {
-        if (!_reportedHashes.TryAdd(hash, 0))
-            return; // we've already reported this
+        if (!_orchestrator.TryAddHashReportedError404(hash))
+        {
+            return; // another manager has already reported this hash missing
+        }
 
         if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
 
         hash = hash.ToUpperInvariant();
-        Logger.LogWarning("Download reported a 404 error for hash {hash}, reporting it to the FileServer", hash);
+        Logger.LogWarning("FILES-{manager} Download reported a 404 error for hash {hash}, reporting it to the FileServer", _downloadManagerClaimId, hash);
 
         await _orchestrator.SendRequestAsync(HttpMethod.Post, MareFiles.ServerFilesReportFile(_orchestrator.FilesCdnUri!), hash, ct).ConfigureAwait(false);
     }
