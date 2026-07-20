@@ -349,6 +349,14 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
         foreach (var download in allDownloads)
         {
+            // ok, listen, the timing on some of this is so tight, this check is actually needed
+            // the 60-90ms timing is real between different pairs and when they get the response for FilesGetSizes
+            // someone else may have already downloaded the file before they even got here
+            if (_fileDbManager.GetFileCacheByHash(download.Hash) != null)
+            {
+                continue;
+            }
+
             if (_orchestrator.TryClaimFileDownload(_downloadManagerClaimId, download))
             {
                 CurrentDownloads.Add(download);
