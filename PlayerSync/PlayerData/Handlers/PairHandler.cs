@@ -1179,10 +1179,13 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     }
                     else
                     {
-                        Logger.LogTrace("CompressSubstitution[{character}]: sending {path} source [{old}] for re-download to check for alternates (TryCalculateModdedDictionary)", PlayerName, string.Join(',', replacementItem.GamePaths), replacementItem.Hash);
-                        // Record this hash to send to the download function as 'locally present', so that when it checks for alternates,
-                        // it won't re-download this original file if none exist.
-                        locallyPresentFileSet[replacementItem.Hash] = null;
+                        if (fileCache != null)
+                        {
+                            Logger.LogTrace("CompressSubstitution[{character}]: sending {path} source [{old}] for re-download to check for alternates (TryCalculateModdedDictionary)", PlayerName, string.Join(',', replacementItem.GamePaths), replacementItem.Hash);
+                            // Record this hash to send to the download function as 'locally present', so that when it checks for alternates,
+                            // it won't re-download this original file if none exist.
+                            locallyPresentFileSet[replacementItem.Hash] = null;
+                        }
 
                         // We don't know whether there are any compressed alternates, so mark this file as needing downloading.
                         // Once the download starts, if there aren't any, the actual download will be skipped.
