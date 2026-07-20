@@ -425,15 +425,15 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     return;
                 }
 
+                // check again if we have files we still need to download, if so, this loop begins again
+                toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, linkedCts.Token);
+
                 if (toDownloadReplacements.TrueForAll(c => _downloadManager.ForbiddenTransfers.Exists(f => string.Equals(f.Hash, c.Hash, StringComparison.Ordinal))))
                 {
                     break;
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(2), linkedCts.Token).ConfigureAwait(false);
-
-                // check again if we have files we still need to download, if so, this loop begins again
-                toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, linkedCts.Token);
             }
 
             stopwatch.Stop();
