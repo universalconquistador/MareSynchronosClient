@@ -333,8 +333,21 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             }
         }
 
-        CurrentDownloads = downloadFileInfoFromService.Distinct().Select(d => new DownloadFileTransfer(d))
+        var allDownloads = downloadFileInfoFromService.Distinct().Select(d => new DownloadFileTransfer(d))
             .Where(d => d.CanBeTransferred).ToList();
+
+        foreach (var download in allDownloads)
+        {
+            // ok, listen, the timing on some of this is so tight, this check is actually needed
+            // the 60-90ms timing is real between different pairs and when they get the response for FilesGetSizes
+            // someone else may have already downloaded the file before they even got here
+            if (_fileDbManager.GetFileCacheByHash(download.Hash) != null)
+            {
+                continue;
+            }
+
+            CurrentDownloads.Add(download);
+        }
 
         return CurrentDownloads;
     }
@@ -484,8 +497,10 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
     private async Task ReportFileMissing(string hash, CancellationToken ct)
     {
-        if (!_reportedHashes.TryAdd(hash, 0))
-            return; // we've already reported this
+        if (!_orchestrator.TryAddHashReportedError404(hash))
+        {
+            return; // another manager has already reported this hash missing
+        }
 
         if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
 
