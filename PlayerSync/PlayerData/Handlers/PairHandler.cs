@@ -770,14 +770,14 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     return;
                 }
 
-                toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, downloadToken);
-
                 if (toDownloadReplacements.TrueForAll(c => _downloadManager.ForbiddenTransfers.Exists(f => string.Equals(f.Hash, c.Hash, StringComparison.Ordinal))))
                 {
                     break;
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(2), downloadToken).ConfigureAwait(false);
+
+                toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, downloadToken);
             }
 
             if (!await _playerPerformanceService.CheckBothThresholds(this, charaData).ConfigureAwait(false))
