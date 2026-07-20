@@ -116,6 +116,69 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
         }
     }
 
+    private sealed class DownloadTask()
+    {
+        public Task Task { get; set; } = null!;
+        public Progress<long> Progress { get; set; } = null!;
+        public DownloadStatus CurrentStatus { get; set; } = DownloadStatus.Initializing;
+        public event Action<DownloadStatus>? StatusUpdated;
+
+        public void RaiseStatusUpdated(DownloadStatus status)
+        {
+            StatusUpdated?.Invoke(status);
+            CurrentStatus = status;
+        }
+    }
+    private readonly ConcurrentDictionary<string, DownloadTask> _runningDownloads = new();
+
+    /// <summary>
+    /// Starts the given download function if none is currently running for the given hash, or just
+    /// attaches the given callbacks to the existing download if one is already in progress for the hash.
+    /// </summary>
+    /// <param name="hash">The mod file's hash.</param>
+    /// <param name="progressCallback">A callback that is invoked when bytes of the file are downloaded.</param>
+    /// <param name="statusCallback">A callback that is invoked when the status of the file download changes.</param>
+    /// <param name="downloadFunc">The function to actually perform the download.</param>
+    /// <returns>A Task that can be used to wait for the download to complete.</returns>
+    public Task GetOrStartDownloadTask(string hash, EventHandler<long> progressCallback, Action<DownloadStatus> statusCallback, Func<string, IProgress<long>, Action<DownloadStatus>, Task> downloadFunc)
+    {
+        var result = _runningDownloads.AddOrUpdate(hash, (hash) =>
+        {
+            // If we are starting a new download, set up the Progress, attach handlers, and kick off the download
+            var progress = new Progress<long>(value => progressCallback.Invoke(null, value));
+            var result = new DownloadTask() { Progress = progress };
+            result.StatusUpdated += statusCallback;
+            Func<string, Progress<long>, Task> func = async (hash, progress) =>
+            {
+                try
+                {
+                    await downloadFunc.Invoke(hash, progress, status => result.RaiseStatusUpdated(status));
+                }
+                finally
+                {
+                    _runningDownloads.TryRemove(hash, out _);
+                }
+            };
+            result.Task = func.Invoke(hash, progress);
+
+            return result;
+        }, (hash, task) =>
+        {
+            Logger.LogDebug("Additional character waiting on {hash}!", hash);
+
+            // Otherwise just attach to the callbacks on the existing download
+            task.Progress.ProgressChanged += progressCallback;
+            task.StatusUpdated += statusCallback;
+
+            // If we're joining the existing download late, notify about its status
+            statusCallback.Invoke(task.CurrentStatus);
+
+            return task;
+        });
+
+        return result.Task;
+    }
+
     public async Task<HttpResponseMessage> SendRequestAsync(HttpMethod method, Uri uri,
         CancellationToken? ct = null, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseContentRead,
         bool withToken = true)
