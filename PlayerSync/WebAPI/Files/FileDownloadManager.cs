@@ -473,6 +473,10 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 {
                     Logger.LogDebug(ex, "{hash}: Detected cancellation of direct download, discarding file.", directDownload.Hash);
                 }
+                else
+                {
+                    Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
+                }
 
                 try
                 {
@@ -485,8 +489,6 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
                 // wait to release the claim until after we've dealt with the temp file
                 _orchestrator.TryReleaseFileDownloadClaim(_downloadManagerClaimId, directDownload.Hash);
-
-                Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
 
                 return;
             }
