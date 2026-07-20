@@ -17,6 +17,8 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     private readonly MareConfigService _mareConfig;
     private readonly TokenProvider _tokenProvider;
 
+    private readonly ConcurrentDictionary<string, byte> _hashesReportedError404 = new(StringComparer.OrdinalIgnoreCase);
+
     // Download slots
     private readonly object _semaphoreModificationLock = new();
     private int _availableDownloadSlots;
@@ -114,6 +116,11 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
         {
             // ignore
         }
+    }
+
+    public bool TryAddHashReportedError404(string fileHash)
+    {
+        return _hashesReportedError404.TryAdd(fileHash, 0);
     }
 
     private sealed class DownloadTask()
