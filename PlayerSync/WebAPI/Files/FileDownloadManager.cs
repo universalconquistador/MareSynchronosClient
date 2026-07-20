@@ -238,7 +238,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                     _activeDownloadStreams.Add(stream);
                 }
 
-                while ((bytesRead = await stream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0) // this is what will throw most when a download gets cut off
+                while ((bytesRead = await stream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
                 {
                     ct.ThrowIfCancellationRequested();
 
@@ -473,10 +473,6 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 {
                     Logger.LogDebug(ex, "{hash}: Detected cancellation of direct download, discarding file.", directDownload.Hash);
                 }
-                else
-                {
-                    Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
-                }
 
                 try
                 {
@@ -489,6 +485,8 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
                 // wait to release the claim until after we've dealt with the temp file
                 _orchestrator.TryReleaseFileDownloadClaim(_downloadManagerClaimId, directDownload.Hash);
+
+                Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
 
                 return;
             }
