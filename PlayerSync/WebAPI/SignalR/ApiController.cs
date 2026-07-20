@@ -424,6 +424,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                 await Task.Delay(250, cts.Token).ConfigureAwait(false);
                 Logger.LogTrace("Waiting for permissions change for {data}", userData);
             }
+            Mediator.Publish(new PairOfflineMessage(pair));
             // This works around the condition where we may cycle someone's IsVisible state before the visibility loop can catch it.
             // Basically if you have low latency to the server and the server is too fast, you can "skip" the proper behavior
             await Task.Delay(1000, cts.Token).ConfigureAwait(false);
@@ -639,11 +640,14 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             Logger.LogDebug("Attaching Census Data: {data}", dto);
         }
 
+        _pairManager.InitialLoading = true;
         foreach (var entry in await UserGetOnlinePairs(dto).ConfigureAwait(false))
         {
             Logger.LogDebug("Pair online: {pair}", entry);
             _pairManager.MarkPairOnline(entry, sendNotif: false);
         }
+        _pairManager.InitialLoading = false;
+        _pairManager.RecreateLazy();
     }
 
     private void MareHubOnClosed(Exception? arg)

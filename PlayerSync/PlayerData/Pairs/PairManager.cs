@@ -3,15 +3,20 @@ using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Factories;
+using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.Services;
 using MareSynchronos.Services.Events;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.Utils;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 namespace MareSynchronos.PlayerData.Pairs;
 
@@ -19,88 +24,143 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 {
     private readonly TimeSpan PausedPairCheckInterval = TimeSpan.FromMinutes(1);
 
-    private readonly ConcurrentDictionary<UserData, Pair> _allClientPairs = new(UserDataComparer.Instance);
-    private readonly ConcurrentDictionary<GroupData, GroupFullInfoDto> _allGroups = new(GroupDataComparer.Instance);
     private readonly MareConfigService _configurationService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly PairFactory _pairFactory;
+    private readonly DalamudUtilService _dalamudUtilService;
+    private readonly IpcManager _ipcManager;
+
+    private readonly ConcurrentDictionary<UserData, Pair> _allClientPairs = new(UserDataComparer.Instance);
+    private readonly ConcurrentDictionary<GroupData, GroupFullInfoDto> _allGroups = new(GroupDataComparer.Instance);
+    private readonly ConcurrentDictionary<string, Pair> _identToUserPairs = new();
+    private readonly object _applyDataLock = new();
+    private readonly List<Pair> _applyDataQueue = [];
+    private readonly Dictionary<Pair, OnlineUserCharaDataDto> _applyDataQueueDtos = [];
+    private readonly ConcurrentDictionary<Pair, OnlineUserCharaDataDto> _deferredPairDataApplications = [];
+    private readonly HashSet<Pair> _runningApplyDataTasks = [];
+    private readonly object _deferredApplicationLock = new();
+
     private Lazy<List<Pair>> _directPairsInternal;
     private Lazy<Dictionary<GroupFullInfoDto, List<Pair>>> _groupPairsInternal;
     private Lazy<Dictionary<Pair, List<GroupFullInfoDto>>> _pairsWithGroupsInternal;
-    private PairApplyQueue? _applyQueue = null;
+    private bool _isZoning = false;
+    private bool _isConnected = false;
+    private CancellationTokenSource? _unpausePairCts;
+    private CancellationTokenSource? _deferredApplicationCts;
+    private CancellationTokenSource? _dataApplicationPipelineTopLevelCts;
+    private Task? _unpausePairTask;
+    private Task? _pendingDeferredTask;
+    private int _maxConcurrentApplyData;
+    private bool _deferringDataApplications = false;
+    private bool _isPlayerIdle = false;
 
-    private CancellationTokenSource? _periodicCts;
-    private Task? _periodicTask;
-
-    public PairManager(ILogger<PairManager> logger, PairFactory pairFactory,
+    public PairManager(ILogger<PairManager> logger, PairFactory pairFactory, DalamudUtilService dalamudUtilService, IpcManager ipcManager,
                 MareConfigService configurationService, ServerConfigurationManager serverConfigurationManager, MareMediator mediator)
         : base(logger, mediator)
     {
         _pairFactory = pairFactory;
         _configurationService = configurationService;
         _serverConfigurationManager = serverConfigurationManager;
-        Mediator.Subscribe<DisconnectedMessage>(this, (_) => ClearPairs());
+        _dalamudUtilService = dalamudUtilService;
+        _ipcManager = ipcManager;
+        _maxConcurrentApplyData = _configurationService.Current.MaxConcurrentApplications;
+
+        Mediator.Subscribe<DisconnectedMessage>(this, (_) =>
+        {
+            _isConnected = false;
+            lock (_deferredApplicationLock)
+            {
+                _deferredPairDataApplications.Clear();
+            }
+            _dataApplicationPipelineTopLevelCts = _dataApplicationPipelineTopLevelCts.CancelRecreate();
+            ClearPairs();
+        });
+
+        Mediator.Subscribe<PairOfflineMessage>(this, (msg) => _deferredPairDataApplications.TryRemove(msg.Pair, out _));
+        Mediator.Subscribe<ConnectedMessage>(this, (_) => _isConnected = true);
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => ReapplyPairData());
         Mediator.Subscribe<ChangeFilterMessage>(this, (_) => ReapplyPairData());
+        Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) =>
+        {
+            _isZoning = true;
+            lock (_deferredApplicationLock)
+            {
+                _deferredPairDataApplications.Clear();
+            }
+            _dataApplicationPipelineTopLevelCts = _dataApplicationPipelineTopLevelCts.CancelRecreate();
+        });
+
+        Mediator.Subscribe<ZoneSwitchEndMessage>(this, (_) => _isZoning = false);
+        Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => InitializePairs());
+        Mediator.Subscribe<CombatOrPerformanceStartMessage>(this, _ =>
+        {
+            if ((_configurationService.Current.AutoPauseDataApplicationWhenPerforming && _dalamudUtilService.IsPerforming) || _dalamudUtilService.IsInCombat)
+            {
+                _deferringDataApplications = true;
+            }
+        });
+
+        Mediator.Subscribe<CombatOrPerformanceEndMessage>(this, (msg) => _deferringDataApplications = false);
+        Mediator.Subscribe<PlayerIdleStartMessage>(this, _ => _isPlayerIdle = true);
+        Mediator.Subscribe<PlayerIdleEndMessage>(this, _ => _isPlayerIdle = false);
+
         _directPairsInternal = DirectPairsLazy();
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
 
-        if (_configurationService.Current.UseQueuedCharacterDataApplication)
-            _applyQueue = new(_configurationService.Current.MaxConcurrentApplications);
+        _unpausePairCts?.Dispose();
+        _unpausePairCts = new CancellationTokenSource();
+        _unpausePairTask = PausedPairExpiredTimerCheckTask(_unpausePairCts.Token);
 
-        _periodicCts?.Dispose();
-        _periodicCts = new CancellationTokenSource();
-        _periodicTask = PausedPairExpiredTimerCheckTask(_periodicCts.Token);
+        _deferredApplicationCts?.Dispose();
+        _deferredApplicationCts = new CancellationTokenSource();
+        _pendingDeferredTask = CheckForDeferredPairDataApplication(_deferredApplicationCts.Token);
 
-        Logger.LogTrace("{class} created.", nameof(PairManager));
+        _dataApplicationPipelineTopLevelCts = _dataApplicationPipelineTopLevelCts.CancelRecreate();
+
+        Logger.LogTrace("{class} created.", nameof(PairManager));   
     }
 
     public List<Pair> DirectPairs => _directPairsInternal.Value;
-
     public Dictionary<GroupFullInfoDto, List<Pair>> GroupPairs => _groupPairsInternal.Value;
     public Dictionary<GroupData, GroupFullInfoDto> Groups => _allGroups.ToDictionary(k => k.Key, k => k.Value);
     public Pair? LastAddedUser { get; internal set; }
     public Dictionary<Pair, List<GroupFullInfoDto>> PairsWithGroups => _pairsWithGroupsInternal.Value;
-
-    public bool UseQueuedCharacterDataApplication
+    public bool InitialLoading { get; set; } = true;
+    public int MaxConcurrentApplyData
     {
         get
         {
-            return _configurationService.Current.UseQueuedCharacterDataApplication;
+            lock (_applyDataLock)
+            {
+                _maxConcurrentApplyData = _configurationService.Current.MaxConcurrentApplications;
+
+                return _maxConcurrentApplyData;
+            }
         }
         set
         {
-            if (value && _applyQueue == null)
-                _applyQueue = new(MaxConcurrentApplications);
-            //else if (!value)
-            //{
-            //    _applyQueue?.Dispose();
-            //    _applyQueue = null;
-            //}
-
-            _configurationService.Current.UseQueuedCharacterDataApplication = value;
-            _configurationService.Save();
+            lock (_applyDataLock)
+            {
+                var max = value;
+                if (max < 0)
+                {
+                    max = 0;
+                }
+                _maxConcurrentApplyData = max;
+                _configurationService.Current.MaxConcurrentApplications = max;
+                _configurationService.Save();
+            }
         }
     }
-
-    public int MaxConcurrentApplications
-    {
-        get
-        {
-            return _configurationService.Current.MaxConcurrentApplications;
-        }
-        set
-        {
-            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
-
-            if (_applyQueue != null)
-                _applyQueue.SetMaxConcurrency(value);
-
-            _configurationService.Current.MaxConcurrentApplications = value;
-            _configurationService.Save();
-        }
-    }
+    private bool DeferringDataApplications => 
+        _deferringDataApplications 
+        || _isPlayerIdle 
+        || _dalamudUtilService.IsInCutscene 
+        || _dalamudUtilService.IsOccupiedInCutSceneEvent 
+        || _dalamudUtilService.IsInGpose 
+        || !_ipcManager.Penumbra.APIAvailable 
+        || !_ipcManager.Glamourer.APIAvailable;
 
     public void AddGroup(GroupFullInfoDto dto)
     {
@@ -177,9 +237,25 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public void ClearPairs()
     {
         Logger.LogDebug("Clearing all Pairs");
-        DisposePairs();
+
+        lock (_applyDataLock)
+        {
+            _applyDataQueue.Clear();
+            _applyDataQueueDtos.Clear();
+            _runningApplyDataTasks.Clear();
+        }
+
+        lock (_deferredApplicationLock)
+        {
+            _deferredPairDataApplications.Clear();
+        }
+
+        Logger.LogDebug("Data queue cleared");
+
+        DisposePairs(); // this must come first as it references _allClientPairs
         _allClientPairs.Clear();
         _allGroups.Clear();
+        _identToUserPairs.Clear();
         RecreateLazy();
     }
 
@@ -196,8 +272,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         if (_allClientPairs.TryGetValue(user, out var pair))
         {
             Mediator.Publish(new ClearProfileDataMessage(pair.UserData));
+            _identToUserPairs.TryRemove(pair.Ident, out _);
             pair.MarkOffline();
-        }
+        }      
 
         RecreateLazy();
     }
@@ -205,8 +282,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public void MarkPairOnline(OnlineUserIdentDto dto, bool sendNotif = true)
     {
         if (!_allClientPairs.ContainsKey(dto.User)) throw new InvalidOperationException("No user found for " + dto);
-
-        //Mediator.Publish(new ClearProfileDataMessage(dto.User));
 
         var pair = _allClientPairs[dto.User];
         if (pair.HasCachedPlayer)
@@ -228,66 +303,55 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             Mediator.Publish(new NotificationMessage("User online", msg, NotificationType.Info, TimeSpan.FromSeconds(5)));
         }
 
-        pair.CreateCachedPlayer(dto);
+        pair.SetOnlinePlayerDto(dto);
 
-        RecreateLazy();
-    }
+        pair.IsOnline = true;
 
-    public void ReceiveCharaDataInternal(OnlineUserCharaDataDto dto)
-    {
-        var isQueuedPath = _configurationService.Current.UseQueuedCharacterDataApplication;  // ex setting
-        if (isQueuedPath)
-            ReceiveCharaDataQueued(dto);
-        else if (_applyQueue?.PendingCount > 0 || _applyQueue?.InFlightCount > 0) // keep using the queue once disabled until empty
-            ReceiveCharaDataQueued(dto);
-        else ReceiveCharaData(dto);
-    }
+        _identToUserPairs.AddOrUpdate(dto.Ident, pair, (_, _) => pair);
 
-    public void ReceiveCharaData(OnlineUserCharaDataDto dto)
-    {
-        if (!_allClientPairs.TryGetValue(dto.User, out var pair)) throw new InvalidOperationException("No user found for " + dto.User);
-
-        Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Character Data")));
-        _allClientPairs[dto.User].ApplyData(dto);
+        if (!InitialLoading)
+        {
+            RecreateLazy();
+        }
     }
 
     /// <summary>
-    /// Experimental
+    /// Entry point for the pair data application pipeline, called via SignralR.
+    /// Application processing is forked based on the existance of an AddonPlugin in the dto.
+    /// Applications are only queued if they arrive here, direct application methods still work and bypass the queue (Reapply last data)
     /// </summary>
-    /// <param name="dto"></param>
-    /// <exception cref="InvalidOperationException"></exception>
-    public void ReceiveCharaDataQueued(OnlineUserCharaDataDto dto)
+    public void ReceiveCharaData(OnlineUserCharaDataDto dto)
     {
         if (!_allClientPairs.TryGetValue(dto.User, out var pair))
-            throw new InvalidOperationException("No user found for " + dto.User);
-
-        Logger.LogTrace("{class} - Pair Character Data in queue: {count}", nameof(ReceiveCharaData), _applyQueue.PendingCount.ToString());
-        Logger.LogDebug("{method} - Received character data for {pair}", nameof(ReceiveCharaData), !string.IsNullOrWhiteSpace(pair.PlayerName) ? pair.PlayerName : pair.UserData.UID);
-        Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Character Data")));
-
-        _applyQueue.Enqueue(pair.UserData.UID, async ct =>
         {
-            try
-            {
-                Logger.LogTrace("{class} - Pair Character Data in flight: {count}", nameof(ReceiveCharaData), _applyQueue.InFlightCount.ToString());
-                Logger.LogDebug("{method} - Starting data application for {pair}", nameof(ReceiveCharaData), !string.IsNullOrWhiteSpace(pair.PlayerName) ? pair.PlayerName : pair.UserData.UID);
-                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Starting data application.")));
+            throw new InvalidOperationException("No user found for " + dto.User);
+        }
 
-                await pair.ApplyDataAsync(dto).ConfigureAwait(false);
+        if (!pair.CanApplyModdedData || DeferringDataApplications)
+        {
+            // defer this pair for now
+            Logger.LogDebug("Pair is not in a valid state or we are deferring data application: {pair} CachedPlayer: {cached} IsDeferred: {deferred} IsVisible: {visible}",
+                pair.PairUIDName, pair.HasCachedPlayer, _deferringDataApplications, pair.IsVisible);
 
-                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Finished data application.")));
-                Logger.LogDebug("{method} - Finished data application for {pair}", nameof(ReceiveCharaData), !string.IsNullOrWhiteSpace(pair.PlayerName) ? pair.PlayerName : pair.UserData.UID);
-                Logger.LogTrace("{class} - Pair Character Data in queue: {count}", nameof(ReceiveCharaData), _applyQueue.PendingCount.ToString());
-            }
-            catch (TaskCanceledException)
+            // TODO: fully implement dto handling
+            // this will eventually need to update a partial dto if we sent only the addon data
+            // else, we could overwrite a full data application with a partial one
+            _deferredPairDataApplications.AddOrUpdate(pair, dto, (_, _) => dto);
+        }
+        else
+        {
+            if (dto.AddonPlugin is not null) // process the dto via the addon plugin path if AddonPlugin exists
             {
-                //
+                Logger.LogTrace("CharaData received with AddonPlugin: {plugin}", dto.AddonPlugin);
+                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received AddonPlugin Data")));
+                pair.ApplyAddonPluginUpdate(dto);
             }
-            catch (Exception ex)
+            else
             {
-                Logger.LogError(ex, "Failed to apply pair data.");
+                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received Full Character Data")));
+                AddApplyDataToQueue(pair, dto);
             }
-        });
+        }
     }
 
     public void RemoveGroup(GroupData data)
@@ -468,14 +532,11 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     {
         base.Dispose(disposing);
 
-        CancellationTokenSource? cts;
-        cts = _periodicCts;
-        _periodicCts = null;
-        cts?.Cancel();
-        cts?.Dispose();
+        _unpausePairCts?.CancelDispose();
+        _deferredApplicationCts?.CancelDispose();
+        _dataApplicationPipelineTopLevelCts?.CancelDispose();
 
-        _applyQueue?.Dispose();
-
+        _isConnected = false;
         DisposePairs();
     }
 
@@ -529,12 +590,206 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         }
     }
 
-    private void RecreateLazy()
+    public void RecreateLazy()
     {
         _directPairsInternal = DirectPairsLazy();
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
         Mediator.Publish(new RefreshUiMessage());
+    }
+
+    // enqueues a pair and dto, or updates the dto if the data application hasn't run yet for the pair
+    private void AddApplyDataToQueue(Pair pair, OnlineUserCharaDataDto dto)
+    {
+        lock (_applyDataLock)
+        {
+            _applyDataQueueDtos[pair] = dto; // save the pair-to-dto mapping and only allow one instance/latest dto
+
+            // as a default action, we put direct pairs in the front of the queue
+            if (_applyDataQueue.Contains(pair))
+            {
+                if (pair.IsDirectlyPaired)
+                {
+                    _applyDataQueue.Remove(pair);
+                    _applyDataQueue.Insert(0, pair);
+                }
+            }
+            else
+            {
+                if (pair.IsDirectlyPaired)
+                {
+                    _applyDataQueue.Insert(0, pair);
+                }
+                else
+                {
+                    _applyDataQueue.Add(pair);
+                }
+            }
+        }
+
+        ProcessApplyDataQueue();
+    }
+
+    // This runs through the queue and kicks off the data application task per queued pair entry
+    private void ProcessApplyDataQueue()
+    {
+        Logger.LogTrace("Current apply data queue count: {count}", _applyDataQueue.Count);
+        List<(Pair, OnlineUserCharaDataDto)> dataToApply = [];
+
+        lock (_applyDataLock)
+        {
+            while (_applyDataQueue.Count > 0 && (_maxConcurrentApplyData == 0 || _runningApplyDataTasks.Count < _maxConcurrentApplyData))
+            {
+                // find the next pair in the queu that is not already running
+                var index = _applyDataQueue.FindIndex(pair => !_runningApplyDataTasks.Contains(pair));
+
+                if (index < 0)
+                {
+                    break;
+                }
+
+                var pair = _applyDataQueue[index];
+                _applyDataQueue.RemoveAt(index);
+
+                if (!_applyDataQueueDtos.Remove(pair, out var dto))
+                {
+                    continue;
+                }
+
+                _runningApplyDataTasks.Add(pair);
+                dataToApply.Add((pair, dto));
+            }
+        }
+
+        foreach (var pairToDto in dataToApply)
+        {
+            // each task will remove its pair in the finally clause
+            _ = ApplyPairDataAsync(pairToDto.Item1, pairToDto.Item2);
+        }
+    }
+
+    // This handles running and awaiting the data application pipeline
+    private async Task ApplyPairDataAsync(Pair pair, OnlineUserCharaDataDto dto)
+    {
+        Stopwatch? stopwatch = null;
+        bool hadErrors = false;
+        Guid applicationBase = Guid.NewGuid();
+
+        try
+        {
+            _dataApplicationPipelineTopLevelCts.Token.ThrowIfCancellationRequested();
+
+            if (!_allClientPairs.TryGetValue(pair.UserData, out var currentPair) || currentPair.UserData.UID != pair.UserData.UID)
+            {
+                return;
+            }
+
+            stopwatch = Stopwatch.StartNew();
+
+            Logger.LogDebug("[BASE-{appBase}] Starting queued data application for {pair}", applicationBase, pair.PairUIDName);
+            // The entire pipeline chains a Task so we know when it's finished (or fails)
+            await pair.ApplyDataAsync(applicationBase, dto, _dataApplicationPipelineTopLevelCts.Token).ConfigureAwait(false); // original pipeline entry point
+        }
+        catch (OperationCanceledException)
+        {
+            hadErrors = true;
+            Logger.LogDebug("[BASE-{appBase}] Queued data application was cancelled for {pair}", applicationBase, pair.PairUIDName);
+        }
+        catch (Exception ex)
+        {
+            hadErrors = true;
+            Logger.LogError(ex, "[BASE-{appBase}] Failed to apply queued pair data for {pair}", applicationBase, pair.PairUIDName);
+        }
+        finally
+        {
+            stopwatch?.Stop();
+            if (stopwatch != null)
+            {
+                if (hadErrors)
+                {
+                    Logger.LogWarning("[BASE-{appBase}] Queued data application failed for {pair} after {elapsedMs}ms", applicationBase, pair.PairUIDName, stopwatch.ElapsedMilliseconds);
+                }
+                else
+                {
+                    Logger.LogDebug("[BASE-{appBase}] Queued data application finished for {pair} in {elapsedMs}ms", applicationBase, pair.PairUIDName, stopwatch.ElapsedMilliseconds);
+                }
+            }
+
+            lock (_applyDataLock)
+            {
+                _runningApplyDataTasks.Remove(pair); // ensure we always remove the entry, pass or fail
+            }
+
+            ProcessApplyDataQueue(); // continue processing since we aren't running an infinite while loop
+        }
+    }
+
+    private void InitializePairs()
+    {
+        if (_isZoning || !_isConnected)
+        {
+            return;
+        }
+
+        var visiblePlayerIdents = _dalamudUtilService.GetVisiblePlayerIdents();
+
+        foreach (var playerIdent in visiblePlayerIdents)
+        {
+            if (!_identToUserPairs.TryGetValue(playerIdent, out var pair) || pair == null || pair.HasCachedPlayer)
+            {
+                continue;
+            }
+
+            var playerCharacter = _dalamudUtilService.FindPlayerByNameHash(pair.Ident); // This kicks everything off once we can discern the Pair's hashed ident
+            if (playerCharacter == default((string, nint)))
+            {
+                continue;
+            }
+
+            Logger.LogDebug("One-Time Initializing {uid}:{name}", pair.UserData.UID, playerCharacter.Name);
+
+            pair.Initialize(playerCharacter.Name); // this should not take long and can be called on Framework thread
+
+            Logger.LogDebug("One-Time Initialized {uid}:{name}", pair.UserData.UID, pair.PlayerName);
+            Mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PairHandler), EventSeverity.Informational,
+                $"Initializing User For Character {pair.PlayerName}")));
+        }
+    }
+
+    private async Task CheckForDeferredPairDataApplication(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                if (_isConnected && !_isZoning)
+                {
+                    foreach (Pair pair in _deferredPairDataApplications.Keys)
+                    {
+                        lock (_deferredApplicationLock) // this gets cleared when you zone, we need to not be acting on it while it gets cleared
+                        {
+                            if (pair.CanApplyModdedData && !DeferringDataApplications && _deferredPairDataApplications.TryRemove(pair, out var dto))
+                            {
+                                Logger.LogTrace("Pending deferred pair data applications remaining: {count}", _deferredPairDataApplications.Count);
+                                Logger.LogDebug("Pair is no longer deferred and has data application: {pair}", pair.PairUIDName);
+                                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Applying deferred pair data")));
+                                if (dto.AddonPlugin != null)
+                                {
+                                    pair.ApplyAddonPluginUpdate(dto);
+                                }
+                                else
+                                {
+                                    AddApplyDataToQueue(pair, dto);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250), ct).ConfigureAwait(false);
+        }
     }
 
     private async Task PausedPairExpiredTimerCheckTask(CancellationToken ct)
@@ -549,7 +804,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             {
                 try
                 {
-                    if (!_serverConfigurationManager.CurrentServer.FullPause)
+                    if (_isConnected)
                     {
                         Logger.LogTrace("Checking for paused pairs to unpause...");
 
@@ -605,7 +860,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         }
         finally
         {
-            _periodicTask = null;
+            _unpausePairTask = null;
         }
     }
 }

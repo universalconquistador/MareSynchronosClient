@@ -36,7 +36,7 @@ public class PairHandlerFactory
         PluginWarningNotificationService pluginWarningNotificationManager, IHostApplicationLifetime hostApplicationLifetime,
         FileCacheManager fileCacheManager, MareMediator mareMediator, PlayerPerformanceService playerPerformanceService,
         ServerConfigurationManager serverConfigManager, ICompressedAlternateManager compressedAlternateManager,
-        PlayerPerformanceConfigService performanceConfig, MareConfigService mareConfigService, IDataManager dataManager)
+        PlayerPerformanceConfigService performanceConfig, MareConfigService mareConfigService, IDataManager dataManager, PlayerIdleStatusService playerIdleStatusService)
     {
         _loggerFactory = loggerFactory;
         _gameObjectHandlerFactory = gameObjectHandlerFactory;

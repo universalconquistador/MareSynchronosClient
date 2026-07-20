@@ -182,6 +182,15 @@ public partial class SettingsUi
                 }
             }
         }
+
+        ImGuiHelpers.ScaledDummy(5);
+        bool disableIdleCheck = _configService.Current.DisableIdleCheck;
+        if (ImGui.Checkbox("Disable Idle Check", ref disableIdleCheck))
+        {
+            _configService.Current.DisableIdleCheck = disableIdleCheck;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("Prevents the deferral of pair data once the idle time is reached.");
     }
 
     private void DrawDebugData()

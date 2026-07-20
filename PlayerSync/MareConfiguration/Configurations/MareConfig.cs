@@ -117,10 +117,8 @@ public class MareConfig : IMareConfiguration
     public bool LifestreamInvitesDirectPairsOnly { get; set; } = false;
     public string LastPreloadPlaylistFolder { get; set; } = string.Empty;
     public bool NoPauseSubmenuForPairsOnMainUi { get; set; } = false;
-
-    // Experimentals
-    public bool UseQueuedCharacterDataApplication {  get; set; } = false;
-    public int MaxConcurrentApplications { get; set; } = 1;
-    public int CharacterIsDrawingTimeoutMilliseconds { get; set; } = 30000;
     public bool ShowFileUnableToSyncNotification { get; set; } = true;
+    public int MaxConcurrentApplications { get; set; } = 0;
+    public bool DisableIdleCheck { get; set; } = false;
+    public bool AutoPauseDataApplicationWhenPerforming {  get; set; } = true;
 }

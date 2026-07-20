@@ -105,15 +105,15 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
 
     public async Task ApplyAllAsync(ILogger logger, GameObjectHandler handler, string? customization, Guid applicationId, CancellationToken token, bool fireAndForget = false)
     {
-        if (!APIAvailable || string.IsNullOrEmpty(customization) || _dalamudUtil.IsZoning) return;
+        if (!APIAvailable || string.IsNullOrEmpty(customization) || _dalamudUtil.IsZoning)
+        {
+            return;
+        }
 
         await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
 
         try
         {
-
-            // science
-            //await _redrawManager.CoalescedRedrawAsync(logger, handler, applicationId, (chara) =>
             await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
             {
                 try
@@ -131,6 +131,33 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
         {
             _redrawManager.RedrawSemaphore.Release();
         }
+    }
+
+    public async Task ApplyAllNoRedrawAsync(ILogger logger, GameObjectHandler handler, string? customization, Guid applicationId, CancellationToken token)
+    {
+        if (!APIAvailable || string.IsNullOrEmpty(customization) || _dalamudUtil.IsZoning || handler.Address == nint.Zero)
+        {
+            return;
+        }
+
+        await _dalamudUtil.RunOnFrameworkThread(() =>
+        {
+            try
+            {
+                var gameObj = _dalamudUtil.CreateGameObject(handler.Address);
+                if (gameObj is ICharacter chara)
+                {
+                    logger.LogDebug("[{appid}] Calling on IPC: GlamourerApplyAll", applicationId);
+                    _glamourerApplyAll!.Invoke(customization, chara.ObjectIndex, LockCode);
+                    logger.LogDebug("[{appid}] Completed IPC: GlamourerApplyAll", applicationId);
+                }   
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "[{appid}] Failed to apply Glamourer data", applicationId);
+            }
+
+        }).ConfigureAwait(false);   
     }
 
     public async Task<string> GetCharacterCustomizationAsync(IntPtr character)
@@ -160,8 +187,6 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
         await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            // science
-            //await _redrawManager.CoalescedRedrawAsync(logger, handler, applicationId, (chara) =>
             await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
             {
                 try

@@ -13,8 +13,6 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
-    private bool _enableExperimental = false;
-    private bool _hasChangesMaxConcurrent = false;
     private string _uidToAddForIgnorePairRequest = string.Empty;
     private int _selectedIgnoreEntry = -1;
     private UiNav.Tab<SyncTabs>? _selectedTabSync;
@@ -25,10 +23,10 @@ public partial class SettingsUi
         new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
         new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),
         new(SyncTabs.Pairs, "Pair Requests", DrawPairRequests),
-        new(SyncTabs.Duty, "Duty Pause", DrawDutyPause),
+        new(SyncTabs.Duty, "Sync Pause", DrawDutyPause),
         new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
         new(SyncTabs.Permissions, "Permissions", GoToPermissions),
-        new(SyncTabs.Experimental, "Experimental", GoToExperimental),
+        new(SyncTabs.Experimental, "Experimental", DrawExperimental),
     ];
 
     private enum SyncTabs
@@ -346,13 +344,14 @@ public partial class SettingsUi
     private void DrawDutyPause()
     {
         bool disableSyncDuringDuty = _configService.Current.DisableSyncDuringDuty; bool disableSyncDuringPvP = _configService.Current.DisableSyncDuringPvP;
+        bool isPausingPerformance = _configService.Current.AutoPauseDataApplicationWhenPerforming;
         bool IsBoundByDuty = _dalamudUtilService.IsBoundByDuty;
         bool IsBoundByPvP = _dalamudUtilService.IsBoundByPvP;
         bool isConnectingOrConnected = _apiController.ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting;
 
-        _uiShared.BigText("Duty Pause");
-        ImGuiHelpers.ScaledDummy(2);
-        UiSharedService.TextWrapped("This option will disconnect from the service upon entering a duty and reconnect when you leave the instance.");
+        _uiShared.BigText("Sync Pause");
+        //ImGuiHelpers.ScaledDummy(2);
+        //UiSharedService.TextWrapped();
         ImGuiHelpers.ScaledDummy(5f);
         if (ImGui.Checkbox("Auto disconnect when bound by duty", ref disableSyncDuringDuty))
         {
@@ -370,6 +369,8 @@ public partial class SettingsUi
             _configService.Current.DisableSyncDuringDuty = disableSyncDuringDuty;
             _configService.Save();
         }
+        _uiShared.DrawHelpText("This option will disconnect from the service upon entering a duty and reconnect when you leave the instance.");
+
         if (ImGui.Checkbox("Auto disconnect when in PvP", ref disableSyncDuringPvP))
         {
             if (isConnectingOrConnected && !_serverConfigurationManager.CurrentServer.FullPause && IsBoundByPvP && disableSyncDuringPvP)
@@ -386,6 +387,14 @@ public partial class SettingsUi
             _configService.Current.DisableSyncDuringPvP = disableSyncDuringPvP;
             _configService.Save();
         }
+        _uiShared.DrawHelpText("This option will disconnect from the service upon entering PVP and reconnect when you leave the instance.");
+
+        if (ImGui.Checkbox("Pause data applications while in performance mode", ref isPausingPerformance))
+        {
+            _configService.Current.AutoPauseDataApplicationWhenPerforming = isPausingPerformance;
+            _configService.Save();
+        }
+        _uiShared.DrawHelpText("This option will stop loading new pairs while you are in performance mode.");
     }
 
     private void DrawSyncFilter()
@@ -548,73 +557,28 @@ public partial class SettingsUi
         _selectedTabService = new(ServiceTabs.Permissions, "Permissions", DrawServicePermissions);
     }
 
-    private void GoToExperimental()
+    private void DrawExperimental()
     {
-        bool useQueuedMethod = _configService.Current.UseQueuedCharacterDataApplication;
         int maxConcurrent = _configService.Current.MaxConcurrentApplications;
-        int drawWaitMs = _configService.Current.CharacterIsDrawingTimeoutMilliseconds;
 
         _uiShared.BigText("Experimental");
         ImGuiHelpers.ScaledDummy(2);
         UiSharedService.ColorTextWrapped("You should not mess with these settings unless instructed to, or you like to live on the edge.", ImGuiColors.DalamudRed);
         ImGuiHelpers.ScaledDummy(5f);
 
-        using (ImRaii.Disabled(!UiSharedService.ShiftPressed()))
+        ImGui.TextUnformatted("Max Concurrent Applications");
+        ImGui.SetNextItemWidth(200f * ImGuiHelpers.GlobalScale);
+        if (ImGui.SliderInt("##maxConcurrent", ref maxConcurrent, 0, 20))
         {
-            if (ImGui.Button("Enable Editing"))
+            if (maxConcurrent < 0 || maxConcurrent > 99)
             {
-                _enableExperimental = true;
+                maxConcurrent = 0;
             }
-            UiSharedService.AttachToolTip("Hold SHIFT and click to confirm.");
+            _pairManager.MaxConcurrentApplyData = maxConcurrent;
         }
-
-        ImGuiHelpers.ScaledDummy(5);
-
-        using (ImRaii.Disabled(!_enableExperimental))
-        {
-            if (ImGui.Checkbox("Enforce queued character data applications", ref useQueuedMethod))
-            {
-                _pairManager.UseQueuedCharacterDataApplication = useQueuedMethod;
-            }
-
-            ImGuiHelpers.ScaledDummy(2);
-
-            using (ImRaii.PushIndent(2))
-            {
-                using (ImRaii.Disabled(!useQueuedMethod))
-                {
-                    ImGui.TextUnformatted("Max Concurrent Applications");
-                    ImGui.SetNextItemWidth(200f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.SliderInt("##maxConcurrent", ref maxConcurrent, 1, 10))
-                    {
-                        if (maxConcurrent < 1) maxConcurrent = 1;
-                        // we don't set directly here as a slider would cause the worker count to go crazy
-                        _configService.Current.MaxConcurrentApplications = maxConcurrent;
-                        _configService.Save();
-                        _hasChangesMaxConcurrent = true;
-                    }
-                    ImGui.SameLine();
-                    using (ImRaii.Disabled(!_hasChangesMaxConcurrent))
-                    {
-                        if (ImGui.Button("Apply"))
-                        {
-                            _pairManager.MaxConcurrentApplications = _configService.Current.MaxConcurrentApplications;
-                            _hasChangesMaxConcurrent = false;
-                        }
-                    }
-                }
-            }
-
-            ImGuiHelpers.ScaledDummy(5);
-
-            ImGui.TextUnformatted("Timeout Delay While Drawing Characters");
-            ImGui.SetNextItemWidth(300f * ImGuiHelpers.GlobalScale);
-            if (ImGui.SliderInt("##timeoutDelay", ref drawWaitMs, 1000, 50000))
-            {
-                _configService.Current.CharacterIsDrawingTimeoutMilliseconds = drawWaitMs;
-                _configService.Save();
-            }
-            _uiShared.DrawHelpText("Default: 30000");
-        }
+        _uiShared.DrawHelpText("This affects how many pairs you download/apply mods to at the same time." + UiSharedService.TooltipSeparator +
+            "Setting this to any number above 0 will limit the concurrent data applications. A lower number may help smooth loading and prevent lag/lockups for " +
+            "PCs with modest specs.");
+        ImGui.TextUnformatted("0 = Unlimited/Max");
     }
 }

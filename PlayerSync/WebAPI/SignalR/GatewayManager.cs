@@ -51,7 +51,7 @@ namespace PlayerSync.WebAPI.SignalR
             }
             if (hosts is null || hosts.Count == 0)
             {
-                Logger.LogError("Failed to get gateway hosts by HTTPS request!");
+                Logger.LogWarning("Failed to get gateway hosts by HTTPS request!");
                 return null;
             }
 
@@ -219,7 +219,7 @@ namespace PlayerSync.WebAPI.SignalR
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Failed to get gateway status for {gateway}!", statusUri.ToString());
+                Logger.LogWarning(ex, "Failed to get gateway status for {gateway}!", statusUri.ToString());
                 return null;
             }
         }

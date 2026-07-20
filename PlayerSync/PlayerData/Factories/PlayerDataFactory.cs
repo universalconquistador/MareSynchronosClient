@@ -5,10 +5,11 @@ using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Data;
 using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
-using CharacterData = MareSynchronos.PlayerData.Data.CharacterData;
+
 
 namespace MareSynchronos.PlayerData.Factories;
 
@@ -110,7 +111,7 @@ public class PlayerDataFactory
         _logger.LogDebug("Building character data for {obj}", playerRelatedObject);
 
         // wait until chara is not drawing and present so nothing spontaneously explodes
-        await _dalamudUtil.WaitWhileCharacterIsDrawing(_logger, playerRelatedObject, Guid.NewGuid(), 30000, ct: ct).ConfigureAwait(false);
+        await _dalamudUtil.WaitWhileCharacterIsDrawing(_logger, playerRelatedObject, Guid.NewGuid(), 30000, true, ct: ct).ConfigureAwait(false);
         int totalWaitTime = 10000;
         while (!await _dalamudUtil.IsObjectPresentAsync(await _dalamudUtil.CreateGameObjectAsync(playerRelatedObject.Address).ConfigureAwait(false)).ConfigureAwait(false) && totalWaitTime > 0)
         {
@@ -376,5 +377,27 @@ public class PlayerDataFactory
         }
 
         return pathsToResolve;
+    }
+
+    public async Task<string> GetAddonPluginPlayerData(PlayerChanges playerChanges)
+    {
+        switch (playerChanges)
+        {
+            case PlayerChanges.Honorific:
+                return await _ipcManager.Honorific.GetTitle().ConfigureAwait(false);
+
+            case PlayerChanges.Heels:
+                return await _ipcManager.Heels.GetOffsetAsync().ConfigureAwait(false);
+
+            case PlayerChanges.Moodles:
+                var playerChara = await _dalamudUtil.GetPlayerCharacterAsync().ConfigureAwait(false);
+                return await _ipcManager.Moodles.GetStatusAsync(playerChara.Address).ConfigureAwait(false) ?? string.Empty;
+
+            case PlayerChanges.PetNames:
+                return _ipcManager.PetNames.GetLocalNames();
+
+            default:
+                return string.Empty;
+        }
     }
 }
