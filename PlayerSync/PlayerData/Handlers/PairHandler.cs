@@ -778,6 +778,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(2), downloadToken).ConfigureAwait(false);
+
+                toDownloadReplacements = TryCalculateModdedDictionary(applicationBase, charaData, compressedAlternateUsage, ActiveCompressionRedirects, out locallyPresentFiles, out moddedPaths, downloadToken);
             }
 
             if (!await _playerPerformanceService.CheckBothThresholds(this, charaData).ConfigureAwait(false))
