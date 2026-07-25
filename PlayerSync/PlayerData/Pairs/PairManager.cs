@@ -1,5 +1,6 @@
 ﻿using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Comparer;
+using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
@@ -51,7 +52,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private Task? _unpausePairTask;
     private Task? _pendingDeferredTask;
     private int _maxConcurrentApplyData;
-    private bool _deferringDataApplications = false;
+    private bool _isDeferredDueToCombatOrPerforming = false;
     private bool _isPlayerIdle = false;
 
     public PairManager(ILogger<PairManager> logger, PairFactory pairFactory, DalamudUtilService dalamudUtilService, IpcManager ipcManager,
@@ -96,11 +97,11 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         {
             if ((_configurationService.Current.AutoPauseDataApplicationWhenPerforming && _dalamudUtilService.IsPerforming) || _dalamudUtilService.IsInCombat)
             {
-                _deferringDataApplications = true;
+                _isDeferredDueToCombatOrPerforming = true;
             }
         });
 
-        Mediator.Subscribe<CombatOrPerformanceEndMessage>(this, (msg) => _deferringDataApplications = false);
+        Mediator.Subscribe<CombatOrPerformanceEndMessage>(this, (msg) => _isDeferredDueToCombatOrPerforming = false);
         Mediator.Subscribe<PlayerIdleStartMessage>(this, _ => _isPlayerIdle = true);
         Mediator.Subscribe<PlayerIdleEndMessage>(this, _ => _isPlayerIdle = false);
 
@@ -154,7 +155,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         }
     }
     private bool DeferringDataApplications => 
-        _deferringDataApplications 
+        _isDeferredDueToCombatOrPerforming 
         || _isPlayerIdle 
         || _dalamudUtilService.IsInCutscene 
         || _dalamudUtilService.IsOccupiedInCutSceneEvent 
@@ -307,7 +308,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
         pair.IsOnline = true;
 
-        _identToUserPairs.AddOrUpdate(dto.Ident, pair, (_, _) => pair);
+        _identToUserPairs[dto.Ident] = pair;
 
         if (!InitialLoading)
         {
@@ -331,16 +332,48 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         {
             // defer this pair for now
             Logger.LogDebug("Pair is not in a valid state or we are deferring data application: {pair} CachedPlayer: {cached} IsDeferred: {deferred} IsVisible: {visible}",
-                pair.PairUIDName, pair.HasCachedPlayer, _deferringDataApplications, pair.IsVisible);
+                pair.PairUIDName, pair.HasCachedPlayer, _isDeferredDueToCombatOrPerforming, pair.IsVisible);
 
-            // TODO: fully implement dto handling
-            // this will eventually need to update a partial dto if we sent only the addon data
-            // else, we could overwrite a full data application with a partial one
-            _deferredPairDataApplications.AddOrUpdate(pair, dto, (_, _) => dto);
+            _deferredPairDataApplications.AddOrUpdate(pair, dto, (_, existingDto) =>
+            {
+                if (dto.AddonPlugin == null)
+                {
+                    return dto;
+                }
+                else
+                {
+                    if (dto.AddonPlugin == AddonPlugin.Heels)
+                    {
+                        existingDto.CharaData.HeelsData = dto.CharaData.HeelsData;
+                    }
+                    else if (dto.AddonPlugin == AddonPlugin.Honorific)
+                    {
+                        existingDto.CharaData.HonorificData = dto.CharaData.HonorificData;
+                    }
+                    else if (dto.AddonPlugin == AddonPlugin.Moodles)
+                    {
+                        existingDto.CharaData.MoodlesData = dto.CharaData.MoodlesData;
+                    }
+                    else if (dto.AddonPlugin == AddonPlugin.Loci)
+                    {
+                        existingDto.CharaData.LociData = dto.CharaData.LociData;
+                    }
+                    else if (dto.AddonPlugin == AddonPlugin.PetNames)
+                    {
+                        existingDto.CharaData.PetNamesData = dto.CharaData.PetNamesData;
+                    }
+                    else
+                    {
+                        throw new InvalidDataException("Got an unknown AddonPlugin type!");
+                    }
+
+                    return existingDto;
+                }
+            });
         }
         else
         {
-            if (dto.AddonPlugin is not null) // process the dto via the addon plugin path if AddonPlugin exists
+            if (dto.AddonPlugin != null) // process the dto via the addon plugin path if AddonPlugin exists
             {
                 Logger.LogTrace("CharaData received with AddonPlugin: {plugin}", dto.AddonPlugin);
                 Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received AddonPlugin Data")));
