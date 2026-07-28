@@ -589,7 +589,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
             if (updateManip)
             {
-                await _ipcManager.Penumbra.SetManipulationDataAsync(Logger, _applicationId, _penumbraCollection.Value, charaData.ManipulationData).ConfigureAwait(false);
+                await _ipcManager.Penumbra.SetManipulationDataAsync(Logger, _applicationId, _penumbraCollection.Value, charaData.ManipulationData, Pair.UserData.UID).ConfigureAwait(false);
             }
 
             linkedCts.Token.ThrowIfCancellationRequested();
