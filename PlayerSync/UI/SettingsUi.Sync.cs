@@ -350,8 +350,6 @@ public partial class SettingsUi
         bool isConnectingOrConnected = _apiController.ServerState is ServerState.Connected or ServerState.Connecting or ServerState.Reconnecting;
 
         _uiShared.BigText("Sync Pause");
-        //ImGuiHelpers.ScaledDummy(2);
-        //UiSharedService.TextWrapped();
         ImGuiHelpers.ScaledDummy(5f);
         if (ImGui.Checkbox("Auto disconnect when bound by duty", ref disableSyncDuringDuty))
         {

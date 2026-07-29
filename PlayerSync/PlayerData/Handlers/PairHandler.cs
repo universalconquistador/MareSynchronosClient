@@ -212,7 +212,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
         Mediator.Subscribe<LociReadyMessage>(this, async _ =>
         {
-            if (_cachedData is null) return;
+            if (_cachedData == null) return;
             if (!_cachedData.LociData.TryGetValue(ObjectKind.Player, out var data) || string.IsNullOrEmpty(data)) return;
             if (_charaHandler.Address == nint.Zero) return;
             Logger.LogTrace("Reapplying Loci data for {this}", this);
@@ -496,9 +496,10 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
         _applicationId = Guid.NewGuid();
 
-        if (_penumbraCollection is null)
+        if (_penumbraCollection == null)
         {
             Logger.LogError("No penumbra collection exists for {pair}!", Pair.PlayerName);
+
             return;
         }
 
@@ -1026,7 +1027,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 Logger.LogTrace("[{applicationId}] Restoring state for {name} ({OnlineUser})", applicationId, name, Pair.UserPair);
                 Logger.LogDebug("[{applicationId}] Removing Temp Collection for {name} ({user})", applicationId, name, Pair.UserPair);
 
-                if (_penumbraCollection is not null)
+                if (_penumbraCollection != null)
                 {
                     _ipcManager.Penumbra.RemoveTemporaryCollectionAsync(Logger, applicationId, _penumbraCollection.Value).GetAwaiter().GetResult();
                 }
@@ -1199,7 +1200,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
     public async Task HandleOptionalPluginDataAsync(AddonPlugin plugin, CharacterData charaData)
     {
-        bool isCharacterInvalid = (_charaHandler == null || (PlayerCharacter == IntPtr.Zero)) && _cachedData is not null;
+        bool isCharacterInvalid = (_charaHandler == null || (PlayerCharacter == IntPtr.Zero)) && _cachedData != null;
 
         switch (plugin)
         {
@@ -1216,7 +1217,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     return;
                 }
 
-                await ApplyHonorificDataASync(charaData).ConfigureAwait(false);
+                await ApplyHonorificDataAsync(charaData).ConfigureAwait(false);
 
                 return;
 
@@ -1291,7 +1292,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         }
     }
 
-    private async Task ApplyHonorificDataASync(CharacterData charaData)
+    private async Task ApplyHonorificDataAsync(CharacterData charaData)
     {
         try
         {
@@ -1329,7 +1330,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
     private async Task ApplyLociDataASync(CharacterData charaData)
     {
-        if (charaData.LociData is null)
+        if (charaData.LociData == null)
         {
             return;
         }

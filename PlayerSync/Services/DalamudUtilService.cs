@@ -662,11 +662,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 await Task.Delay(tick, ct.Value).ConfigureAwait(false);
             }
 
-            //if (curWaitTime >= timeOut)
-            //{
-            //    throw new TimeoutException("Pair did not draw within the required time.");
-            //}
-
             logger.LogTrace("[{redrawId}] Finished drawing after {curWaitTime}ms", redrawId, curWaitTime);
         }
         catch (NullReferenceException ex)
@@ -677,10 +672,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         {
             logger.LogWarning(ex, "Error accessing {handler}, object does not exist anymore?", handler);
         }
-        //catch (TimeoutException ex)
-        //{
-        //    logger.LogWarning(ex, "Error accessing {handler}, object did not draw in time?", handler);
-        //}
     }
 
     public unsafe void WaitWhileGposeCharacterIsDrawing(IntPtr characterAddress, int timeOut = 5000)

@@ -423,8 +423,8 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
             return DrawCondition.DrawObjectZero;
         }
 
-        var renderFlags = ((GameObject*)Address)->RenderFlags != VisibilityFlags.None;
-        if (renderFlags)
+        var hasRenderFlags = ((GameObject*)Address)->RenderFlags != VisibilityFlags.None;
+        if (hasRenderFlags)
         {
             return DrawCondition.RenderFlags;
         }

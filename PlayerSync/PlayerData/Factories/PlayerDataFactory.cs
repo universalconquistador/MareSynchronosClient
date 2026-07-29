@@ -379,6 +379,7 @@ public class PlayerDataFactory
         return pathsToResolve;
     }
 
+    // TODO: This needs to be reworked for thread and memory safety
     public async Task<string> GetAddonPluginPlayerData(PlayerChanges playerChanges)
     {
         switch (playerChanges)

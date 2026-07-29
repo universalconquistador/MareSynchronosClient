@@ -71,7 +71,7 @@ public class Pair
     {
         get
         {
-            if (_hasProfile is null) 
+            if (_hasProfile == null) 
                 return UserPair.User.HasProfile ?? false;
 
             return _hasProfile.Value;
@@ -106,11 +106,11 @@ public class Pair
         _ = ApplyDataAsync(applicationBase, data, CancellationToken.None);
     }
 
-    ///// <summary>
-    ///// Step 1
-    ///// Ensures a cached player exists before applying character data from the received dto.
-    ///// There used to be a lot more here...
-    ///// </summary>
+    /// <summary>
+    /// Step 1
+    /// Ensures a cached player exists before applying character data from the received dto.
+    /// There used to be a lot more here...
+    /// </summary>
     public async Task ApplyDataAsync(Guid applicationBase, OnlineUserCharaDataDto data, CancellationToken topLevelToken)
     {
         LastReceivedCharacterData = data.CharaData;
@@ -132,10 +132,10 @@ public class Pair
         _ = ApplyLastReceivedDataAsync(CancellationToken.None, forced, applicationBase.Value);
     }
 
-    ///// <summary>
-    ///// Step 2
-    ///// This is called as part of the data application pipeline as well as manually to reapply pair data.
-    ///// </summary>
+    /// <summary>
+    /// Step 2
+    /// This is called as part of the data application pipeline as well as manually to reapply pair data.
+    /// </summary>
     public Task ApplyLastReceivedDataAsync(CancellationToken topLevelToken, bool forced = false, Guid? applicationBase = null)
     {
         if (CachedPlayer == null || LastReceivedCharacterData == null)

@@ -127,7 +127,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     public Dictionary<GroupData, GroupFullInfoDto> Groups => _allGroups.ToDictionary(k => k.Key, k => k.Value);
     public Pair? LastAddedUser { get; internal set; }
     public Dictionary<Pair, List<GroupFullInfoDto>> PairsWithGroups => _pairsWithGroupsInternal.Value;
-    public bool InitialLoading { get; set; } = true;
+    public bool DeferRecreate { get; set; } = true;
     public int MaxConcurrentApplyData
     {
         get
@@ -310,7 +310,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
         _identToUserPairs[dto.Ident] = pair;
 
-        if (!InitialLoading)
+        if (!DeferRecreate)
         {
             RecreateLazy();
         }
