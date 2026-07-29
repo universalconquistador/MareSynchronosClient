@@ -2472,7 +2472,7 @@ namespace TerritoryTools
             [1327] = false,
             // Territory #1328
             [1328] = false,
-            // Territory #1329
+            // Kanilokka Corpus Substructure
             [1329] = false,
             // Territory #1330
             [1330] = false,
@@ -2484,10 +2484,16 @@ namespace TerritoryTools
             [1333] = false,
             // The Clyteum - the Clyteum
             [1345] = false,
+            // Northhorn
+            [1346] = false,
             // Archeia Harmonias
             [1357] = false,
             // Archeia Harmonias
             [1358] = false,
+            // Gold Saucer (instance)
+            [1359] = false,
+            // Keybound Square
+            [1360] = false,
             // The Unmaking - the Unmaking
             [1361] = false,
             // The Unmaking - the Unmaking (Extreme)
