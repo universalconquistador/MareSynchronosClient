@@ -213,6 +213,14 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     {
         get => _targetManager.SoftTarget?.Address ?? nint.Zero;
     }
+    public string FocusTargetName
+    {
+        get => _targetManager.FocusTarget?.Name.TextValue ?? string.Empty;
+    }
+    public unsafe nint FocusTargetAddress
+    {
+        get => _targetManager.FocusTarget?.Address ?? nint.Zero;
+    }
     public string MouseOverTargetName
     {
         get => _targetManager.MouseOverTarget?.Name.TextValue ?? string.Empty;
@@ -739,22 +747,31 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
     private void TargetPairByTargetType(Pair? pair, TargetType targetType)
     {
-        if (_clientState.IsPvP) return;
-
-        nint addr = nint.Zero;
-        if (pair != null)
+        if (_clientState.IsPvP)
         {
-            var name = pair.PlayerName;
-            if (string.IsNullOrEmpty(name))
-                return;
-
-            addr = _playerCharas.FirstOrDefault(f => string.Equals(f.Value.Name, name, StringComparison.Ordinal)).Value.Address;
-            if (addr == nint.Zero)
-                return;
+            return;
         }
             
         _ = RunOnFrameworkThread(() =>
         {
+            nint addr = nint.Zero;
+            string? name = string.Empty;
+
+            if (pair != null)
+            {
+                name = pair.PlayerName;
+                if (string.IsNullOrEmpty(name))
+                {
+                    return;
+                }
+
+                addr = _playerCharas.FirstOrDefault(f => string.Equals(f.Value.Name, name, StringComparison.Ordinal)).Value.Address;
+                if (addr == nint.Zero)
+                {
+                    return;
+                }
+            }
+
             IGameObject? objectToTarget = pair != null ? CreateGameObject(addr) : null;
 
             switch (targetType)

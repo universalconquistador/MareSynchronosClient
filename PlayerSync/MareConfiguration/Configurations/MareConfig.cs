@@ -2,6 +2,7 @@
 using MareSynchronos.UI;
 using Microsoft.Extensions.Logging;
 using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.Services.Models;
 
 namespace MareSynchronos.MareConfiguration.Configurations;
 
@@ -110,7 +111,8 @@ public class MareConfig : IMareConfiguration
     };
     public bool[] SPriority { get; set; } = new bool[5];
     public bool ShowProfileIconByNames { get; set; } = true;
-    public bool SoftTargetPairsOnHover { get; set; } = false;
+    public bool TargetPairsOnHover { get; set; } = true;
+    public TargetType OnHoverTargetType { get; set; } = TargetType.FocusTarget;
     public bool EnableValidationChecks { get; set; } = true;
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
