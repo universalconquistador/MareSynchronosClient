@@ -282,6 +282,7 @@ public partial class SettingsUi
         var permColorsEnabled = _configService.Current.PermsColorsEnabled;
         var permsColorsDisabled = _configService.Current.PermsColorsDisabled;
         var showColorWaveNotification = _configService.Current.EnableColorWaveNotification;
+        var showNameplateSI = _configService.Current.NamePlatePairedSoundIndicator;
 
         _uiShared.BigText("Game UI");
         ImGuiHelpers.ScaledDummy(2);
@@ -299,6 +300,14 @@ public partial class SettingsUi
             Mediator.Publish(new RedrawNameplateMessage());
         }
         _uiShared.DrawHelpText("This will draw a ⇔ icon next to names for visibile pairs.");
+
+        if (ImGui.Checkbox("Show NamePlate Sound Indicator", ref showNameplateSI))
+        {
+            _configService.Current.NamePlatePairedSoundIndicator = showNameplateSI;
+            _configService.Save();
+            Mediator.Publish(new RedrawNameplateMessage());
+        }
+        _uiShared.DrawHelpText("This will put a \uE039 on the player's nameplate if modded sounds have been activated within the last 30 seconds.");
 
         if (ImGui.Checkbox("Color Code Active Pair Names" , ref showNameHighlights))
         {
