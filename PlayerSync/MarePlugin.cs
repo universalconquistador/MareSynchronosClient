@@ -183,6 +183,7 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
             _runtimeServiceScope.ServiceProvider.GetRequiredService<EmoteSyncManagerService>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<PairContextMenuHandler>();
             _runtimeServiceScope.ServiceProvider.GetRequiredService<JsonDataTypeHandlerService>();
+            _runtimeServiceScope.ServiceProvider.GetRequiredService<PlayerIdleStatusService>();
 
 #if !DEBUG
             if (_mareConfigService.Current.LogLevel != LogLevel.Information)

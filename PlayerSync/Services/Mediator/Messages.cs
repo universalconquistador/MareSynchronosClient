@@ -40,6 +40,7 @@ public record ChangeFilterMessage : MessageBase;
 public record CutsceneFrameworkUpdateMessage : SameThreadMessage;
 public record ConnectedMessage(ConnectionDto Connection) : MessageBase;
 public record DisconnectedMessage : SameThreadMessage;
+public record PairOfflineMessage(Pair Pair) : MessageBase;
 public record PenumbraModSettingChangedMessage : MessageBase;
 public record PenumbraInitializedMessage : MessageBase;
 public record PenumbraDisposedMessage : MessageBase;
@@ -63,8 +64,10 @@ public record ResumeScanMessage(string Source) : MessageBase;
 public record NotificationMessage
     (string Title, string Message, NotificationType Type, TimeSpan? TimeShownOnScreen = null) : MessageBase;
 public record CreateCacheForObjectMessage(GameObjectHandler ObjectToCreateFor) : SameThreadMessage;
+public record CreateCacheForEverythingMessage() : MessageBase;
 public record ClearCacheForObjectMessage(GameObjectHandler ObjectToCreateFor) : SameThreadMessage;
 public record CharacterDataCreatedMessage(CharacterData CharacterData) : SameThreadMessage;
+public record AddonPluginChangesCreatedMessage(PlayerChanges PlayerChanges, string Data) : MessageBase; // not making this same thread for now
 public record CharacterDataAnalyzedMessage : MessageBase;
 public record PenumbraStartRedrawMessage(IntPtr Address) : MessageBase;
 public record PenumbraEndRedrawMessage(IntPtr Address) : MessageBase;
@@ -101,6 +104,8 @@ public record CensusUpdateMessage(byte Gender, byte RaceId, byte TribeId) : Mess
 public record TargetPairMessage(Pair? Pair, TargetType TargetType) : MessageBase;
 public record CombatOrPerformanceStartMessage : MessageBase;
 public record CombatOrPerformanceEndMessage : MessageBase;
+public record PlayerIdleStartMessage: MessageBase;
+public record PlayerIdleEndMessage: MessageBase;
 public record EventMessage(Event Event) : MessageBase;
 public record PenumbraDirectoryChangedMessage(string? ModDirectory) : MessageBase;
 public record PenumbraRedrawCharacterMessage(ICharacter Character) : SameThreadMessage;
