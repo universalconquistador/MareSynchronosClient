@@ -273,7 +273,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         if (_allClientPairs.TryGetValue(user, out var pair))
         {
             Mediator.Publish(new ClearProfileDataMessage(pair.UserData));
-            _identToUserPairs.TryRemove(pair.Ident, out _);
+            ResetCachedPlayerInitialization(pair);
             pair.MarkOffline();
         }      
 
@@ -285,7 +285,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         if (!_allClientPairs.ContainsKey(dto.User)) throw new InvalidOperationException("No user found for " + dto);
 
         var pair = _allClientPairs[dto.User];
-        if (pair.HasCachedPlayer)
+        if (pair.HasCachedPlayer) // we already have a PairHandler assigned
         {
             RecreateLazy();
             return;
@@ -304,11 +304,18 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             Mediator.Publish(new NotificationMessage("User online", msg, NotificationType.Info, TimeSpan.FromSeconds(5)));
         }
 
-        pair.SetOnlinePlayerDto(dto);
+        bool wasAbleToSetPlayerDto = pair.SetOnlinePlayerDto(dto);
+        if (!wasAbleToSetPlayerDto)
+        {
+            Logger.LogWarning("Failed to set OnlinePlayerDto for {pair}", pair.PairUIDName);
+            ResetCachedPlayerInitialization(pair);
+        }
+        else
+        {
+            pair.IsOnline = true;
 
-        pair.IsOnline = true;
-
-        _identToUserPairs[dto.Ident] = pair;
+            _identToUserPairs[dto.Ident] = pair;
+        }
 
         if (!DeferRecreate)
         {
@@ -559,6 +566,11 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             pair.UserPair.IndividualPairStatus = dto.IndividualPairStatus;
             RecreateLazy();
         }
+    }
+
+    public void ResetCachedPlayerInitialization(Pair pair)
+    {
+        _identToUserPairs.TryRemove(pair.Ident, out _);
     }
 
     protected override void Dispose(bool disposing)

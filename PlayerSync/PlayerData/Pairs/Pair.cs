@@ -155,19 +155,23 @@ public class Pair
         return CachedPlayer.ApplyCharacterDataAsync(applicationBase.Value, RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, topLevelToken, forced);
     }
 
-    public void SetOnlinePlayerDto(OnlineUserIdentDto? dto = null)
+    public bool SetOnlinePlayerDto(OnlineUserIdentDto? dto = null)
     {
         _creationSemaphore.Wait();
 
         try
         {
-            if (CachedPlayer != null) return;
+            if (CachedPlayer != null)
+            {
+                return true;
+            }
 
             if (dto == null && _onlineUserIdentDto == null)
             {
                 CachedPlayer?.Dispose();
                 CachedPlayer = null;
-                return;
+
+                return false;
             }
             if (dto != null)
             {
@@ -178,6 +182,8 @@ public class Pair
         {
             _creationSemaphore.Release();
         }
+
+        return true;
     }
 
     public string? GetNote()
