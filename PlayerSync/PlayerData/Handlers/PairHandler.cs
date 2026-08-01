@@ -1202,93 +1202,104 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
     {
         bool isCharacterInvalid = (_charaHandler == null || (PlayerCharacter == IntPtr.Zero)) && _cachedData != null;
 
-        switch (plugin)
+        try
         {
-            case AddonPlugin.Honorific:
-                if (isCharacterInvalid)
-                {
+            switch (plugin)
+            {
+                case AddonPlugin.Honorific:
+                    
+                    if (charaData.HonorificData == null || string.Equals(_cachedData!.HonorificData, charaData.HonorificData, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+
                     _cachedData!.HonorificData = charaData.HonorificData;
 
+                    if (isCharacterInvalid)
+                    {
+                        return;
+                    }
+
+                    await ApplyHonorificDataAsync(charaData).ConfigureAwait(false);
+
                     return;
-                }
 
-                if (string.Equals(_cachedData!.HonorificData, charaData.HonorificData, StringComparison.Ordinal))
-                {
-                    return;
-                }
+                case AddonPlugin.Heels:
 
-                await ApplyHonorificDataAsync(charaData).ConfigureAwait(false);
+                    if (string.Equals(_cachedData!.HeelsData, charaData.HeelsData, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
 
-                return;
-
-            case AddonPlugin.Heels:
-                if (isCharacterInvalid)
-                {
                     _cachedData!.HeelsData = charaData.HeelsData;
 
+                    if (isCharacterInvalid)
+                    {
+                        return;
+                    }
+
+                    await ApplyHeelsDataAsync(charaData).ConfigureAwait(false);
+
                     return;
-                }
 
-                if (string.Equals(_cachedData!.HeelsData, charaData.HeelsData, StringComparison.Ordinal))
-                {
-                    Logger.LogDebug("Got Heels Data that is identical, applying anyway...");
-                    //return; // this may be a bug? or something, need to investigate (freeze/resume state for livepose)
-                }
+                case AddonPlugin.Moodles:
 
-                await ApplyHeelsDataAsync(charaData).ConfigureAwait(false);
+                    if (string.Equals(_cachedData!.MoodlesData, charaData.MoodlesData, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
 
-                return;
-
-            case AddonPlugin.Moodles:
-                if (isCharacterInvalid)
-                {
                     _cachedData!.MoodlesData = charaData.MoodlesData;
 
+                    if (isCharacterInvalid)
+                    {
+                        return;
+                    }
+
+                    await ApplyMoodlesDataAsync(charaData).ConfigureAwait(false);
+
                     return;
-                }
 
-                if (string.Equals(_cachedData!.MoodlesData, charaData.MoodlesData, StringComparison.Ordinal))
-                {
-                    return;
-                }
+                case AddonPlugin.PetNames:
 
-                await ApplyMoodlesDataAsync(charaData).ConfigureAwait(false);
+                    if (string.Equals(_cachedData!.PetNamesData, charaData.PetNamesData, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
 
-                return;
-
-            case AddonPlugin.PetNames:
-                if (isCharacterInvalid)
-                {
                     _cachedData!.PetNamesData = charaData.PetNamesData;
 
+                    if (isCharacterInvalid)
+                    {
+                        return;
+                    }
+
+                    await ApplyPetNicknamesDataAsync(charaData).ConfigureAwait(false);
+
                     return;
-                }
 
-                if (string.Equals(_cachedData!.PetNamesData, charaData.PetNamesData, StringComparison.Ordinal))
-                {
-                    return;
-                }
+                case AddonPlugin.Loci:
 
-                await ApplyPetNicknamesDataAsync(charaData).ConfigureAwait(false);
+                    // not going to bother with a dictionary equality right now
 
-                return;
-
-            case AddonPlugin.Loci:
-                if (isCharacterInvalid)
-                {
                     _cachedData!.LociData = charaData.LociData;
 
+                    if (isCharacterInvalid)
+                    {
+                        return;
+                    }
+
+                    await ApplyLociDataASync(charaData).ConfigureAwait(false);
+
                     return;
-                }
 
-                // not going to bother with a dictionary equality right now
-
-                await ApplyLociDataASync(charaData).ConfigureAwait(false);
-
-                return;
-
-            default:
-                return;
+                default:
+                    return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to apply Addon data for {pair}", Pair.PairUIDName);
         }
     }
 
