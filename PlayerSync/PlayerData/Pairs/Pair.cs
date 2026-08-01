@@ -94,10 +94,11 @@ public class Pair
 
     public void ApplyAddonPluginUpdate(OnlineUserCharaDataDto data)
     {
-        if (CachedPlayer == null)
+        if (CachedPlayer == null || _configService.Current.FilterMods) // don't try and apply addon data since the cachedData will be null (and we don't want to anyway)
         {
             return;
         }
+
         _ = CachedPlayer.HandleOptionalPluginDataAsync(data.AddonPlugin!.Value, data.CharaData);
     }
 
