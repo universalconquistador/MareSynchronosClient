@@ -34,7 +34,6 @@ namespace PlayerSync.FileCache
         // compressable file with no alternate yet
         private const float CacheLifespanMinutes = 2.0f;
 
-        private readonly ILogger _logger;
         private readonly MareConfigService _configService;
         private readonly ConcurrentDictionary<string, CompressedAlternateEntry> _entryDictionary = new(StringComparer.Ordinal);
         private string? _fileServiceUrl = null;
@@ -42,7 +41,6 @@ namespace PlayerSync.FileCache
         public CompressedAlternateManager(ILogger<CompressedAlternateManager> logger, MareConfigService configService, MareMediator mediator)
             : base(logger, mediator)
         {
-            _logger = logger;
             _configService = configService;
             Mediator.Subscribe<ConnectedMessage>(this, OnServiceConnected);
         }
