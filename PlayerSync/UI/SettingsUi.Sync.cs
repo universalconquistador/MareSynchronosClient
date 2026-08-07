@@ -22,11 +22,11 @@ public partial class SettingsUi
     [
         new(SyncTabs.Zone, "ZoneSync", DrawSyncZone),
         new(SyncTabs.Broadcast, "Broadcasts", DrawSyncBroadcast),
+        new(SyncTabs.PairLoading, "Pair Loading", DrawPairLoading),
         new(SyncTabs.Pairs, "Pair Requests", DrawPairRequests),
         new(SyncTabs.Duty, "Sync Pause", DrawDutyPause),
         new(SyncTabs.Filter, "Filtering", DrawSyncFilter),
         new(SyncTabs.Permissions, "Permissions", GoToPermissions),
-        new(SyncTabs.Experimental, "Experimental", DrawExperimental),
     ];
 
     private enum SyncTabs
@@ -37,7 +37,7 @@ public partial class SettingsUi
         Duty,
         Filter,
         Permissions,
-        Experimental
+        PairLoading
     }
 
     private string PlayerName => _uiShared.PlayerName;
@@ -555,13 +555,13 @@ public partial class SettingsUi
         _selectedTabService = new(ServiceTabs.Permissions, "Permissions", DrawServicePermissions);
     }
 
-    private void DrawExperimental()
+    private void DrawPairLoading()
     {
         int maxConcurrent = _configService.Current.MaxConcurrentApplications;
 
-        _uiShared.BigText("Experimental");
+        _uiShared.BigText("Pair Loading");
         ImGuiHelpers.ScaledDummy(2);
-        UiSharedService.ColorTextWrapped("You should not mess with these settings unless instructed to, or you like to live on the edge.", ImGuiColors.DalamudRed);
+        ImGui.TextUnformatted("Settings here affect how Pairs get loaded.");
         ImGuiHelpers.ScaledDummy(5f);
 
         ImGui.TextUnformatted("Max Concurrent Applications");
