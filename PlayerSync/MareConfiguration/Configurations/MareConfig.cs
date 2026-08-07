@@ -2,6 +2,7 @@
 using MareSynchronos.UI;
 using Microsoft.Extensions.Logging;
 using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.Services.Models;
 
 namespace MareSynchronos.MareConfiguration.Configurations;
 
@@ -110,17 +111,17 @@ public class MareConfig : IMareConfiguration
     };
     public bool[] SPriority { get; set; } = new bool[5];
     public bool ShowProfileIconByNames { get; set; } = true;
-    public bool SoftTargetPairsOnHover { get; set; } = false;
+    public bool TargetPairsOnHover { get; set; } = true;
+    public TargetType OnHoverTargetType { get; set; } = TargetType.FocusTarget;
     public bool EnableValidationChecks { get; set; } = true;
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
     public bool LifestreamInvitesDirectPairsOnly { get; set; } = false;
     public string LastPreloadPlaylistFolder { get; set; } = string.Empty;
     public bool NoPauseSubmenuForPairsOnMainUi { get; set; } = false;
-
-    // Experimentals
-    public bool UseQueuedCharacterDataApplication {  get; set; } = false;
-    public int MaxConcurrentApplications { get; set; } = 1;
-    public int CharacterIsDrawingTimeoutMilliseconds { get; set; } = 30000;
     public bool ShowFileUnableToSyncNotification { get; set; } = true;
+    public int MaxConcurrentApplications { get; set; } = 0;
+    public bool DisableIdleCheck { get; set; } = false;
+    public bool AutoPauseDataApplicationWhenPerforming {  get; set; } = true;
+    public int MaxUploadTimeMinutes { get; set; } = 10;
 }

@@ -7,12 +7,19 @@ namespace MareSynchronos.MareConfiguration;
 
 public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, TransientConfigService transientConfigService,
     ServerConfigService serverConfigService, NotesConfigService notesConfigService, ServerTagConfigService serverTagConfigService,
-    ZoneSyncConfigService zoneSyncConfigService) : IHostedService
+    ZoneSyncConfigService zoneSyncConfigService, MareConfigService mareConfigService) : IHostedService
 {
     private readonly ILogger<ConfigurationMigrator> _logger = logger;
 
     public void Migrate()
     {
+        if (mareConfigService.Current.Version == 1)
+        {
+            mareConfigService.Current.MaxConcurrentApplications = 0;
+            mareConfigService.Current.Version = 2;
+            mareConfigService.Save();
+        }
+
         if (transientConfigService.Current.Version == 0)
         {
             _logger.LogInformation("Migrating Transient Config V0 => V1");
@@ -33,7 +40,6 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             serverConfigService.Save();
         }
 
-        // Floof left us a means to version the server.json to make updates to the client configs prior to services loading
         if (serverConfigService.Current.Version == 2)
         {
             _logger.LogInformation("Migrating Server Config V2 => V3");

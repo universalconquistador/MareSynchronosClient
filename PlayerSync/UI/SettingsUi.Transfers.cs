@@ -51,6 +51,7 @@ public partial class SettingsUi
         int maxParallelDownloads = _configService.Current.ParallelDownloads;
         int maxParallelUploads = _configService.Current.ParallelUploads;
         int downloadSpeedLimit = _configService.Current.DownloadSpeedLimitInBytes;
+        int maxUploadTimeoutMinutes = _configService.Current.MaxUploadTimeMinutes;
 
         _uiShared.BigText("Bandwidth");
         ImGuiHelpers.ScaledDummy(2);
@@ -96,6 +97,15 @@ public partial class SettingsUi
         {
             maxParallelUploads = Math.Clamp(maxParallelUploads, 1, 100);
             _configService.Current.ParallelUploads = maxParallelUploads;
+            _configService.Save();
+        }
+        ImGuiHelpers.ScaledDummy(2f);
+
+        ImGui.TextUnformatted("Upload Timeout (minutes)");
+        if (ImGui.SliderInt("##maxUpTimeout", ref maxUploadTimeoutMinutes, 1, 20))
+        {
+            maxUploadTimeoutMinutes = Math.Clamp(maxUploadTimeoutMinutes, 1, 20);
+            _configService.Current.MaxUploadTimeMinutes = maxUploadTimeoutMinutes;
             _configService.Save();
         }
     }

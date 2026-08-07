@@ -258,8 +258,6 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
         await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            // science
-            //await _redrawManager.CoalescedRedrawAsync(logger, handler, applicationId, (chara) =>
             await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
             {
                 logger.LogDebug("[{appid}] Calling on IPC: PenumbraRedraw", applicationId);
@@ -288,15 +286,17 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
     {
         return await _penumbraResolvePaths.Invoke(forward, reverse).ConfigureAwait(false);
     }
-
-    public async Task SetManipulationDataAsync(ILogger logger, Guid applicationId, Guid collId, string manipulationData)
+    
+    public async Task SetManipulationDataAsync(ILogger logger, Guid applicationId, Guid collId, string manipulationData, string? uid = null)
     {
         if (!APIAvailable) return;
+
+        string modKey = uid == null ? "MareChara_Meta" : $"PS_{uid}_Meta";
 
         await _dalamudUtil.RunOnFrameworkThread(() =>
         {
             logger.LogTrace("[{applicationId}] Manip: {data}", applicationId, manipulationData);
-            var retAdd = _penumbraAddTemporaryMod.Invoke("MareChara_Meta", collId, [], manipulationData, 0);
+            var retAdd = _penumbraAddTemporaryMod.Invoke(modKey, collId, [], manipulationData, 0);
             logger.LogTrace("[{applicationId}] Setting temp meta mod for {collId}, Success: {ret}", applicationId, collId, retAdd);
         }).ConfigureAwait(false);
     }
@@ -305,7 +305,7 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
     {
         if (!APIAvailable) return;
 
-        string modKey = uid == null ? "MareChara_Files" : $"PS_{uid}";
+        string modKey = uid == null ? "MareChara_Files" : $"PS_{uid}_Files";
 
         await _dalamudUtil.RunOnFrameworkThread(() =>
         {
