@@ -291,6 +291,12 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
 
     private async Task UploadFileStream(byte[] compressedFile, string fileHash, string filenameExtension, bool postProgress, CancellationToken uploadToken)
     {
+        var maxUploadTimeMinues = _mareConfigService.Current.MaxUploadTimeMinutes;
+        using CancellationTokenSource cancelToken = new CancellationTokenSource();
+        using CancellationTokenSource combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancelToken.Token, uploadToken);
+        var combinedToken = combinedCts.Token;
+        cancelToken.CancelAfter(TimeSpan.FromMinutes(maxUploadTimeMinues)); // the caller of UploadFileStream catches the cancellation
+
         using var ms = new MemoryStream(compressedFile);
 
         Progress<UploadProgress>? prog = !postProgress ? null : new((prog) =>
@@ -311,7 +317,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         var streamContent = new ProgressableStreamContent(ms, _mareConfigService, prog);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         HttpResponseMessage response;
-        response = await _orchestrator.SendRequestStreamAsync(HttpMethod.Post, MareFiles.ServerFilesUploadFullPath(_orchestrator.FilesCdnUri!, fileHash, _orchestrator.TimeZoneUtcOffsetMinutes, filenameExtension), streamContent, uploadToken).ConfigureAwait(false);
+        response = await _orchestrator.SendRequestStreamAsync(HttpMethod.Post, MareFiles.ServerFilesUploadFullPath(_orchestrator.FilesCdnUri!, fileHash, _orchestrator.TimeZoneUtcOffsetMinutes, filenameExtension), streamContent, combinedToken).ConfigureAwait(false);
         Logger.LogDebug("[{hash}] Upload Status: {status}", fileHash, response.StatusCode);
 
         if (response.StatusCode == System.Net.HttpStatusCode.RequestEntityTooLarge)
