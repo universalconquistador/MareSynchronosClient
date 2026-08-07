@@ -96,6 +96,19 @@ namespace PlayerSync.Services
                     fcTagBuilder.AddUiForegroundOff();
                 }
 
+                if (_configService.Current.NamePlatePairedSoundIndicator && pair.LastLoadedSoundSinceRedraw != null)
+                {
+                    var timepassed = DateTimeOffset.UtcNow - pair.LastLoadedSoundSinceRedraw.Value;
+                    double tpseconds = timepassed.TotalSeconds;
+
+                    if (tpseconds <= 30)
+                    {
+                        fcTagBuilder.AddUiForeground(43);
+                        fcTagBuilder.Append($" \uE039");
+                        fcTagBuilder.AddUiForegroundOff();
+                    }
+                }
+
                 handle.FreeCompanyTag = fcTagBuilder.Build();
 
                 if (_configService.Current.ShowNameHighlights && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights))

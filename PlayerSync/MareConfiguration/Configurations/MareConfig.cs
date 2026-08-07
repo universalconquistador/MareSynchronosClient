@@ -117,6 +117,7 @@ public class MareConfig : IMareConfiguration
     public bool LifestreamInvitesDirectPairsOnly { get; set; } = false;
     public string LastPreloadPlaylistFolder { get; set; } = string.Empty;
     public bool NoPauseSubmenuForPairsOnMainUi { get; set; } = false;
+    public bool NamePlatePairedSoundIndicator { get; set; } = false;
 
     // Experimentals
     public bool UseQueuedCharacterDataApplication {  get; set; } = false;
