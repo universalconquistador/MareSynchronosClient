@@ -153,7 +153,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             }
         }
     }
-
+    public bool HasCachedData => _cachedData != null;
     public long LastAppliedDataBytes { get; private set; }
     public Pair Pair { get; private set; }
     public nint PlayerCharacter => _charaHandler?.Address ?? nint.Zero;

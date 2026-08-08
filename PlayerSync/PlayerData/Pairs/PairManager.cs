@@ -69,10 +69,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         Mediator.Subscribe<DisconnectedMessage>(this, (_) =>
         {
             _isConnected = false;
-            lock (_deferredApplicationLock)
-            {
-                _deferredPairDataApplications.Clear();
-            }
             _dataApplicationPipelineTopLevelCts = _dataApplicationPipelineTopLevelCts.CancelRecreate();
             ClearPairs();
         });
@@ -84,6 +80,13 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) =>
         {
             _isZoning = true;
+            lock (_applyDataLock)
+            {
+                _applyDataQueue.Clear();
+                _applyDataQueueDtos.Clear();
+                _runningApplyDataTasks.Clear();
+            }
+
             lock (_deferredApplicationLock)
             {
                 _deferredPairDataApplications.Clear();
@@ -335,9 +338,8 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             throw new InvalidOperationException("No user found for " + dto.User);
         }
 
-        if (!pair.CanApplyModdedData || DeferringDataApplications)
+        if (!pair.CanApplyModdedData || DeferringDataApplications) // defer this pair for now
         {
-            // defer this pair for now
             Logger.LogDebug("Pair is not in a valid state or we are deferring data application: {pair} CachedPlayer: {cached} IsDeferred: {deferred} IsVisible: {visible}",
                 pair.PairUIDName, pair.HasCachedPlayer, _isDeferredDueToCombatOrPerforming, pair.IsVisible);
 
@@ -349,30 +351,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
                 }
                 else
                 {
-                    if (dto.AddonPlugin == AddonPlugin.Heels)
-                    {
-                        existingDto.CharaData.HeelsData = dto.CharaData.HeelsData;
-                    }
-                    else if (dto.AddonPlugin == AddonPlugin.Honorific)
-                    {
-                        existingDto.CharaData.HonorificData = dto.CharaData.HonorificData;
-                    }
-                    else if (dto.AddonPlugin == AddonPlugin.Moodles)
-                    {
-                        existingDto.CharaData.MoodlesData = dto.CharaData.MoodlesData;
-                    }
-                    else if (dto.AddonPlugin == AddonPlugin.Loci)
-                    {
-                        existingDto.CharaData.LociData = dto.CharaData.LociData;
-                    }
-                    else if (dto.AddonPlugin == AddonPlugin.PetNames)
-                    {
-                        existingDto.CharaData.PetNamesData = dto.CharaData.PetNamesData;
-                    }
-                    else
-                    {
-                        throw new InvalidDataException("Got an unknown AddonPlugin type!");
-                    }
+                    UpdateExistingDtoAddonData(existingDto, dto);
 
                     return existingDto;
                 }
@@ -383,8 +362,26 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             if (dto.AddonPlugin != null) // process the dto via the addon plugin path if AddonPlugin exists
             {
                 Logger.LogTrace("CharaData received with AddonPlugin: {plugin}", dto.AddonPlugin);
-                Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received AddonPlugin Data")));
-                pair.ApplyAddonPluginUpdate(dto);
+
+                lock (_applyDataLock)
+                {
+                    // check if we have a pending Dto and update it so that the full update doesn't overwrite the latest state
+                    if (_applyDataQueueDtos.TryGetValue(pair, out var existingDto))
+                    {
+                        UpdateExistingDtoAddonData(existingDto, dto);
+                    }
+                }
+
+                // if we've already gone through the data application pipeline, else we'll appy it based on the UpdateExistingDtoAddonData
+                if (pair.HasCachedData)
+                {
+                    Mediator.Publish(new EventMessage(new Event(pair.UserData, nameof(PairManager), EventSeverity.Informational, "Received AddonPlugin Data")));
+                    pair.ApplyAddonPluginUpdate(dto);
+                }
+                else if (!_applyDataQueue.Contains(pair))
+                {
+                    Logger.LogWarning("Got addon data for {pair} but cached data is null and no pending application exists!", pair.PairUIDName);
+                }
             }
             else
             {
@@ -641,6 +638,34 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         _groupPairsInternal = GroupPairsLazy();
         _pairsWithGroupsInternal = PairsWithGroupsLazy();
         Mediator.Publish(new RefreshUiMessage());
+    }
+
+    private static void UpdateExistingDtoAddonData(OnlineUserCharaDataDto existingDto, OnlineUserCharaDataDto newDto)
+    {
+        if (newDto.AddonPlugin == AddonPlugin.Heels)
+        {
+            existingDto.CharaData.HeelsData = newDto.CharaData.HeelsData;
+        }
+        else if (newDto.AddonPlugin == AddonPlugin.Honorific)
+        {
+            existingDto.CharaData.HonorificData = newDto.CharaData.HonorificData;
+        }
+        else if (newDto.AddonPlugin == AddonPlugin.Moodles)
+        {
+            existingDto.CharaData.MoodlesData = newDto.CharaData.MoodlesData;
+        }
+        else if (newDto.AddonPlugin == AddonPlugin.Loci)
+        {
+            existingDto.CharaData.LociData = newDto.CharaData.LociData;
+        }
+        else if (newDto.AddonPlugin == AddonPlugin.PetNames)
+        {
+            existingDto.CharaData.PetNamesData = newDto.CharaData.PetNamesData;
+        }
+        else
+        {
+            throw new InvalidDataException("Got an unknown AddonPlugin type!");
+        }
     }
 
     // enqueues a pair and dto, or updates the dto if the data application hasn't run yet for the pair

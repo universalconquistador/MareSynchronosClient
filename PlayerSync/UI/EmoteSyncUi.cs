@@ -53,7 +53,6 @@ public class EmoteSyncUi : WindowMediatorSubscriberBase
         Mediator.Subscribe<GposeStartMessage>(this, (_) => { IsOpen = false; });
         Mediator.Subscribe<CutsceneStartMessage>(this, (_) => { IsOpen = false; });
         Mediator.Subscribe<CombatOrPerformanceStartMessage>(this, (_) => { IsOpen = false; });
-        Mediator.Subscribe<WorldChangeMessage>(this, (_) => { IsOpen = false; });
     }
 
     private string UserUID => _apiController.UID;

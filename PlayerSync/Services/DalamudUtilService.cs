@@ -1007,24 +1007,18 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             if (_condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.BetweenAreas51])
             {
                 var zone = _clientState.TerritoryType;
-                if (_lastZone != zone)
+                var world = _objectTable.LocalPlayer?.CurrentWorld.RowId ?? 0;
+
+                if (_lastZone != zone || _lastWorld != world)
                 {
                     _lastZone = zone;
+                    _lastWorld = world;
                     if (!_sentBetweenAreas)
                     {
                         _logger.LogDebug("Zone switch start");
                         _sentBetweenAreas = true;
                         Mediator.Publish(new ZoneSwitchStartMessage());
                         Mediator.Publish(new HaltScanMessage(nameof(ConditionFlag.BetweenAreas)));
-                    }
-                }
-                var world = _objectTable.LocalPlayer?.CurrentWorld.RowId ?? null;
-                if (world != null)
-                {
-                    if (_lastWorld != world)
-                    {
-                        _lastWorld = (uint)world;
-                        Mediator.Publish(new WorldChangeMessage());
                     }
                 }
 
