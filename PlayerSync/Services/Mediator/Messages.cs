@@ -123,7 +123,6 @@ public record GroupMembershipChanged(GroupPairUserInfoDto Dto) : MessageBase;
 public record GroupInfoChanged(GroupInfoDto GroupInfo) : MessageBase;
 public record GroupZoneSetEnableState(bool isEnabled = false) : MessageBase;
 public record GroupZoneSyncUpdateMessage : MessageBase;
-public record WorldChangeMessage : MessageBase;
 public record ToggleThemeEditorMessage : MessageBase;
 public record RedrawNameplateMessage : MessageBase;
 public record PairRequestsUpdateMessage(UserPairRequestsDto Dto) : MessageBase;
