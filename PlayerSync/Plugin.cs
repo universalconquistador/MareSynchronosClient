@@ -112,6 +112,10 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<HubFactory>();
             collection.AddSingleton<FileUploadManager>();
             collection.AddSingleton<FileTransferOrchestrator>();
+            collection.AddSingleton((s) => new PreloaderService(
+                s.GetRequiredService<FileCacheManager>(), s.GetRequiredService<FileUploadManager>(),
+                s.GetRequiredService<IpcManager>(), s.GetRequiredService<MareMediator>(),
+                s.GetRequiredService<ILogger<PreloaderService>>()));
             collection.AddSingleton<MarePlugin>();
             collection.AddSingleton<MareProfileManager>();
             collection.AddSingleton<GameObjectHandlerFactory>();
@@ -268,9 +272,6 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<WindowSystem>(), s.GetServices<WindowMediatorSubscriberBase>(),
                 s.GetRequiredService<UiFactory>(),
                 s.GetRequiredService<FileDialogManager>(), s.GetRequiredService<MareMediator>()));
-            collection.AddScoped((s) => new PreloaderService(
-                s.GetRequiredService<FileCacheManager>(), s.GetRequiredService<FileUploadManager>(),
-                s.GetRequiredService<MareMediator>(), pluginLog));
             collection.AddScoped((s) => new CommandManagerService(commandManager, s.GetRequiredService<PerformanceCollectorService>(),
                 s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<CacheMonitor>(), s.GetRequiredService<ApiController>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<MareConfigService>(), s.GetRequiredService<ZoneSyncConfigService>(), chatGui, pluginLog));

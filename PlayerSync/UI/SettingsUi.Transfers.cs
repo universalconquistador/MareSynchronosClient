@@ -5,6 +5,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.UI.ModernUi;
+using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using MareSynchronos.WebAPI.Files.Models;
@@ -271,11 +272,23 @@ public partial class SettingsUi
         }
     }
 
+    private PreloadTarget? _preloadTarget;
+    private readonly HashSet<string> _preloadSelectedGroups = new(StringComparer.Ordinal);
+    private string _preloadGroupFilter = string.Empty;
+    private string? _preloadScanError;
+    private volatile bool _preloadScanning;
+
+    private IReadOnlyList<KeyValuePair<string, string>> _preloadMods = [];
+    private string _preloadModFilter = string.Empty;
+    private string _preloadSelectedModDir = string.Empty;
+
+    private volatile bool _preloadModsDirty = true;
+
     private void DrawTransfersPreload()
     {
         _uiShared.BigText("Preload");
         ImGuiHelpers.ScaledDummy(2);
-        ImGui.TextWrapped("Upload all replacement files from one or more Penumbra group JSON files so paired users can download them immediately.");
+        ImGui.TextWrapped("Upload a Penumbra mod so paired users can download them immediately.");
         ImGuiHelpers.ScaledDummy(4);
 
         if (!_apiController.IsConnected)
@@ -284,24 +297,212 @@ public partial class SettingsUi
             return;
         }
 
-        if (_uiShared.IconTextButton(FontAwesomeIcon.Upload, "Select Penumbra Group JSON(s)..."))
+        if (_preloadModsDirty)
         {
-            var savedDir = _configService.Current.LastPreloadPlaylistFolder;
-            var startDir = !string.IsNullOrEmpty(savedDir) && Directory.Exists(savedDir)
-                ? savedDir : _ipcManager.Penumbra.ModDirectory;
+            _preloadModsDirty = false;
+            RefreshPreloadMods();
+        }
 
-            _uiShared.FileDialogManager.OpenFileDialog("Select Penumbra Group JSON(s)", ".json", (ok, paths) =>
+        var isPreloading = _preloaderService.IsRunning;
+
+        if (isPreloading)
+        {
+            ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "A preload is running.");
+            return;
+        }
+
+        if (_preloadMods.Count == 0)
+        {
+            ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow,
+                "No Penumbra mods found. Penumbra must be running with mods enabled.");
+            return;
+        }
+
+        using (ImRaii.Disabled(_preloadScanning))
+        {
+            DrawPreloadModCombo();
+        }
+
+        if (_preloadScanning)
+        {
+            ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, "Reading mod...");
+            return;
+        }
+
+        if (_preloadScanError != null)
+        {
+            ImGui.TextColoredWrapped(ImGuiColors.DalamudYellow, _preloadScanError);
+            return;
+        }
+
+        if (_preloadTarget != null)
+            DrawPreloadGroupSelection(_preloadTarget);
+    }
+
+
+    private void DrawPreloadModCombo()
+    {
+        var selected = _preloadMods.FirstOrDefault(m => string.Equals(m.Key, _preloadSelectedModDir, StringComparison.Ordinal));
+        ImGui.SetNextItemWidth(-1);
+
+        using var combo = ImRaii.Combo("##preloadMod", selected.Value ?? "Select a mod...");
+        if (!combo) return;
+
+        if (ImGui.IsWindowAppearing())
+        {
+            _preloadModFilter = string.Empty;
+            ImGui.SetKeyboardFocusHere();
+        }
+
+        ImGui.SetNextItemWidth(-1);
+        ImGui.InputTextWithHint("##preloadModFilter", "Filter", ref _preloadModFilter, 255);
+
+        var filtered = string.IsNullOrEmpty(_preloadModFilter)
+            ? _preloadMods
+            : [.. _preloadMods.Where(m => m.Value.Contains(_preloadModFilter, StringComparison.OrdinalIgnoreCase))];
+
+        ImGuiListClipper clipper = new();
+        clipper.Begin(filtered.Count);
+        while (clipper.Step())
+        {
+            for (var i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
             {
-                if (!ok || paths.Count == 0) return;
-                var dir = Path.GetDirectoryName(paths[0]);
-                if (!string.IsNullOrEmpty(dir))
+                var mod = filtered[i];
+                using var id = ImRaii.PushId(i);
+                if (ImGui.Selectable(mod.Value, string.Equals(mod.Key, _preloadSelectedModDir, StringComparison.Ordinal)))
+                    SelectPreloadMod(mod.Key, mod.Value);
+            }
+        }
+        clipper.End();
+    }
+
+    private void SelectPreloadMod(string modDirectoryName, string modName)
+    {
+        _configService.Current.LastPreloadMod = modDirectoryName;
+        _configService.Save();
+        ScanMod(modDirectoryName, modName);
+    }
+
+    private void ScanMod(string modDirectoryName, string modName)
+    {
+        if (!string.Equals(_preloadSelectedModDir, modDirectoryName, StringComparison.Ordinal))
+        {
+            _preloadSelectedGroups.Clear();
+            _preloadGroupFilter = string.Empty;
+        }
+
+        _preloadSelectedModDir = modDirectoryName;
+        _preloadTarget = null;
+        _preloadScanError = null;
+        _preloadScanning = true;
+
+        _ = Task.Run(() =>
+        {
+            var (target, error) = _preloaderService.TryReadMod(modDirectoryName, modName);
+
+            // Drop keys for groups the mod no longer has, or the Select All / None buttons would
+            // compare against a count that includes groups nobody can see.
+            if (target != null)
+                _preloadSelectedGroups.IntersectWith(target.Groups.Select(g => g.Key));
+
+            _preloadTarget = target;
+            _preloadScanError = error;
+            // Written last, and volatile, so the UI thread can't see a half-populated selection.
+            _preloadScanning = false;
+        }, CancellationToken.None);
+    }
+
+    partial void OnOpenTransfers() => RefreshPreloadMods();
+
+    private void RefreshPreloadMods()
+    {
+        if (_preloadScanning || _preloaderService.IsRunning) return;
+
+        _preloadMods = [.. _ipcManager.Penumbra.GetMods().OrderBy(m => m.Value, StringComparer.OrdinalIgnoreCase)];
+
+        var remembered = _preloadSelectedModDir.Length > 0 ? _preloadSelectedModDir : _configService.Current.LastPreloadMod;
+        var match = _preloadMods.FirstOrDefault(m => string.Equals(m.Key, remembered, StringComparison.Ordinal));
+
+        if (match.Key != null)
+        {
+            ScanMod(match.Key, match.Value);
+        }
+        else
+        {
+            _preloadSelectedModDir = string.Empty;
+            _preloadTarget = null;
+            _preloadScanError = null;
+        }
+    }
+
+    private void DrawPreloadGroupSelection(PreloadTarget target)
+    {
+        ImGuiHelpers.ScaledDummy(4);
+        ImGui.TextUnformatted(target.ModName);
+
+        if (target.Groups.Count == 0)
+        {
+            ImGui.TextColoredWrapped(ImGuiColors.DalamudGrey, "This mod replaces no files.");
+        }
+        else
+        {
+            using (ImRaii.Disabled(_preloadSelectedGroups.Count == target.Groups.Count))
+            {
+                if (_uiShared.IconTextButton(FontAwesomeIcon.CheckDouble, "Select All"))
                 {
-                    _configService.Current.LastPreloadPlaylistFolder = dir;
-                    _configService.Save();
+                    foreach (var group in target.Groups)
+                        _preloadSelectedGroups.Add(group.Key);
                 }
-                foreach (var path in paths)
-                    _ = Task.Run(() => _preloaderService.RunAsync(path), CancellationToken.None);
-            }, 0, string.IsNullOrEmpty(startDir) ? null : startDir);
+            }
+            ImGui.SameLine();
+            using (ImRaii.Disabled(_preloadSelectedGroups.Count == 0))
+            {
+                if (_uiShared.IconTextButton(FontAwesomeIcon.Ban, "Select None"))
+                    _preloadSelectedGroups.Clear();
+            }
+
+            ImGui.SetNextItemWidth(-1);
+            ImGui.InputTextWithHint("##preloadGroupFilter", "Filter groups", ref _preloadGroupFilter, 255);
+
+            var listHeight = ImGui.GetTextLineHeightWithSpacing() * 12f;
+            using (var child = ImRaii.Child("##preloadGroups", new Vector2(0, listHeight), true))
+            {
+                if (child)
+                {
+                    var id = 0;
+                    foreach (var group in target.Groups)
+                    {
+                        if (!string.IsNullOrEmpty(_preloadGroupFilter)
+                            && !group.Name.Contains(_preloadGroupFilter, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        // Group names are not unique, so the checkbox needs its own ImGui id.
+                        using var imguiid = ImRaii.PushId(id++);
+                        var isSelected = _preloadSelectedGroups.Contains(group.Key);
+                        if (ImGui.Checkbox($"{group.Name} ({group.FilePaths.Count} files)", ref isSelected))
+                        {
+                            if (isSelected) _preloadSelectedGroups.Add(group.Key);
+                            else _preloadSelectedGroups.Remove(group.Key);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Matches what UploadAsync will send, exactly — Default is just another ticked group now.
+        var selectedFileCount = target.Groups
+            .Where(g => _preloadSelectedGroups.Contains(g.Key))
+            .SelectMany(g => g.FilePaths)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+
+        using (ImRaii.Disabled(selectedFileCount == 0))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Upload, $"Upload Selected ({selectedFileCount} files)"))
+            {
+                var selection = new HashSet<string>(_preloadSelectedGroups, StringComparer.Ordinal);
+                _ = Task.Run(() => _preloaderService.UploadAsync(target, selection), CancellationToken.None);
+            }
         }
     }
 

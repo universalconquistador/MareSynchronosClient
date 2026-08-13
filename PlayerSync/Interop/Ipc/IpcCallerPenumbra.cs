@@ -50,6 +50,7 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
     private readonly DeleteTemporaryCollection _penumbraRemoveTemporaryCollection;
     private readonly RemoveTemporaryMod _penumbraRemoveTemporaryMod;
     private readonly GetModDirectory _penumbraResolveModDir;
+    private readonly GetModList _penumbraGetModList;
     private readonly ResolvePlayerPathsAsync _penumbraResolvePaths;
     private readonly GetGameObjectResourcePaths _penumbraResourcePaths;
 
@@ -63,6 +64,7 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
         _penumbraInit = Initialized.Subscriber(pi, PenumbraInit);
         _penumbraDispose = Disposed.Subscriber(pi, PenumbraDispose);
         _penumbraResolveModDir = new GetModDirectory(pi);
+        _penumbraGetModList = new GetModList(pi);
         _penumbraRedraw = new RedrawObject(pi);
         _penumbraObjectIsRedrawn = GameObjectRedrawn.Subscriber(pi, RedrawEvent);
         _penumbraGetMetaManipulations = new GetPlayerMetaManipulations(pi);
@@ -129,6 +131,21 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
                     "Your Penumbra installation is not active or out of date. Update Penumbra and/or the Enable Mods setting in Penumbra to continue to use PlayerSync. If you just updated Penumbra, ignore this message.",
                     NotificationType.Error));
             }
+        }
+    }
+
+    public IReadOnlyDictionary<string, string> GetMods()
+    {
+        if (!APIAvailable) return new Dictionary<string, string>(StringComparer.Ordinal);
+
+        try
+        {
+            return _penumbraGetModList.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not read the Penumbra mod list");
+            return new Dictionary<string, string>(StringComparer.Ordinal);
         }
     }
 
