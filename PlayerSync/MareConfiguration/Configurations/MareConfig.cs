@@ -117,7 +117,7 @@ public class MareConfig : IMareConfiguration
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
     public bool LifestreamInvitesDirectPairsOnly { get; set; } = false;
-    public string LastPreloadPlaylistFolder { get; set; } = string.Empty;
+    public string LastPreloadMod { get; set; } = string.Empty;
     public bool NoPauseSubmenuForPairsOnMainUi { get; set; } = false;
     public bool ShowFileUnableToSyncNotification { get; set; } = true;
     public int MaxConcurrentApplications { get; set; } = 0;
