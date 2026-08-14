@@ -4,6 +4,7 @@ using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.API.Dto.Emote;
 using MareSynchronos.API.Dto.Group;
+using MareSynchronos.API.Dto.Stage;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Handlers;
@@ -96,6 +97,7 @@ public record ForceShowChangelogMessage() : MessageBase;
 public record OpenSyncshellAdminPanel(GroupFullInfoDto GroupInfo) : MessageBase;
 public record OpenSyncshellProfilePanel(GroupFullInfoDto GroupInfo) : MessageBase;
 public record OpenPermissionWindow(Pair Pair) : MessageBase;
+public record OpenStageDetailsWindow(StageFullInfoDto? StartingStageInfo, string? OwningGroupId) : MessageBase;
 public record DownloadLimitChangedMessage() : SameThreadMessage;
 public record CensusUpdateMessage(byte Gender, byte RaceId, byte TribeId) : MessageBase;
 public record TargetPairMessage(Pair? Pair, TargetType TargetType) : MessageBase;
@@ -126,5 +128,9 @@ public record UpdateGroupInvitesMessage(GroupJoinInvitesDto Dto) : MessageBase;
 public record EmoteSyncUpdateMessage(EmoteResponseDto Dto) : MessageBase;
 public record EmoteSyncStartMessage(ScheduledEmoteActionDto Dto) : MessageBase;
 public record JsonDataTypeMessage(JsonDataTypeDto Dto) : MessageBase;
+public record StageSettingsChangedMessage() : MessageBase;
+public record StageSubscriptionsChangedMessage(StageFullInfoDto[] AddedSubscribedStages, string[] RemovedSubscribedStageIds) : MessageBase;
+public record StageSubscribedContentsChangedMessage(string StageId, StageContentsDto NewContents) : MessageBase;
+public record StageSubscribedStateChangedMessage(string StageId, StageStateDto NewState) : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name

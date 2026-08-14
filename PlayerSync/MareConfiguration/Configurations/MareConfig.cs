@@ -123,4 +123,5 @@ public class MareConfig : IMareConfiguration
     public int MaxConcurrentApplications { get; set; } = 1;
     public int CharacterIsDrawingTimeoutMilliseconds { get; set; } = 30000;
     public bool ShowFileUnableToSyncNotification { get; set; } = true;
+    public bool EnableStageFeatures { get; set; } = false;
 }

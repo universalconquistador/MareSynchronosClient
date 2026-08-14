@@ -74,6 +74,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     private bool _isPenumbraDirectory = false;
     private bool _moodlesExists = false;
     private bool _lociExists = false;
+    private bool _stagehandExists = false;
     private Dictionary<string, DateTime> _oauthTokenExpiry = new();
     private bool _penumbraExists = false;
     private bool _petNamesExists = false;
@@ -113,6 +114,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             _lociExists = _ipcManager.Loci.APIAvailable;
             _petNamesExists = _ipcManager.PetNames.APIAvailable;
             _brioExists = _ipcManager.Brio.APIAvailable;
+            _stagehandExists = _ipcManager.Stagehand.APIAvailable;
         });
 
         UidFont = _pluginInterface.UiBuilder.FontAtlas.NewDelegateFontHandle(e =>
@@ -920,6 +922,10 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
         ColorText("Brio", GetBoolColor(_brioExists));
         AttachToolTip($"Brio is " + (_brioExists ? "available and up to date." : "unavailable or not up to date."));
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
+
+        ColorText("Stagehand", GetBoolColor(_stagehandExists));
+        AttachToolTip("Stagehand is " + (_stagehandExists ? "available and up to date." : "unavailable or not up to date."));
 
         ImGui.PopFont();
 
@@ -1183,6 +1189,15 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         ProfileImageType.Banner => "banner",
         ProfileImageType.Background => "background",
         _ => null
+    };
+
+    public static string GetStageVisibilityString(StageVisibility visibility, bool isGroupOwned) => visibility switch
+    {
+        StageVisibility.OwnersOnly => isGroupOwned ? "Owner & Moderators" : "Owner",
+        StageVisibility.DirectPairs => isGroupOwned ? "Members (no Guests)" : "Direct Pairs",
+        StageVisibility.AllPairs => isGroupOwned ? "Members (including Guests)" : "All Pairs",
+        StageVisibility.Everyone => "Everyone",
+        _ => "(invalid)",
     };
 
     internal static void DistanceSeparator()

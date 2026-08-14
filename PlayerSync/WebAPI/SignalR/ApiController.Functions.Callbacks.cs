@@ -4,6 +4,7 @@ using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.API.Dto.Emote;
 using MareSynchronos.API.Dto.Group;
+using MareSynchronos.API.Dto.Stage;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
@@ -281,6 +282,24 @@ public partial class ApiController
         return Task.CompletedTask;
     }
 
+    public Task Client_StageSubscriptionsChanged(StageFullInfoDto[] addedSubscribedStages, string[] removedSubscribedStageIds)
+    {
+        ExecuteSafely(() => Mediator.Publish(new StageSubscriptionsChangedMessage(addedSubscribedStages, removedSubscribedStageIds)));
+        return Task.CompletedTask;
+    }
+
+    public Task Client_StageSubscribedContentsChanged(string stageId, StageContentsDto newContents)
+    {
+        ExecuteSafely(() => Mediator.Publish(new StageSubscribedContentsChangedMessage(stageId, newContents)));
+        return Task.CompletedTask;
+    }
+
+    public Task Client_StageSubscribedStateChanged(string stageId, StageStateDto newState)
+    {
+        ExecuteSafely(() => Mediator.Publish(new StageSubscribedStateChangedMessage(stageId, newState)));
+        return Task.CompletedTask;
+    }
+
     public void OnGroupChangePermissions(Action<GroupPermissionDto> act)
     {
         if (_initialized) return;
@@ -484,6 +503,24 @@ public partial class ApiController
     {
         if (_initialized) return;
         _mareHub!.On(nameof(Client_ProcessJsonDataType), act);
+    }
+
+    public void OnStageSubscriptionsChanged(Action<StageFullInfoDto[], string[]> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_StageSubscriptionsChanged), act);
+    }
+
+    public void OnStageSubscribedContentsChanged(Action<string, StageContentsDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_StageSubscribedContentsChanged), act);
+    }
+
+    public void OnStageSubscribedStateChanged(Action<string, StageStateDto> act)
+    {
+        if (_initialized) return;
+        _mareHub!.On(nameof(Client_StageSubscribedStateChanged), act);
     }
 
     private void ExecuteSafely(Action act)

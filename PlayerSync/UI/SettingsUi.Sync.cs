@@ -615,6 +615,17 @@ public partial class SettingsUi
                 _configService.Save();
             }
             _uiShared.DrawHelpText("Default: 30000");
+
+            ImGuiHelpers.ScaledDummy(5);
+
+            bool enableStageFeatures = _configService.Current.EnableStageFeatures;
+            if (ImGui.Checkbox("Enable stage features", ref enableStageFeatures))
+            {
+                _configService.Current.EnableStageFeatures = enableStageFeatures;
+                _configService.Save();
+                Mediator.Publish(new StageSettingsChangedMessage());
+            }
+            _uiShared.DrawHelpText("Shows the stages you are subscribed to.");
         }
     }
 }

@@ -32,8 +32,10 @@ using NReco.Logging.File;
 using PlayerSync.FileCache;
 using PlayerSync.Interop;
 using PlayerSync.PlayerData.Pairs;
+using PlayerSync.PlayerData.Services;
 using PlayerSync.Services;
 using PlayerSync.Validation;
+using Stagehand.Api;
 using System.Net.Http.Headers;
 using System.Reflection;
 
@@ -44,7 +46,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IHost _host;
 
     public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager, IDataManager gameData,
-        IFramework framework, IObjectTable objectTable, IClientState clientState, ICondition condition, IChatGui chatGui,
+        IFramework framework, IObjectTable objectTable, IClientState clientState, IPlayerState playerState, ICondition condition, IChatGui chatGui,
         IGameGui gameGui, IDtrBar dtrBar, IPluginLog pluginLog, ITargetManager targetManager, INotificationManager notificationManager,
         ITextureProvider textureProvider, IContextMenu contextMenu, IGameInteropProvider gameInteropProvider, IGameConfig gameConfig,
         ISigScanner sigScanner, INamePlateGui namePlateGui)
@@ -99,9 +101,13 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<FileDialogManager>();
             collection.AddSingleton(new Dalamud.Localization("PlayerSync.Localization.", "", useEmbedded: true));
 
-            collection.AddSingleton<IDataManager>(gameData);
+            collection.AddSingleton(pluginInterface);
+            collection.AddSingleton(gameData);
             collection.AddSingleton(gameInteropProvider);
             collection.AddSingleton(sigScanner);
+            collection.AddSingleton(framework);
+            collection.AddSingleton(clientState);
+            collection.AddSingleton(playerState);
 
             // add mare related singletons
             collection.AddSingleton<MareMediator>();
@@ -130,6 +136,9 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<CompressedAlternateManager>();
             collection.AddSingleton<ICompressedAlternateManager, CompressedAlternateManager>(services => services.GetRequiredService<CompressedAlternateManager>());
             collection.AddHostedService(services => services.GetRequiredService<CompressedAlternateManager>());
+            collection.AddSingleton<StageDisplayService>();
+            collection.AddSingleton<IStageDisplayService>(services => services.GetRequiredService<StageDisplayService>());
+            collection.AddHostedService(services => services.GetRequiredService<StageDisplayService>());
 
             collection.AddSingleton<CharaDataManager>();
             collection.AddSingleton<CharaDataFileHandler>();
@@ -192,10 +201,12 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<MareMediator>()));
             collection.AddSingleton((s) => new IpcCallerLifestream(s.GetRequiredService<ILogger<IpcCallerLifestream>>(), pluginInterface,
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<MareMediator>()));
+            collection.AddSingleton<IpcCallerStagehand>();
             collection.AddSingleton((s) => new IpcManager(s.GetRequiredService<ILogger<IpcManager>>(), s.GetRequiredService<MareMediator>(),
                 s.GetRequiredService<IpcCallerPenumbra>(), s.GetRequiredService<IpcCallerGlamourer>(), s.GetRequiredService<IpcCallerCustomize>(),
                 s.GetRequiredService<IpcCallerHeels>(), s.GetRequiredService<IpcCallerHonorific>(), s.GetRequiredService<IpcCallerMoodles>(),
-                s.GetRequiredService<IpcCallerPetNames>(), s.GetRequiredService<IpcCallerBrio>(), s.GetRequiredService<IpcCallerLoci>(), s.GetRequiredService<IpcCallerLifestream>()));
+                s.GetRequiredService<IpcCallerPetNames>(), s.GetRequiredService<IpcCallerBrio>(), s.GetRequiredService<IpcCallerLoci>(),
+                s.GetRequiredService<IpcCallerLifestream>(), s.GetRequiredService<IpcCallerStagehand>()));
             collection.AddSingleton((s) => new NotificationService(s.GetRequiredService<ILogger<NotificationService>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<DalamudUtilService>(),
                 notificationManager, chatGui, s.GetRequiredService<MareConfigService>()));

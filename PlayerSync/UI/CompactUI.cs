@@ -87,7 +87,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         _characterAnalyzer = characterAnalyzer;
         _serverConfigurationManager = serverConfigurationManager;
         _pairRequestManager = pairRequestManager;
-        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _serverConfigurationManager, _zoneSyncConfigService, _pairRequestManager);
+        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _serverConfigurationManager, _zoneSyncConfigService, _pairRequestManager, _ipcManager);
 
         AllowClickthrough = false;
         TitleBarButtons = new()

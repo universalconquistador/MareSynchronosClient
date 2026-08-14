@@ -1,3 +1,4 @@
+using K4os.Compression.LZ4.Legacy;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto.Files;
 using MareSynchronos.API.Routes;
@@ -97,8 +98,88 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         await _orchestrator.SendRequestAsync(HttpMethod.Post, MareFiles.ServerFilesDeleteAllFullPath(_orchestrator.FilesCdnUri!)).ConfigureAwait(false);
     }
 
+    public async Task<List<string>> UploadStreams(List<Stream> streamsToUpload, List<string> extensions, IProgress<string> progress, int fileStoreId = 0, CancellationToken? ct = null)
+    {
+        string[] hashes = new string[streamsToUpload.Count];
+
+        // Compute the hash of each stream
+        progress.Report($"Hashing {streamsToUpload.Count} mod files...");
+        await Parallel.ForAsync(0, streamsToUpload.Count, new ParallelOptions() { CancellationToken = ct ?? default }, async (i, token) =>
+        {
+            hashes[i] = await Crypto.GetStreamHashAsync(streamsToUpload[i], token).ConfigureAwait(false);
+        }).ConfigureAwait(false);
+
+        // Check which files the server doesn't have
+        progress.Report("Checking which files need uploading...");
+        var hashToExtension = hashes.Zip(extensions).DistinctBy(pair => pair.First).ToDictionary();
+        var filesToUpload = await FilesSend(hashes.ToList(), new(), hashToExtension, fileStoreId, ct ?? default).ConfigureAwait(false);
+
+        if (filesToUpload.Count > 0)
+        {
+            progress.Report("Uploading files...");
+            var hashToStream = hashes.Zip(streamsToUpload).DistinctBy(pair => pair.First).ToDictionary();
+
+            int uploadedCount = 0;
+            await Parallel.ForEachAsync(hashToStream, async (pair, token) =>
+            {
+                var hash = pair.Key;
+                using (ProfiledScope.BeginLoggedScope(Logger, "UploadStreams() waiting for slot for " + hash))
+                {
+                    await _orchestrator.WaitForUploadSlotAsync(token).ConfigureAwait(false);
+                }
+
+                // We could compress all at once before waiting for the parallel upload slot, but might as well stagger compression
+                // just to avoid any possible CPU hitch from trying to compress too many files at once.
+                Logger.LogDebug("[{hash}] Compressing", hash);
+                byte[] compressedData;
+                using (ProfiledScope.BeginLoggedScope(Logger, "UploadStreams() compressing " + hash))
+                {
+                    byte[] uncompressedData;
+                    if (pair.Value is MemoryStream memoryStream)
+                    {
+                        uncompressedData = memoryStream.GetBuffer();
+                    }
+                    else
+                    {
+                        uncompressedData = new byte[pair.Value.Length];
+                        pair.Value.Position = 0;
+
+                        int start = 0;
+                        while (start < pair.Value.Length)
+                        {
+                            var amountRead = await pair.Value.ReadAsync(uncompressedData.AsMemory().Slice(start)).ConfigureAwait(false);
+                            if (amountRead == 0)
+                            {
+                                break;
+                            }
+                            start += amountRead;
+                        }
+                    }
+
+                    compressedData = LZ4Wrapper.WrapHC(uncompressedData, 0, (int)pair.Value.Length);
+                }
+
+                Logger.LogDebug("[{hash}] Starting upload", pair.Key);
+                using (ProfiledScope.BeginLoggedScope(Logger, "UploadStreams() uploading " + hash))
+                {
+                    await UploadFile(compressedData, hash, hashToExtension[pair.Key], false, fileStoreId, token).ConfigureAwait(false);
+                }
+                _orchestrator.ReleaseUploadSlot();
+                var newUploadedCount = Interlocked.Increment(ref uploadedCount);
+                progress.Report($"Uploaded {newUploadedCount} of {filesToUpload.Count}");
+
+            }).ConfigureAwait(false);
+        }
+        else
+        {
+            progress.Report("All files already on the server.");
+        }
+
+        return hashes.ToList();
+    }
+
     // Returns the hashes of any files that could not be uploaded (e.g. forbidden or somehow not on the client)
-    public async Task<List<string>> UploadFiles(List<string> hashesToUpload, IProgress<string> progress, CancellationToken? ct = null)
+    public async Task<List<string>> UploadFiles(List<string> hashesToUpload, IProgress<string> progress, int fileStoreId = 0, CancellationToken? ct = null)
     {
         var dups = hashesToUpload
             .GroupBy(h => h, StringComparer.Ordinal)
@@ -108,12 +189,6 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
 
         if (dups.Count > 0)
             Logger.LogDebug("UploadFiles received duplicate hashes: {dups}", string.Join(", ", dups));
-
-        //Logger.LogDebug("Trying to upload files");
-        //var hashesToExtensions = hashesToUpload
-        //    .Select(h => _fileDbManager.GetFileCacheByHash(h))
-        //    .Where(cache => cache != null)
-        //    .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.PrefixedFilePath));
 
         // deal with duplicate hashes for .ToDictionary()
         var hashesToExtensions = hashesToUpload
@@ -133,7 +208,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
 
         using (ProfiledScope.BeginLoggedScope(Logger, "UploadFiles() parallel upload"))
         {
-            var filesToUpload = await FilesSend([.. filesPresentLocally], [], hashesToExtensions, ct ?? CancellationToken.None).ConfigureAwait(false);
+            var filesToUpload = await FilesSend([.. filesPresentLocally], [], hashesToExtensions, fileStoreId, ct ?? CancellationToken.None).ConfigureAwait(false);
 
             if (filesToUpload.Exists(f => f.IsForbidden))
             {
@@ -167,7 +242,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                     Logger.LogDebug("[{hash}] Starting upload for {filePath}", compressedData.Item1, filename);
                     using (ProfiledScope.BeginLoggedScope(Logger, "UploadFiles() uploading " + fileToUpload.Hash))
                     {
-                        await UploadFile(compressedData.Item2, fileToUpload.Hash, Path.GetExtension(filename), false, token).ConfigureAwait(false);
+                        await UploadFile(compressedData.Item2, fileToUpload.Hash, Path.GetExtension(filename), false, fileStoreId, token).ConfigureAwait(false);
                     }
                     _orchestrator.ReleaseUploadSlot();
                 });
@@ -190,7 +265,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         HashSet<string> unverifiedUploads = GetUnverifiedFiles(data);
         if (unverifiedUploads.Any())
         {
-            await UploadUnverifiedFiles(unverifiedUploads, visiblePlayers, uploadToken).ConfigureAwait(false);
+            await UploadUnverifiedFiles(unverifiedUploads, visiblePlayers, 0, uploadToken).ConfigureAwait(false);
             Logger.LogDebug("Upload complete for {hash}", data.DataHash.Value);
         }
 
@@ -208,7 +283,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         Reset();
     }
 
-    private async Task<List<UploadFileDto>> FilesSend(List<string> hashes, List<string> uids, Dictionary<string, string> extensions, CancellationToken ct)
+    private async Task<List<UploadFileDto>> FilesSend(List<string> hashes, List<string> uids, Dictionary<string, string> extensions, int fileStoreId = 0, CancellationToken ct = default)
     {
         if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
         FilesSendDto filesSendDto = new()
@@ -218,7 +293,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             FilenameExtensions = extensions,
         };
         Logger.LogDebug("FilesSend with hashes: \n{hashes}\n, extensions: \n{extensions}", string.Join(',', hashes), System.Text.Json.JsonSerializer.Serialize(extensions, System.Text.Json.JsonSerializerOptions.Web));
-        var response = await _orchestrator.SendRequestAsync(HttpMethod.Post, MareFiles.ServerFilesFilesSendFullPath(_orchestrator.FilesCdnUri!), filesSendDto, ct).ConfigureAwait(false);
+        var response = await _orchestrator.SendRequestAsync(HttpMethod.Post, MareFiles.ServerFilesFilesSendFullPath(_orchestrator.FilesCdnUri!, fileStoreId), filesSendDto, ct).ConfigureAwait(false);
         return await response.Content.ReadFromJsonAsync<List<UploadFileDto>>(cancellationToken: ct).ConfigureAwait(false) ?? [];
     }
 
@@ -263,7 +338,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         _verifiedUploadedHashes.Clear();
     }
 
-    private async Task UploadFile(byte[] compressedFile, string fileHash, string filenameExtension, bool postProgress, CancellationToken uploadToken)
+    private async Task UploadFile(byte[] compressedFile, string fileHash, string filenameExtension, bool postProgress, int fileStoreId, CancellationToken uploadToken)
     {
         if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
 
@@ -273,7 +348,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
 
         try
         {
-            await UploadFileStream(compressedFile, fileHash, filenameExtension, postProgress, uploadToken).ConfigureAwait(false);
+            await UploadFileStream(compressedFile, fileHash, filenameExtension, postProgress, fileStoreId, uploadToken).ConfigureAwait(false);
             _verifiedUploadedHashes[fileHash] = DateTime.UtcNow;
         }
         catch (Exception ex)
@@ -289,7 +364,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         }
     }
 
-    private async Task UploadFileStream(byte[] compressedFile, string fileHash, string filenameExtension, bool postProgress, CancellationToken uploadToken)
+    private async Task UploadFileStream(byte[] compressedFile, string fileHash, string filenameExtension, bool postProgress, int fileStoreId, CancellationToken uploadToken)
     {
         using var ms = new MemoryStream(compressedFile);
 
@@ -311,7 +386,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         var streamContent = new ProgressableStreamContent(ms, _mareConfigService, prog);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         HttpResponseMessage response;
-        response = await _orchestrator.SendRequestStreamAsync(HttpMethod.Post, MareFiles.ServerFilesUploadFullPath(_orchestrator.FilesCdnUri!, fileHash, _orchestrator.TimeZoneUtcOffsetMinutes, filenameExtension), streamContent, uploadToken).ConfigureAwait(false);
+        response = await _orchestrator.SendRequestStreamAsync(HttpMethod.Post, MareFiles.ServerFilesUploadFullPath(_orchestrator.FilesCdnUri!, fileHash, _orchestrator.TimeZoneUtcOffsetMinutes, filenameExtension, fileStoreId), streamContent, uploadToken).ConfigureAwait(false);
         Logger.LogDebug("[{hash}] Upload Status: {status}", fileHash, response.StatusCode);
 
         if (response.StatusCode == System.Net.HttpStatusCode.RequestEntityTooLarge)
@@ -324,7 +399,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         }
     }
 
-    private async Task PerformUpload(UploadFileTransfer transfer, CancellationToken token)
+    private async Task PerformUpload(UploadFileTransfer transfer, int fileStoreId, CancellationToken token)
     {
         using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() waiting for slot for " + transfer.Hash))
         {
@@ -363,7 +438,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             Logger.LogDebug("[{hash}] Starting upload for {filePath}", compressedData.Item1, filename);
             using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() uploading " + transfer.Hash))
             {
-                await UploadFile(compressedData.Item2, transfer.Hash, Path.GetExtension(filename), true, token).ConfigureAwait(false);
+                await UploadFile(compressedData.Item2, transfer.Hash, Path.GetExtension(filename), true, fileStoreId, token).ConfigureAwait(false);
             }
         }
         finally
@@ -374,7 +449,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         }
     }
 
-    private async Task UploadUnverifiedFiles(HashSet<string> unverifiedUploadHashes, List<UserData> visiblePlayers, CancellationToken uploadToken)
+    private async Task UploadUnverifiedFiles(HashSet<string> unverifiedUploadHashes, List<UserData> visiblePlayers, int fileStoreId, CancellationToken uploadToken)
     {
         var hashesToExtensions = unverifiedUploadHashes
             .Select(h => _fileDbManager.GetFileCacheByHash(h))
@@ -382,7 +457,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.PrefixedFilePath));
 
         Logger.LogDebug("Verifying {count} files sequentially", hashesToExtensions.Count);
-        var filesToUpload = await FilesSend([.. hashesToExtensions.Keys.ToHashSet()], visiblePlayers.Select(p => p.UID).ToList(), hashesToExtensions, uploadToken).ConfigureAwait(false);
+        var filesToUpload = await FilesSend([.. hashesToExtensions.Keys.ToHashSet()], visiblePlayers.Select(p => p.UID).ToList(), hashesToExtensions, fileStoreId, uploadToken).ConfigureAwait(false);
 
         if (filesToUpload.Count > 0)
         {
@@ -414,7 +489,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                         }
                         else if (transfer.CanBeTransferred && !transfer.IsTransferred)
                         {
-                            transfer.CompletionTask = PerformUpload(transfer, transfer.CancellationToken);
+                            transfer.CompletionTask = PerformUpload(transfer, fileStoreId, transfer.CancellationToken);
                         }
 
                         return transfer;

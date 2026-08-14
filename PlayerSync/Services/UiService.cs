@@ -103,6 +103,36 @@ public sealed class UiService : DisposableMediatorSubscriberBase
             }
         });
 
+        Mediator.Subscribe<OpenStageDetailsWindow>(this, msg =>
+        {
+            if (msg.StartingStageInfo != null)
+            {
+                // For viewing/editing an existing stage, find and activate that window if it already exists
+                var existingWindow = _createdWindows.FirstOrDefault(window => window is StageDetailsUi stageWindow && stageWindow.StageInfo != null && stageWindow.StageInfo.SID == msg.StartingStageInfo.SID);
+                if (existingWindow != null)
+                {
+                    existingWindow.IsOpen = true;
+                    existingWindow.RequestFocus = true;
+                    existingWindow.BringToFront();
+                }
+                else
+                {
+                    var window = _uiFactory.CreateStageDetailsUi(msg.StartingStageInfo, msg.OwningGroupId);
+                    _createdWindows.Add(window);
+                    _windowSystem.AddWindow(window);
+                    window.IsOpen = true;
+                }
+            }
+            else
+            {
+                // For creating a new stage, we always create a new window
+                var window = _uiFactory.CreateStageDetailsUi(msg.StartingStageInfo, msg.OwningGroupId);
+                _createdWindows.Add(window);
+                _windowSystem.AddWindow(window);
+                window.IsOpen = true;
+            }
+        });
+
         Mediator.Subscribe<RemoveWindowMessage>(this, (msg) =>
         {
             _windowSystem.RemoveWindow(msg.Window);
