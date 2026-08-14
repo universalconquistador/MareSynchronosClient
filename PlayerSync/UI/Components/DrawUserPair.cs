@@ -23,7 +23,7 @@ namespace MareSynchronos.UI.Components;
 
 public class DrawUserPair
 {
-    private static Pair? _lastSoftTarget;
+    private static Pair? _lastHoverTarget;
 
     protected readonly ApiController _apiController;
     protected readonly IdDisplayHandler _displayHandler;
@@ -43,7 +43,6 @@ public class DrawUserPair
     private float _pauseMenuWidth = -1;
     private bool _wasHovered = false;
     private List<AddressBookEntry>? _addressBookCache;
-    private bool _shouldBeSoftTarget = false;
 
     public DrawUserPair(string id, Pair entry, List<GroupFullInfoDto> syncedGroups,
         GroupFullInfoDto? currentGroup,
@@ -89,23 +88,29 @@ public class DrawUserPair
 
         _wasHovered = ImGui.IsItemHovered();
 
-        if (_configService.Current.SoftTargetPairsOnHover)
+        if (_configService.Current.TargetPairsOnHover)
         {
-            bool thisPairIsSelected = _lastSoftTarget?.UserData.UID == _pair.UserData.UID;
-            Pair? softTarget = null;
-            if (_wasHovered && !thisPairIsSelected)
-                softTarget = _pair;
+            bool thisPairIsSelected = _lastHoverTarget?.UserData.UID == _pair.UserData.UID;
+            var onHoverTargetType = _configService.Current.OnHoverTargetType;
+            Pair? hoverTarget = null;
 
-            if ((_lastSoftTarget == null && softTarget != null) || (softTarget != null && (_lastSoftTarget?.PlayerName != softTarget.PlayerName)))
+            if (_wasHovered && !thisPairIsSelected)
             {
-                _lastSoftTarget = softTarget;
-                _mediator.Publish(new TargetPairMessage(softTarget, TargetType.SoftTarget));
+                hoverTarget = _pair;
             }
 
-            if (!TableHelper.IsMouseWithinWindow() && _lastSoftTarget != null && _lastSoftTarget == _pair && !string.IsNullOrEmpty(_uiSharedService.PlayerSoftTargetname))
+            if ((_lastHoverTarget == null && hoverTarget != null) || (hoverTarget != null && (_lastHoverTarget?.PlayerName != hoverTarget.PlayerName)))
             {
-                _lastSoftTarget = null;
-                _mediator.Publish(new TargetPairMessage(null, TargetType.SoftTarget));
+                _lastHoverTarget = hoverTarget;
+                _mediator.Publish(new TargetPairMessage(hoverTarget, onHoverTargetType));
+            }
+
+            var pairName = onHoverTargetType == TargetType.Target ? _uiSharedService.PlayerTargetName : onHoverTargetType == TargetType.SoftTarget ? _uiSharedService.PlayerSoftTargetname :
+                onHoverTargetType == TargetType.FocusTarget ? _uiSharedService.PlayerFocusTargetname : string.Empty;
+            if (!TableHelper.IsMouseWithinWindow() && _lastHoverTarget != null && _lastHoverTarget == _pair && !string.IsNullOrEmpty(pairName))
+            {
+                _lastHoverTarget = null;
+                _mediator.Publish(new TargetPairMessage(null, onHoverTargetType));
             }
         }
     }
