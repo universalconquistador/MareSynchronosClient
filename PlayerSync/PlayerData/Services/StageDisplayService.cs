@@ -222,30 +222,30 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
             if (filesToDownload.Count > 0)
             {
                 await _fileDownloadManager.DownloadFiles(new DownloadBatchInfo(StageFullInfo.Customize.DisplayName, "Stage", GameObject: null), hashes.Select(h => new FileReplacementData() { Hash = h.Hash, GamePaths = [$"{h.Hash}{h.Extension}"] }).ToList(), hashToCompAltHash, cancelToken).ConfigureAwait(false);
+            }
 
-                // Now fill in the downloaded path for each of the hashes we tried to download
-                foreach (var hash in hashes)
+            // Now fill in the downloaded path for each of the hashes we tried to download
+            foreach (var hash in hashes)
+            {
+                var fileCache = _fileCacheManager.GetFileCacheByHash(hash.Hash);
+
+                // Was a comp alt was found that we didn't anticipate from the compression cache service?
+                if (fileCache == null && hashToCompAltHash.TryGetValue(hash.Hash, out var compHash))
                 {
-                    var fileCache = _fileCacheManager.GetFileCacheByHash(hash.Hash);
-
-                    // Was a comp alt was found that we didn't anticipate from the compression cache service?
-                    if (fileCache == null && hashToCompAltHash.TryGetValue(hash.Hash, out var compHash))
-                    {
-                        fileCache = _fileCacheManager.GetFileCacheByHash(compHash);
-                        if (fileCache != null)
-                        {
-                            hashToDiskPath[compHash] = fileCache.ResolvedFilepath;
-                        }
-                    }
-
+                    fileCache = _fileCacheManager.GetFileCacheByHash(compHash);
                     if (fileCache != null)
                     {
-                        hashToDiskPath[hash.Hash] = fileCache.ResolvedFilepath;
+                        hashToDiskPath[compHash] = fileCache.ResolvedFilepath;
                     }
-                    else
-                    {
-                        _logger.LogWarning("Somehow stage mod file {hash} was still missing after all the mods were downloaded!", hash.Hash);
-                    }
+                }
+
+                if (fileCache != null)
+                {
+                    hashToDiskPath[hash.Hash] = fileCache.ResolvedFilepath;
+                }
+                else
+                {
+                    _logger.LogWarning("Somehow stage mod file {hash} was still missing after all the mods were downloaded!", hash.Hash);
                 }
             }
 
