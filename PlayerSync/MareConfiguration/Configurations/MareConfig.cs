@@ -94,6 +94,8 @@ public class MareConfig : IMareConfiguration
     public SeStringTextColors PermsColorsDisabled { get; set; } = new(Foreground: 0x0000FFu, Glow: 0x010101u);
     public bool ShowNameHighlights { get; set; } = false;
     public bool IncludeFriendHighlights { get; set; } = false;
+    public bool HighlightNamesWhileInDungeons { get; set; } = true;
+    public bool HighlightNamesWhileInPvP { get; set; } = true;
     public SeStringTextColors NameHighlightColor { get; set; } = new(Foreground: 0xBDD671u, Glow: 0x37501Du);
     public bool MysterySetting {  get; set; } = false;
     public bool InitialSetupOptions { get; set; } = false;
