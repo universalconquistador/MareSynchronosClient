@@ -160,7 +160,7 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<MareConfigService>(), s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<MareMediator>()));
             collection.AddSingleton<RedrawManager>();
             collection.AddSingleton(s => new NamePlateManagerService(s.GetRequiredService<ILogger<NamePlateManagerService>>(), s.GetRequiredService<MareMediator>(), 
-                namePlateGui, s.GetRequiredService<PairManager>(), s.GetRequiredService<MareConfigService>()));
+                namePlateGui, s.GetRequiredService<PairManager>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton<IBroadcastManager, BroadcastManager>(s => new BroadcastManager(s.GetRequiredService<ILogger<BroadcastManager>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton((s) => new GroupZoneSyncManager(s.GetRequiredService<ILogger<GroupZoneSyncManager>>(),

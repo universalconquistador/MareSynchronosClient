@@ -301,6 +301,8 @@ public partial class SettingsUi
         var dtrColorsBroadcasting = _configService.Current.DtrColorsBroadcasting;
         var showNameHighlights = _configService.Current.ShowNameHighlights;
         var showFriendsHighlights = _configService.Current.IncludeFriendHighlights;
+        var colorNameInDungeons = _configService.Current.HighlightNamesWhileInDungeons;
+        var colorNameInPvp = _configService.Current.HighlightNamesWhileInPvP;
         var highlightNameColor = _configService.Current.NameHighlightColor;
         var permColorsEnabled = _configService.Current.PermsColorsEnabled;
         var permsColorsDisabled = _configService.Current.PermsColorsDisabled;
@@ -334,22 +336,39 @@ public partial class SettingsUi
 
         using (ImRaii.Disabled(!showNameHighlights))
         {
-            using var indent = ImRaii.PushIndent(2);
-            if (InputColorPicker("Name Color", ref highlightNameColor))
+            using (ImRaii.PushIndent(2))
             {
-                _configService.Current.NameHighlightColor = highlightNameColor;
-                _configService.Save();
-                Mediator.Publish(new RedrawNameplateMessage());
-            }
+                if (InputColorPicker("Name Color", ref highlightNameColor))
+                {
+                    _configService.Current.NameHighlightColor = highlightNameColor;
+                    _configService.Save();
+                    Mediator.Publish(new RedrawNameplateMessage());
+                }
 
-            if (ImGui.Checkbox("Include Friend List Names", ref showFriendsHighlights))
-            {
-                _configService.Current.IncludeFriendHighlights = showFriendsHighlights;
-                _configService.Save();
-                Mediator.Publish(new RedrawNameplateMessage());
-            }
-            _uiShared.DrawHelpText("This will also change the color of players on your Friend List.");
+                if (ImGui.Checkbox("Apply name color in dungeons", ref colorNameInDungeons))
+                {
+                    _configService.Current.HighlightNamesWhileInDungeons = colorNameInDungeons;
+                    _configService.Save();
+                    Mediator.Publish(new RedrawNameplateMessage());
+                }
+                _uiShared.DrawHelpText("This will change the pair name color while in instanced content.");
 
+                if (ImGui.Checkbox("Apply name color in PvP", ref colorNameInPvp))
+                {
+                    _configService.Current.HighlightNamesWhileInPvP = colorNameInPvp;
+                    _configService.Save();
+                    Mediator.Publish(new RedrawNameplateMessage());
+                }
+                _uiShared.DrawHelpText("This will change the pair name color while in PvP content.");
+
+                if (ImGui.Checkbox("Include Friend List Names", ref showFriendsHighlights))
+                {
+                    _configService.Current.IncludeFriendHighlights = showFriendsHighlights;
+                    _configService.Save();
+                    Mediator.Publish(new RedrawNameplateMessage());
+                }
+                _uiShared.DrawHelpText("This will also change the color of players on your Friend List.");
+            }
         }
 
         if (ImGui.Checkbox("Replace FC tags with PlayerSync permissions", ref showPermsOverFC))
