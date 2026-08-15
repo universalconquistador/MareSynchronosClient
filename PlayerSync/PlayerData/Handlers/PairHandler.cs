@@ -400,7 +400,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     $"Starting download for {toDownloadReplacements.Count} files")));
                 Dictionary<string, string> compressionSubstitutions = new Dictionary<string, string>();
                 // This gets a list of file download dtos from the file server that we need for this pair, not the actual files. This contains meta data and download links for each file.
-                var toDownloadFiles = await _downloadManager.InitiateDownloadList(_charaHandler!, toDownloadReplacements, compressedAlternateUsage, compressionSubstitutions, locallyPresentFiles, linkedCts.Token).ConfigureAwait(false);
+                var toDownloadFiles = await _downloadManager.InitiateDownloadList(_charaHandler!.Name, toDownloadReplacements.Select(f => f.Hash).Distinct(StringComparer.Ordinal).ToList(), compressedAlternateUsage, compressionSubstitutions, locallyPresentFiles, 0, linkedCts.Token).ConfigureAwait(false);
                 if (numberOfFilesToDownload < 0)
                 {
                     numberOfFilesToDownload = toDownloadFiles.Count;
@@ -414,7 +414,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
 
                 // start background task to download needed files
-                _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(_charaHandler!, toDownloadReplacements, compressionSubstitutions, linkedCts.Token).ConfigureAwait(false));
+                _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(new DownloadBatchInfo(_charaHandler!.Name, "Player", await _dalamudUtil.CreateGameObjectAsync(_charaHandler.Address).ConfigureAwait(false)), toDownloadReplacements, compressionSubstitutions, linkedCts.Token).ConfigureAwait(false));
 
                 await _pairDownloadTask.ConfigureAwait(false);
 

@@ -33,7 +33,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private readonly ApiController _apiController;
     private readonly CacheMonitor _cacheMonitor;
     private readonly MareConfigService _configService;
-    private readonly ConcurrentDictionary<GameObjectHandler, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
+    private readonly ConcurrentDictionary<DownloadBatchInfo, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly HttpClient _httpClient;
     private readonly FileCacheManager _fileCacheManager;
@@ -123,8 +123,8 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         Mediator.Subscribe<CutsceneStartMessage>(this, (_) => UiSharedService_GposeStart());
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => UiSharedService_GposeEnd());
         Mediator.Subscribe<CharacterDataCreatedMessage>(this, (msg) => LastCreatedCharacterData = msg.CharacterData);
-        Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.DownloadId] = msg.DownloadStatus);
-        Mediator.Subscribe<DownloadFinishedMessage>(this, (msg) => _currentDownloads.TryRemove(msg.DownloadId, out _));
+        Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.BatchInfo] = msg.DownloadStatus);
+        Mediator.Subscribe<DownloadFinishedMessage>(this, (msg) => _currentDownloads.TryRemove(msg.BatchInfo, out _));
         Mediator.Subscribe<ConnectedMessage>(this, (_) =>
         {
             _accountInfo = null;

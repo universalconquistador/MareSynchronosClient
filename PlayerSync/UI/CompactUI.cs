@@ -35,7 +35,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly MareConfigService _configService;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfig;
-    private readonly ConcurrentDictionary<GameObjectHandler, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
+    private readonly ConcurrentDictionary<DownloadBatchInfo, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DrawEntityFactory _drawEntityFactory;
     private readonly FileUploadManager _fileTransferManager;
     private readonly PairManager _pairManager;
@@ -141,8 +141,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         Mediator.Subscribe<ResumeSyncMessage>(this, (_) => UiSharedService_GposeEnd());
         Mediator.Subscribe<CutsceneStartMessage>(this, (_) => UiSharedService_GposeStart());
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => UiSharedService_GposeEnd());
-        Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.DownloadId] = msg.DownloadStatus);
-        Mediator.Subscribe<DownloadFinishedMessage>(this, (msg) => _currentDownloads.TryRemove(msg.DownloadId, out _));
+        Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.BatchInfo] = msg.DownloadStatus);
+        Mediator.Subscribe<DownloadFinishedMessage>(this, (msg) => _currentDownloads.TryRemove(msg.BatchInfo, out _));
         Mediator.Subscribe<RefreshUiMessage>(this, (msg) =>
         {
             _drawFolders = GetDrawFolders().ToList();

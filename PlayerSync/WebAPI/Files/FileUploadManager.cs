@@ -120,9 +120,9 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             var hashToStream = hashes.Zip(streamsToUpload).DistinctBy(pair => pair.First).ToDictionary();
 
             int uploadedCount = 0;
-            await Parallel.ForEachAsync(hashToStream, async (pair, token) =>
+            await Parallel.ForEachAsync(filesToUpload, async (pair, token) =>
             {
-                var hash = pair.Key;
+                var hash = pair.Hash;
                 using (ProfiledScope.BeginLoggedScope(Logger, "UploadStreams() waiting for slot for " + hash))
                 {
                     await _orchestrator.WaitForUploadSlotAsync(token).ConfigureAwait(false);
@@ -135,19 +135,20 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                 using (ProfiledScope.BeginLoggedScope(Logger, "UploadStreams() compressing " + hash))
                 {
                     byte[] uncompressedData;
-                    if (pair.Value is MemoryStream memoryStream)
+                    var stream = hashToStream[hash];
+                    if (stream is MemoryStream memoryStream)
                     {
                         uncompressedData = memoryStream.GetBuffer();
                     }
                     else
                     {
-                        uncompressedData = new byte[pair.Value.Length];
-                        pair.Value.Position = 0;
+                        uncompressedData = new byte[stream.Length];
+                        stream.Position = 0;
 
                         int start = 0;
-                        while (start < pair.Value.Length)
+                        while (start < stream.Length)
                         {
-                            var amountRead = await pair.Value.ReadAsync(uncompressedData.AsMemory().Slice(start)).ConfigureAwait(false);
+                            var amountRead = await stream.ReadAsync(uncompressedData.AsMemory().Slice(start)).ConfigureAwait(false);
                             if (amountRead == 0)
                             {
                                 break;
@@ -156,17 +157,17 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                         }
                     }
 
-                    compressedData = LZ4Wrapper.WrapHC(uncompressedData, 0, (int)pair.Value.Length);
+                    compressedData = LZ4Wrapper.WrapHC(uncompressedData, 0, (int)stream.Length);
                 }
 
-                Logger.LogDebug("[{hash}] Starting upload", pair.Key);
+                Logger.LogDebug("[{hash}] Starting upload", hash);
                 using (ProfiledScope.BeginLoggedScope(Logger, "UploadStreams() uploading " + hash))
                 {
-                    await UploadFile(compressedData, hash, hashToExtension[pair.Key], false, fileStoreId, token).ConfigureAwait(false);
+                    await UploadFile(compressedData, hash, hashToExtension[hash], false, fileStoreId, token).ConfigureAwait(false);
                 }
                 _orchestrator.ReleaseUploadSlot();
                 var newUploadedCount = Interlocked.Increment(ref uploadedCount);
-                progress.Report($"Uploaded {newUploadedCount} of {filesToUpload.Count}");
+                progress.Report($"Uploaded {newUploadedCount} of {hashToStream.Count}");
 
             }).ConfigureAwait(false);
         }

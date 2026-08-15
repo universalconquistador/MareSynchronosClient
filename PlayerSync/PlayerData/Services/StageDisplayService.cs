@@ -1,15 +1,21 @@
 ﻿using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto.Stage;
+using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.PlayerData.Factories;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using MareSynchronos.WebAPI.Files;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using PlayerSync.FileCache;
 using Stagehand.Api;
+using Stagehand.Definitions;
+using Stagehand.Definitions.ModResources;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -45,11 +51,14 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
 {
     private sealed class ActiveStage : IActiveStage
     {
-
         public StageFullInfoDto StageFullInfo { get; set; }
+
         private readonly ILogger _logger;
         private readonly IFramework _framework;
         private readonly FileDownloadManager _fileDownloadManager;
+        private readonly FileCacheManager _fileCacheManager;
+        private readonly IpcCallerStagehand _ipcCallerStagehand;
+        private readonly ICompressedAlternateManager _compressedAlternateManager;
 
         private SpinLock _stateLock = new();
         public ActiveStageState State { get; private set; } = ActiveStageState.Unloaded;
@@ -63,12 +72,15 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
 
         public string UniqueId { get; }
 
-        public ActiveStage(StageFullInfoDto stageFullInfo, ILogger logger, IFramework framework, FileDownloadManager fileDownloadManager)
+        public ActiveStage(StageFullInfoDto stageFullInfo, ILogger logger, IFramework framework, FileDownloadManager fileDownloadManager, FileCacheManager fileCacheManager, IpcCallerStagehand ipcCallerStagehand, ICompressedAlternateManager compressedAlternateManager)
         {
             StageFullInfo = stageFullInfo;
             _logger = logger;
             _framework = framework;
             _fileDownloadManager = fileDownloadManager;
+            _fileCacheManager = fileCacheManager;
+            _ipcCallerStagehand = ipcCallerStagehand;
+            _compressedAlternateManager = compressedAlternateManager;
             UniqueId = $"{stageFullInfo.SID}:{Guid.NewGuid()}";
         }
 
@@ -123,6 +135,151 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
             return resultTask;
         }
 
+        // Returns a dictionary of requested hash to disk path (and the disk path could be the path to the comp alt)
+        private async Task<Dictionary<string, string>> DownloadFilesAsync(List<(string Hash, string Extension)> hashes, CompressedAlternateUsage compressedAlternateUsage, int storeId, CancellationToken cancelToken)
+        {
+            Dictionary<string, string> hashToCompAltHash = new();
+            HashSet<string> locallyPresentFileSet = new();
+            Dictionary<string, string> hashToDiskPath = new();
+
+            // Compute the hashes that need to be downloaded by weeding out the ones that are already in the cache on disk
+            for (int i = hashes.Count - 1; i >= 0; i--)
+            {
+                var hash = hashes[i];
+
+                var fileCache = _fileCacheManager.GetFileCacheByHash(hash.Hash);
+
+                bool compressedAlternateConfirmed = _compressedAlternateManager.TryGetCachedCompressedAlternate(hash.Hash, out string? compressedAlternateHash);
+
+                // Adjust `hash` and `fileCache` according to the given policy for compressed alternates
+                if (compressedAlternateUsage == CompressedAlternateUsage.AlwaysSourceQuality)
+                {
+                    // Nothing to do here--carry on as usual.
+                }
+                else if (compressedAlternateUsage == CompressedAlternateUsage.CompressedNewDownloads)
+                {
+                    // Only use compressed alternates if the original file is not present in the cache.
+                    if (fileCache == null && compressedAlternateConfirmed && compressedAlternateHash != null)
+                    {
+                        _logger.LogTrace("CompressSubstitution[{character}]: {old} is {new} (TryCalculateModdedDictionary)", UniqueId, hash, compressedAlternateHash);
+                        hashToCompAltHash[hash.Hash] = compressedAlternateHash;
+                        fileCache = _fileCacheManager.GetFileCacheByHash(compressedAlternateHash);
+                        hash.Hash = compressedAlternateHash;
+
+                    }
+                }
+                else if (compressedAlternateUsage == CompressedAlternateUsage.AlwaysCompressed)
+                {
+                    if (compressedAlternateConfirmed)
+                    {
+                        // We are certain about the existence of any compressed alternates. If there are, use it. If there aren't, carry on as usual.
+                        if (compressedAlternateHash != null)
+                        {
+                            _logger.LogTrace("CompressSubstitution[{character}]: {old} is {new} (TryCalculateModdedDictionary)", UniqueId, hash, compressedAlternateHash);
+                            hashToCompAltHash[hash.Hash] = compressedAlternateHash;
+                            fileCache = _fileCacheManager.GetFileCacheByHash(compressedAlternateHash);
+                            hash.Hash = compressedAlternateHash;
+                        }
+                    }
+                    else
+                    {
+                        if (fileCache != null)
+                        {
+                            _logger.LogTrace("CompressSubstitution[{character}]: sending {hash} for re-download to check for alternates (TryCalculateModdedDictionary)", UniqueId, hash);
+                            // Record this hash to send to the download function as 'locally present', so that when it checks for alternates,
+                            // it won't re-download this original file if none exist.
+                            locallyPresentFileSet.Add(hash.Hash);
+                            hashToDiskPath[hash.Hash] = fileCache.ResolvedFilepath;
+                        }
+
+                        // We don't know whether there are any compressed alternates, so mark this file as needing downloading.
+                        // Once the download starts, if there aren't any, the actual download will be skipped.
+                        fileCache = null;
+                    }
+                }
+                else
+                {
+                    throw new ArgumentException("Invalid compressed alternate usage specified!", nameof(compressedAlternateUsage));
+                }
+
+                if (fileCache == null)
+                {
+                    // Need to fetch info for this file, either because we don't have the original or because we don't know whether it has a comp alt
+                    hashes[i] = hash;
+                    _logger.LogTrace("Missing file: {hash}", hash);
+                }
+                else
+                {
+                    hashes.RemoveAt(i);
+                    // This might be the comp alt hash--we'll distribute it back to the uncompressed hash later on
+                    hashToDiskPath[hash.Hash] = fileCache.ResolvedFilepath;
+                }
+            }
+
+            var filesToDownload = await _fileDownloadManager.InitiateDownloadList(UniqueId, hashes.Select(h => h.Hash).ToList(), compressedAlternateUsage, hashToCompAltHash, locallyPresentFileSet, storeId, cancelToken).ConfigureAwait(false);
+            if (filesToDownload.Count > 0)
+            {
+                await _fileDownloadManager.DownloadFiles(new DownloadBatchInfo(StageFullInfo.Customize.DisplayName, "Stage", GameObject: null), hashes.Select(h => new FileReplacementData() { Hash = h.Hash, GamePaths = [$"{h.Hash}{h.Extension}"] }).ToList(), hashToCompAltHash, cancelToken).ConfigureAwait(false);
+
+                // Now fill in the downloaded path for each of the hashes we tried to download
+                foreach (var hash in hashes)
+                {
+                    var fileCache = _fileCacheManager.GetFileCacheByHash(hash.Hash);
+
+                    // Was a comp alt was found that we didn't anticipate from the compression cache service?
+                    if (fileCache == null && hashToCompAltHash.TryGetValue(hash.Hash, out var compHash))
+                    {
+                        fileCache = _fileCacheManager.GetFileCacheByHash(compHash);
+                        if (fileCache != null)
+                        {
+                            hashToDiskPath[compHash] = fileCache.ResolvedFilepath;
+                        }
+                    }
+
+                    if (fileCache != null)
+                    {
+                        hashToDiskPath[hash.Hash] = fileCache.ResolvedFilepath;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Somehow stage mod file {hash} was still missing after all the mods were downloaded!", hash.Hash);
+                    }
+                }
+            }
+
+            // Distribute the disk path of comp alts to the original requesting hashes
+            foreach (var compAltPair in hashToCompAltHash)
+            {
+                hashToDiskPath[compAltPair.Key] = hashToDiskPath[compAltPair.Value];
+            }
+
+            return hashToDiskPath;
+        }
+
+        private async Task ReconstituteStageDefinitionAsync(StageDefinition stageDefinition, StageContentsDto contents, Dictionary<string, string> modHashToDiskPath, CancellationToken ct)
+        {
+            foreach (var mod in contents.Mods)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (modHashToDiskPath.TryGetValue(mod.Hash, out var modDiskPath))
+                {
+                    if (!stageDefinition.EmbeddedModpacks.TryGetValue(mod.ModpackId, out var modpack))
+                    {
+                        modpack = new EmbeddedModpackDefinition();
+                        stageDefinition.EmbeddedModpacks[mod.ModpackId] = modpack;
+                    }
+
+                    // TODO: Use a disk mod instead of loading the mod bytes into memory and embedding them in the definition!
+                    var modBytes = await File.ReadAllBytesAsync(modDiskPath, ct).ConfigureAwait(false);
+                    modpack.ModdedResources[mod.GamePath] = new EmbeddedModResourceDefinition() { CompressedDataBytes = modBytes, CompressionScheme = ModCompressionScheme.None };
+                }
+                else
+                {
+                    _logger.LogWarning("Stage mod {hash} for {path} not found in cache!", mod.Hash, mod.GamePath);
+                }
+            }
+        }
+
         private async Task LoadInternalAsync(Task? toAwait, CancellationTokenSource? toCancel, StageFullInfoDto stageInfo, CancellationToken cancelToken)
         {
             if (toCancel != null)
@@ -150,15 +307,34 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
             {
                 cancelToken.ThrowIfCancellationRequested();
 
-                _logger.LogDebug("[{uniqueId}] {method} Beginning download of files.", UniqueId, nameof(LoadInternalAsync));
+                _logger.LogDebug("[{uniqueId}] {method} Beginning download of mod files.", UniqueId, nameof(LoadInternalAsync));
 
-                // TODO: Implement download!
-                await Task.Delay(500 + Random.Shared.Next(2000)).ConfigureAwait(false);
+                var modHashes = stageInfo.Contents.Mods.Select(mod => (mod.Hash, mod.GamePath)).DistinctBy(pair => pair.Hash, StringComparer.Ordinal).ToList();
+                var modHashToDiskPath = await DownloadFilesAsync(modHashes, CompressedAlternateUsage.AlwaysCompressed, 1, cancelToken).ConfigureAwait(false);
+
+                _logger.LogDebug("[{uniqueId}] {method} Downloading definition file {hash}.", UniqueId, nameof(LoadInternalAsync), stageInfo.Contents.StageFileHash);
+                var stageHash = (Hash: stageInfo.Contents.StageFileHash, GamePath: "stage.json");
+                var stageHashToDiskPath = await DownloadFilesAsync(new() { stageHash }, CompressedAlternateUsage.AlwaysSourceQuality, 2, cancelToken).ConfigureAwait(false);
+
+                _logger.LogDebug("[{uniqueId}] {method} Loading definition file {hash}.", UniqueId, nameof(LoadInternalAsync), stageInfo.Contents.StageFileHash);
+                StageDefinition? stageDefinition;
+                using (var definitionFileStream = new FileStream(stageHashToDiskPath[stageHash.Hash], FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    if (!StageDefinition.TryParseJSONStream(definitionFileStream, out stageDefinition))
+                    {
+                        throw new Exception("Stage JSON could not be parsed!");
+                    }
+                }
+
+                await ReconstituteStageDefinitionAsync(stageDefinition, stageInfo.Contents, modHashToDiskPath, cancelToken).ConfigureAwait(false);
 
                 _logger.LogDebug("[{uniqueId}] {method} Beginning instantiation.", UniqueId, nameof(LoadInternalAsync));
 
-                // TODO: Implement instantiation!
-                await Task.Delay(50 + Random.Shared.Next(200)).ConfigureAwait(false);
+                string serializedDefinition = stageDefinition.ToDefinitionString();
+                await _framework.RunOnFrameworkThread(() =>
+                {
+                    _ipcCallerStagehand.StagehandApi.TryCreateOrUpdateTemporaryStage(serializedDefinition, UniqueId, $"{UniqueId} ({stageInfo.Customize.DisplayName})");
+                }).ConfigureAwait(false);
 
                 _logger.LogDebug("[{uniqueId}] {method} Finished loading.", UniqueId, nameof(LoadInternalAsync));
             }
@@ -254,8 +430,11 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
             {
                 _logger.LogDebug("[{uniqueId}] {method} Beginning unload.", UniqueId, nameof(LoadInternalAsync));
 
-                // TODO: Implement unload!
-                await Task.Delay(50 + Random.Shared.Next(200)).ConfigureAwait(false);
+                // Waiting here can cause a deadlock, so just fire and forget
+                _ = _framework.RunOnFrameworkThread(() =>
+                {
+                    _ipcCallerStagehand.StagehandApi.TryDestroyTemporaryStage(UniqueId);
+                });
 
                 _logger.LogDebug("[{uniqueId}] {method} Finished unloading.", UniqueId, nameof(LoadInternalAsync));
             }
@@ -288,21 +467,25 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
     private readonly IFramework _framework;
     private readonly MareConfigService _mareConfigService;
     private readonly ApiController _apiController;
+    private readonly FileCacheManager _fileCacheManager;
     private readonly IpcCallerStagehand _ipcCallerStagehand;
     private readonly FileDownloadManagerFactory _fileDownloadManagerFactory;
+    private readonly ICompressedAlternateManager _compressedAlternateManager;
 
     private ConcurrentDictionary<string, ActiveStage> _activeStages = new();
     private int _stageDisplayEnabled = 0;
     public bool IsStageDisplayEnabled => _stageDisplayEnabled == 1;
 
-    public StageDisplayService(ILogger<StageDisplayService> logger, MareMediator mediator, IFramework framework, MareConfigService mareConfigService, ApiController apiController, IpcCallerStagehand ipcCallerStagehand, FileDownloadManagerFactory fileDownloadManagerFactory)
+    public StageDisplayService(ILogger<StageDisplayService> logger, MareMediator mediator, IFramework framework, MareConfigService mareConfigService, ApiController apiController, FileCacheManager fileCacheManager, IpcCallerStagehand ipcCallerStagehand, FileDownloadManagerFactory fileDownloadManagerFactory, ICompressedAlternateManager compressedAlternateManager)
         : base(logger, mediator)
     {
         _framework = framework;
         _mareConfigService = mareConfigService;
         _apiController = apiController;
+        _fileCacheManager = fileCacheManager;
         _ipcCallerStagehand = ipcCallerStagehand;
         _fileDownloadManagerFactory = fileDownloadManagerFactory;
+        _compressedAlternateManager = compressedAlternateManager;
     }
 
     public IReadOnlyList<IActiveStage> GetActiveStages()
@@ -317,6 +500,9 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
         Mediator.Subscribe<StageSettingsChangedMessage>(this, _ => RefreshStageDisplayEnabled());
         Mediator.Subscribe<ConnectedMessage>(this, _ => RefreshStageDisplayEnabled());
         Mediator.Subscribe<DisconnectedMessage>(this, _ => RefreshStageDisplayEnabled());
+        Mediator.Subscribe<StageSubscriptionsChangedMessage>(this, OnStageSubscriptionsChanged);
+        Mediator.Subscribe<StageSubscribedContentsChangedMessage>(this, OnStageSubscribedContentsChanged);
+        Mediator.Subscribe<StageSubscribedStateChangedMessage>(this, OnStageSubscribedStateChanged);
         RefreshStageDisplayEnabled();
 
         return Task.CompletedTask;
@@ -333,6 +519,82 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
     private void OnStagehandApiAvailableChanged(bool isApiAvailable)
     {
         RefreshStageDisplayEnabled();
+    }
+
+    private static bool StageIsInLocation(StageStateDto state, StageLocation location)
+    {
+        return state.LocationWorldId == location.WorldId
+            && state.LocationTerritoryId == location.TerritoryId
+            && state.LocationWardId == location.WardId
+            && state.LocationDivisionId == location.DivisionId
+            && state.LocationHouseId == location.HouseId
+            && state.LocationRoomId == location.RoomId;
+    }
+
+    private void OnStageSubscriptionsChanged(StageSubscriptionsChangedMessage message)
+    {
+        if (!IsStageDisplayEnabled)
+        {
+            return;
+        }
+        foreach (var removed in message.RemovedSubscribedStageIds)
+        {
+            if (_activeStages.TryRemove(removed, out var activeStage))
+            {
+                _ = activeStage.UnloadAsync();
+            }
+        }
+
+        var currentLocation = _ipcCallerStagehand.StagehandApi.GetLocation();
+        foreach (var stage in message.AddedSubscribedStages)
+        {
+            if (StageIsInLocation(stage.State, currentLocation))
+            {
+                var activeStage = _activeStages.AddOrUpdate(stage.SID,
+                    _ => new ActiveStage(stage, Logger, _framework, _fileDownloadManagerFactory.Create(), _fileCacheManager, _ipcCallerStagehand, _compressedAlternateManager),
+                    (sid, liveStage) =>
+                    {
+                        // By updating the StageFullInfo, the next call to LoadAsync will reload the stage if its contents have been updated
+                        liveStage.StageFullInfo = stage;
+                        return liveStage;
+                    });
+                _ = activeStage.LoadAsync();
+            }
+        }
+    }
+
+    private void OnStageSubscribedContentsChanged(StageSubscribedContentsChangedMessage message)
+    {
+        if (!IsStageDisplayEnabled)
+        {
+            return;
+        }
+
+        if (_activeStages.TryGetValue(message.StageId, out var activeStage))
+        {
+            activeStage.StageFullInfo = new()
+            {
+                Info = activeStage.StageFullInfo.Info,
+                Customize = activeStage.StageFullInfo.Customize,
+                SubscriptionState = activeStage.StageFullInfo.SubscriptionState,
+                State = activeStage.StageFullInfo.State,
+                Contents = message.NewContents
+            };
+            _ = activeStage.LoadAsync();
+        }
+    }
+
+    private void OnStageSubscribedStateChanged(StageSubscribedStateChangedMessage message)
+    {
+        if (!IsStageDisplayEnabled)
+        {
+            return;
+        }
+        
+        // TODO: Check whether the location became or is no longer the game's current location
+        // We'll need the FullInfoDto to actually show it though so that's probably going to need to be its own server-side push
+
+        // TODO: Apply new transform
     }
 
     // Enable state is based on a few things:
@@ -395,7 +657,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
                 foreach (var stage in stages)
                 {
                     var activeStage = _activeStages.AddOrUpdate(stage.SID,
-                        _ => new ActiveStage(stage, Logger, _framework, _fileDownloadManagerFactory.Create()),
+                        _ => new ActiveStage(stage, Logger, _framework, _fileDownloadManagerFactory.Create(), _fileCacheManager, _ipcCallerStagehand, _compressedAlternateManager),
                         (sid, liveStage) =>
                         {
                             // By updating the StageFullInfo, the next call to LoadAsync will reload the stage if its contents have been updated

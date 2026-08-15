@@ -9,6 +9,7 @@ using MareSynchronos.PlayerData.Factories;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.CharaData;
 using MareSynchronos.Services.CharaData.Models;
+using MareSynchronos.Services.Mediator;
 using MareSynchronos.Utils;
 using MareSynchronos.WebAPI.Files;
 using Microsoft.Extensions.Logging;
@@ -123,8 +124,8 @@ public sealed class CharaDataFileHandler : IDisposable
         // TODO: Get these from _fileHandler.ComputeMissingFiles
         Dictionary<string, string> compressedSubstitutions = new Dictionary<string, string>();
         HashSet<string> locallyPresentFiles = new HashSet<string>();
-        await _fileDownloadManager.InitiateDownloadList(tempHandler, missingFiles, compressedAlternateUsage, compressedSubstitutions, locallyPresentFiles, token).ConfigureAwait(false);
-        await _fileDownloadManager.DownloadFiles(tempHandler, missingFiles, compressedSubstitutions, token).ConfigureAwait(false);
+        await _fileDownloadManager.InitiateDownloadList(tempHandler.Name, missingFiles.Select(f => f.Hash).Distinct(StringComparer.Ordinal).ToList(), compressedAlternateUsage, compressedSubstitutions, locallyPresentFiles, 0, token).ConfigureAwait(false);
+        await _fileDownloadManager.DownloadFiles(new DownloadBatchInfo(tempHandler.Name, "Character", await _dalamudUtilService.CreateGameObjectAsync(tempHandler.Address).ConfigureAwait(false)), missingFiles, compressedSubstitutions, token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
         foreach (var file in missingFiles.SelectMany(m => m.GamePaths, (FileEntry, GamePath) => (Hash: compressedSubstitutions.GetValueOrDefault(FileEntry.Hash, FileEntry.Hash), GamePath)))
         {
