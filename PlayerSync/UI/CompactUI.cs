@@ -52,6 +52,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly PairInviteManager _pairRequestManager;
     private List<IDrawFolder> _drawFolders;
     private DrawFolderBroadcasts? _broadcastsFolder;
+    private DrawFolderStages _stagesFolder;
     private Pair? _lastAddedUser;
     private string _lastAddedUserComment = string.Empty;
     private Vector2 _lastPosition = Vector2.One;
@@ -125,6 +126,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         };
 
         _drawFolders = GetDrawFolders().ToList();
+        _stagesFolder = _drawEntityFactory.CreateDrawFolderStages();
 
         string ver = _uiSharedService.Version;
 
@@ -285,6 +287,11 @@ public class CompactUi : WindowMediatorSubscriberBase
         ImGui.BeginChild("list", new Vector2(_windowContentWidth, ySize), border: false);
 
         _broadcastsFolder?.Draw();
+
+        if (_configService.Current.EnableStageFeatures)
+        {
+            _stagesFolder.Draw();
+        }
 
         foreach (var item in _drawFolders)
         {

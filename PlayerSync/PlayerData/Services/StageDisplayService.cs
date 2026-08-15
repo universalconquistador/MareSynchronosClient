@@ -20,6 +20,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace PlayerSync.PlayerData.Services;
@@ -42,6 +43,7 @@ public interface IActiveStage
 public interface IStageDisplayService
 {
     IReadOnlyList<IActiveStage> GetActiveStages();
+    bool TryGetActiveStage(string stageId, [NotNullWhen(true)] out IActiveStage? activeStage);
 }
 
 /// <summary>
@@ -491,6 +493,13 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
     public IReadOnlyList<IActiveStage> GetActiveStages()
     {
         return _activeStages.Values.ToArray();
+    }
+
+    public bool TryGetActiveStage(string stageId, [NotNullWhen(true)] out IActiveStage? activeStage)
+    {
+        var result = _activeStages.TryGetValue(stageId, out var activeStageImpl);
+        activeStage = activeStageImpl;
+        return result;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)

@@ -9,6 +9,7 @@ using MareSynchronos.UI.Components;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
+using PlayerSync.PlayerData.Services;
 using System.Collections.Immutable;
 
 namespace MareSynchronos.UI;
@@ -30,6 +31,7 @@ public class DrawEntityFactory
     private readonly IBroadcastManager _broadcastManager;
     private readonly PairManager _pairManager;
     private readonly IpcManager _ipcManager;
+    private readonly IStageDisplayService _stageDisplayService;
 
     public DrawEntityFactory(ILogger<DrawEntityFactory> logger, ApiController apiController, IdDisplayHandler uidDisplayHandler,
         SelectTagForPairUi selectTagForPairUi, MareMediator mediator,
@@ -37,7 +39,7 @@ public class DrawEntityFactory
         ServerConfigurationManager serverConfigurationManager, UiSharedService uiSharedService,
         PlayerPerformanceConfigService playerPerformanceConfigService, MareConfigService mareConfigService,
         CharaDataManager charaDataManager, PairManager pairManager,
-        IBroadcastManager broadcastManager, IpcManager ipcManager)
+        IBroadcastManager broadcastManager, IpcManager ipcManager, IStageDisplayService stageDisplayService)
     {
         _logger = logger;
         _apiController = apiController;
@@ -54,6 +56,7 @@ public class DrawEntityFactory
         _broadcastManager = broadcastManager;
         _pairManager = pairManager;
         _ipcManager = ipcManager;
+        _stageDisplayService = stageDisplayService;
     }
 
     public DrawFolderGroup CreateDrawGroupFolder(GroupFullInfoDto groupFullInfoDto,
@@ -88,5 +91,10 @@ public class DrawEntityFactory
     public DrawFolderBroadcasts CreateDrawFolderBroadcasts(IReadOnlyList<GroupBroadcastDto> broadcasts, List<GroupFullInfoDto> groups)
     {
         return new DrawFolderBroadcasts(broadcasts.OrderByDescending(broadcast => broadcast.CurrentMemberCount).Select(broadcast => CreateDrawBroadcastGroup(broadcast, groups)).ToImmutableList(), _tagHandler, _uiSharedService);
+    }
+
+    public DrawFolderStages CreateDrawFolderStages()
+    {
+        return new DrawFolderStages(_tagHandler, _uiSharedService, _mediator, _apiController, _uidDisplayHandler, _pairManager, _stageDisplayService);
     }
 }
