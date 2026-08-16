@@ -15,6 +15,8 @@ namespace MareSynchronos.PlayerData.Factories;
 
 public class PlayerDataFactory
 {
+    private static readonly TimeSpan ReportErrorIntervalMinutes = TimeSpan.FromMinutes(5);
+
     private readonly DalamudUtilService _dalamudUtil;
     private readonly FileCacheManager _fileCacheManager;
     private readonly IpcManager _ipcManager;
@@ -23,6 +25,8 @@ public class PlayerDataFactory
     private readonly XivDataAnalyzer _modelAnalyzer;
     private readonly MareMediator _mareMediator;
     private readonly TransientResourceManager _transientResourceManager;
+
+    private DateTimeOffset _nextErrorTime = DateTimeOffset.MinValue;
 
     public PlayerDataFactory(ILogger<PlayerDataFactory> logger, DalamudUtilService dalamudUtil, IpcManager ipcManager,
         TransientResourceManager transientResourceManager, FileCacheManager fileReplacementFactory,
@@ -87,7 +91,14 @@ public class PlayerDataFactory
         }
         catch (Exception e)
         {
-            _logger.LogWarning(e, "Failed to create {object} data", playerRelatedObject);
+            _logger.LogError(e, "Failed to create {object} data", playerRelatedObject);
+
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (now > _nextErrorTime)
+            {
+                _nextErrorTime = now.Add(ReportErrorIntervalMinutes);
+                _mareMediator.Publish(new NotificationMessage("Character Data Failed", "One or more errors occurred when creating character data. Check the /xllog for more details.", NotificationType.Error));
+            }
         }
 
         return null;
