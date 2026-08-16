@@ -735,6 +735,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
             if (needsToBeRedrawn)
             {
+                await Task.Delay(TimeSpan.FromMilliseconds(250), token).ConfigureAwait(false);
                 await _ipcManager.Penumbra.RedrawAsync(Logger, handler, applicationId, token).ConfigureAwait(false);
             }
 
