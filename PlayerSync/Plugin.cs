@@ -274,6 +274,7 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<MareProfileManager>(), s.GetRequiredService<PerformanceCollectorService>(), s.GetRequiredService<UiTheme>(), 
                 s.GetRequiredService<FileImageTransferHandler>()));
             collection.AddScoped<WindowMediatorSubscriberBase, PopupHandler>();
+            collection.AddScoped<WindowMediatorSubscriberBase, MyStagesWindow>();
             collection.AddScoped<IPopupHandler, BanUserPopupHandler>();
             collection.AddScoped<IPopupHandler, CensusPopupHandler>();
             collection.AddScoped<CacheCreationService>();

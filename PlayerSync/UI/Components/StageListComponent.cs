@@ -31,7 +31,7 @@ public class StageListComponent
     private string? _errorMessage = null;
 
     private List<StageFullInfoDto> _pageResults;
-    private int _pageIndex;
+    public int PageIndex { get; private set; }
     private bool _hasNextPage;
 
     public StageListComponent(ILogger logger, MareMediator mareMediator, ApiController apiController, PairManager pairManager, IdDisplayHandler idDisplayHandler, Func<int, Task<(List<StageFullInfoDto>, bool)>> pageLoadCallback)
@@ -43,11 +43,14 @@ public class StageListComponent
         _idDisplayHandler = idDisplayHandler;
         _pageLoadCallback = pageLoadCallback;
 
-        _pageIndex = 0;
+        PageIndex = 0;
         _hasNextPage = false;
         _pageResults = new();
 
-        LoadPage(0);
+        if (_apiController.IsConnected)
+        {
+            LoadPage(0);
+        }
     }
 
     public void Draw()
@@ -72,13 +75,13 @@ public class StageListComponent
                 }
             }
 
-            if (_pageIndex > 0 || _hasNextPage)
+            if (PageIndex > 0 || _hasNextPage)
             {
-                using (ImRaii.Disabled(_pageIndex == 0 || _isLoading))
+                using (ImRaii.Disabled(PageIndex == 0 || _isLoading))
                 {
                     if (ImGui.Button("Previous Page"u8))
                     {
-                        LoadPage(_pageIndex - 1);
+                        LoadPage(PageIndex - 1);
                     }
                 }
             }
@@ -91,7 +94,7 @@ public class StageListComponent
                 {
                     if (ImGui.Button("Next Page"u8))
                     {
-                        LoadPage(_pageIndex + 1);
+                        LoadPage(PageIndex + 1);
                     }
                 }
             }
@@ -154,14 +157,21 @@ public class StageListComponent
         string ownerText;
         if (stageInfo.Info.GroupOwnerGID == "")
         {
-            var ownerPair = _pairManager.GetPairByUID(stageInfo.Info.UserOwnerUID);
-            if (ownerPair != null)
+            if (stageInfo.Info.UserOwnerUID == _apiController.UID)
             {
-                ownerText = _idDisplayHandler.GetPlayerText(ownerPair).text;
+                ownerText = _apiController.DisplayName;
             }
             else
             {
-                ownerText = stageInfo.Info.UserOwnerUID;
+                var ownerPair = _pairManager.GetPairByUID(stageInfo.Info.UserOwnerUID);
+                if (ownerPair != null)
+                {
+                    ownerText = _idDisplayHandler.GetPlayerText(ownerPair).text;
+                }
+                else
+                {
+                    ownerText = stageInfo.Info.UserOwnerUID;
+                }
             }
         }
         else
@@ -213,7 +223,7 @@ public class StageListComponent
         {
             (var results, bool hasMore) = await _pageLoadCallback.Invoke(page).ConfigureAwait(false);
 
-            _pageIndex = page;
+            PageIndex = page;
             _pageResults = results;
             _hasNextPage = hasMore;
         }

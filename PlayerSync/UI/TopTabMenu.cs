@@ -678,20 +678,19 @@ public class TopTabMenu : IMediatorSubscriber
     private void DrawStage(float availableWidth, float spacingX)
     {
         var buttonX = (availableWidth - spacingX) / 2f;
-        if (_uiSharedService.IconTextButton(FontAwesomeIcon.PencilRuler, "My Stages", buttonX))
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Create new Stage", buttonX))
         {
-            // TODO: Implement!
-            //_mareMediator.Publish(new UiToggleMessage(typeof(EditProfileUi)));
             _mareMediator.Publish(new OpenStageDetailsWindow(StartingStageInfo: null, OwningGroupId: null));
         }
-        UiSharedService.AttachToolTip("View and edit your uploaded stages");
+        UiSharedService.AttachToolTip("Upload a new stage");
+
         ImGui.SameLine();
-        if (_uiSharedService.IconTextButton(FontAwesomeIcon.MapMarkerAlt, "My Subscriptions", buttonX))
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Tasks, "Manage Stages", buttonX))
         {
-            // TODO: Implement!
-            //_mareMediator.Publish(new UiToggleMessage(typeof(DataAnalysisUi)));
+            _mareMediator.Publish(new UiToggleMessage(typeof(MyStagesWindow)));
         }
-        UiSharedService.AttachToolTip("View the stages you are subscribed to");
+        UiSharedService.AttachToolTip("View your stages and the stages you are subscribed to");
+
         bool missingStagehand = !_ipcManager.Stagehand.APIAvailable && !_mareConfigService.Current.EnableStageFeatures;
         using (ImRaii.Disabled(missingStagehand))
         {

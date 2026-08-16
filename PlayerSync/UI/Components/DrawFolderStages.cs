@@ -114,14 +114,21 @@ public class DrawFolderStages
         }
         else
         {
-            var ownerPair = _pairManager.GetPairByUID(activeStage.StageFullInfo.Info.UserOwnerUID);
-            if (ownerPair != null)
+            if (activeStage.StageFullInfo.Info.UserOwnerUID == _apiController.UID)
             {
-                ownerDisplayName = _idDisplayHandler.GetPlayerText(ownerPair).text;
+                ownerDisplayName = _apiController.DisplayName;
             }
             else
             {
-                ownerDisplayName = activeStage.StageFullInfo.Info.UserOwnerUID;
+                var ownerPair = _pairManager.GetPairByUID(activeStage.StageFullInfo.Info.UserOwnerUID);
+                if (ownerPair != null)
+                {
+                    ownerDisplayName = _idDisplayHandler.GetPlayerText(ownerPair).text;
+                }
+                else
+                {
+                    ownerDisplayName = activeStage.StageFullInfo.Info.UserOwnerUID;
+                }
             }
         }
 
