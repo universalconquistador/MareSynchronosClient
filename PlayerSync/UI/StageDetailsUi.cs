@@ -52,7 +52,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
     private bool _isLoadingStageDefinition = false;
 
     // Customization
-    private StageVisibility _visibility = StageVisibility.OwnersOnly;
+    private StageVisibility _visibility = StageVisibility.AllPairs;
     private string _displayName = "";
     private string _version = "";
     private string _author = "";
@@ -136,19 +136,23 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         {
             var startX = ImGui.GetCursorPosX();
 
-            ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
-            using (ImRaii.Disabled(!ImGui.IsKeyDown(ImGuiKey.LeftCtrl)))
+            if (HasEditPermissions)
             {
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new Vector2(ImGui.GetFrameHeight())) && !_isSaving)
+                ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
+                using (ImRaii.Disabled(!ImGui.IsKeyDown(ImGuiKey.LeftCtrl)))
                 {
-                    _isSaving = true;
-                    _ = DeleteStageAsync();
+                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)) && !_isSaving)
+                    {
+                        _isSaving = true;
+                        _ = DeleteStageAsync();
+                    }
+                    UiSharedService.AttachToolTip("Delete Stage" + UiSharedService.TooltipSeparator + "Hold Ctrl to enable");
                 }
-                UiSharedService.AttachToolTip("Delete Stage" + UiSharedService.TooltipSeparator + "Hold Ctrl to enable");
+
+                ImGui.SameLine();
+                ImGui.SetCursorPosX(startX);
             }
 
-            ImGui.SameLine();
-            ImGui.SetCursorPosX(startX);
             using (ImRaii.TextWrapPos(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemInnerSpacing.X))
             {
                 ImGui.TextWrapped(String.IsNullOrEmpty(StageInfo.Customize.DisplayName) ? StageInfo.SID : StageInfo.Customize.DisplayName);
@@ -525,7 +529,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         {
             ImGui.SameLine();
             ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemSpacing.X);
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.FileDownload, new Vector2(ImGui.GetFrameHeight())))
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.FileDownload, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
                 IsEditingCustomization = true;
 
@@ -606,22 +610,25 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted("State"u8);
 
-        ImGui.SameLine();
-        ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemSpacing.X);
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.LocationCrosshairs, new Vector2(ImGui.GetFrameHeight())))
+        if (StageInfo == null || IsEditingState)
         {
-            if (StageLocation.TryGetLocation(_clientState, _playerState, out var location))
+            ImGui.SameLine();
+            ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemSpacing.X);
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.LocationCrosshairs, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
-                IsEditingState = true;
-                _locationWorldId = (int)location.WorldId;
-                _locationTerritoryId = location.TerritoryId;
-                _locationWardId = location.WardId;
-                _locationDivisionId = location.DivisionId;
-                _locationHouseId = location.HouseId;
-                _locationRoomId = location.RoomId;
+                if (StageLocation.TryGetLocation(_clientState, _playerState, out var location))
+                {
+                    IsEditingState = true;
+                    _locationWorldId = (int)location.WorldId;
+                    _locationTerritoryId = location.TerritoryId;
+                    _locationWardId = location.WardId;
+                    _locationDivisionId = location.DivisionId;
+                    _locationHouseId = location.HouseId;
+                    _locationRoomId = location.RoomId;
+                }
             }
+            UiSharedService.AttachToolTip("Use Current Location" + UiSharedService.TooltipSeparator + $"Use the World, territory, ward, division, house, and room.");
         }
-        UiSharedService.AttachToolTip("Use Current Location" + UiSharedService.TooltipSeparator + $"Use the World, territory, ward, division, house, and room.");
 
         DrawIntProperty("World"u8, ref _locationWorldId, IsEditingState);
         DrawIntProperty("Territory"u8, ref _locationTerritoryId, IsEditingState);

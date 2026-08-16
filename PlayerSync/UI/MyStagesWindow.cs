@@ -180,13 +180,21 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
         }
     }
 
+    private static string FindTypeToString(FindType findType) => findType switch
+    {
+        FindType.User => "Player",
+        FindType.Stage => "Stage",
+        FindType.Group => "Syncshell",
+        _ => "???"
+    };
+
     private void DrawFindByIdTab()
     {
-        _uiSharedService.BigText($"Find {(_selectedFindType == FindType.Stage ? "" : "by ")}{_selectedFindType}");
+        _uiSharedService.BigText($"Find {(_selectedFindType == FindType.Stage ? "" : "by ")}{FindTypeToString(_selectedFindType)}");
         ImGuiHelpers.ScaledDummy(2);
 
-        ImGui.SetNextItemWidth(100.0f);
-        using (var searchTypeCombo = ImRaii.Combo("###SearchTypeCombo"u8, _selectedFindType.ToString()))
+        ImGui.SetNextItemWidth(100.0f * ImGuiHelpers.GlobalScale);
+        using (var searchTypeCombo = ImRaii.Combo("###SearchTypeCombo"u8, FindTypeToString(_selectedFindType)))
         {
             if (searchTypeCombo.Success)
             {
@@ -202,7 +210,7 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
                     _findText = "";
                     _findStageList = null;
                 }
-                if (ImGui.Selectable(FindType.Group.ToString(), _selectedFindType == FindType.Group) && _selectedFindType != FindType.Group)
+                if (ImGui.Selectable(FindTypeToString(FindType.Group), _selectedFindType == FindType.Group) && _selectedFindType != FindType.Group)
                 {
                     _selectedFindType = FindType.Group;
                     _findText = "";
@@ -214,12 +222,12 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
         ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
         ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemInnerSpacing.X);
         bool doSearch = false;
-        if (ImGui.InputTextWithHint("###SearchText"u8, _selectedFindType switch { FindType.Stage => "Stage ID", FindType.User => "User ID or Vanity", FindType.Group => "Group ID or Vanity", _ => "ID" }, ref _findText, flags: ImGuiInputTextFlags.EnterReturnsTrue))
+        if (ImGui.InputTextWithHint("###SearchText"u8, _selectedFindType switch { FindType.Stage => "Stage ID", FindType.User => "Player ID or Vanity", FindType.Group => "Syncshell ID or Vanity", _ => "ID" }, ref _findText, flags: ImGuiInputTextFlags.EnterReturnsTrue))
         {
             doSearch = true;
         }
         ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Search, new (ImGui.GetFrameHeight())))
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.Search, new (ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
         {
             doSearch = true;
         }

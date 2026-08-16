@@ -2,6 +2,7 @@
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto.Stage;
@@ -105,7 +106,7 @@ public class StageListComponent
     {
         var startX = ImGui.GetCursorPosX();
         ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() * 2 - ImGui.GetStyle().ItemInnerSpacing.X);
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.InfoCircle, new Vector2(ImGui.GetFrameHeight())))
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.InfoCircle, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
         {
             _mareMediator.Publish(new OpenStageDetailsWindow(stageInfo, stageInfo.Info.GroupOwnerGID == "" ? null : stageInfo.Info.GroupOwnerGID));
         }
@@ -129,7 +130,7 @@ public class StageListComponent
             subscriptionIcon = FontAwesomeIcon.Plus;
             subscriptionTooltip = "Subscribe to this stage." + UiSharedService.TooltipSeparator + "Click to subscribe to this stage.";
         }
-        if (ImGuiComponents.IconButton(subscriptionIcon, new Vector2(ImGui.GetFrameHeight())))
+        if (ImGuiComponents.IconButton(subscriptionIcon, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
         {
             bool isSubscribed = stageInfo.SubscriptionState.HasFlag(StageSubscriptionFlags.DirectlySubscribed);
             _ = SetIsSubscribedAsync(stageInfo, !isSubscribed);
