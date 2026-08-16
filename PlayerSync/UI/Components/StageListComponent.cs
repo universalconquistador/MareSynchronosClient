@@ -17,7 +17,7 @@ using System.Numerics;
 using System.Text;
 
 namespace MareSynchronos.UI.Components;
-// Tasks is a good icon for a stage list
+
 public class StageListComponent
 {
     private readonly ILogger _logger;

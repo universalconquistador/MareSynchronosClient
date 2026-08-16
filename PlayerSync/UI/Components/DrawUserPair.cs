@@ -141,6 +141,14 @@ public class DrawUserPair
             }
             UiSharedService.AttachToolTip("This reapplies the last received character data to this character");
         }
+        if (_configService.Current.EnableStageFeatures)
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.MapMarkedAlt, "Find Stages", _menuWidth, true))
+            {
+                _mediator.Publish(new ShowStagesForUserMessage(_pair.UserPair.User.UID));
+            }
+            UiSharedService.AttachToolTip("Opens the stage search window to find this user's visible stages");
+        }
 
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.PlayCircle, "Cycle pause state", _menuWidth, true))
         {

@@ -65,7 +65,7 @@ public class DrawEntityFactory
     {
         return new DrawFolderGroup(groupFullInfoDto.Group.GID, groupFullInfoDto, _apiController,
             filteredPairs.Select(p => CreateDrawPair(groupFullInfoDto.Group.GID + p.Key.UserData.UID, p.Key, p.Value, groupFullInfoDto)).ToImmutableList(),
-            allPairs, _tagHandler, _uidDisplayHandler, _mediator, _pairManager, _serverConfigurationManager, _uiSharedService, _broadcastManager);
+            allPairs, _tagHandler, _uidDisplayHandler, _mediator, _pairManager, _serverConfigurationManager, _uiSharedService, _configService, _broadcastManager);
     }
 
     public DrawFolderTag CreateDrawTagFolder(string tag,
