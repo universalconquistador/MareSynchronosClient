@@ -1,6 +1,7 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto.Stage;
@@ -68,7 +69,7 @@ public class DrawFolderStages
                 _uiSharedService.IconText(FontAwesomeIcon.MapMarkedAlt);
 
                 ImGui.SameLine();
-                ImGui.TextUnformatted($"[{stages.Count}] Visible Stages");
+                ImGui.TextUnformatted($"[{stages.Count(activeStage => !activeStage.IsHidden)}] Visible Stages");
             }
             _wasHovered = ImGui.IsItemHovered();
 
@@ -142,7 +143,14 @@ public class DrawFolderStages
             ImGui.AlignTextToFramePadding();
             unsafe
             {
-                _uiSharedService.IconText(FontAwesomeIcon.MapMarkerAlt, activeStage.State == ActiveStageState.Loading ? (*ImGui.GetStyleColorVec4(ImGuiCol.Text)) with { W = 0.5f } : null);
+                if (activeStage.IsHidden)
+                {
+                    _uiSharedService.IconText(FontAwesomeIcon.EyeSlash);
+                }
+                else
+                {
+                    _uiSharedService.IconText(FontAwesomeIcon.MapMarkerAlt, activeStage.State == ActiveStageState.Loading ? (*ImGui.GetStyleColorVec4(ImGuiCol.Text)) with { W = 0.5f } : null);
+                }
             }
             UiSharedService.AttachToolTip(activeStage.State.ToString());
 
@@ -166,54 +174,66 @@ public class DrawFolderStages
             }
             currentRightSide -= spacingX;
 
-            string stageName = string.IsNullOrEmpty(activeStage.StageFullInfo.Customize.DisplayName) ? activeStage.StageFullInfo.SID : activeStage.StageFullInfo.Customize.DisplayName;
-            FontAwesomeIcon unsubscribeIcon;
-            string joinTooltip;
-            if (activeStage.StageFullInfo.SubscriptionState.HasFlag(StageSubscriptionFlags.DirectlySubscribed))
-            {
-                unsubscribeIcon = FontAwesomeIcon.Times;
-                joinTooltip = $"Unsubscribe from {stageName}";
-                if (activeStage.StageFullInfo.SubscriptionState.HasFlag(StageSubscriptionFlags.OwnerFeedSubscribed))
-                {
-                    joinTooltip += $"\nYou will still be subscribed through {(ownedByGroup ? "syncshell" : "user")} {ownerDisplayName}.";
-                }
-            }
-            else
-            {
-                unsubscribeIcon = FontAwesomeIcon.UserSlash;
-                joinTooltip = $"Unsubscribe from {(ownedByGroup ? "syncshell" : "user")} {ownerDisplayName} to no longer see the stage.";
-            }
-            var pauseButtonSize = _uiSharedService.GetIconButtonSize(unsubscribeIcon);
+            var showHideIcon = activeStage.IsHidden ? FontAwesomeIcon.Play : FontAwesomeIcon.Pause;
+            var pauseButtonSize = _uiSharedService.GetIconButtonSize(showHideIcon);
             currentRightSide -= pauseButtonSize.X;
             ImGui.SameLine(currentRightSide);
-            if (_uiSharedService.IconButton(unsubscribeIcon))
+            if (ImGuiComponents.IconButton(showHideIcon))
             {
-                if (activeStage.StageFullInfo.SubscriptionState.HasFlag(StageSubscriptionFlags.DirectlySubscribed))
-                {
-                    _ = _apiController.StageSetSubscribed(activeStage.StageFullInfo.SID, false);
-                }
-                else if (ownedByGroup)
-                {
-                    _ = _apiController.StageSetGroupFeedSubscribed(activeStage.StageFullInfo.Info.GroupOwnerGID, false);
-                }
-                else
-                {
-                    _ = _apiController.StageSetUserFeedSubscribed(activeStage.StageFullInfo.Info.UserOwnerUID, false);
-                }
+                _stageDisplayService.SetStageHidden(activeStage.StageFullInfo.SID, !activeStage.IsHidden);
             }
-            UiSharedService.AttachToolTip(joinTooltip);
 
+            string stageName = string.IsNullOrEmpty(activeStage.StageFullInfo.Customize.DisplayName) ? activeStage.StageFullInfo.SID : activeStage.StageFullInfo.Customize.DisplayName;
             if (ImGui.BeginPopup("Stage Context Menu"))
             {
                 using (ImRaii.PushId($"stage-context-{activeStage.StageFullInfo.SID}"))
                 {
                     ImGui.TextUnformatted("Common Stage Functions");
 
-                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.InfoCircle, "Stage Details", null, true))
+                    if (_uiSharedService.IconTextButton(FontAwesomeIcon.InfoCircle, "Stage Details", ImGui.GetContentRegionAvail().X, true))
                     {
                         _mareMediator.Publish(new OpenStageDetailsWindow(activeStage.StageFullInfo, null));
                     }
                     UiSharedService.AttachToolTip("Opens the details for this stage in a new window");
+
+                    FontAwesomeIcon unsubscribeIcon;
+                    string subscriptionTooltip;
+                    string subscriptionName;
+                    if (activeStage.StageFullInfo.SubscriptionState.HasFlag(StageSubscriptionFlags.DirectlySubscribed))
+                    {
+                        unsubscribeIcon = FontAwesomeIcon.Times;
+                        subscriptionTooltip = $"Unsubscribe from {stageName}";
+                        subscriptionName = "Unsubscribe";
+                        if (activeStage.StageFullInfo.SubscriptionState.HasFlag(StageSubscriptionFlags.OwnerFeedSubscribed))
+                        {
+                            subscriptionTooltip += $"\nYou will still be subscribed through {(ownedByGroup ? "syncshell" : "user")} {ownerDisplayName}.";
+                        }
+                    }
+                    else
+                    {
+                        unsubscribeIcon = FontAwesomeIcon.UserSlash;
+                        subscriptionTooltip = $"Unsubscribe from {(ownedByGroup ? "syncshell" : "user")} {ownerDisplayName} to no longer see the stage.";
+                        subscriptionName = "Unsubscribe from Owner";
+                    }
+                    using (ImRaii.Disabled(!ImGui.IsKeyDown(ImGuiKey.LeftCtrl)))
+                    {
+                        if (_uiSharedService.IconTextButton(unsubscribeIcon, subscriptionName, ImGui.GetContentRegionAvail().X, true))
+                        {
+                            if (activeStage.StageFullInfo.SubscriptionState.HasFlag(StageSubscriptionFlags.DirectlySubscribed))
+                            {
+                                _ = _apiController.StageSetSubscribed(activeStage.StageFullInfo.SID, false);
+                            }
+                            else if (ownedByGroup)
+                            {
+                                _ = _apiController.StageSetGroupFeedSubscribed(activeStage.StageFullInfo.Info.GroupOwnerGID, false);
+                            }
+                            else
+                            {
+                                _ = _apiController.StageSetUserFeedSubscribed(activeStage.StageFullInfo.Info.UserOwnerUID, false);
+                            }
+                        }
+                    }
+                    UiSharedService.AttachToolTip(subscriptionTooltip + UiSharedService.TooltipSeparator + "Hold Ctrl to enable.");
                 }
 
                 ImGui.EndPopup();

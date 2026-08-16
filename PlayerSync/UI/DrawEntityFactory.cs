@@ -24,6 +24,7 @@ public class DrawEntityFactory
     private readonly UiSharedService _uiSharedService;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfigService;
     private readonly MareConfigService _configService;
+    private readonly StageConfigService _stageConfigService;
     private readonly CharaDataManager _charaDataManager;
     private readonly SelectTagForPairUi _selectTagForPairUi;
     private readonly TagHandler _tagHandler;
@@ -38,7 +39,7 @@ public class DrawEntityFactory
         TagHandler tagHandler, SelectPairForTagUi selectPairForTagUi,
         ServerConfigurationManager serverConfigurationManager, UiSharedService uiSharedService,
         PlayerPerformanceConfigService playerPerformanceConfigService, MareConfigService mareConfigService,
-        CharaDataManager charaDataManager, PairManager pairManager,
+        StageConfigService stageConfigService, CharaDataManager charaDataManager, PairManager pairManager,
         IBroadcastManager broadcastManager, IpcManager ipcManager, IStageDisplayService stageDisplayService)
     {
         _logger = logger;
@@ -52,6 +53,7 @@ public class DrawEntityFactory
         _uiSharedService = uiSharedService;
         _playerPerformanceConfigService = playerPerformanceConfigService;
         _configService = mareConfigService;
+        _stageConfigService = stageConfigService;
         _charaDataManager = charaDataManager;
         _broadcastManager = broadcastManager;
         _pairManager = pairManager;
@@ -65,7 +67,7 @@ public class DrawEntityFactory
     {
         return new DrawFolderGroup(groupFullInfoDto.Group.GID, groupFullInfoDto, _apiController,
             filteredPairs.Select(p => CreateDrawPair(groupFullInfoDto.Group.GID + p.Key.UserData.UID, p.Key, p.Value, groupFullInfoDto)).ToImmutableList(),
-            allPairs, _tagHandler, _uidDisplayHandler, _mediator, _pairManager, _serverConfigurationManager, _uiSharedService, _configService, _broadcastManager);
+            allPairs, _tagHandler, _uidDisplayHandler, _mediator, _pairManager, _serverConfigurationManager, _uiSharedService, _stageConfigService, _broadcastManager);
     }
 
     public DrawFolderTag CreateDrawTagFolder(string tag,
@@ -80,7 +82,7 @@ public class DrawEntityFactory
     {
         return new DrawUserPair(id + user.UserData.UID, user, groups, currentGroup, _apiController, _uidDisplayHandler,
             _mediator, _selectTagForPairUi, _serverConfigurationManager, _uiSharedService, _playerPerformanceConfigService, 
-            _configService, _charaDataManager, _ipcManager);
+            _configService, _stageConfigService, _charaDataManager, _ipcManager);
     }
 
     public DrawBroadcastGroup CreateDrawBroadcastGroup(GroupBroadcastDto broadcast, IReadOnlyList<GroupFullInfoDto> groups)

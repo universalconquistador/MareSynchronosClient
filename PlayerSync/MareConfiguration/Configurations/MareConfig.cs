@@ -124,5 +124,4 @@ public class MareConfig : IMareConfiguration
     public bool DisableIdleCheck { get; set; } = false;
     public bool AutoPauseDataApplicationWhenPerforming {  get; set; } = true;
     public int MaxUploadTimeMinutes { get; set; } = 10;
-    public bool EnableStageFeatures { get; set; } = false;
 }

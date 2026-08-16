@@ -581,11 +581,11 @@ public partial class SettingsUi
 
         ImGuiHelpers.ScaledDummy(5);
 
-        bool enableStageFeatures = _configService.Current.EnableStageFeatures;
+        bool enableStageFeatures = _stageConfigService.Current.EnableStageFeatures;
         if (ImGui.Checkbox("Enable stage features", ref enableStageFeatures))
         {
-            _configService.Current.EnableStageFeatures = enableStageFeatures;
-            _configService.Save();
+            _stageConfigService.Current.EnableStageFeatures = enableStageFeatures;
+            _stageConfigService.Save();
             Mediator.Publish(new StageSettingsChangedMessage());
         }
         _uiShared.DrawHelpText("Shows the stages you are subscribed to.");

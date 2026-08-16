@@ -37,6 +37,7 @@ public class DrawUserPair
     private readonly UiSharedService _uiSharedService;
     private readonly PlayerPerformanceConfigService _performanceConfigService;
     private readonly MareConfigService _configService;
+    private readonly StageConfigService _stageConfigService;
     private readonly CharaDataManager _charaDataManager;
     private readonly IpcManager _ipcManager;
     private float _menuWidth = -1;
@@ -50,7 +51,7 @@ public class DrawUserPair
         MareMediator mareMediator, SelectTagForPairUi selectTagForPairUi,
         ServerConfigurationManager serverConfigurationManager,
         UiSharedService uiSharedService, PlayerPerformanceConfigService performanceConfigService,
-        MareConfigService mareConfigService, CharaDataManager charaDataManager, IpcManager ipcManager)
+        MareConfigService mareConfigService, StageConfigService stageConfigService, CharaDataManager charaDataManager, IpcManager ipcManager)
     {
         _id = id;
         _pair = entry;
@@ -64,6 +65,7 @@ public class DrawUserPair
         _uiSharedService = uiSharedService;
         _performanceConfigService = performanceConfigService;
         _configService = mareConfigService;
+        _stageConfigService = stageConfigService;
         _charaDataManager = charaDataManager;
         _ipcManager = ipcManager;
     }
@@ -141,7 +143,7 @@ public class DrawUserPair
             }
             UiSharedService.AttachToolTip("This reapplies the last received character data to this character");
         }
-        if (_configService.Current.EnableStageFeatures)
+        if (_stageConfigService.Current.EnableStageFeatures)
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.MapMarkedAlt, "Find Stages", _menuWidth, true))
             {

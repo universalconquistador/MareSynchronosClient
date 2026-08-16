@@ -25,6 +25,7 @@ public class TopTabMenu : IMediatorSubscriber
     private readonly IBroadcastManager _broadcastManager;
     private readonly UiSharedService _uiSharedService;
     private readonly MareConfigService _mareConfigService;
+    private readonly StageConfigService _stageConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly PairInviteManager _pairRequestManager;
@@ -37,7 +38,7 @@ public class TopTabMenu : IMediatorSubscriber
 
     private SelectedTab _selectedTab = SelectedTab.None;
     public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, 
-        MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService, PairInviteManager pairRequestManager,
+        MareConfigService mareConfigService, StageConfigService stageConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService, PairInviteManager pairRequestManager,
         IpcManager ipcManager)
     {
         _mareMediator = mareMediator;
@@ -46,6 +47,7 @@ public class TopTabMenu : IMediatorSubscriber
         _broadcastManager = broadcastManager;
         _uiSharedService = uiSharedService;
         _mareConfigService = mareConfigService;
+        _stageConfigService = stageConfigService;
         _serverConfigurationManager = serverConfigurationManager;
         _zoneSyncConfigService = zoneSyncConfigService;
         _pairRequestManager = pairRequestManager;
@@ -691,13 +693,13 @@ public class TopTabMenu : IMediatorSubscriber
         }
         UiSharedService.AttachToolTip("View your stages and the stages you are subscribed to");
 
-        bool missingStagehand = !_ipcManager.Stagehand.APIAvailable && !_mareConfigService.Current.EnableStageFeatures;
+        bool missingStagehand = !_ipcManager.Stagehand.APIAvailable && !_stageConfigService.Current.EnableStageFeatures;
         using (ImRaii.Disabled(missingStagehand))
         {
-            if (_uiSharedService.IconTextButton(_mareConfigService.Current.EnableStageFeatures ? FontAwesomeIcon.TimesCircle : FontAwesomeIcon.MapMarkedAlt, _mareConfigService.Current.EnableStageFeatures ? "Disable Stage Features" : "Enable Stage Features", availableWidth))
+            if (_uiSharedService.IconTextButton(_stageConfigService.Current.EnableStageFeatures ? FontAwesomeIcon.TimesCircle : FontAwesomeIcon.MapMarkedAlt, _stageConfigService.Current.EnableStageFeatures ? "Disable Stage Features" : "Enable Stage Features", availableWidth))
             {
-                _mareConfigService.Current.EnableStageFeatures = !_mareConfigService.Current.EnableStageFeatures;
-                _mareConfigService.Save();
+                _stageConfigService.Current.EnableStageFeatures = !_stageConfigService.Current.EnableStageFeatures;
+                _stageConfigService.Save();
                 _mareMediator.Publish(new StageSettingsChangedMessage());
             }
         }

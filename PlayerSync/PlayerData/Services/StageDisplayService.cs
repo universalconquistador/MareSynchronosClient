@@ -35,6 +35,7 @@ public enum ActiveStageState
 
 public interface IActiveStage
 {
+    bool IsHidden { get; }
     ActiveStageState State { get; }
 
     StageFullInfoDto StageFullInfo { get; }
@@ -44,6 +45,8 @@ public interface IStageDisplayService
 {
     IReadOnlyList<IActiveStage> GetActiveStages();
     bool TryGetActiveStage(string stageId, [NotNullWhen(true)] out IActiveStage? activeStage);
+
+    void SetStageHidden(string stageId, bool hidden);
 }
 
 /// <summary>
@@ -73,9 +76,11 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
         private Task _unloadTask = Task.CompletedTask;
 
         public string UniqueId { get; }
+        public bool IsHidden { get; set; }
 
-        public ActiveStage(StageFullInfoDto stageFullInfo, ILogger logger, IFramework framework, FileDownloadManager fileDownloadManager, FileCacheManager fileCacheManager, IpcCallerStagehand ipcCallerStagehand, ICompressedAlternateManager compressedAlternateManager)
+        public ActiveStage(StageFullInfoDto stageFullInfo, bool isHidden, ILogger logger, IFramework framework, FileDownloadManager fileDownloadManager, FileCacheManager fileCacheManager, IpcCallerStagehand ipcCallerStagehand, ICompressedAlternateManager compressedAlternateManager)
         {
+            IsHidden = isHidden;
             StageFullInfo = stageFullInfo;
             _logger = logger;
             _framework = framework;
@@ -467,7 +472,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
     }
 
     private readonly IFramework _framework;
-    private readonly MareConfigService _mareConfigService;
+    private readonly StageConfigService _stageConfigService;
     private readonly ApiController _apiController;
     private readonly FileCacheManager _fileCacheManager;
     private readonly IpcCallerStagehand _ipcCallerStagehand;
@@ -478,11 +483,11 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
     private int _stageDisplayEnabled = 0;
     public bool IsStageDisplayEnabled => _stageDisplayEnabled == 1;
 
-    public StageDisplayService(ILogger<StageDisplayService> logger, MareMediator mediator, IFramework framework, MareConfigService mareConfigService, ApiController apiController, FileCacheManager fileCacheManager, IpcCallerStagehand ipcCallerStagehand, FileDownloadManagerFactory fileDownloadManagerFactory, ICompressedAlternateManager compressedAlternateManager)
+    public StageDisplayService(ILogger<StageDisplayService> logger, MareMediator mediator, IFramework framework, StageConfigService stageConfigService, ApiController apiController, FileCacheManager fileCacheManager, IpcCallerStagehand ipcCallerStagehand, FileDownloadManagerFactory fileDownloadManagerFactory, ICompressedAlternateManager compressedAlternateManager)
         : base(logger, mediator)
     {
         _framework = framework;
-        _mareConfigService = mareConfigService;
+        _stageConfigService = stageConfigService;
         _apiController = apiController;
         _fileCacheManager = fileCacheManager;
         _ipcCallerStagehand = ipcCallerStagehand;
@@ -500,6 +505,34 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
         var result = _activeStages.TryGetValue(stageId, out var activeStageImpl);
         activeStage = activeStageImpl;
         return result;
+    }
+
+    public void SetStageHidden(string stageId, bool hidden)
+    {
+        if (hidden)
+        {
+            if (_stageConfigService.Current.HiddenStageIds.Add(stageId))
+            {
+                if (_activeStages.TryGetValue(stageId, out var activeStage) && !activeStage.IsHidden)
+                {
+                    activeStage.IsHidden = true;
+                    _ = activeStage.UnloadAsync();
+                }
+                _stageConfigService.Save();
+            }
+        }
+        else
+        {
+            if (_stageConfigService.Current.HiddenStageIds.Remove(stageId))
+            {
+                if (_activeStages.TryGetValue(stageId, out var activeStage) && activeStage.IsHidden)
+                {
+                    activeStage.IsHidden = false;
+                    _ = activeStage.LoadAsync();
+                }
+                _stageConfigService.Save();
+            }
+        }
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -560,14 +593,17 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
             if (StageIsInLocation(stage.State, currentLocation))
             {
                 var activeStage = _activeStages.AddOrUpdate(stage.SID,
-                    _ => new ActiveStage(stage, Logger, _framework, _fileDownloadManagerFactory.Create(), _fileCacheManager, _ipcCallerStagehand, _compressedAlternateManager),
+                    _ => new ActiveStage(stage, _stageConfigService.Current.HiddenStageIds.Contains(stage.SID), Logger, _framework, _fileDownloadManagerFactory.Create(), _fileCacheManager, _ipcCallerStagehand, _compressedAlternateManager),
                     (sid, liveStage) =>
                     {
                         // By updating the StageFullInfo, the next call to LoadAsync will reload the stage if its contents have been updated
                         liveStage.StageFullInfo = stage;
                         return liveStage;
                     });
-                _ = activeStage.LoadAsync();
+                if (!activeStage.IsHidden)
+                {
+                    _ = activeStage.LoadAsync();
+                }
             }
         }
     }
@@ -614,7 +650,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
     {
         var isConnected = _apiController.IsConnected;
         var isApiAvailable = _ipcCallerStagehand.APIAvailable;
-        var isFeatureEnabled = _mareConfigService.Current.EnableStageFeatures;
+        var isFeatureEnabled = _stageConfigService.Current.EnableStageFeatures;
 
         var isEnabled = isConnected && isApiAvailable && isFeatureEnabled;
 
@@ -666,14 +702,17 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
                 foreach (var stage in stages)
                 {
                     var activeStage = _activeStages.AddOrUpdate(stage.SID,
-                        _ => new ActiveStage(stage, Logger, _framework, _fileDownloadManagerFactory.Create(), _fileCacheManager, _ipcCallerStagehand, _compressedAlternateManager),
+                        _ => new ActiveStage(stage, _stageConfigService.Current.HiddenStageIds.Contains(stage.SID), Logger, _framework, _fileDownloadManagerFactory.Create(), _fileCacheManager, _ipcCallerStagehand, _compressedAlternateManager),
                         (sid, liveStage) =>
                         {
                             // By updating the StageFullInfo, the next call to LoadAsync will reload the stage if its contents have been updated
                             liveStage.StageFullInfo = stage;
                             return liveStage;
                         });
-                    stageLoadTasks.Add(activeStage.LoadAsync());
+                    if (!activeStage.IsHidden)
+                    {
+                        stageLoadTasks.Add(activeStage.LoadAsync());
+                    }
                 }
 
                 await Task.WhenAll(stageLoadTasks).ConfigureAwait(false);

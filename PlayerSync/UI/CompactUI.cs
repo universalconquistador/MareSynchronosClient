@@ -33,6 +33,7 @@ public class CompactUi : WindowMediatorSubscriberBase
 {
     private readonly ApiController _apiController;
     private readonly MareConfigService _configService;
+    private readonly StageConfigService _stageConfigService;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfig;
     private readonly ConcurrentDictionary<DownloadBatchInfo, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
@@ -63,7 +64,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private bool _wasOpen;
     private float _windowContentWidth;
 
-    public CompactUi(ILogger<CompactUi> logger, UiSharedService uiShared, MareConfigService configService, ZoneSyncConfigService zoneSyncConfigService,
+    public CompactUi(ILogger<CompactUi> logger, UiSharedService uiShared, MareConfigService configService, StageConfigService stageConfigService, ZoneSyncConfigService zoneSyncConfigService,
         ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager,
         ServerConfigurationManager serverManager, MareMediator mediator, FileUploadManager fileTransferManager,
         TagHandler tagHandler, DrawEntityFactory drawEntityFactory, SelectTagForPairUi selectTagForPairUi, SelectPairForTagUi selectPairForTagUi,
@@ -73,6 +74,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     {
         _uiSharedService = uiShared;
         _configService = configService;
+        _stageConfigService = stageConfigService;
         _apiController = apiController;
         _pairManager = pairManager;
         _zoneSyncConfigService = zoneSyncConfigService;
@@ -88,7 +90,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         _characterAnalyzer = characterAnalyzer;
         _serverConfigurationManager = serverConfigurationManager;
         _pairRequestManager = pairRequestManager;
-        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _serverConfigurationManager, _zoneSyncConfigService, _pairRequestManager, _ipcManager);
+        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _stageConfigService, _serverConfigurationManager, _zoneSyncConfigService, _pairRequestManager, _ipcManager);
 
         AllowClickthrough = false;
         TitleBarButtons = new()
@@ -288,7 +290,7 @@ public class CompactUi : WindowMediatorSubscriberBase
 
         _broadcastsFolder?.Draw();
 
-        if (_configService.Current.EnableStageFeatures)
+        if (_stageConfigService.Current.EnableStageFeatures)
         {
             _stagesFolder.Draw();
         }

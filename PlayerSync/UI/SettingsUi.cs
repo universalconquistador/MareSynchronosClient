@@ -33,6 +33,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private readonly ApiController _apiController;
     private readonly CacheMonitor _cacheMonitor;
     private readonly MareConfigService _configService;
+    private readonly StageConfigService _stageConfigService;
     private readonly ConcurrentDictionary<DownloadBatchInfo, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly HttpClient _httpClient;
