@@ -103,34 +103,11 @@ public class DrawFolderStages
         string ownerDisplayName;
         if (ownedByGroup)
         {
-            var ownerGroup = _pairManager.Groups.FirstOrDefault(pair => pair.Key.GID == activeStage.StageFullInfo.Info.GroupOwnerGID).Value;
-            if (ownerGroup != null)
-            {
-                ownerDisplayName = _idDisplayHandler.GetGroupText(ownerGroup).text;
-            }
-            else
-            {
-                ownerDisplayName = activeStage.StageFullInfo.Info.GroupOwnerGID;
-            }
+            ownerDisplayName = _idDisplayHandler.GetGroupAlias(activeStage.StageFullInfo.Info.GroupOwnerGID, _pairManager);
         }
         else
         {
-            if (activeStage.StageFullInfo.Info.UserOwnerUID == _apiController.UID)
-            {
-                ownerDisplayName = _apiController.DisplayName;
-            }
-            else
-            {
-                var ownerPair = _pairManager.GetPairByUID(activeStage.StageFullInfo.Info.UserOwnerUID);
-                if (ownerPair != null)
-                {
-                    ownerDisplayName = _idDisplayHandler.GetPlayerText(ownerPair).text;
-                }
-                else
-                {
-                    ownerDisplayName = activeStage.StageFullInfo.Info.UserOwnerUID;
-                }
-            }
+            ownerDisplayName = _idDisplayHandler.GetUserAlias(activeStage.StageFullInfo.Info.UserOwnerUID, _apiController, _pairManager);
         }
 
         using (ImRaii.PushId(activeStage.StageFullInfo.SID))

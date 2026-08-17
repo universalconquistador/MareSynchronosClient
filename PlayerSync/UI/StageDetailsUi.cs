@@ -11,6 +11,7 @@ using MareSynchronos.Interop.Ipc;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
 using MareSynchronos.WebAPI.Files;
 using Microsoft.Extensions.Logging;
@@ -30,6 +31,8 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly IpcManager _ipcManager;
     private readonly FileUploadManager _fileUploadManager;
+    private readonly UiSharedService _uiSharedService;
+    private readonly IdDisplayHandler _idDisplayHandler;
     private readonly IClientState _clientState;
     private readonly IPlayerState _playerState;
 
@@ -79,7 +82,12 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
 
     private bool _isSaving = false;
 
-    public StageDetailsUi(ILogger<StageDetailsUi> logger, MareMediator mediator, PerformanceCollectorService performanceCollector, StageFullInfoDto? startingStageInfo, string? owningGroupId, ApiController apiController, PairManager pairManager, IpcManager ipcManager, FileUploadManager fileUploadManager, IClientState clientState, IPlayerState playerState)
+    private const float WindowWidth = 800.0f;
+
+    public StageDetailsUi(ILogger<StageDetailsUi> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
+        StageFullInfoDto? startingStageInfo, string? owningGroupId, ApiController apiController, PairManager pairManager,
+        IpcManager ipcManager, FileUploadManager fileUploadManager, UiSharedService uiSharedService, IdDisplayHandler idDisplayHandler,
+        IClientState clientState, IPlayerState playerState)
         : base(logger, mediator, $"{startingStageInfo?.Customize.DisplayName ?? "New Stage"}###StageDetails{Guid.NewGuid()}", performanceCollector)
     {
         StageInfo = startingStageInfo;
@@ -87,10 +95,12 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         _pairManager = pairManager;
         _ipcManager = ipcManager;
         _fileUploadManager = fileUploadManager;
+        _uiSharedService = uiSharedService;
+        _idDisplayHandler = idDisplayHandler;
         _clientState = clientState;
         _playerState = playerState;
 
-        _groups = _pairManager.Groups.Select(pair => new GroupPresence(pair.Key.GID, pair.Key.AliasOrGID, pair.Value.OwnerUID == _apiController.UID || pair.Value.GroupUserInfo.HasFlag(GroupPairUserInfo.IsModerator))).ToArray();
+        _groups = _pairManager.Groups.OrderBy(group => group.Key.AliasOrGID, StringComparer.CurrentCultureIgnoreCase).Select(pair => new GroupPresence(pair.Key.GID, pair.Key.AliasOrGID, pair.Value.OwnerUID == _apiController.UID || pair.Value.GroupUserInfo.HasFlag(GroupPairUserInfo.IsModerator))).ToArray();
         if (owningGroupId != null)
         {
             _newStageOwner = _groups.FirstOrDefault(group => group.GroupId == owningGroupId);
@@ -98,8 +108,12 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
 
         SizeConstraints = new()
         {
-            MinimumSize = new(600.0f, 800.0f),
+            MinimumSize = new(WindowWidth, Single.MinValue),
+            MaximumSize = new(WindowWidth, Single.MinValue),
         };
+        Size = new(WindowWidth, Single.MinValue);
+        SizeCondition = ImGuiCond.Always;
+        Flags |= ImGuiWindowFlags.AlwaysAutoResize;
 
         if (StageInfo == null && StageLocation.TryGetLocation(_clientState, _playerState, out var location))
         {
@@ -121,6 +135,12 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
             || (StageInfo.Info.GroupOwnerGID != "" && _groups.Any(group => group.GroupId == StageInfo.Info.GroupOwnerGID && group.IsOwnerOrModerator));
     }
 
+    public override void PreDraw()
+    {
+        base.PreDraw();
+        ImGui.SetNextWindowPos(ImGui.GetWindowViewport().WorkSize / 2 - new Vector2(WindowWidth, 400.0f) / 2, ImGuiCond.FirstUseEver);
+    }
+
     public override void OnClose()
     {
         base.OnClose();
@@ -132,28 +152,13 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         using var __ = ImRaii.Disabled(_isSaving);
 
         // Heading: display name or SID
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 6.0f * ImGuiHelpers.GlobalScale);
+        _uiSharedService.IconText(FontAwesomeIcon.MapMarkerAlt);
+        ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 6.0f * ImGuiHelpers.GlobalScale);
         if (StageInfo != null)
         {
-            var startX = ImGui.GetCursorPosX();
-
-            if (HasEditPermissions)
-            {
-                ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
-                using (ImRaii.Disabled(!ImGui.IsKeyDown(ImGuiKey.LeftCtrl)))
-                {
-                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)) && !_isSaving)
-                    {
-                        _isSaving = true;
-                        _ = DeleteStageAsync();
-                    }
-                    UiSharedService.AttachToolTip("Delete Stage" + UiSharedService.TooltipSeparator + "Hold Ctrl to enable");
-                }
-
-                ImGui.SameLine();
-                ImGui.SetCursorPosX(startX);
-            }
-
-            using (ImRaii.TextWrapPos(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemInnerSpacing.X))
+            using (_uiSharedService.HeaderFont.Push())
             {
                 ImGui.TextWrapped(String.IsNullOrEmpty(StageInfo.Customize.DisplayName) ? StageInfo.SID : StageInfo.Customize.DisplayName);
             }
@@ -163,30 +168,115 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
             {
                 ImGui.SetClipboardText(StageInfo.SID);
             }
+
+            string locationString = _uiSharedService.LocationToString(
+                StageInfo.State.LocationWorldId,
+                StageInfo.State.LocationTerritoryId,
+                StageInfo.State.LocationWardId,
+                StageInfo.State.LocationDivisionId,
+                StageInfo.State.LocationHouseId,
+                StageInfo.State.LocationHouseId);
+            ImGui.TextWrapped(locationString);
+            UiSharedService.AttachToolTip(locationString + UiSharedService.TooltipSeparator + "Click to copy location");
+            if (ImGui.IsItemClicked())
+            {
+                ImGui.SetClipboardText(locationString);
+            }
+
             if (!String.IsNullOrEmpty(StageInfo.Info.GroupOwnerGID))
             {
-                ImGui.TextUnformatted($"By Syncshell {StageInfo.Info.GroupOwnerGID}");
+                string groupDisplayName = _idDisplayHandler.GetGroupAlias(StageInfo.Info.GroupOwnerGID, _pairManager);
+                ImGui.Text($"{groupDisplayName}{(groupDisplayName.EndsWith('s') ? "'" : "'s")} stage");
                 var groupClicked = ImGui.IsItemClicked();
-                UiSharedService.AttachToolTip("Click to copy Syncshell ID");
+                UiSharedService.AttachToolTip(groupDisplayName + UiSharedService.TooltipSeparator + "Click to copy Syncshell ID");
                 if (groupClicked)
                 {
-                    ImGui.SetClipboardText(StageInfo.Info.GroupOwnerGID);
+                    ImGui.SetClipboardText(groupDisplayName);
                 }
+                ImGui.SameLine(0.0f, 0.0f);
+                ImGui.TextDisabled(" visible to " + StageInfo.Customize.Visibility switch { StageVisibility.OwnersOnly => "syncshell owner & moderators", StageVisibility.DirectPairs => "syncshell members (excluding guests)", StageVisibility.AllPairs => "all syncshell members", StageVisibility.Everyone => "everyone", _ => "" });
             }
             else
             {
-                ImGui.TextUnformatted($"By User {StageInfo.Info.UserOwnerUID}");
+                string userDisplayName = _idDisplayHandler.GetUserAlias(StageInfo.Info.UserOwnerUID, _apiController, _pairManager);
+                ImGui.Text($"{userDisplayName}'s stage");
                 var userClicked = ImGui.IsItemClicked();
-                UiSharedService.AttachToolTip("Click to copy User ID");
+                UiSharedService.AttachToolTip(userDisplayName + UiSharedService.TooltipSeparator + "Click to copy User ID");
                 if (userClicked)
                 {
-                    ImGui.SetClipboardText(StageInfo.Info.UserOwnerUID);
+                    ImGui.SetClipboardText(userDisplayName);
                 }
+                ImGui.SameLine(0.0f, 0.0f);
+                ImGui.TextDisabled(" visible to " + StageInfo.Customize.Visibility switch { StageVisibility.OwnersOnly => "owner", StageVisibility.DirectPairs => "direct pairs", StageVisibility.AllPairs => "all pairs (excluding zone syncshell)", StageVisibility.Everyone => "everyone", _ => "" });
+            }
+
+            ImGuiHelpers.ScaledDummy(2.0f);
+            ImGui.Separator();
+            ImGuiHelpers.ScaledDummy(2.0f);
+
+            if (HasEditPermissions)
+            {
+                using (ImRaii.Disabled(IsEditingContents || IsEditingCustomization || IsEditingState))
+                {
+                    if (ImGui.Button("Edit Info"u8))
+                    {
+                        IsEditingCustomization = true;
+                    }
+                    ImGui.SameLine();
+                    if (ImGui.Button("Update Stage"u8))
+                    {
+                        IsEditingContents = true;
+                    }
+                    ImGui.SameLine();
+                    if (ImGui.Button("Edit Location"u8))
+                    {
+                        IsEditingState = true;
+                    }
+                }
+                ImGui.SameLine();
+                using (ImRaii.Disabled(!ImGui.IsKeyDown(ImGuiKey.LeftCtrl)))
+                {
+                    if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Trash, "Delete Stage") && !_isSaving)
+                    {
+                        _isSaving = true;
+                        _ = DeleteStageAsync();
+                    }
+                }
+                UiSharedService.AttachToolTip("Delete Stage" + UiSharedService.TooltipSeparator + "Hold Ctrl to enable");
+                ImGuiHelpers.ScaledDummy(5.0f);
+            }
+
+            if (!IsEditingContents && !IsEditingCustomization && !IsEditingState)
+            {
+                if (StageInfo.Customize.Description != "")
+                {
+                    ImGui.TextWrapped(StageInfo.Customize.Description);
+                    ImGuiHelpers.ScaledDummy(2.0f);
+                }
+                if (StageInfo.Customize.Author != "" && StageInfo.Customize.Version == "")
+                {
+                    ImGui.TextUnformatted($"By {StageInfo.Customize.Author}");
+                    ImGui.SameLine();
+                }
+                else if (StageInfo.Customize.Author == "" && StageInfo.Customize.Version != "")
+                {
+                    ImGui.TextUnformatted($"Version {StageInfo.Customize.Version}");
+                    ImGui.SameLine();
+                }
+                else if (StageInfo.Customize.Author != "" && StageInfo.Customize.Version != "")
+                {
+                    ImGui.TextUnformatted($"By {StageInfo.Customize.Author}, version {StageInfo.Customize.Version}");
+                    ImGui.SameLine();
+                }
+                ImGui.TextDisabled($"updated {StageInfo.Contents.RevisionDateUtc.ToLocalTime().ToString("g")}");
             }
         }
         else
         {
-            ImGui.TextWrapped("New Stage"u8);
+            using (_uiSharedService.HeaderFont.Push())
+            {
+                ImGui.TextWrapped("New Stage"u8);
+            }
             using (var combo = ImRaii.Combo("Owner"u8, _newStageOwner?.GroupIdOrAlias ?? "(Personal)"))
             {
                 if (combo.Success)
@@ -207,17 +297,27 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                     }
                 }
             }
+            ImGuiHelpers.ScaledDummy(5.0f);
         }
-        ImGuiHelpers.ScaledDummy(5.0f);
 
-        DrawContentsSection();
-        ImGuiHelpers.ScaledDummy(5.0f);
+        // For some reason the automatic input item width breaks with auto sizing windows
+        using (ImRaii.ItemWidth(ImGui.GetContentRegionAvail().X * 0.666f))
+        {
+            if (StageInfo == null || IsEditingContents)
+            {
+                DrawContentsSection();
+            }
 
-        DrawCustomizeSection();
-        ImGuiHelpers.ScaledDummy(5.0f);
+            if (StageInfo == null || IsEditingCustomization)
+            {
+                DrawCustomizeSection();
+            }
 
-        DrawStateSection();
-        ImGuiHelpers.ScaledDummy(5.0f);
+            if (StageInfo == null || IsEditingState)
+            {
+                DrawStateSection();
+            }
+        }
 
         if (StageInfo == null)
         {
@@ -383,8 +483,8 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
 
     private void DrawContentsSection()
     {
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("Contents"u8);
+        _uiSharedService.HeaderText("Update Stage");
+        ImGuiHelpers.ScaledDummy(3.0f);
 
         if (StageInfo == null || IsEditingContents)
         {
@@ -428,9 +528,11 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         {
             if (IsEditingContents)
             {
+                ImGuiHelpers.ScaledDummy(5.0f);
+
                 using (ImRaii.Disabled(_newStageDefinition == null))
                 {
-                    if (ImGui.Button("Save Contents"u8) && _newStageDefinition != null && !_isSaving)
+                    if (ImGui.Button("Save Stage"u8) && _newStageDefinition != null && !_isSaving)
                     {
                         _isSaving = true;
                         _ = UpdateContentsAsync(_newStageDefinition, new Progress<string>(message => _updateContentsStatus = message));
@@ -447,21 +549,12 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                     IsEditingContents = false;
                 }
             }
-            else if (HasEditPermissions)
-            {
-                if (ImGui.Button("Edit Contents"u8))
-                {
-                    IsEditingContents = true;
-                }
-            }
 
             if (_updateContentsError != null)
             {
                 ImGui.TextColoredWrapped(ImGuiColors.ErrorForeground, _updateContentsError);
             }
         }
-
-        ImGui.Separator();
     }
 
     private async Task UpdateContentsAsync(StageDefinition definition, IProgress<string> progress)
@@ -522,8 +615,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
 
     private void DrawCustomizeSection()
     {
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("Customize"u8);
+        _uiSharedService.HeaderText("Info");
 
         if (_newStageDefinition != null && IsEditingCustomization)
         {
@@ -540,6 +632,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
             }
             UiSharedService.AttachToolTip("Load from Stage" + UiSharedService.TooltipSeparator + $"Use the name, version, author, and description from the selected stage:\n{_newStageDefinition.Info.Name}");
         }
+        ImGuiHelpers.ScaledDummy(3.0f);
 
         DrawEnumProperty("Visibility"u8, ref _visibility, IsEditingCustomization);
         DrawStringProperty("Name"u8, ref _displayName, IsEditingCustomization);
@@ -551,7 +644,9 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         {
             if (IsEditingCustomization)
             {
-                if (ImGui.Button("Save Customization"u8) && !_isSaving)
+                ImGuiHelpers.ScaledDummy(5.0f);
+
+                if (ImGui.Button("Save Info"u8) && !_isSaving)
                 {
                     _isSaving = true;
                     var newCustomization = new StageCustomizeDto();
@@ -565,21 +660,12 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                     IsEditingCustomization = false;
                 }
             }
-            else if (HasEditPermissions)
-            {
-                if (ImGui.Button("Edit Customization"u8))
-                {
-                    IsEditingCustomization = true;
-                }
-            }
 
             if (_updateCustomizeError != null)
             {
                 ImGui.TextColoredWrapped(ImGuiColors.ErrorForeground, _updateCustomizeError);
             }
         }
-
-        ImGui.Separator();
     }
 
     private async Task UpdateCustomizeAsync(StageCustomizeDto newCustomization)
@@ -607,8 +693,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
 
     private void DrawStateSection()
     {
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("State"u8);
+        _uiSharedService.HeaderText("Location");
 
         if (StageInfo == null || IsEditingState)
         {
@@ -629,6 +714,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
             }
             UiSharedService.AttachToolTip("Use Current Location" + UiSharedService.TooltipSeparator + $"Use the World, territory, ward, division, house, and room.");
         }
+        ImGuiHelpers.ScaledDummy(3.0f);
 
         DrawIntProperty("World"u8, ref _locationWorldId, IsEditingState);
         DrawIntProperty("Territory"u8, ref _locationTerritoryId, IsEditingState);
@@ -637,17 +723,22 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         DrawIntProperty("House"u8, ref _locationHouseId, IsEditingState);
         DrawIntProperty("Room"u8, ref _locationRoomId, IsEditingState);
 
+        // Disabled until support is added to Stagehand
+#if false
         ImGuiHelpers.ScaledDummy(5.0f);
 
         DrawVector3Property("Translation"u8, ref _translation, IsEditingState);
         DrawVector4Property("Rotation Quaternion"u8, ref _rotationQuaternion, IsEditingState);
         DrawFloatProperty("Scale", ref _uniformScale, IsEditingState);
+#endif
 
         if (StageInfo != null)
         {
             if (IsEditingState)
             {
-                if (ImGui.Button("Save State"u8) && !_isSaving)
+                ImGuiHelpers.ScaledDummy(5.0f);
+
+                if (ImGui.Button("Save Location"u8) && !_isSaving)
                 {
                     _isSaving = true;
                     var newState = new StageStateDto();
@@ -661,21 +752,12 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                     IsEditingState = false;
                 }
             }
-            else if (HasEditPermissions)
-            {
-                if (ImGui.Button("Edit State"u8))
-                {
-                    IsEditingState = true;
-                }
-            }
 
             if (_updateStateError != null)
             {
                 ImGui.TextColoredWrapped(ImGuiColors.ErrorForeground, _updateStateError);
             }
         }
-
-        ImGui.Separator();
     }
 
     private async Task UpdateStateAsync(StageStateDto newState)
@@ -843,10 +925,5 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         {
             ImGui.InputFloat4(label, ref value);
         }
-    }
-
-    private void DrawApiTest()
-    {
-        //if (ImGui.CollapsingHeader(""))
     }
 }

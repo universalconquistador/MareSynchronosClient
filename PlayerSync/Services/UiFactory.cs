@@ -89,6 +89,6 @@ public class UiFactory
 
     public StageDetailsUi CreateStageDetailsUi(StageFullInfoDto? startingStageInfo, string? owningGroupId)
     {
-        return new StageDetailsUi(_loggerFactory.CreateLogger<StageDetailsUi>(), _mareMediator, _performanceCollectorService, startingStageInfo, owningGroupId, _apiController, _pairManager, _ipcManager, _fileUploadManager, _clientState, _playerState);
+        return new StageDetailsUi(_loggerFactory.CreateLogger<StageDetailsUi>(), _mareMediator, _performanceCollectorService, startingStageInfo, owningGroupId, _apiController, _pairManager, _ipcManager, _fileUploadManager, _uiSharedService, _idDisplayHandler, _clientState, _playerState);
     }
 }

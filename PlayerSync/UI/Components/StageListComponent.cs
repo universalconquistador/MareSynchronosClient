@@ -6,7 +6,6 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto.Stage;
-using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.Handlers;
@@ -155,39 +154,17 @@ public class StageListComponent
             }
         }
 
-        string ownerText;
-        if (stageInfo.Info.GroupOwnerGID == "")
+        bool ownedByGroup = stageInfo.Info.GroupOwnerGID != "";
+        string ownerDisplayName;
+        if (ownedByGroup)
         {
-            if (stageInfo.Info.UserOwnerUID == _apiController.UID)
-            {
-                ownerText = _apiController.DisplayName;
-            }
-            else
-            {
-                var ownerPair = _pairManager.GetPairByUID(stageInfo.Info.UserOwnerUID);
-                if (ownerPair != null)
-                {
-                    ownerText = _idDisplayHandler.GetPlayerText(ownerPair).text;
-                }
-                else
-                {
-                    ownerText = stageInfo.Info.UserOwnerUID;
-                }
-            }
+            ownerDisplayName = _idDisplayHandler.GetGroupAlias(stageInfo.Info.GroupOwnerGID, _pairManager);
         }
         else
         {
-            var ownerGroup = _pairManager.Groups.FirstOrDefault(pair => pair.Key.GID == stageInfo.Info.GroupOwnerGID).Value;
-            if (ownerGroup != null)
-            {
-                ownerText = _idDisplayHandler.GetGroupText(ownerGroup).text;
-            }
-            else
-            {
-                ownerText = stageInfo.Info.GroupOwnerGID;
-            }
+            ownerDisplayName = _idDisplayHandler.GetUserAlias(stageInfo.Info.UserOwnerUID, _apiController, _pairManager);
         }
-        ImGui.TextDisabled(ownerText);
+        ImGui.TextDisabled(ownerDisplayName);
         ImGui.SameLine();
         ImGui.TextDisabled($"(updated {stageInfo.Contents.RevisionDateUtc.ToLocalTime().ToString("g")})");
 
