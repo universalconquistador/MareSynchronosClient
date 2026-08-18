@@ -5,15 +5,18 @@ using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Data;
 using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
-using CharacterData = MareSynchronos.PlayerData.Data.CharacterData;
+
 
 namespace MareSynchronos.PlayerData.Factories;
 
 public class PlayerDataFactory
 {
+    private static readonly TimeSpan ReportErrorIntervalMinutes = TimeSpan.FromMinutes(5);
+
     private readonly DalamudUtilService _dalamudUtil;
     private readonly FileCacheManager _fileCacheManager;
     private readonly IpcManager _ipcManager;
@@ -22,6 +25,8 @@ public class PlayerDataFactory
     private readonly XivDataAnalyzer _modelAnalyzer;
     private readonly MareMediator _mareMediator;
     private readonly TransientResourceManager _transientResourceManager;
+
+    private DateTimeOffset _nextErrorTime = DateTimeOffset.MinValue;
 
     public PlayerDataFactory(ILogger<PlayerDataFactory> logger, DalamudUtilService dalamudUtil, IpcManager ipcManager,
         TransientResourceManager transientResourceManager, FileCacheManager fileReplacementFactory,
@@ -86,7 +91,14 @@ public class PlayerDataFactory
         }
         catch (Exception e)
         {
-            _logger.LogWarning(e, "Failed to create {object} data", playerRelatedObject);
+            _logger.LogError(e, "Failed to create {object} data", playerRelatedObject);
+
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (now > _nextErrorTime)
+            {
+                _nextErrorTime = now.Add(ReportErrorIntervalMinutes);
+                _mareMediator.Publish(new NotificationMessage("Character Data Failed", "One or more errors occurred when creating character data. Check the /xllog for more details.", NotificationType.Error));
+            }
         }
 
         return null;
@@ -110,7 +122,7 @@ public class PlayerDataFactory
         _logger.LogDebug("Building character data for {obj}", playerRelatedObject);
 
         // wait until chara is not drawing and present so nothing spontaneously explodes
-        await _dalamudUtil.WaitWhileCharacterIsDrawing(_logger, playerRelatedObject, Guid.NewGuid(), 30000, ct: ct).ConfigureAwait(false);
+        await _dalamudUtil.WaitWhileCharacterIsDrawing(_logger, playerRelatedObject, Guid.NewGuid(), 30000, true, ct: ct).ConfigureAwait(false);
         int totalWaitTime = 10000;
         while (!await _dalamudUtil.IsObjectPresentAsync(await _dalamudUtil.CreateGameObjectAsync(playerRelatedObject.Address).ConfigureAwait(false)).ConfigureAwait(false) && totalWaitTime > 0)
         {
@@ -376,5 +388,28 @@ public class PlayerDataFactory
         }
 
         return pathsToResolve;
+    }
+
+    // TODO: This needs to be reworked for thread and memory safety
+    public async Task<string> GetAddonPluginPlayerData(PlayerChanges playerChanges)
+    {
+        switch (playerChanges)
+        {
+            case PlayerChanges.Honorific:
+                return await _ipcManager.Honorific.GetTitle().ConfigureAwait(false);
+
+            case PlayerChanges.Heels:
+                return await _ipcManager.Heels.GetOffsetAsync().ConfigureAwait(false);
+
+            case PlayerChanges.Moodles:
+                var playerChara = await _dalamudUtil.GetPlayerCharacterAsync().ConfigureAwait(false);
+                return await _ipcManager.Moodles.GetStatusAsync(playerChara.Address).ConfigureAwait(false) ?? string.Empty;
+
+            case PlayerChanges.PetNames:
+                return _ipcManager.PetNames.GetLocalNames();
+
+            default:
+                return string.Empty;
+        }
     }
 }

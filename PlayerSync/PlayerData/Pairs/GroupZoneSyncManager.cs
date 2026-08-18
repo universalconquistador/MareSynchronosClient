@@ -47,7 +47,6 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         _logger.LogDebug("ZoneSync manger started.");
 
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (__) => ScheduleGroupZoneSync());
-        Mediator.Subscribe<WorldChangeMessage>(this, (__) => ScheduleGroupZoneSync());
         Mediator.Subscribe<GroupZoneSetEnableState>(this, (msg) => _ = GroupZoneJoinEnabled(msg.isEnabled));
         Mediator.Subscribe<GroupZoneSyncUpdateMessage>(this, (__) => ScheduleGroupZoneSync());
 

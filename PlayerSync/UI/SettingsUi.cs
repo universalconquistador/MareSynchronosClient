@@ -130,6 +130,8 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
             _accountInfo = null;
             _retrieveAccountInfoTask = null;
         });
+        Mediator.Subscribe<PenumbraInitializedMessage>(this, (_) => _preloadModsDirty = true);
+        Mediator.Subscribe<PenumbraDisposedMessage>(this, (_) => _preloadModsDirty = true);
     }
 
     public CharacterData? LastCreatedCharacterData { private get; set; }
@@ -144,9 +146,13 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         DrawSettingsContent();
     }
 
+    /// <summary>Reloads state in SettingsUi.Transfers.cs.</summary>
+    partial void OnOpenTransfers();
+
     public override void OnOpen()
     {
         _uiShared.ResetOAuthTasksState();
+        OnOpenTransfers();
     }
 
     public override void OnClose()

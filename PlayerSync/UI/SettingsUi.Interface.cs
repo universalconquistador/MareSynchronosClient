@@ -69,7 +69,8 @@ public partial class SettingsUi
         var showCompactStats = _configService.Current.ShowCompactStats;
         var mysterySetting = _configService.Current.MysterySetting;
         var showProfileIcon = _configService.Current.ShowProfileIconByNames;
-        var softTargetOnPairHover = _configService.Current.SoftTargetPairsOnHover;
+        var targetOnPairHover = _configService.Current.TargetPairsOnHover;
+        var onHoverTargetType = _configService.Current.OnHoverTargetType;
         var singleClickPairPause = _configService.Current.NoPauseSubmenuForPairsOnMainUi;
 
         _uiShared.BigText("PlayerSync UI");
@@ -110,10 +111,32 @@ public partial class SettingsUi
             if (!showAnalysisOnUi) ImGui.EndDisabled();
         }
 
-        if (ImGui.Checkbox("SoftTarget players in game when moused over in the UI list", ref softTargetOnPairHover))
+        if (ImGui.Checkbox("Target players in game when moused over in the UI list", ref targetOnPairHover))
         {
-            _configService.Current.SoftTargetPairsOnHover = softTargetOnPairHover;
+            _configService.Current.TargetPairsOnHover = targetOnPairHover;
             _configService.Save();
+        }
+        _uiShared.DrawHelpText("Mousing over a UID or player name in a list such as a syncshell will target them in game.");
+        using (ImRaii.PushIndent(2))
+        {
+            using (ImRaii.Disabled(!targetOnPairHover))
+            {
+                if (ImGui.RadioButton("Focus target pairs on UI hover", ref onHoverTargetType, Services.Models.TargetType.FocusTarget))
+                {
+                    _configService.Current.OnHoverTargetType = onHoverTargetType;
+                    _configService.Save();
+                }
+                if (ImGui.RadioButton("Direct target pairs on UI hover", ref onHoverTargetType, Services.Models.TargetType.Target))
+                {
+                    _configService.Current.OnHoverTargetType = onHoverTargetType;
+                    _configService.Save();
+                }
+                if (ImGui.RadioButton("Soft target pairs on UI hover", ref onHoverTargetType, Services.Models.TargetType.SoftTarget))
+                {
+                    _configService.Current.OnHoverTargetType = onHoverTargetType;
+                    _configService.Save();
+                }
+            }
         }
 
         if (ImGui.Checkbox("Single-click pause pairs in UI list", ref singleClickPairPause))
@@ -278,6 +301,8 @@ public partial class SettingsUi
         var dtrColorsBroadcasting = _configService.Current.DtrColorsBroadcasting;
         var showNameHighlights = _configService.Current.ShowNameHighlights;
         var showFriendsHighlights = _configService.Current.IncludeFriendHighlights;
+        var colorNameInDungeons = _configService.Current.HighlightNamesWhileInDungeons;
+        var colorNameInPvp = _configService.Current.HighlightNamesWhileInPvP;
         var highlightNameColor = _configService.Current.NameHighlightColor;
         var permColorsEnabled = _configService.Current.PermsColorsEnabled;
         var permsColorsDisabled = _configService.Current.PermsColorsDisabled;
@@ -311,22 +336,39 @@ public partial class SettingsUi
 
         using (ImRaii.Disabled(!showNameHighlights))
         {
-            using var indent = ImRaii.PushIndent(2);
-            if (InputColorPicker("Name Color", ref highlightNameColor))
+            using (ImRaii.PushIndent(2))
             {
-                _configService.Current.NameHighlightColor = highlightNameColor;
-                _configService.Save();
-                Mediator.Publish(new RedrawNameplateMessage());
-            }
+                if (InputColorPicker("Name Color", ref highlightNameColor))
+                {
+                    _configService.Current.NameHighlightColor = highlightNameColor;
+                    _configService.Save();
+                    Mediator.Publish(new RedrawNameplateMessage());
+                }
 
-            if (ImGui.Checkbox("Include Friend List Names", ref showFriendsHighlights))
-            {
-                _configService.Current.IncludeFriendHighlights = showFriendsHighlights;
-                _configService.Save();
-                Mediator.Publish(new RedrawNameplateMessage());
-            }
-            _uiShared.DrawHelpText("This will also change the color of players on your Friend List.");
+                if (ImGui.Checkbox("Apply name color in dungeons", ref colorNameInDungeons))
+                {
+                    _configService.Current.HighlightNamesWhileInDungeons = colorNameInDungeons;
+                    _configService.Save();
+                    Mediator.Publish(new RedrawNameplateMessage());
+                }
+                _uiShared.DrawHelpText("This will change the pair name color while in instanced content.");
 
+                if (ImGui.Checkbox("Apply name color in PvP", ref colorNameInPvp))
+                {
+                    _configService.Current.HighlightNamesWhileInPvP = colorNameInPvp;
+                    _configService.Save();
+                    Mediator.Publish(new RedrawNameplateMessage());
+                }
+                _uiShared.DrawHelpText("This will change the pair name color while in PvP content.");
+
+                if (ImGui.Checkbox("Include Friend List Names", ref showFriendsHighlights))
+                {
+                    _configService.Current.IncludeFriendHighlights = showFriendsHighlights;
+                    _configService.Save();
+                    Mediator.Publish(new RedrawNameplateMessage());
+                }
+                _uiShared.DrawHelpText("This will also change the color of players on your Friend List.");
+            }
         }
 
         if (ImGui.Checkbox("Replace FC tags with PlayerSync permissions", ref showPermsOverFC))

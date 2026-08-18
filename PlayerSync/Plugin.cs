@@ -112,6 +112,10 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton<HubFactory>();
             collection.AddSingleton<FileUploadManager>();
             collection.AddSingleton<FileTransferOrchestrator>();
+            collection.AddSingleton((s) => new PreloaderService(
+                s.GetRequiredService<FileCacheManager>(), s.GetRequiredService<FileUploadManager>(),
+                s.GetRequiredService<IpcManager>(), s.GetRequiredService<MareMediator>(),
+                s.GetRequiredService<ILogger<PreloaderService>>()));
             collection.AddSingleton<MarePlugin>();
             collection.AddSingleton<MareProfileManager>();
             collection.AddSingleton<GameObjectHandlerFactory>();
@@ -152,11 +156,11 @@ public sealed class Plugin : IDalamudPlugin
                 clientState, objectTable, framework, gameGui, condition, gameData, targetManager, gameConfig, gameInteropProvider,
                 s.GetRequiredService<BlockedCharacterHandler>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<PerformanceCollectorService>(),
                 s.GetRequiredService<MareConfigService>()));
-            collection.AddSingleton(s => new PairManager(s.GetRequiredService<ILogger<PairManager>>(), s.GetRequiredService<PairFactory>(),
+            collection.AddSingleton(s => new PairManager(s.GetRequiredService<ILogger<PairManager>>(), s.GetRequiredService<PairFactory>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<IpcManager>(),
                 s.GetRequiredService<MareConfigService>(), s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<MareMediator>()));
             collection.AddSingleton<RedrawManager>();
             collection.AddSingleton(s => new NamePlateManagerService(s.GetRequiredService<ILogger<NamePlateManagerService>>(), s.GetRequiredService<MareMediator>(), 
-                namePlateGui, s.GetRequiredService<PairManager>(), s.GetRequiredService<MareConfigService>()));
+                namePlateGui, s.GetRequiredService<PairManager>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton<IBroadcastManager, BroadcastManager>(s => new BroadcastManager(s.GetRequiredService<ILogger<BroadcastManager>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton((s) => new GroupZoneSyncManager(s.GetRequiredService<ILogger<GroupZoneSyncManager>>(),
@@ -167,6 +171,8 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>()));
             collection.AddSingleton((s) => new JsonDataTypeHandlerService(s.GetRequiredService<ILogger<JsonDataTypeHandlerService>>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<IpcManager>(), chatGui));
+            collection.AddSingleton((s) => new PlayerIdleStatusService(s.GetRequiredService<ILogger<PlayerIdleStatusService>>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<DalamudUtilService>(),
+                s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton((s) => new PairContextMenuHandler(s.GetRequiredService<ILogger<PairContextMenuHandler>>(), s.GetRequiredService<MareMediator>(), contextMenu, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<ServerConfigurationManager>(), 
                 s.GetRequiredService<PairInviteManager>(), s.GetRequiredService<PlayerPerformanceConfigService>(), s.GetRequiredService<IpcManager>()));
@@ -266,9 +272,6 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<WindowSystem>(), s.GetServices<WindowMediatorSubscriberBase>(),
                 s.GetRequiredService<UiFactory>(),
                 s.GetRequiredService<FileDialogManager>(), s.GetRequiredService<MareMediator>()));
-            collection.AddScoped((s) => new PreloaderService(
-                s.GetRequiredService<FileCacheManager>(), s.GetRequiredService<FileUploadManager>(),
-                s.GetRequiredService<MareMediator>(), pluginLog));
             collection.AddScoped((s) => new CommandManagerService(commandManager, s.GetRequiredService<PerformanceCollectorService>(),
                 s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<CacheMonitor>(), s.GetRequiredService<ApiController>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<MareConfigService>(), s.GetRequiredService<ZoneSyncConfigService>(), chatGui, pluginLog));
@@ -294,6 +297,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddHostedService(p => p.GetRequiredService<PairContextMenuHandler>());
             collection.AddHostedService(p => p.GetRequiredService<JsonDataTypeHandlerService>());
             collection.AddHostedService(p => p.GetRequiredService<AnimationBindGuard>());
+            //collection.AddHostedService(p => p.GetRequiredService<PlayerIdleStatusService>());
             collection.AddHostedService<SkeletonMappingFix>();
         })
         .Build();

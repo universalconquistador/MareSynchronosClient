@@ -2,6 +2,7 @@
 using MareSynchronos.UI;
 using Microsoft.Extensions.Logging;
 using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.Services.Models;
 
 namespace MareSynchronos.MareConfiguration.Configurations;
 
@@ -93,6 +94,8 @@ public class MareConfig : IMareConfiguration
     public SeStringTextColors PermsColorsDisabled { get; set; } = new(Foreground: 0x0000FFu, Glow: 0x010101u);
     public bool ShowNameHighlights { get; set; } = false;
     public bool IncludeFriendHighlights { get; set; } = false;
+    public bool HighlightNamesWhileInDungeons { get; set; } = true;
+    public bool HighlightNamesWhileInPvP { get; set; } = true;
     public SeStringTextColors NameHighlightColor { get; set; } = new(Foreground: 0xBDD671u, Glow: 0x37501Du);
     public bool MysterySetting {  get; set; } = false;
     public bool InitialSetupOptions { get; set; } = false;
@@ -110,17 +113,17 @@ public class MareConfig : IMareConfiguration
     };
     public bool[] SPriority { get; set; } = new bool[5];
     public bool ShowProfileIconByNames { get; set; } = true;
-    public bool SoftTargetPairsOnHover { get; set; } = false;
+    public bool TargetPairsOnHover { get; set; } = true;
+    public TargetType OnHoverTargetType { get; set; } = TargetType.FocusTarget;
     public bool EnableValidationChecks { get; set; } = true;
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
     public bool LifestreamInvitesDirectPairsOnly { get; set; } = false;
-    public string LastPreloadPlaylistFolder { get; set; } = string.Empty;
+    public string LastPreloadMod { get; set; } = string.Empty;
     public bool NoPauseSubmenuForPairsOnMainUi { get; set; } = false;
-
-    // Experimentals
-    public bool UseQueuedCharacterDataApplication {  get; set; } = false;
-    public int MaxConcurrentApplications { get; set; } = 1;
-    public int CharacterIsDrawingTimeoutMilliseconds { get; set; } = 30000;
     public bool ShowFileUnableToSyncNotification { get; set; } = true;
+    public int MaxConcurrentApplications { get; set; } = 0;
+    public bool DisableIdleCheck { get; set; } = false;
+    public bool AutoPauseDataApplicationWhenPerforming {  get; set; } = true;
+    public int MaxUploadTimeMinutes { get; set; } = 10;
 }

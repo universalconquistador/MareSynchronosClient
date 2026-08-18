@@ -1,4 +1,5 @@
 ﻿using MareSynchronos.MareConfiguration;
+using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -27,20 +28,33 @@ namespace PlayerSync.FileCache
     /// <param name="LastChecked"></param>
     internal record struct CompressedAlternateEntry(string? AlternateHash, DateTimeOffset NextCheck);
 
-    internal class CompressedAlternateManager : IHostedService, ICompressedAlternateManager
+    internal class CompressedAlternateManager : MediatorSubscriberBase, IHostedService, ICompressedAlternateManager
     {
         // How many minutes until we re-ask the server whether there are any compressed alternates for a potentially
         // compressable file with no alternate yet
         private const float CacheLifespanMinutes = 2.0f;
 
-        private readonly ILogger _logger;
         private readonly MareConfigService _configService;
         private readonly ConcurrentDictionary<string, CompressedAlternateEntry> _entryDictionary = new(StringComparer.Ordinal);
+        private string? _fileServiceUrl = null;
 
-        public CompressedAlternateManager(ILogger<CompressedAlternateManager> logger, MareConfigService configService)
+        public CompressedAlternateManager(ILogger<CompressedAlternateManager> logger, MareConfigService configService, MareMediator mediator)
+            : base(logger, mediator)
         {
-            _logger = logger;
             _configService = configService;
+            Mediator.Subscribe<ConnectedMessage>(this, OnServiceConnected);
+        }
+
+        private void OnServiceConnected(ConnectedMessage message)
+        {
+            var newFileServiceUrl = message.Connection.ServerInfo.FileServerAddress.ToString();
+            if (_fileServiceUrl != null && _fileServiceUrl != newFileServiceUrl)
+            {
+                Logger.LogDebug("Clearing comp alt cache because connecting to a different file server.");
+                _entryDictionary.Clear();
+            }
+
+            _fileServiceUrl = newFileServiceUrl;
         }
 
         public void SetCompressedAlternate(string sourceFileHash, string? compressedAlternateHash, bool neverWillHaveAlternate)
@@ -72,6 +86,7 @@ namespace PlayerSync.FileCache
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            UnsubscribeAll();
             return Task.CompletedTask;
         }
     }

@@ -150,6 +150,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     public string PlayerName => _dalamudUtil.PlayerName;
     public string PlayerTargetName => _dalamudUtil.TargetName;
     public string PlayerSoftTargetname => _dalamudUtil.SoftTargetName;
+    public string PlayerFocusTargetname => _dalamudUtil.FocusTargetName;
     public IFontHandle UidFont { get; init; }
     public IFontHandle HeaderFont { get; init; }
     public Dictionary<ushort, string> WorldData => _dalamudUtil.WorldData.Value;

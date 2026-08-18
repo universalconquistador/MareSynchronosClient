@@ -393,90 +393,90 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 (_, bytesDownloaded) => downloadTracker.TransferredBytes += bytesDownloaded,
                 (status) => downloadTracker.DownloadStatus = status,
                 async (hash, progress, statusCallback) =>
-            {
-                try
                 {
-                    statusCallback.Invoke(DownloadStatus.WaitingForSlot);
-                    await _orchestrator.WaitForDownloadSlotAsync(token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException ex)
-                {
-                    Logger.LogDebug("{hash}: Detected cancellation of file queued for direct download, canceling.", directDownload.Hash);
-                    ClearDownload();
-                    return;
-                }
-
-                var tempFilename = _fileDbManager.GetCacheFilePath(directDownload.Hash, "bin");
-                try
-                {
-                    // Download the compressed file directly
-                    statusCallback.Invoke(DownloadStatus.Downloading);
-
-                    DownloadDataCallback? munge = null;
-                    if (directDownload.MungeKey != null)
+                    try
                     {
-                        long mungeOffset = 0;
-                        byte[] mungeKeyBytes = Encoding.ASCII.GetBytes(directDownload.MungeKey);
-                        munge = span =>
-                        {
-                            for (int i = 0; i < span.Length; i++)
-                            {
-                                span[i] = (byte)(span[i] ^ mungeKeyBytes[mungeOffset]);
-                                mungeOffset = (mungeOffset + 1) % mungeKeyBytes.Length;
-                            }
-                        };
+                        statusCallback.Invoke(DownloadStatus.WaitingForSlot);
+                        await _orchestrator.WaitForDownloadSlotAsync(token).ConfigureAwait(false);
                     }
-    #if DEBUG
-                    Logger.LogDebug("Beginning direct download of {hash} from {url} with key {key}", directDownload.Hash, directDownload.DirectDownloadUrl!, directDownload.MungeKey ?? "<none>");
-    #else
+                    catch (OperationCanceledException ex)
+                    {
+                        Logger.LogDebug("{hash}: Detected cancellation of file queued for direct download, canceling.", directDownload.Hash);
+                        ClearDownload();
+                        return;
+                    }
+
+                    var tempFilename = _fileDbManager.GetCacheFilePath(directDownload.Hash, "bin");
+                    try
+                    {
+                        // Download the compressed file directly
+                        statusCallback.Invoke(DownloadStatus.Downloading);
+
+                        DownloadDataCallback? munge = null;
+                        if (directDownload.MungeKey != null)
+                        {
+                            long mungeOffset = 0;
+                            byte[] mungeKeyBytes = Encoding.ASCII.GetBytes(directDownload.MungeKey);
+                            munge = span =>
+                            {
+                                for (int i = 0; i < span.Length; i++)
+                                {
+                                    span[i] = (byte)(span[i] ^ mungeKeyBytes[mungeOffset]);
+                                    mungeOffset = (mungeOffset + 1) % mungeKeyBytes.Length;
+                                }
+                            };
+                        }
+#if DEBUG
+                        Logger.LogDebug("Beginning direct download of {hash} from {url} with key {key}", directDownload.Hash, directDownload.DirectDownloadUrl!, directDownload.MungeKey ?? "<none>");
+#else
                     Logger.LogDebug("Beginning direct download of {hash} from {url}", directDownload.Hash, directDownload.DirectDownloadUrl!);
-    #endif
-                    await DownloadFileThrottled(new Uri(directDownload.DirectDownloadUrl!), tempFilename, directDownload.Hash, progress, munge, token, withToken: false).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException ex)
-                {
-                    Logger.LogDebug("{hash}: Detected cancellation of direct download, discarding file.", directDownload.Hash);
-                    _orchestrator.ReleaseDownloadSlot();
-                    File.Delete(tempFilename);
-                    Logger.LogDebug(ex, "{hash}: Error during direct download.", directDownload.Hash);
-                    ClearDownload();
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    _orchestrator.ReleaseDownloadSlot();
-                    File.Delete(tempFilename);
-                    Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
-                    ClearDownload();
-                    return;
-                }
+#endif
+                        await DownloadFileThrottled(new Uri(directDownload.DirectDownloadUrl!), tempFilename, directDownload.Hash, progress, munge, token, withToken: false).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException ex)
+                    {
+                        Logger.LogDebug("{hash}: Detected cancellation of direct download, discarding file.", directDownload.Hash);
+                        _orchestrator.ReleaseDownloadSlot();
+                        File.Delete(tempFilename);
+                        Logger.LogDebug(ex, "{hash}: Error during direct download.", directDownload.Hash);
+                        ClearDownload();
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        _orchestrator.ReleaseDownloadSlot();
+                        File.Delete(tempFilename);
+                        Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
+                        ClearDownload();
+                        return;
+                    }
 
-                // Decompress from tempFilename to finalFilename
-                // TODO: Really we shouldn't stream to a temp file only to read it all into one buffer to decompress and write back out
-                statusCallback.Invoke(DownloadStatus.Decompressing);
+                    // Decompress from tempFilename to finalFilename
+                    // TODO: Really we shouldn't stream to a temp file only to read it all into one buffer to decompress and write back out
+                    statusCallback.Invoke(DownloadStatus.Decompressing);
 
-                try
-                {
-                    var fileExtension = fileReplacement.First(f => string.Equals(compressionSubstitutions.GetValueOrDefault(f.Hash, f.Hash), directDownload.Hash, StringComparison.OrdinalIgnoreCase)).GamePaths[0].Split(".")[^1];
-                    var finalFilename = _fileDbManager.GetCacheFilePath(directDownload.Hash, fileExtension);
-                    Logger.LogDebug("Decompressing direct download {hash} from {compressedFile} to {finalFile}", directDownload.Hash, tempFilename, finalFilename);
-                    byte[] compressedBytes = await File.ReadAllBytesAsync(tempFilename).ConfigureAwait(false);
-                    var decompressedBytes = LZ4Wrapper.Unwrap(compressedBytes);
-                    await _fileCompactor.WriteAllBytesAsync(finalFilename, decompressedBytes, CancellationToken.None).ConfigureAwait(false);
-                    PersistFileToStorage(directDownload.Hash, finalFilename);
-                    Logger.LogDebug("Finished direct download of {hash}.", directDownload.Hash);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "Exception downloading {hash} from {url}", directDownload.Hash, directDownload.DirectDownloadUrl!);
-                }
-                finally
-                {
-                    _orchestrator.ReleaseDownloadSlot();
-                    File.Delete(tempFilename);
-                }
+                    try
+                    {
+                        var fileExtension = fileReplacement.First(f => string.Equals(compressionSubstitutions.GetValueOrDefault(f.Hash, f.Hash), directDownload.Hash, StringComparison.OrdinalIgnoreCase)).GamePaths[0].Split(".")[^1];
+                        var finalFilename = _fileDbManager.GetCacheFilePath(directDownload.Hash, fileExtension);
+                        Logger.LogDebug("Decompressing direct download {hash} from {compressedFile} to {finalFile}", directDownload.Hash, tempFilename, finalFilename);
+                        byte[] compressedBytes = await File.ReadAllBytesAsync(tempFilename).ConfigureAwait(false);
+                        var decompressedBytes = LZ4Wrapper.Unwrap(compressedBytes);
+                        await _fileCompactor.WriteAllBytesAsync(finalFilename, decompressedBytes, CancellationToken.None).ConfigureAwait(false);
+                        PersistFileToStorage(directDownload.Hash, finalFilename);
+                        Logger.LogDebug("Finished direct download of {hash}.", directDownload.Hash);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(ex, "Exception downloading {hash} from {url}", directDownload.Hash, directDownload.DirectDownloadUrl!);
+                    }
+                    finally
+                    {
+                        _orchestrator.ReleaseDownloadSlot();
+                        File.Delete(tempFilename);
+                    }
 
-            }).ConfigureAwait(true);
+                }).ConfigureAwait(true);
             downloadTracker.TransferredFiles = 1;
         });
 

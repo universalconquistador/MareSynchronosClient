@@ -50,6 +50,7 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
     private readonly DeleteTemporaryCollection _penumbraRemoveTemporaryCollection;
     private readonly RemoveTemporaryMod _penumbraRemoveTemporaryMod;
     private readonly GetModDirectory _penumbraResolveModDir;
+    private readonly GetModList _penumbraGetModList;
     private readonly ResolvePlayerPathsAsync _penumbraResolvePaths;
     private readonly GetGameObjectResourcePaths _penumbraResourcePaths;
 
@@ -63,6 +64,7 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
         _penumbraInit = Initialized.Subscriber(pi, PenumbraInit);
         _penumbraDispose = Disposed.Subscriber(pi, PenumbraDispose);
         _penumbraResolveModDir = new GetModDirectory(pi);
+        _penumbraGetModList = new GetModList(pi);
         _penumbraRedraw = new RedrawObject(pi);
         _penumbraObjectIsRedrawn = GameObjectRedrawn.Subscriber(pi, RedrawEvent);
         _penumbraGetMetaManipulations = new GetPlayerMetaManipulations(pi);
@@ -129,6 +131,21 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
                     "Your Penumbra installation is not active or out of date. Update Penumbra and/or the Enable Mods setting in Penumbra to continue to use PlayerSync. If you just updated Penumbra, ignore this message.",
                     NotificationType.Error));
             }
+        }
+    }
+
+    public IReadOnlyDictionary<string, string> GetMods()
+    {
+        if (!APIAvailable) return new Dictionary<string, string>(StringComparer.Ordinal);
+
+        try
+        {
+            return _penumbraGetModList.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not read the Penumbra mod list");
+            return new Dictionary<string, string>(StringComparer.Ordinal);
         }
     }
 
@@ -258,8 +275,6 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
         await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            // science
-            //await _redrawManager.CoalescedRedrawAsync(logger, handler, applicationId, (chara) =>
             await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
             {
                 logger.LogDebug("[{appid}] Calling on IPC: PenumbraRedraw", applicationId);
@@ -288,15 +303,17 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
     {
         return await _penumbraResolvePaths.Invoke(forward, reverse).ConfigureAwait(false);
     }
-
-    public async Task SetManipulationDataAsync(ILogger logger, Guid applicationId, Guid collId, string manipulationData)
+    
+    public async Task SetManipulationDataAsync(ILogger logger, Guid applicationId, Guid collId, string manipulationData, string? uid = null)
     {
         if (!APIAvailable) return;
+
+        string modKey = uid == null ? "MareChara_Meta" : $"PS_{uid}_Meta";
 
         await _dalamudUtil.RunOnFrameworkThread(() =>
         {
             logger.LogTrace("[{applicationId}] Manip: {data}", applicationId, manipulationData);
-            var retAdd = _penumbraAddTemporaryMod.Invoke("MareChara_Meta", collId, [], manipulationData, 0);
+            var retAdd = _penumbraAddTemporaryMod.Invoke(modKey, collId, [], manipulationData, 0);
             logger.LogTrace("[{applicationId}] Setting temp meta mod for {collId}, Success: {ret}", applicationId, collId, retAdd);
         }).ConfigureAwait(false);
     }
@@ -305,7 +322,7 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
     {
         if (!APIAvailable) return;
 
-        string modKey = uid == null ? "MareChara_Files" : $"PS_{uid}";
+        string modKey = uid == null ? "MareChara_Files" : $"PS_{uid}_Files";
 
         await _dalamudUtil.RunOnFrameworkThread(() =>
         {
