@@ -89,15 +89,22 @@ public class PlayerDataFactory
             _logger.LogDebug("Cancelled creating Character data for {object}", playerRelatedObject);
             throw;
         }
+        catch (NullReferenceException e) // shouldn't happen but there are race conditions like when zoning/teleporting
+        {
+            _logger.LogError(e, "Failed to create {object} data", playerRelatedObject);
+        }
         catch (Exception e)
         {
             _logger.LogError(e, "Failed to create {object} data", playerRelatedObject);
 
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            if (now > _nextErrorTime)
+            if (playerRelatedObject.ObjectKind == ObjectKind.Player)
             {
-                _nextErrorTime = now.Add(ReportErrorIntervalMinutes);
-                _mareMediator.Publish(new NotificationMessage("Character Data Failed", "One or more errors occurred when creating character data. Check the /xllog for more details.", NotificationType.Error));
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                if (now > _nextErrorTime)
+                {
+                    _nextErrorTime = now.Add(ReportErrorIntervalMinutes);
+                    _mareMediator.Publish(new NotificationMessage("Character Data Failed", "One or more errors occurred when creating character data. Check the /xllog for more details.", NotificationType.Error));
+                }
             }
         }
 
