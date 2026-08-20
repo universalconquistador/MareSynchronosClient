@@ -630,7 +630,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             return;
         }
 
-        bool needsToBeRedrawn = false;
         var ptr = PlayerCharacter;
         var handler = changes.Key switch
         {
@@ -667,7 +666,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                             await _ipcManager.CustomizePlus.RevertByIdAsync(customizeId).ConfigureAwait(false);
                             _customizeIds.Remove(changes.Key);
                         }
-                        needsToBeRedrawn = true;
                         break;
 
                     case PlayerChanges.Heels:
@@ -682,8 +680,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                         if (charaData.GlamourerData.TryGetValue(changes.Key, out var glamourerData))
                         {
                             Logger.LogTrace("[{appId}] Glamourer data: {data}", applicationId, glamourerData);
-                            await _ipcManager.Glamourer.ApplyAllNoRedrawAsync(Logger, handler, glamourerData, applicationId, token).ConfigureAwait(false);
-                            needsToBeRedrawn = true;
+                            await _ipcManager.Glamourer.ApplyAllNoWait(Logger, handler, glamourerData, applicationId, token).ConfigureAwait(false);
                         }
                         break;
 
@@ -724,7 +721,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
                     case PlayerChanges.ForcedRedraw:
                         Pair.LastLoadedSoundSinceRedraw = null;
-                        needsToBeRedrawn = true;
+                        await _ipcManager.Penumbra.RedrawAsync(Logger, handler, applicationId, token).ConfigureAwait(false);
                         break;
 
                     default:
@@ -732,13 +729,6 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
                 token.ThrowIfCancellationRequested();
             }
-
-            if (needsToBeRedrawn)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(250), token).ConfigureAwait(false);
-                await _ipcManager.Penumbra.RedrawAsync(Logger, handler, applicationId, token).ConfigureAwait(false);
-            }
-
         }
         finally
         {
