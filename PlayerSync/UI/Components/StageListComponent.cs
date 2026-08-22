@@ -11,6 +11,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI.Handlers;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
+using Stagehand.Definitions;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -25,6 +26,7 @@ public class StageListComponent
     private readonly ApiController _apiController;
     private readonly PairManager _pairManager;
     private readonly IdDisplayHandler _idDisplayHandler;
+    private readonly UiSharedService _uiSharedService;
     private readonly Func<int, Task<(List<StageFullInfoDto>, bool)>> _pageLoadCallback;
 
     private bool _isLoading = false;
@@ -34,13 +36,14 @@ public class StageListComponent
     public int PageIndex { get; private set; }
     private bool _hasNextPage;
 
-    public StageListComponent(ILogger logger, MareMediator mareMediator, ApiController apiController, PairManager pairManager, IdDisplayHandler idDisplayHandler, Func<int, Task<(List<StageFullInfoDto>, bool)>> pageLoadCallback)
+    public StageListComponent(ILogger logger, MareMediator mareMediator, ApiController apiController, PairManager pairManager, IdDisplayHandler idDisplayHandler, UiSharedService uiSharedService, Func<int, Task<(List<StageFullInfoDto>, bool)>> pageLoadCallback)
     {
         _logger = logger;
         _mareMediator = mareMediator;
         _apiController = apiController;
         _pairManager = pairManager;
         _idDisplayHandler = idDisplayHandler;
+        _uiSharedService = uiSharedService;
         _pageLoadCallback = pageLoadCallback;
 
         PageIndex = 0;
@@ -141,6 +144,19 @@ public class StageListComponent
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             ImGui.TextUnformatted(FontAwesomeIcon.MapMarkerAlt.ToIconString());
+        }
+        if (ImGui.IsItemHovered())
+        {
+            using (ImRaii.Tooltip())
+            {
+                ImGui.TextUnformatted(_uiSharedService.LocationToString(
+                    stageInfo.State.LocationWorldId,
+                    stageInfo.State.LocationTerritoryId,
+                    stageInfo.State.LocationWardId,
+                    stageInfo.State.LocationDivisionId,
+                    stageInfo.State.LocationHouseId,
+                    stageInfo.State.LocationHouseId));
+            }
         }
         ImGui.SameLine();
         using (ImRaii.TextWrapPos(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() * 2 - ImGui.GetStyle().ItemInnerSpacing.X * 2))

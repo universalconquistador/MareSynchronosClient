@@ -5,6 +5,7 @@ using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
+using Lumina.Excel.Sheets;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto.Stage;
 using MareSynchronos.Interop.Ipc;
@@ -27,6 +28,19 @@ namespace MareSynchronos.UI;
 
 public class StageDetailsUi : WindowMediatorSubscriberBase
 {
+    // Company workshops have an IntendedTerritoryType for housing but do not actually support housing stuff
+    // (e.g. cannot check the ward/division/house/room via HousingManager)
+    private static readonly uint[] WorkshopTerritoryTypes =
+    [
+        423, // Company Workshop - Mist
+        424, // Company Workshop - The Goblet
+        425, // Company Workshop - The Lavender Beds
+        653, // Company Workshop - Shirogane
+        984, // Company Workshop - Empyreum
+    ];
+    private const int TerritoryUseHousingOutdoor = 13;
+    private const int TerritoryUseHousingIndoor = 14;
+
     private readonly ApiController _apiController;
     private readonly PairManager _pairManager;
     private readonly IpcManager _ipcManager;
@@ -35,6 +49,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
     private readonly IdDisplayHandler _idDisplayHandler;
     private readonly IClientState _clientState;
     private readonly IPlayerState _playerState;
+    private readonly IDataManager _dataManager;
 
     private record GroupPresence(string GroupId, string GroupIdOrAlias, bool IsOwnerOrModerator);
 
@@ -82,12 +97,15 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
 
     private bool _isSaving = false;
 
+    private string _worldFilter = "";
+    private string _territoryFilter = "";
+
     private const float WindowWidth = 800.0f;
 
     public StageDetailsUi(ILogger<StageDetailsUi> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
         StageFullInfoDto? startingStageInfo, string? owningGroupId, ApiController apiController, PairManager pairManager,
         IpcManager ipcManager, FileUploadManager fileUploadManager, UiSharedService uiSharedService, IdDisplayHandler idDisplayHandler,
-        IClientState clientState, IPlayerState playerState)
+        IClientState clientState, IPlayerState playerState, IDataManager dataManager)
         : base(logger, mediator, $"{startingStageInfo?.Customize.DisplayName ?? "New Stage"}###StageDetails{Guid.NewGuid()}", performanceCollector)
     {
         StageInfo = startingStageInfo;
@@ -99,6 +117,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         _idDisplayHandler = idDisplayHandler;
         _clientState = clientState;
         _playerState = playerState;
+        _dataManager = dataManager;
 
         _groups = _pairManager.Groups.OrderBy(group => group.Key.AliasOrGID, StringComparer.CurrentCultureIgnoreCase).Select(pair => new GroupPresence(pair.Key.GID, pair.Key.AliasOrGID, pair.Value.OwnerUID == _apiController.UID || pair.Value.GroupUserInfo.HasFlag(GroupPairUserInfo.IsModerator))).ToArray();
         if (owningGroupId != null)
@@ -487,7 +506,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
 
     private void DrawContentsSection()
     {
-        _uiSharedService.HeaderText("Update Stage");
+        _uiSharedService.HeaderText(StageInfo == null ? "Select Stage" : "Update Stage");
         ImGuiHelpers.ScaledDummy(3.0f);
 
         if (StageInfo == null || IsEditingContents)
@@ -521,9 +540,6 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         }
         else
         {
-            //ImGui.TextUnformatted($"{StageInfo.Contents.StageFileHash} with ");
-            //ImGui.SameLine();
-            //ImGui.TextUnformatted($"{StageInfo.Contents.Mods.Count}");
             ImGui.TextUnformatted($"Revision {StageInfo.Contents.Revision} by {StageInfo.Contents.RevisionAuthorUid}");
             ImGui.TextDisabled($"{StageInfo.Contents.RevisionDateUtc.ToLocalTime().ToString("g")}");
         }
@@ -754,12 +770,210 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         }
         ImGuiHelpers.ScaledDummy(3.0f);
 
-        DrawIntProperty("World"u8, ref _locationWorldId, IsEditingState);
-        DrawIntProperty("Territory"u8, ref _locationTerritoryId, IsEditingState);
-        DrawIntProperty("Ward"u8, ref _locationWardId, IsEditingState);
-        DrawIntProperty("Division"u8, ref _locationDivisionId, IsEditingState);
-        DrawIntProperty("House"u8, ref _locationHouseId, IsEditingState);
-        DrawIntProperty("Room"u8, ref _locationRoomId, IsEditingState);
+        string WorldIdToString(int worldId)
+        {
+            if (worldId >= 0 && _dataManager.Excel.GetSheet<World>().TryGetRow((uint)worldId, out var worldRow))
+            {
+                return $"{worldRow.Name} ({worldRow.DataCenter.Value.Name})";
+            }
+            else
+            {
+                return $"World {worldId}";
+            }
+        }
+        using (var worldCombo = ImRaii.Combo("World"u8, WorldIdToString(_locationWorldId)))
+        {
+            if (worldCombo.Success)
+            {
+                ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemInnerSpacing.X);
+                ImGui.InputTextWithHint("###WorldFilter"u8, "Filter"u8, ref _worldFilter);
+                ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.Times, new(ImGui.GetFrameHeight())))
+                {
+                    _worldFilter = "";
+                }
+                
+                using (var items = ImRaii.Child("###WorldOptions", new Vector2(ImGui.GetContentRegionAvail().X, 100.0f * ImGuiHelpers.GlobalScale), border: false, ImGuiWindowFlags.AlwaysVerticalScrollbar))
+                {
+                    if (items.Success)
+                    {
+                        var worldSheet = _dataManager.Excel.GetSheet<World>();
+                        foreach (var worldRow in worldSheet)
+                        {
+                            if (worldRow.IsPublic && (_worldFilter == "" || worldRow.Name.ToString().Contains(_worldFilter, StringComparison.CurrentCultureIgnoreCase)))
+                            {
+                                var startX = ImGui.GetCursorPosX();
+                                if (ImGui.Selectable($"###{worldRow.RowId}", _locationWorldId == (int)worldRow.RowId, size: new(ImGui.GetContentRegionAvail().X, ImGui.GetTextLineHeight())))
+                                {
+                                    _locationWorldId = (int)worldRow.RowId;
+                                    ImGui.CloseCurrentPopup();
+                                }
+                                ImGui.SameLine(startX);
+                                ImGui.SetCursorPosX(startX + ImGui.GetStyle().CellPadding.X);
+                                ImGui.TextUnformatted(WorldIdToString((int)worldRow.RowId));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        string TerritoryIdToString(int territoryId)
+        {
+            if (territoryId >= 0 && _dataManager.Excel.GetSheet<TerritoryType>().TryGetRow((uint)territoryId, out var territoryRow))
+            {
+                bool inHousingIndoor = territoryRow.TerritoryIntendedUse.RowId == TerritoryUseHousingIndoor && !WorkshopTerritoryTypes.Contains((uint)territoryId);
+                bool inHousingOutdoor = inHousingIndoor || territoryRow.TerritoryIntendedUse.RowId == TerritoryUseHousingOutdoor;
+                return $"{territoryRow.PlaceName.Value.Name.ToString()}{(inHousingIndoor ? " (Housing Indoors)" : (inHousingOutdoor ? " (Housing Outdoors)" : ""))}";
+            }
+            else
+            {
+                return $"Unknown ({territoryId})";
+            }
+        }
+        using (var territoryCombo = ImRaii.Combo("Zone"u8, TerritoryIdToString(_locationTerritoryId)))
+        {
+            if (territoryCombo.Success)
+            {
+                ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemInnerSpacing.X);
+                ImGui.InputTextWithHint("###TerritoryFilter"u8, "Filter"u8, ref _territoryFilter);
+                ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.Times, new(ImGui.GetFrameHeight())))
+                {
+                    _territoryFilter = "";
+                }
+
+                using (var items = ImRaii.Child("###TerritoryOptions", new Vector2(ImGui.GetContentRegionAvail().X, 100.0f * ImGuiHelpers.GlobalScale), border: false, ImGuiWindowFlags.AlwaysVerticalScrollbar))
+                {
+                    if (items.Success)
+                    {
+                        foreach (var territoryRow in _dataManager.Excel.GetSheet<TerritoryType>())
+                        {
+                            if (territoryRow.PlaceName.IsValid && !string.IsNullOrEmpty(territoryRow.PlaceName.Value.Name.ToString()) && (_territoryFilter == "" || territoryRow.PlaceName.Value.Name.ToString().Contains(_territoryFilter, StringComparison.CurrentCultureIgnoreCase)))
+                            {
+                                var startX = ImGui.GetCursorPosX();
+                                if (ImGui.Selectable($"###{territoryRow.RowId}", _locationTerritoryId == territoryRow.RowId, size: new(ImGui.GetContentRegionAvail().X, ImGui.GetTextLineHeight())))
+                                {
+                                    _locationTerritoryId = (int)territoryRow.RowId;
+
+                                    bool selectionHousingIndoor = territoryRow.TerritoryIntendedUse.RowId == TerritoryUseHousingIndoor && !WorkshopTerritoryTypes.Contains(territoryRow.RowId);
+                                    bool selectionHousingOutdoor = selectionHousingIndoor || territoryRow.TerritoryIntendedUse.RowId == TerritoryUseHousingOutdoor;
+
+                                    if (selectionHousingOutdoor)
+                                    {
+                                        if (_locationDivisionId <= 0)
+                                        {
+                                            _locationDivisionId = 1;
+                                        }
+                                        if (_locationWardId <= 0)
+                                        {
+                                            _locationWardId = 1;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        _locationDivisionId = -1;
+                                        _locationWardId = -1;
+                                    }
+
+                                    if (selectionHousingIndoor)
+                                    {
+                                        if (_locationHouseId < 0)
+                                        {
+                                            _locationHouseId = 1;
+                                        }
+                                        if (_locationRoomId < 0)
+                                        {
+                                            _locationRoomId = 0;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        _locationHouseId = -1;
+                                        _locationRoomId = -1;
+                                    }
+
+                                    ImGui.CloseCurrentPopup();
+                                }
+                                ImGui.SameLine(startX);
+                                ImGui.SetCursorPosX(startX + ImGui.GetStyle().CellPadding.X);
+                                ImGui.TextUnformatted(TerritoryIdToString((int)territoryRow.RowId));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        bool inHousingIndoor = false;
+        bool inHousingOutdoor = false;
+        if (_locationTerritoryId >= 0 && _dataManager.Excel.GetSheet<TerritoryType>().TryGetRow((uint)_locationTerritoryId, out var currentTerritoryRow))
+        {
+            inHousingIndoor = currentTerritoryRow.TerritoryIntendedUse.RowId == TerritoryUseHousingIndoor && !WorkshopTerritoryTypes.Contains((uint)_locationTerritoryId);
+            inHousingOutdoor = inHousingIndoor || currentTerritoryRow.TerritoryIntendedUse.RowId == TerritoryUseHousingOutdoor;
+        }
+
+        if (inHousingOutdoor)
+        {
+            using (var wardCombo = ImRaii.Combo("Ward"u8, $"Ward {_locationWardId}"))
+            {
+                if (wardCombo.Success)
+                {
+                    for (int i = 1; i <= 30; i++)
+                    {
+                        if (ImGui.Selectable($"Ward {i}", i == _locationWardId))
+                        {
+                            _locationWardId = i;
+                        }
+                    }
+                }
+            }
+
+            bool isSubdivision = _locationDivisionId == 2;
+            ImGui.Checkbox("Subdivision"u8, ref isSubdivision);
+            _locationDivisionId = isSubdivision ? 2 : 1;
+
+            if (inHousingIndoor)
+            {
+                static string HouseIdToString(int houseId, bool isSubdivision)
+                {
+                    if (houseId < 0)
+                    {
+                        return houseId.ToString();
+                    }
+                    else if (houseId == 0)
+                    {
+                        return $"Apartment Building{(isSubdivision ? " (Subdivision)" : "")}";
+                    }
+                    else
+                    {
+                        if (isSubdivision)
+                        {
+                            houseId += 30;
+                        }
+                        return $"House {houseId}";
+                    }
+                }
+                using (var houseCombo = ImRaii.Combo("House"u8, HouseIdToString(_locationHouseId, isSubdivision)))
+                {
+                    if (houseCombo)
+                    {
+                        for (int houseId = 0; houseId <= 30; houseId++)
+                        {
+                            if (ImGui.Selectable(HouseIdToString(houseId, isSubdivision), _locationHouseId == houseId))
+                            {
+                                _locationHouseId = houseId;
+                            }
+                        }
+                    }
+                }
+
+                DrawIntProperty("Room"u8, ref _locationRoomId, IsEditingState);
+
+                ImGui.SameLine();
+                ImGuiComponents.HelpMarker("The apartment number/personal chamber number, or 0 for a house's main room or apartment lobby.");
+            }
+        }
 
         // Disabled until support is added to Stagehand
 #if false
@@ -847,6 +1061,25 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         dto.LocationDivisionId = _locationDivisionId;
         dto.LocationHouseId = _locationHouseId;
         dto.LocationRoomId = _locationRoomId;
+
+        // Strip irrelevant parts of the location depending on what kind of housing the territory is
+        bool inHousingIndoor = false;
+        bool inHousingOutdoor = false;
+        if (_locationTerritoryId >= 0 && _dataManager.Excel.GetSheet<TerritoryType>().TryGetRow((uint)_locationTerritoryId, out var currentTerritoryRow))
+        {
+            inHousingIndoor = currentTerritoryRow.TerritoryIntendedUse.RowId == TerritoryUseHousingIndoor && !WorkshopTerritoryTypes.Contains((uint)_locationTerritoryId);
+            inHousingOutdoor = inHousingIndoor || currentTerritoryRow.TerritoryIntendedUse.RowId == TerritoryUseHousingOutdoor;
+        }
+        if (!inHousingIndoor)
+        {
+            dto.LocationHouseId = -1;
+            dto.LocationRoomId = -1;
+        }
+        if (!inHousingOutdoor)
+        {
+            dto.LocationWardId = -1;
+            dto.LocationDivisionId = -1;
+        }
 
         dto.Translation = _translation;
         dto.Rotation = _rotationQuaternion;

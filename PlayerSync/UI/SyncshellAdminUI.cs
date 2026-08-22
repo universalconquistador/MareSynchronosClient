@@ -98,7 +98,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             ("", groupItems),
         ];
 
-        _stageList = new(logger, Mediator, apiController, pairManager, idDisplayHandler, page => apiController.StageListForGroup(groupFullInfo.GID, page));
+        _stageList = new(logger, Mediator, apiController, pairManager, idDisplayHandler, uiSharedService, page => apiController.StageListForGroup(groupFullInfo.GID, page));
     }
 
     public GroupFullInfoDto GroupFullInfo { get; private set; }

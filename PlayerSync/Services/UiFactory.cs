@@ -36,12 +36,14 @@ public class UiFactory
     private readonly IdDisplayHandler _idDisplayHandler;
     private readonly IClientState _clientState;
     private readonly IPlayerState _playerState;
+    private readonly IDataManager _dataManager;
 
     public UiFactory(ILoggerFactory loggerFactory, MareMediator mareMediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, ServerConfigurationManager serverConfigManager,
         MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService, 
         UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairInviteManager pairRequestManager, MareConfigService mareConfigService,
-        IpcManager ipcManager, FileUploadManager fileUploadManager, IdDisplayHandler idDisplayHandler, IClientState clientState, IPlayerState playerState)
+        IpcManager ipcManager, FileUploadManager fileUploadManager, IdDisplayHandler idDisplayHandler, IClientState clientState, IPlayerState playerState,
+        IDataManager dataManager)
     {
         _loggerFactory = loggerFactory;
         _mareMediator = mareMediator;
@@ -61,6 +63,7 @@ public class UiFactory
         _idDisplayHandler = idDisplayHandler;
         _clientState = clientState;
         _playerState = playerState;
+        _dataManager = dataManager;
     }
 
     public SyncshellAdminUI CreateSyncshellAdminUi(GroupFullInfoDto dto)
@@ -89,6 +92,6 @@ public class UiFactory
 
     public StageDetailsUi CreateStageDetailsUi(StageFullInfoDto? startingStageInfo, string? owningGroupId)
     {
-        return new StageDetailsUi(_loggerFactory.CreateLogger<StageDetailsUi>(), _mareMediator, _performanceCollectorService, startingStageInfo, owningGroupId, _apiController, _pairManager, _ipcManager, _fileUploadManager, _uiSharedService, _idDisplayHandler, _clientState, _playerState);
+        return new StageDetailsUi(_loggerFactory.CreateLogger<StageDetailsUi>(), _mareMediator, _performanceCollectorService, startingStageInfo, owningGroupId, _apiController, _pairManager, _ipcManager, _fileUploadManager, _uiSharedService, _idDisplayHandler, _clientState, _playerState, _dataManager);
     }
 }

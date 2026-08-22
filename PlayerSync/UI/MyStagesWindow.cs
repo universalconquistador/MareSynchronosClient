@@ -70,8 +70,8 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
             new(MyStagesTabs.FindById, "Find Stages", DrawFindByIdTab, FontAwesomeIcon.Search),
         ];
         _selectedTab = _tabs[0];
-        _myStageList = new(logger, mediator, apiController, pairManager, idDisplayHandler, page => apiController.StageListForUser(apiController.UID, page));
-        _subscribedStageList = new(logger, mediator, apiController, pairManager, idDisplayHandler, page => apiController.StageListSubscribed(page));
+        _myStageList = new(logger, mediator, apiController, pairManager, idDisplayHandler, _uiSharedService, page => apiController.StageListForUser(apiController.UID, page));
+        _subscribedStageList = new(logger, mediator, apiController, pairManager, idDisplayHandler, _uiSharedService, page => apiController.StageListSubscribed(page));
 
         SizeConstraints = new()
         {
@@ -259,7 +259,7 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
 
     private void FindByStageId(string stageId)
     {
-        _findStageList = new(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, async page =>
+        _findStageList = new(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, _uiSharedService, async page =>
         {
             var stageInfo = await _apiController.StageGetInfo(stageId).ConfigureAwait(false);
             if (stageInfo != null)
@@ -275,11 +275,11 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
 
     private void FindByUserId(string uidOrAlias)
     {
-        _findStageList = new(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, page => _apiController.StageListForUser(uidOrAlias, page));
+        _findStageList = new(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, _uiSharedService, page => _apiController.StageListForUser(uidOrAlias, page));
     }
 
     private void FindByGroupId(string gidOrAlias)
     {
-        _findStageList = new(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, page => _apiController.StageListForGroup(gidOrAlias, page));
+        _findStageList = new(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, _uiSharedService, page => _apiController.StageListForGroup(gidOrAlias, page));
     }
 }
