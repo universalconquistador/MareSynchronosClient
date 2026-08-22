@@ -194,7 +194,9 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                     ImGui.SetClipboardText(groupDisplayName);
                 }
                 ImGui.SameLine(0.0f, 0.0f);
-                ImGui.TextDisabled(" visible to " + StageInfo.Customize.Visibility switch { StageVisibility.OwnersOnly => "syncshell owner & moderators", StageVisibility.DirectPairs => "syncshell members (excluding guests)", StageVisibility.AllPairs => "all syncshell members", StageVisibility.Everyone => "everyone", _ => "" });
+                ImGui.TextDisabled(" visible to ");
+                ImGui.SameLine(0.0f, 0.0f);
+                ImGui.TextUnformatted(GroupStageVisibilityToString(StageInfo.Customize.Visibility));
             }
             else
             {
@@ -207,7 +209,9 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                     ImGui.SetClipboardText(userDisplayName);
                 }
                 ImGui.SameLine(0.0f, 0.0f);
-                ImGui.TextDisabled(" visible to " + StageInfo.Customize.Visibility switch { StageVisibility.OwnersOnly => "owner", StageVisibility.DirectPairs => "direct pairs", StageVisibility.AllPairs => "all pairs (excluding zone syncshell)", StageVisibility.Everyone => "everyone", _ => "" });
+                ImGui.TextDisabled(" visible to ");
+                ImGui.SameLine(0.0f, 0.0f);
+                ImGui.TextUnformatted(UserStageVisibilityToString(StageInfo.Customize.Visibility));
             }
 
             ImGuiHelpers.ScaledDummy(2.0f);
@@ -613,6 +617,30 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         _isLoadingStageDefinition = false;
     }
 
+    private static string GroupStageVisibilityToString(StageVisibility visibility)
+    {
+        return visibility switch
+        {
+            StageVisibility.OwnersOnly => "Syncshell Owner & Moderators",
+            StageVisibility.DirectPairs => "Syncshell Members (Excluding Guests)",
+            StageVisibility.AllPairs => "All Syncshell Members",
+            StageVisibility.Everyone => "Everyone",
+            _ => throw new ArgumentException("Unknown StageVisibility", nameof(visibility)),
+        };
+    }
+
+    private static string UserStageVisibilityToString(StageVisibility visibility)
+    {
+        return visibility switch
+        {
+            StageVisibility.OwnersOnly => "Owner Only",
+            StageVisibility.DirectPairs => "Direct Pairs",
+            StageVisibility.AllPairs => "All Pairs (Excluding ZoneSync)",
+            StageVisibility.Everyone => "Everyone",
+            _ => throw new ArgumentException("Unknown StageVisibility", nameof(visibility)),
+        };
+    }
+
     private void DrawCustomizeSection()
     {
         _uiSharedService.HeaderText("Info");
@@ -634,7 +662,17 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         }
         ImGuiHelpers.ScaledDummy(3.0f);
 
-        DrawEnumProperty("Visibility"u8, ref _visibility, IsEditingCustomization);
+        bool isGroupStage;
+        if (StageInfo != null)
+        {
+            isGroupStage = StageInfo.Info.GroupOwnerGID != "";
+        }
+        else
+        {
+            isGroupStage = _newStageOwner != null;
+        }
+
+        DrawEnumProperty("Visibility"u8, ref _visibility, isGroupStage ? GroupStageVisibilityToString : UserStageVisibilityToString, IsEditingCustomization);
         DrawStringProperty("Name"u8, ref _displayName, IsEditingCustomization);
         DrawStringProperty("Version"u8, ref _version, IsEditingCustomization);
         DrawStringProperty("Author"u8, ref _author, IsEditingCustomization);
@@ -833,21 +871,20 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         where TEnum : struct, Enum
     {
         public static readonly TEnum[] Values = Enum.GetValues<TEnum>();
-        public static readonly string[] Names = Enum.GetNames<TEnum>();
     }
 
-    private void DrawEnumProperty<TEnum>(ImU8String label, ref TEnum value, bool isEditing)
+    private void DrawEnumProperty<TEnum>(ImU8String label, ref TEnum value, Func<TEnum, string>? toString, bool isEditing)
         where TEnum : struct, Enum
     {
         if (StageInfo == null || isEditing)
         {
             int currentIndex = EnumValuesCache<TEnum>.Values.IndexOf(value);
-            ImGui.Combo(label, ref currentIndex, EnumValuesCache<TEnum>.Names);
+            ImGui.Combo<TEnum>(label, ref currentIndex, EnumValuesCache<TEnum>.Values, toString ?? (static (value) => value.ToString()));
             value = EnumValuesCache<TEnum>.Values[currentIndex];
         }
         else
         {
-            ImGui.LabelText(label, value.ToString());
+            ImGui.LabelText(label, toString?.Invoke(value) ?? value.ToString());
         }
     }
 
@@ -863,7 +900,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         }
     }
 
-    private void DrawUintProperty(ImU8String label, ref uint value, bool isEditing)
+    private void DrawUIntProperty(ImU8String label, ref uint value, bool isEditing)
     {
         if (StageInfo == null || isEditing)
         {
@@ -891,6 +928,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
     {
         if (StageInfo == null || isEditing)
         {
+            // Word wrap for multi-line input texts isn't in our current ImGui version ='(
             ImGui.InputTextMultiline(label, ref value, flags: ImGuiInputTextFlags.CtrlEnterForNewLine);
         }
         else

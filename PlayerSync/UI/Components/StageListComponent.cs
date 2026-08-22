@@ -146,7 +146,7 @@ public class StageListComponent
         using (ImRaii.TextWrapPos(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() * 2 - ImGui.GetStyle().ItemInnerSpacing.X * 2))
         {
             ImGui.AlignTextToFramePadding();
-            ImGui.TextWrapped(stageInfo.Customize.DisplayName);
+            ImGui.TextWrapped(string.IsNullOrEmpty(stageInfo.Customize.DisplayName) ? stageInfo.SID : stageInfo.Customize.DisplayName);
             ImGui.SameLine();
             using (ImRaii.Disabled())
             {
