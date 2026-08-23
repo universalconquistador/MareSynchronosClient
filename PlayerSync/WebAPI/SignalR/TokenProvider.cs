@@ -19,6 +19,7 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
     private readonly ILogger<TokenProvider> _logger;
     private readonly ServerConfigurationManager _serverManager;
     private readonly ConcurrentDictionary<JwtIdentifier, string> _tokenCache = new();
+    private bool _hasNotifiedOfRefresh = false;
 
     public TokenProvider(ILogger<TokenProvider> logger, ServerConfigurationManager serverManager, DalamudUtilService dalamudUtil, MareMediator mareMediator, HttpClient httpClient)
     {
@@ -95,6 +96,7 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
                 HttpRequestMessage request = new(HttpMethod.Get, tokenUri.ToString());
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _tokenCache[identifier]);
                 result = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+                _hasNotifiedOfRefresh = false;
             }
 
             response = await result.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -222,6 +224,12 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
             }
 
             _logger.LogDebug("GetOrUpdate: Cached token requires renewal, token valid to: {valid}, UtcTime is {utcTime}", jwt.ValidTo, DateTime.UtcNow);
+            if (!_hasNotifiedOfRefresh)
+            {
+                _hasNotifiedOfRefresh = true;
+                Mediator.Publish(new NotificationMessage("Token Refresh", "Your PlayerSync token will refresh in about 5 minutes", NotificationType.Token));
+            }
+
             renewal = true;
         }
         else

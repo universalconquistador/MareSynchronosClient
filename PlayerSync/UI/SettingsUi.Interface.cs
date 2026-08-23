@@ -579,6 +579,18 @@ public partial class SettingsUi
                               + Environment.NewLine + "'Chat' will print Pair Request notifications in chat"
                               + Environment.NewLine + "'Toast' will show Pair Request toast notifications in the bottom right corner"
                               + Environment.NewLine + "'Both' will show chat as well as the toast notification");
+        ImGui.SetNextItemWidth(400);
+        _uiShared.DrawCombo("Token Refresh Notification Display##settingsUi", (NotificationLocation[])Enum.GetValues(typeof(NotificationLocation)), (i) => i.ToString(),
+        (i) =>
+        {
+            _configService.Current.TokenRefreshNotification = i;
+            _configService.Save();
+        }, _configService.Current.TokenRefreshNotification);
+        _uiShared.DrawHelpText("The location where \"Token Refresh\" notifications will display."
+                              + Environment.NewLine + "'Nowhere' will not show any Token Refresh notifications"
+                              + Environment.NewLine + "'Chat' will print Token Refreshnotifications in chat"
+                              + Environment.NewLine + "'Toast' will show Token Refresh toast notifications in the bottom right corner"
+                              + Environment.NewLine + "'Both' will show chat as well as the toast notification");
 
         ImGuiHelpers.ScaledDummy(5);
         if (ImGui.Checkbox("Disable optional plugin warnings", ref disableOptionalPluginWarnings))
