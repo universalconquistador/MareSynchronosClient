@@ -98,6 +98,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton(new WindowSystem("PlayerSync"));
             collection.AddSingleton<FileDialogManager>();
             collection.AddSingleton(new Dalamud.Localization("PlayerSync.Localization.", "", useEmbedded: true));
+            collection.AddSingleton<HttpClientProvider>();
 
             collection.AddSingleton<IDataManager>(gameData);
             collection.AddSingleton(gameInteropProvider);
@@ -205,13 +206,13 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton((s) => new NotificationService(s.GetRequiredService<ILogger<NotificationService>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<DalamudUtilService>(),
                 notificationManager, chatGui, s.GetRequiredService<MareConfigService>()));
-            collection.AddSingleton((s) =>
-            {
-                var httpClient = new HttpClient();
-                var ver = Assembly.GetExecutingAssembly().GetName().Version;
-                httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PlayerSync", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
-                return httpClient;
-            });
+            //collection.AddSingleton((s) =>
+            //{
+            //    var httpClient = new HttpClient();
+            //    var ver = Assembly.GetExecutingAssembly().GetName().Version;
+            //    httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PlayerSync", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
+            //    return httpClient;
+            //});
             collection.AddSingleton((s) => new FileImageTransferHandler(s.GetRequiredService<ILogger<FileImageTransferHandler>>(), s.GetRequiredService<FileTransferOrchestrator>()));
             collection.AddSingleton((s) => new MareConfigService(pluginInterface.ConfigDirectory.FullName));
             collection.AddSingleton((s) => new ServerConfigService(pluginInterface.ConfigDirectory.FullName));

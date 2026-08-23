@@ -1,4 +1,5 @@
 ﻿using Dalamud.Utility;
+using MareSynchronos.API.Data;
 using MareSynchronos.API.Routes;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
@@ -19,7 +20,8 @@ public class ServerConfigurationManager
     private readonly ServerConfigService _configService;
     private readonly DalamudUtilService _dalamudUtil;
     private readonly MareConfigService _mareConfigService;
-    private readonly HttpClient _httpClient;
+    //private readonly HttpClient _httpClient;
+    private readonly HttpClientProvider _httpClientProvider;
     private readonly ILogger<ServerConfigurationManager> _logger;
     private readonly MareMediator _mareMediator;
     private readonly NotesConfigService _notesConfig;
@@ -27,7 +29,7 @@ public class ServerConfigurationManager
 
     public ServerConfigurationManager(ILogger<ServerConfigurationManager> logger, ServerConfigService configService,
         ServerTagConfigService serverTagConfig, NotesConfigService notesConfig, DalamudUtilService dalamudUtil,
-        MareConfigService mareConfigService, HttpClient httpClient, MareMediator mareMediator)
+        MareConfigService mareConfigService, HttpClientProvider httpClientProvider, MareMediator mareMediator)
     {
         _logger = logger;
         _configService = configService;
@@ -35,7 +37,7 @@ public class ServerConfigurationManager
         _notesConfig = notesConfig;
         _dalamudUtil = dalamudUtil;
         _mareConfigService = mareConfigService;
-        _httpClient = httpClient;
+        _httpClientProvider = httpClientProvider;
         _mareMediator = mareMediator;
         EnsureMainExists();
     }
@@ -48,6 +50,7 @@ public class ServerConfigurationManager
     public ServerStorage CurrentServer => _configService.Current.ServerStorage[CurrentServerIndex];
 
     public string ActiveServericeUri { get; set; } = null;
+    public string? CurrentProxyServer => !string.IsNullOrWhiteSpace(ServiceGatewayProxyHost) ? $"{ServiceGatewayProxyHost}.{ServiceDomain}" : null;
 
     public string ServiceDomain
     {
@@ -94,6 +97,32 @@ public class ServerConfigurationManager
         set
         {
             _configService.Current.OverrideGatewaySelection = value;
+            _configService.Save();
+        }
+    }
+
+    public bool UseServiceGatewayProxy
+    {
+        get
+        {
+            return _configService.Current.UseServiceGatewayProxy;
+        }
+        set
+        {
+            _configService.Current.UseServiceGatewayProxy = value;
+            _configService.Save();
+        }
+    }
+
+    public string ServiceGatewayProxyHost
+    {
+        get
+        {
+            return _configService.Current.ServiceGatewayProxyHost;
+        }
+        set
+        {
+            _configService.Current.ServiceGatewayProxyHost = value;
             _configService.Save();
         }
     }
@@ -761,7 +790,8 @@ public class ServerConfigurationManager
         {
             //var baseUri = serverUri.Replace("wss://", "https://").Replace("ws://", "http://");
             var oauthCheckUri = MareAuth.GetUIDsFullPath(new Uri(serverUri));
-            var response = await _httpClient.GetWithBearerAuthAsync(oauthCheckUri, token).ConfigureAwait(false);
+            var httpClient = _httpClientProvider.GetHttpClient();
+            var response = await httpClient.GetWithBearerAuthAsync(oauthCheckUri, token).ConfigureAwait(false);
             var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             return await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(responseStream).ConfigureAwait(false) ?? [];
         }
@@ -779,7 +809,8 @@ public class ServerConfigurationManager
             //var baseUri = serverUri.Replace("wss://", "https://").Replace("ws://", "http://");
             //var authUri = ApiController.ConvertToAuthUrl(serverUri);
             var oauthCheckUri = MareAuth.GetDiscordOAuthEndpointFullPath(new Uri(serverUri));
-            var response = await _httpClient.GetFromJsonAsync<Uri?>(oauthCheckUri).ConfigureAwait(false);
+            var httpClient = _httpClientProvider.GetHttpClient();
+            var response = await httpClient.GetFromJsonAsync<Uri?>(oauthCheckUri).ConfigureAwait(false);
             return response;
         }
         catch (Exception ex)
@@ -802,7 +833,8 @@ public class ServerConfigurationManager
         {
             //var baseUri = serverUri.Replace("wss://", "https://").Replace("ws://", "http://");
             var oauthCheckUri = MareAuth.GetDiscordOAuthTokenFullPath(new Uri(serverUri), sessionId);
-            var response = await _httpClient.GetAsync(oauthCheckUri, linkedCts.Token).ConfigureAwait(false);
+            var httpClient = _httpClientProvider.GetHttpClient();
+            var response = await httpClient.GetAsync(oauthCheckUri, linkedCts.Token).ConfigureAwait(false);
             discordToken = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         }
         catch (Exception ex)

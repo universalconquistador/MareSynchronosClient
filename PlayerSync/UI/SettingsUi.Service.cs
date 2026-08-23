@@ -3,8 +3,6 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using MareSynchronos.API.Data;
-using MareSynchronos.API.Dto;
 using MareSynchronos.API.Routes;
 using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.MareConfiguration.Models;
@@ -29,6 +27,7 @@ public partial class SettingsUi
     private IReadOnlyList<UiNav.Tab<ServiceTabs>> ServiceTabsList => _serviceTabs ??=
     [
         new(ServiceTabs.Service, "Service", DrawService),
+        new(ServiceTabs.Service, "Connection", DrawServiceConnection),
         new(ServiceTabs.Permissions, "Permissions", DrawServicePermissions),
         new(ServiceTabs.Account, "Account", DrawServiceAccount),
     ];
@@ -36,6 +35,7 @@ public partial class SettingsUi
     private enum ServiceTabs
     {
         Service,
+        Connection,
         Permissions,
         Account,
     }
@@ -90,7 +90,7 @@ public partial class SettingsUi
         requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", serverStorage.OAuthToken);
         requestMessage.Content = requestContent;
 
-        using var response = await _httpClient.SendAsync(requestMessage, token).ConfigureAwait(false);
+        using var response = await _httpClientProvider.GetHttpClient().SendAsync(requestMessage, token).ConfigureAwait(false);
         Dictionary<string, string>? secretKeyUidMapping = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>
             (await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false), cancellationToken: token).ConfigureAwait(false);
         if (secretKeyUidMapping == null)
@@ -134,16 +134,7 @@ public partial class SettingsUi
 
         _uiShared.BigText("Service");
         ImGuiHelpers.ScaledDummy(2);
-        var useGatewayDiscovery = _serverConfigurationManager.EnableGatewayDiscovery;
-        //ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "Only use the Proxied Server option if the PlayerSync Support Team has advised it, " +
-        //    "or if you are experiencing persistent connection issues that normal troubleshooting hasn't resolved.");
-        if (ImGui.Checkbox("Use Gateway Discovery", ref useGatewayDiscovery))
-        {
-            _serverConfigurationManager.EnableGatewayDiscovery = useGatewayDiscovery;
-            _ = _apiController.CreateConnectionsAsync();
-        }
-        _uiShared.DrawHelpText("Automatically selects the closest PlayerSync gateway.");
-
+        
         var idx = _uiShared.DrawServiceSelection();
         if (_lastSelectedServerIndex != idx)
         {
@@ -528,6 +519,101 @@ public partial class SettingsUi
             }
 
             ImGui.EndTabBar();
+        }
+    }
+
+    private void DrawServiceConnection()
+    {
+        _lastTab = "Service Connection";
+
+        _uiShared.BigText("Service Connection");
+        ImGuiHelpers.ScaledDummy(2);
+        UiSharedService.ColorTextWrapped("Changing these settings may impact service performance.", ImGuiColors.DalamudYellow);
+        UiSharedService.TextWrapped("You should only modify the connection behavior if you experience problems such as region blocks or ISP routing issues.");
+
+        _uiShared.HeaderText("Sync Service");
+
+        var useGatewayDiscovery = _serverConfigurationManager.EnableGatewayDiscovery;
+        
+        if (ImGui.Checkbox("Auto Sync Gateway Discovery", ref useGatewayDiscovery))
+        {
+            _serverConfigurationManager.EnableGatewayDiscovery = useGatewayDiscovery;
+        }
+        _uiShared.DrawHelpText("Automatically selects the closest PlayerSync gateway. Turning this off will always attempt to directly connect to the sync server.");
+
+        ImGuiHelpers.ScaledDummy(5f);
+
+        _uiShared.HeaderText("Auth/File Service");
+
+        UiSharedService.TextWrapped("Enable this only if you have issues with the authentication or file services. " +
+            "Common use cases would be scenarios where you are unable to connect through Cloudflare, or the connection is very slow.");
+
+        var useProxyServerSettings = _serverConfigurationManager.UseServiceGatewayProxy;
+        if (ImGui.Checkbox("Use service gateway for auth and file services", ref useProxyServerSettings))
+        {
+            _serverConfigurationManager.UseServiceGatewayProxy = useProxyServerSettings;    
+        }
+        _uiShared.DrawHelpText("Forces auth and file traffic through a PlayerSync gateway node.");
+
+        LoadGateways();
+
+        using (ImRaii.PushIndent(2))
+        {
+            using (ImRaii.Disabled(!useProxyServerSettings))
+            {
+                if (_isLoadingGateways)
+                {
+                    ImGui.TextUnformatted("Loading service gateways...");
+                }
+                else
+                {
+                    var serviceGatewayProxyHost = _serverConfigurationManager.ServiceGatewayProxyHost;
+                    ImGui.SetNextItemWidth(150 * ImGuiHelpers.GlobalScale);
+                    if (ImGui.BeginCombo("Service Gateway", string.IsNullOrWhiteSpace(serviceGatewayProxyHost) ? "Select Service Gateway" : serviceGatewayProxyHost.Replace("psp-", string.Empty).ToUpper()))
+                    {
+                        foreach (string serviceGateway in _serviceGateways)
+                        {
+                            bool selected = serviceGateway == _selectedServicegateway;
+
+                            if (ImGui.Selectable(serviceGateway.Replace("psp-", string.Empty).ToUpper(), selected))
+                            {
+                                _selectedServicegateway = serviceGateway;
+                                _serverConfigurationManager.ServiceGatewayProxyHost = serviceGateway;
+                            }
+
+                            if (selected)
+                            {
+                                ImGui.SetItemDefaultFocus();
+                            }
+                        }
+                        ImGui.EndCombo();
+                    }
+                }
+            }
+        }
+
+        ImGuiHelpers.ScaledDummy(5f);
+
+        _hasConnectionChanges = _originalGatewayValue != _serverConfigurationManager.EnableGatewayDiscovery
+        || _originalProxyValue != _serverConfigurationManager.UseServiceGatewayProxy
+        || (!string.Equals(_originalProxyHost, _serverConfigurationManager.ServiceGatewayProxyHost, StringComparison.OrdinalIgnoreCase) 
+        && _serverConfigurationManager.UseServiceGatewayProxy);
+
+        using (ImRaii.Disabled(!_hasConnectionChanges))
+        {
+            if (_uiShared.IconTextButton(FontAwesomeIcon.Link, "Reconnect"))
+            {
+                _originalGatewayValue = _serverConfigurationManager.EnableGatewayDiscovery;
+                _originalProxyValue = _serverConfigurationManager.UseServiceGatewayProxy;
+                _originalProxyHost = _serverConfigurationManager.ServiceGatewayProxyHost;
+
+                _ = _apiController.CreateConnectionsAsync();
+            }
+        }
+
+        if (_hasConnectionChanges)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudYellow, "You must reconnect for changes to take effect.");
         }
     }
 

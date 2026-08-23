@@ -16,9 +16,16 @@ namespace PlayerSync.WebAPI.SignalR
         public required int Priority { get; init; }
     }
 
+    public enum ServiceType
+    {
+        Gateway,
+        Proxy
+    }
+
     public class GatewayManager
     {
         private const string GatewaySubDomain = "gateways";
+        private const string ProxySubDomain = "proxies";
         private const string GatewayStatus = "gateway-status";
         private const int DelayVariance = 100;
 
@@ -84,17 +91,40 @@ namespace PlayerSync.WebAPI.SignalR
             return new($"wss://{bestGateway.GatewayUri.Host}");
         }
 
-        public static async Task<List<string>> GetListOfServiceGateways(Uri serviceUri, CancellationToken ct = default)
+        public static async Task<List<string>> GetListOfServiceGatewaysByServiceType(string serviceDomain, ServiceType serviceType, CancellationToken ct = default)
         {
+            string subdomain = string.Empty;
+            if (serviceType == ServiceType.Gateway)
+            {
+                subdomain = GatewaySubDomain;
+            }
+            else if (serviceType == ServiceType.Proxy)
+            {
+                subdomain = ProxySubDomain;
+            }
+            else
+            {
+                return [];
+            }
+
             var gatewayList = new List<string>();
 
-            string host = serviceUri.Host;
-            string domain = string.Join('.', host.Split('.').Skip(1));
+            var hosts = await TryGetTxtRecordPartsAsync($"{subdomain}.{serviceDomain}", ct).ConfigureAwait(false);
+            if (hosts is null || hosts.Count == 0)
+            {
+                using var httpClient = new HttpClient
+                {
+                    Timeout = TimeSpan.FromMilliseconds(2000)
+                };
+                httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PlayerSync");
+                hosts = await TryGetHostRecordPartsFromWebService(httpClient, new($"https://{subdomain}.{serviceDomain}/csv"), ct).ConfigureAwait(false);
+            }
+            if (hosts is null || hosts.Count == 0)
+            {
+                return [];
+            }
 
-            var hosts = await TryGetTxtRecordPartsAsync($"{GatewaySubDomain}.{domain}", ct).ConfigureAwait(false);
-            if (hosts is null) return [];
-
-            var serviceGateways = MakeServiceGatewaysFromHosts(hosts, domain);
+            var serviceGateways = MakeServiceGatewaysFromHosts(hosts, serviceDomain);
 
             foreach (var gateway in serviceGateways)
             {

@@ -33,6 +33,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private readonly TokenProvider _tokenProvider;
     private readonly MareConfigService _mareConfigService;
     private readonly GatewayManager _gatewayManager;
+    private readonly HttpClientProvider _httpClientProvider;
     private CancellationTokenSource _connectionCancellationTokenSource;
     private ConnectionDto? _connectionDto;
     private bool _doNotNotifyOnNextInfo = false;
@@ -45,7 +46,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public ApiController(ILogger<ApiController> logger, HubFactory hubFactory, DalamudUtilService dalamudUtil,
         PairManager pairManager, ServerConfigurationManager serverManager, MareMediator mediator,
-        TokenProvider tokenProvider, MareConfigService mareConfigService) : base(logger, mediator)
+        TokenProvider tokenProvider, MareConfigService mareConfigService, HttpClientProvider httpClientProvider) : base(logger, mediator)
     {
         _hubFactory = hubFactory;
         _dalamudUtil = dalamudUtil;
@@ -55,6 +56,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         _mareConfigService = mareConfigService;
         _connectionCancellationTokenSource = new CancellationTokenSource();
         _gatewayManager = new(logger);
+        _httpClientProvider = httpClientProvider;
 
         Mediator.Subscribe<DalamudLoginMessage>(this, (_) => DalamudUtilOnLogIn());
         Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => DalamudUtilOnLogOut());
@@ -161,6 +163,13 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             _connectionCancellationTokenSource?.Cancel();
             return;
         }
+
+        var proxyServer = _serverManager.UseServiceGatewayProxy ? !string.IsNullOrWhiteSpace(_serverManager.ServiceGatewayProxyHost) ? _serverManager.CurrentProxyServer : null : null;
+        if (proxyServer != null)
+        {
+            Logger.LogInformation("Using a service gateway for auth/files: {gateway}", proxyServer);
+        }
+        _httpClientProvider.RecreateHttpClient(proxyServer);
 
         if (!_serverManager.CurrentServer.UseOAuth2)
         {
@@ -366,6 +375,14 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                     }
                 }
 
+                if (_serverManager.UseServiceGatewayProxy && !_naggedAboutProxy)
+                {
+                    _naggedAboutProxy = true;
+                    Mediator.Publish(new NotificationMessage("Gateway Service Override", "You have the service gateway override enabled for auth/files services. " + 
+                        "It is not recomennded to enable this setting for normal use as it can be slower than a default connection.",
+                           NotificationType.Warning));
+                }
+
                 await LoadIninitialPairsAsync().ConfigureAwait(false);
                 await LoadOnlinePairsAsync().ConfigureAwait(false);
                 Mediator.Publish(new GroupZoneSyncUpdateMessage());
@@ -407,6 +424,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     private bool _naggedAboutLod = false;
     private bool _warnCdnOverride = false;
+    private bool _naggedAboutProxy = false;
 
     public Task CyclePauseAsync(UserData userData)
     {

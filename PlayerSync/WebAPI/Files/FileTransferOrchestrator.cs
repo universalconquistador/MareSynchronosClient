@@ -13,7 +13,8 @@ namespace MareSynchronos.WebAPI.Files;
 
 public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
 {
-    private readonly HttpClient _httpClient;
+    //private readonly HttpClient _httpClient;
+    private readonly HttpClientProvider _httpClientProvider;
     private readonly MareConfigService _mareConfig;
     private readonly TokenProvider _tokenProvider;
 
@@ -32,14 +33,15 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     private int CurrentlyUsedUploadSlots => _availableUploadSlots - _uploadSemaphore.CurrentCount;
 
     public FileTransferOrchestrator(ILogger<FileTransferOrchestrator> logger, MareConfigService mareConfig,
-        MareMediator mediator, TokenProvider tokenProvider, HttpClient httpClient) : base(logger, mediator)
+        MareMediator mediator, TokenProvider tokenProvider, HttpClientProvider httpClientProvider) : base(logger, mediator)
     {
         _mareConfig = mareConfig;
         _tokenProvider = tokenProvider;
-        _httpClient = httpClient;
+        _httpClientProvider = httpClientProvider;
+        var httpClient = _httpClientProvider.GetHttpClient();
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PlayerSync", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
-        _httpClient.Timeout = Timeout.InfiniteTimeSpan;
+        httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PlayerSync", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
+        httpClient.Timeout = Timeout.InfiniteTimeSpan;
 
         _availableDownloadSlots = Math.Clamp(mareConfig.Current.ParallelDownloads, 1, 100);
         _downloadSemaphore = new(_availableDownloadSlots, _availableDownloadSlots);
@@ -69,7 +71,7 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     public Uri? FilesCdnUri { private set; get; }
     public List<FileTransfer> ForbiddenTransfers { get; } = [];
     public bool IsInitialized => FilesCdnUri != null;
-    public HttpRequestHeaders DefaultRequestHeaders => _httpClient.DefaultRequestHeaders;
+    public HttpRequestHeaders DefaultRequestHeaders => _httpClientProvider.GetHttpClient().DefaultRequestHeaders;
     public int TimeZoneUtcOffsetMinutes
     {
         get
@@ -292,8 +294,8 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
         try
         {
             if (ct != null)
-                return await _httpClient.SendAsync(requestMessage, httpCompletionOption, ct.Value).ConfigureAwait(false);
-            return await _httpClient.SendAsync(requestMessage, httpCompletionOption).ConfigureAwait(false);
+                return await _httpClientProvider.GetHttpClient().SendAsync(requestMessage, httpCompletionOption, ct.Value).ConfigureAwait(false);
+            return await _httpClientProvider.GetHttpClient().SendAsync(requestMessage, httpCompletionOption).ConfigureAwait(false);
         }
         catch (TaskCanceledException)
         {

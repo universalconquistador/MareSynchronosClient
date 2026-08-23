@@ -1,5 +1,6 @@
 ﻿using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 using System.Text.Json;
@@ -13,7 +14,8 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase
     private const string RepositoryUrl = "https://playersync.io/download/plugin/repo.json";
 
     private readonly ILogger<VersionUpdateCheckService> _logger;
-    private readonly HttpClient _httpClient;
+    //private readonly HttpClient _httpClient;
+    private readonly HttpClientProvider _httpClientProvider;
 
     private Version _latestVersion;
     private readonly object _sync = new();
@@ -21,11 +23,11 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase
     private CancellationTokenSource? _periodicCts;
     private Task? _periodicTask;
 
-    public VersionUpdateCheckService(ILogger<VersionUpdateCheckService> logger, HttpClient httpClient, MareMediator mediator)
+    public VersionUpdateCheckService(ILogger<VersionUpdateCheckService> logger, HttpClientProvider httpClientProvider, MareMediator mediator)
         : base(logger, mediator)
     {
         _logger = logger;
-        _httpClient = httpClient;
+        _httpClientProvider = httpClientProvider;
         _latestVersion = Assembly.GetExecutingAssembly().GetName().Version!;
 
         Mediator.Subscribe<ConnectedMessage>(this, _ => Start());
@@ -72,7 +74,7 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase
                     using var req = new HttpRequestMessage(HttpMethod.Get, RepositoryUrl);
                     req.Headers.Accept.ParseAdd("application/json");
 
-                    using var resp = await _httpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+                    using var resp = await _httpClientProvider.GetHttpClient().SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
 
                     if (!resp.IsSuccessStatusCode)
                     {
