@@ -125,7 +125,7 @@ public sealed class CharaDataFileHandler : IDisposable
         Dictionary<string, string> compressedSubstitutions = new Dictionary<string, string>();
         HashSet<string> locallyPresentFiles = new HashSet<string>();
         await _fileDownloadManager.InitiateDownloadList(tempHandler.Name, missingFiles.Select(f => f.Hash).Distinct(StringComparer.Ordinal).ToList(), compressedAlternateUsage, compressedSubstitutions, locallyPresentFiles, 0, token).ConfigureAwait(false);
-        await _fileDownloadManager.DownloadFiles(new DownloadBatchInfo(tempHandler.Name, "Character", await _dalamudUtilService.CreateGameObjectAsync(tempHandler.Address).ConfigureAwait(false)), missingFiles, compressedSubstitutions, token).ConfigureAwait(false);
+        await _fileDownloadManager.DownloadFiles(new DownloadBatchInfo(tempHandler.Name, "Character", tempHandler), missingFiles, compressedSubstitutions, token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
         foreach (var file in missingFiles.SelectMany(m => m.GamePaths, (FileEntry, GamePath) => (Hash: compressedSubstitutions.GetValueOrDefault(FileEntry.Hash, FileEntry.Hash), GamePath)))
         {

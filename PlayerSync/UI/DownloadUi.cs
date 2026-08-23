@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Windowing;
 using MareSynchronos.MareConfiguration;
@@ -145,9 +146,9 @@ public class DownloadUi : WindowMediatorSubscriberBase
             {
                 try
                 {
-                    if (transfer.Key.GameObject != null)
+                    if (transfer.Key.GameObject != null && transfer.Key.GameObject.GetGameObject() is IGameObject downloadObject)
                     {
-                        var screenPos = _dalamudUtilService.WorldToScreen(transfer.Key.GameObject);
+                        var screenPos = _dalamudUtilService.WorldToScreen(downloadObject);
                         if (screenPos == Vector2.Zero) continue;
 
                         var totalBytes = transfer.Value.Sum(c => c.Value.TotalBytes);

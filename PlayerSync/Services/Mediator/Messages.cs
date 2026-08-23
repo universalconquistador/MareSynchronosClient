@@ -75,7 +75,7 @@ public record PenumbraEndRedrawMessage(IntPtr Address) : MessageBase;
 public record HubReconnectingMessage(Exception? Exception) : SameThreadMessage;
 public record HubReconnectedMessage(string? Arg) : SameThreadMessage;
 public record HubClosedMessage(Exception? Exception) : SameThreadMessage;
-public record DownloadBatchInfo(string DisplayName, string DisplayType, IGameObject? GameObject);
+public record DownloadBatchInfo(string DisplayName, string DisplayType, GameObjectHandler? GameObject);
 public record DownloadStartedMessage(DownloadBatchInfo BatchInfo, ConcurrentDictionary<string, FileDownloadStatus> DownloadStatus) : MessageBase;
 public record DownloadFinishedMessage(DownloadBatchInfo BatchInfo) : MessageBase;
 public record UiToggleMessage(Type UiType) : MessageBase;

@@ -414,7 +414,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
 
                 // start background task to download needed files
-                _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(new DownloadBatchInfo(_charaHandler!.Name, "Player", await _dalamudUtil.CreateGameObjectAsync(_charaHandler.Address).ConfigureAwait(false)), toDownloadReplacements, compressionSubstitutions, linkedCts.Token).ConfigureAwait(false));
+                _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(new DownloadBatchInfo(_charaHandler!.Name, "Player", _charaHandler), toDownloadReplacements, compressionSubstitutions, linkedCts.Token).ConfigureAwait(false));
 
                 await _pairDownloadTask.ConfigureAwait(false);
 
