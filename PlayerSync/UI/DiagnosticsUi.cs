@@ -16,7 +16,6 @@ namespace MareSynchronos.UI;
 public class DiagnosticsUi : WindowMediatorSubscriberBase
 {
     private readonly Progress<(DiagnosticsTestState State, string Status)> _diagnosticsProgress = new();
-    //private readonly HttpClient _httpClient;
     private readonly HttpClientProvider _httpClientProvider;
     private readonly ConcurrentQueue<(DiagnosticsTestState State, string Status)> _pendingResultTexts = new();
     private CancellationTokenSource? _diagnosticsCancellationTokenSource;

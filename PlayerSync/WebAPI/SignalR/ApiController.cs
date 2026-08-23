@@ -15,7 +15,6 @@ using MareSynchronos.WebAPI.SignalR;
 using MareSynchronos.WebAPI.SignalR.Utils;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
-using PlayerSync.WebAPI.SignalR;
 using System.Reflection;
 
 namespace MareSynchronos.WebAPI;
@@ -32,7 +31,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private readonly ServerConfigurationManager _serverManager;
     private readonly TokenProvider _tokenProvider;
     private readonly MareConfigService _mareConfigService;
-    private readonly GatewayManager _gatewayManager;
+    private readonly GatewayUtils _gatewayUtils;
     private readonly HttpClientProvider _httpClientProvider;
     private CancellationTokenSource _connectionCancellationTokenSource;
     private ConnectionDto? _connectionDto;
@@ -55,7 +54,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         _tokenProvider = tokenProvider;
         _mareConfigService = mareConfigService;
         _connectionCancellationTokenSource = new CancellationTokenSource();
-        _gatewayManager = new(logger);
+        _gatewayUtils = new(logger);
         _httpClientProvider = httpClientProvider;
 
         Mediator.Subscribe<DalamudLoginMessage>(this, (_) => DalamudUtilOnLogIn());
@@ -282,7 +281,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                         Uri? resolvedGateway = null;
                         try
                         {
-                            resolvedGateway = await _gatewayManager.GetServiceGatewayUri(new(_serverManager.CurrentServer.ServerUri), token).ConfigureAwait(false);
+                            resolvedGateway = await _gatewayUtils.GetServiceGatewayUri(_serverManager.ServiceDomain, token).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {

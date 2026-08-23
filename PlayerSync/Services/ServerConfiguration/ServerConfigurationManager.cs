@@ -20,7 +20,6 @@ public class ServerConfigurationManager
     private readonly ServerConfigService _configService;
     private readonly DalamudUtilService _dalamudUtil;
     private readonly MareConfigService _mareConfigService;
-    //private readonly HttpClient _httpClient;
     private readonly HttpClientProvider _httpClientProvider;
     private readonly ILogger<ServerConfigurationManager> _logger;
     private readonly MareMediator _mareMediator;

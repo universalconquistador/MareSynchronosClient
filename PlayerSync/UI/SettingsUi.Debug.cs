@@ -5,7 +5,6 @@ using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.UI.ModernUi;
 using Microsoft.Extensions.Logging;
-using PlayerSync.WebAPI.SignalR;
 using System.Numerics;
 using System.Text.Json;
 

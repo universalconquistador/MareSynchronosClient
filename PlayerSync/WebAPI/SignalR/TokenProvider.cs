@@ -15,7 +15,6 @@ namespace MareSynchronos.WebAPI.SignalR;
 public sealed class TokenProvider : IDisposable, IMediatorSubscriber
 {
     private readonly DalamudUtilService _dalamudUtil;
-    //private readonly HttpClient _httpClient;
     private readonly HttpClientProvider _httpClientProvider;
     private readonly ILogger<TokenProvider> _logger;
     private readonly ServerConfigurationManager _serverManager;

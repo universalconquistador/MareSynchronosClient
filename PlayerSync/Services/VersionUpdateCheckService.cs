@@ -14,7 +14,6 @@ public class VersionUpdateCheckService : DisposableMediatorSubscriberBase
     private const string RepositoryUrl = "https://playersync.io/download/plugin/repo.json";
 
     private readonly ILogger<VersionUpdateCheckService> _logger;
-    //private readonly HttpClient _httpClient;
     private readonly HttpClientProvider _httpClientProvider;
 
     private Version _latestVersion;

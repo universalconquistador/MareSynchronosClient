@@ -21,8 +21,8 @@ using MareSynchronos.WebAPI;
 using MareSynchronos.WebAPI.Files;
 using MareSynchronos.WebAPI.Files.Models;
 using MareSynchronos.WebAPI.SignalR.Utils;
+using MareSynchronos.WebAPI.SignalR;
 using Microsoft.Extensions.Logging;
-using PlayerSync.WebAPI.SignalR;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Numerics;
@@ -36,7 +36,6 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private readonly MareConfigService _configService;
     private readonly ConcurrentDictionary<GameObjectHandler, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DalamudUtilService _dalamudUtilService;
-    //private readonly HttpClient _httpClient;
     private readonly HttpClientProvider _httpClientProvider;
     private readonly FileCacheManager _fileCacheManager;
     private readonly FileCompactor _fileCompactor;
@@ -49,6 +48,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly UiSharedService _uiShared;
+    private readonly GatewayUtils _gatewayUtils;
     private readonly IProgress<(int, int, FileCacheEntity)> _validationProgress;
     private readonly IBroadcastManager _broadcastManager;
     private readonly PreloaderService _preloaderService;
@@ -118,6 +118,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         _uiShared = uiShared;
         _broadcastManager = broadcastManager;
         _preloaderService = preloaderService;
+        _gatewayUtils = new(logger);
         _theme = theme;
 
         _originalGatewayValue = _serverConfigurationManager.EnableGatewayDiscovery;
@@ -406,16 +407,13 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
         try
         {
-            Uri serviceUri = new Uri(_serverConfigurationManager.RealApiUrl);
-
-            List<string> gateways = await GatewayManager.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Gateway).ConfigureAwait(false);
-            List<string> proxies = await GatewayManager.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Proxy).ConfigureAwait(false);
+            List<string> gateways = await _gatewayUtils.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Gateway).ConfigureAwait(false);
+            List<string> proxies = await _gatewayUtils.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Proxy).ConfigureAwait(false);
 
             lock (_overrideGateways)
             {
                 _overrideGateways.Clear();
                 _overrideGateways.AddRange(gateways);
-                _overrideGateways.Sort(StringComparer.OrdinalIgnoreCase);
 
                 _serviceGateways.Clear();
                 _serviceGateways.AddRange(proxies);

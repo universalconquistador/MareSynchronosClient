@@ -13,7 +13,6 @@ namespace MareSynchronos.WebAPI.Files;
 
 public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
 {
-    //private readonly HttpClient _httpClient;
     private readonly HttpClientProvider _httpClientProvider;
     private readonly MareConfigService _mareConfig;
     private readonly TokenProvider _tokenProvider;
