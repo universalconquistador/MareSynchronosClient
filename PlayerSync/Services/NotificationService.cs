@@ -1,6 +1,8 @@
-﻿using Dalamud.Game.Text.SeStringHandling;
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface.ImGuiNotification;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
@@ -18,17 +20,23 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
     private readonly INotificationManager _notificationManager;
     private readonly IChatGui _chatGui;
     private readonly MareConfigService _configurationService;
+    private readonly StageConfigService _stageConfigService;
     DalamudLinkPayload? _inviteTogglePayload = null;
+    DalamudLinkPayload? _stageUpdatePayload = null;
+
+    string _savedStageFilename = "";
+    string _savedStageId = "";
 
     public NotificationService(ILogger<NotificationService> logger, MareMediator mediator,
         DalamudUtilService dalamudUtilService,
         INotificationManager notificationManager,
-        IChatGui chatGui, MareConfigService configurationService) : base(logger, mediator)
+        IChatGui chatGui, MareConfigService configurationService, StageConfigService stageConfigService) : base(logger, mediator)
     {
         _dalamudUtilService = dalamudUtilService;
         _notificationManager = notificationManager;
         _chatGui = chatGui;
         _configurationService = configurationService;
+        _stageConfigService = stageConfigService;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -36,6 +44,8 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
         Mediator.Subscribe<NotificationMessage>(this, ShowNotification);
 
         _inviteTogglePayload = _chatGui.AddChatLinkHandler(0, (_, _) => Mediator.Publish(new UiToggleMessage(typeof(PairingRequestsUi))));
+        // LifeStreamHandler uses ID 1
+        _stageUpdatePayload = _chatGui.AddChatLinkHandler(2, (_, _) => Mediator.Publish(new OpenStageUpdateWindow(_savedStageId, _savedStageFilename)));
 
         return Task.CompletedTask;
     }
@@ -90,6 +100,27 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
         _chatGui.Print(se.BuiltString);
     }
 
+    private void PrintStageSaveChat(string message, string filename, string stageId)
+    {
+        _savedStageFilename = filename;
+        _savedStageId = stageId;
+
+        SeStringBuilder se = new();
+
+        se.AddText($"[PlayerSync] Info: ");
+        se.AddItalics(message);
+        if (_stageUpdatePayload != null)
+        {
+            se.AddText(" ");
+            se.Add(_stageUpdatePayload);
+            se.AddUiForeground("Click here to upload the new version.", 37);
+            se.AddUiForegroundOff();
+            se.Add(RawPayload.LinkTerminator);
+        }
+
+        _chatGui.Print(se.Build());
+    }
+
     private void ShowChat(NotificationMessage msg)
     {
         switch (msg.Type)
@@ -108,6 +139,13 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
 
             case NotificationType.Invite:
                 PrintPairRequestChat(msg.Message);
+                break;
+
+            case NotificationType.StageSaved:
+                if (msg.UpdatedStageFilename != null && msg.UpdatedStageId != null)
+                {
+                    PrintStageSaveChat(msg.Message, msg.UpdatedStageFilename, msg.UpdatedStageId);
+                }
                 break;
         }
     }
@@ -134,6 +172,10 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
 
             case NotificationType.Invite:
                 ShowNotificationLocationBased(msg, _configurationService.Current.PairRequestNotification);
+                break;
+
+            case NotificationType.StageSaved:
+                ShowNotificationLocationBased(msg, _stageConfigService.Current.StageSavedNotificationLocation);
                 break;
         }
     }
@@ -168,10 +210,11 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
             NotificationType.Warning => Dalamud.Interface.ImGuiNotification.NotificationType.Warning,
             NotificationType.Info => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
             NotificationType.Invite => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
+            NotificationType.StageSaved => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
             _ => Dalamud.Interface.ImGuiNotification.NotificationType.Info
         };
 
-        _notificationManager.AddNotification(new Notification()
+        var notification = _notificationManager.AddNotification(new Notification()
         {
             Content = msg.Message ?? string.Empty,
             Title = msg.Title,
@@ -179,5 +222,23 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
             Minimized = false,
             InitialDuration = msg.TimeShownOnScreen ?? TimeSpan.FromSeconds(3)
         });
+
+        if (msg.Type == NotificationType.StageSaved && msg.UpdatedStageFilename != null && msg.UpdatedStageId != null)
+        {
+            notification.DrawActions += drawContext =>
+            {
+                if (ImGui.Button("Upload new version", new System.Numerics.Vector2(drawContext.MaxCoord.X - drawContext.MinCoord.X, ImGui.GetFrameHeight())))
+                {
+                    Mediator.Publish(new OpenStageUpdateWindow(msg.UpdatedStageId, msg.UpdatedStageFilename));
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    using (ImRaii.Tooltip())
+                    {
+                        ImGui.TextUnformatted($"Opens the stage details window for stage {msg.UpdatedStageId} so you can upload the new version of {Path.GetFileName(msg.UpdatedStageFilename)}.");
+                    }
+                }
+            };
+        }
     }
 }

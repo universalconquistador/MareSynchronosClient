@@ -5,7 +5,7 @@ public enum NotificationLocation
     Nowhere,
     Chat,
     Toast,
-    Both
+    Both,
 }
 
 public enum NotificationType
@@ -13,5 +13,6 @@ public enum NotificationType
     Info,
     Warning,
     Error,
-    Invite
+    Invite,
+    StageSaved,
 }

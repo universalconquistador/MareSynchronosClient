@@ -54,8 +54,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Stagehand.Api" Version="0.4.5" />
-    <PackageReference Include="Stagehand.Definitions" Version="0.4.5" />
+    <PackageReference Include="Stagehand.Api" Version="0.4.8" />
+    <PackageReference Include="Stagehand.Definitions" Version="0.4.8" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
   </ItemGroup>
 

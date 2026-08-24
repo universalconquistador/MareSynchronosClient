@@ -9,6 +9,7 @@ using Lumina.Excel.Sheets;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto.Stage;
 using MareSynchronos.Interop.Ipc;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -47,6 +48,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
     private readonly FileUploadManager _fileUploadManager;
     private readonly UiSharedService _uiSharedService;
     private readonly IdDisplayHandler _idDisplayHandler;
+    private readonly StageConfigService _stageConfigService;
     private readonly IClientState _clientState;
     private readonly IPlayerState _playerState;
     private readonly IDataManager _dataManager;
@@ -65,6 +67,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
     private GroupPresence? _newStageOwner = null;
 
     // Contents
+    private string? _newStageFilename = null;
     private StageDefinition? _newStageDefinition = null;
     private string? _loadStageDefinitionError = null;
     private bool _isLoadingStageDefinition = false;
@@ -105,7 +108,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
     public StageDetailsUi(ILogger<StageDetailsUi> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
         StageFullInfoDto? startingStageInfo, string? owningGroupId, ApiController apiController, PairManager pairManager,
         IpcManager ipcManager, FileUploadManager fileUploadManager, UiSharedService uiSharedService, IdDisplayHandler idDisplayHandler,
-        IClientState clientState, IPlayerState playerState, IDataManager dataManager)
+        StageConfigService stageConfigService, IClientState clientState, IPlayerState playerState, IDataManager dataManager)
         : base(logger, mediator, $"{startingStageInfo?.Customize.DisplayName ?? "New Stage"}###StageDetails{Guid.NewGuid()}", performanceCollector)
     {
         StageInfo = startingStageInfo;
@@ -115,6 +118,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         _fileUploadManager = fileUploadManager;
         _uiSharedService = uiSharedService;
         _idDisplayHandler = idDisplayHandler;
+        _stageConfigService = stageConfigService;
         _clientState = clientState;
         _playerState = playerState;
         _dataManager = dataManager;
@@ -187,6 +191,10 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
             {
                 ImGui.SetClipboardText(StageInfo.SID);
             }
+
+            ImGui.SameLine();
+            ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
+            StageHelpers.DrawStagePairButton(StageInfo, _apiController, _logger);
 
             string locationString = _uiSharedService.LocationToString(
                 StageInfo.State.LocationWorldId,
@@ -493,7 +501,12 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
             CustomizeFromDto(StageInfo.Customize);
             StateFromDto(StageInfo.State);
             _createStageError = null;
-            
+
+            if (_newStageFilename != null)
+            {
+                _stageConfigService.Current.UploadedDefinitionPathToStageId[_newStageFilename] = StageInfo.SID;
+                _stageConfigService.Save();
+            }
         }
         catch (Exception ex)
         {
@@ -520,11 +533,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                     {
                         if (ImGui.Selectable($"{availableStage.Name} (ver. {availableStage.VersionString})###{availableStage.Filename}"))
                         {
-                            if (!_isLoadingStageDefinition)
-                            {
-                                _isLoadingStageDefinition = true;
-                                _ = LoadStageDefinitionAsync(availableStage.Filename);
-                            }
+                            SelectDefinition(availableStage.Filename);
                             ImGui.CloseCurrentPopup();
                         }
                     }
@@ -577,6 +586,20 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         }
     }
 
+    public void SelectDefinition(string filename)
+    {
+        if (!_isLoadingStageDefinition)
+        {
+            if (StageInfo != null)
+            {
+                IsEditingContents = true;
+            }
+            _isLoadingStageDefinition = true;
+            _newStageFilename = filename;
+            _ = LoadStageDefinitionAsync(filename);
+        }
+    }
+
     private async Task UpdateContentsAsync(StageDefinition definition, IProgress<string> progress)
     {
         try
@@ -588,6 +611,12 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                 StageInfo.Contents = newContents;
                 _updateContentsError = null;
                 IsEditingContents = false;
+
+                if (_newStageFilename != null)
+                {
+                    _stageConfigService.Current.UploadedDefinitionPathToStageId[_newStageFilename] = StageInfo.SID;
+                    _stageConfigService.Save();
+                }
             }
         }
         catch (Exception ex)

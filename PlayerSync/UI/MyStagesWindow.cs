@@ -250,6 +250,7 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
 
         if (_findStageList != null)
         {
+            ImGuiHelpers.ScaledDummy(2.0f);
             using (var stageList = ImRaii.Child("StageList"u8, ImGui.GetContentRegionAvail()))
             {
                 _findStageList.Draw();

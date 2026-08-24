@@ -216,7 +216,7 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<IpcCallerLifestream>(), s.GetRequiredService<IpcCallerStagehand>()));
             collection.AddSingleton((s) => new NotificationService(s.GetRequiredService<ILogger<NotificationService>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<DalamudUtilService>(),
-                notificationManager, chatGui, s.GetRequiredService<MareConfigService>()));
+                notificationManager, chatGui, s.GetRequiredService<MareConfigService>(), s.GetRequiredService<StageConfigService>()));
             collection.AddSingleton((s) =>
             {
                 var httpClient = new HttpClient();
@@ -286,7 +286,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped((s) => new UiService(s.GetRequiredService<ILogger<UiService>>(), pluginInterface.UiBuilder, s.GetRequiredService<MareConfigService>(),
                 s.GetRequiredService<WindowSystem>(), s.GetServices<WindowMediatorSubscriberBase>(),
                 s.GetRequiredService<UiFactory>(),
-                s.GetRequiredService<FileDialogManager>(), s.GetRequiredService<MareMediator>()));
+                s.GetRequiredService<FileDialogManager>(), s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>()));
             collection.AddScoped((s) => new CommandManagerService(commandManager, s.GetRequiredService<PerformanceCollectorService>(),
                 s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<CacheMonitor>(), s.GetRequiredService<ApiController>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<MareConfigService>(), s.GetRequiredService<ZoneSyncConfigService>(), chatGui, pluginLog));
@@ -312,6 +312,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddHostedService(p => p.GetRequiredService<PairContextMenuHandler>());
             collection.AddHostedService(p => p.GetRequiredService<JsonDataTypeHandlerService>());
             collection.AddHostedService(p => p.GetRequiredService<AnimationBindGuard>());
+            collection.AddHostedService<StageSavedNotificationService>();
             //collection.AddHostedService(p => p.GetRequiredService<PlayerIdleStatusService>());
             collection.AddHostedService<SkeletonMappingFix>();
         })

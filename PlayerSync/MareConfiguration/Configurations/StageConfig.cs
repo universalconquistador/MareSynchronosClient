@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MareSynchronos.MareConfiguration.Models;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -10,7 +11,8 @@ public class StageConfig : IMareConfiguration
 
     public bool EnableStageFeatures { get; set; } = false; // TODO: Set to TRUE by default when the feature is officially released
     public CompressedAlternateUsage StageModCompressionUsage { get; set; } = CompressedAlternateUsage.AlwaysCompressed;
+    public NotificationLocation StageSavedNotificationLocation { get; set; } = NotificationLocation.Both;
 
     public HashSet<string> HiddenStageIds { get; set; } = new(StringComparer.Ordinal);
-    public Dictionary<string, string> StageIdToUploadFilename { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, string> UploadedDefinitionPathToStageId { get; set; } = new(StringComparer.Ordinal);
 }

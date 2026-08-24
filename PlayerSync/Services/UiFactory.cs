@@ -31,6 +31,7 @@ public class UiFactory
     private readonly FileImageTransferHandler _fileImageTransferHandler;
     private readonly PairInviteManager _pairRequestManager;
     private readonly MareConfigService _mareConfigService;
+    private readonly StageConfigService _stageConfigService;
     private readonly IpcManager _ipcManager;
     private readonly FileUploadManager _fileUploadManager;
     private readonly IdDisplayHandler _idDisplayHandler;
@@ -41,7 +42,7 @@ public class UiFactory
     public UiFactory(ILoggerFactory loggerFactory, MareMediator mareMediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, ServerConfigurationManager serverConfigManager,
         MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService, 
-        UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairInviteManager pairRequestManager, MareConfigService mareConfigService,
+        UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairInviteManager pairRequestManager, MareConfigService mareConfigService, StageConfigService stageConfigService,
         IpcManager ipcManager, FileUploadManager fileUploadManager, IdDisplayHandler idDisplayHandler, IClientState clientState, IPlayerState playerState,
         IDataManager dataManager)
     {
@@ -58,6 +59,7 @@ public class UiFactory
         _fileImageTransferHandler = fileImageTransferHandler;
         _pairRequestManager = pairRequestManager;
         _mareConfigService = mareConfigService;
+        _stageConfigService = stageConfigService;
         _ipcManager = ipcManager;
         _fileUploadManager = fileUploadManager;
         _idDisplayHandler = idDisplayHandler;
@@ -92,6 +94,6 @@ public class UiFactory
 
     public StageDetailsUi CreateStageDetailsUi(StageFullInfoDto? startingStageInfo, string? owningGroupId)
     {
-        return new StageDetailsUi(_loggerFactory.CreateLogger<StageDetailsUi>(), _mareMediator, _performanceCollectorService, startingStageInfo, owningGroupId, _apiController, _pairManager, _ipcManager, _fileUploadManager, _uiSharedService, _idDisplayHandler, _clientState, _playerState, _dataManager);
+        return new StageDetailsUi(_loggerFactory.CreateLogger<StageDetailsUi>(), _mareMediator, _performanceCollectorService, startingStageInfo, owningGroupId, _apiController, _pairManager, _ipcManager, _fileUploadManager, _uiSharedService, _idDisplayHandler, _stageConfigService, _clientState, _playerState, _dataManager);
     }
 }

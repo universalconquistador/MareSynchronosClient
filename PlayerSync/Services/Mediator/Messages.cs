@@ -63,7 +63,7 @@ public record TransientResourceChangedMessage(IntPtr Address) : MessageBase;
 public record HaltScanMessage(string Source) : MessageBase;
 public record ResumeScanMessage(string Source) : MessageBase;
 public record NotificationMessage
-    (string Title, string Message, NotificationType Type, TimeSpan? TimeShownOnScreen = null) : MessageBase;
+    (string Title, string Message, NotificationType Type, TimeSpan? TimeShownOnScreen = null, string? UpdatedStageFilename = null, string? UpdatedStageId = null) : MessageBase;
 public record CreateCacheForObjectMessage(GameObjectHandler ObjectToCreateFor) : SameThreadMessage;
 public record CreateCacheForEverythingMessage() : MessageBase;
 public record ClearCacheForObjectMessage(GameObjectHandler ObjectToCreateFor) : SameThreadMessage;
@@ -102,6 +102,7 @@ public record OpenSyncshellAdminPanel(GroupFullInfoDto GroupInfo) : MessageBase;
 public record OpenSyncshellProfilePanel(GroupFullInfoDto GroupInfo) : MessageBase;
 public record OpenPermissionWindow(Pair Pair) : MessageBase;
 public record OpenStageDetailsWindow(StageFullInfoDto? StartingStageInfo, string? OwningGroupId) : MessageBase;
+public record OpenStageUpdateWindow(string StageId, string NewDefinitionFilename) : MessageBase;
 public record DownloadLimitChangedMessage() : SameThreadMessage;
 public record CensusUpdateMessage(byte Gender, byte RaceId, byte TribeId) : MessageBase;
 public record TargetPairMessage(Pair? Pair, TargetType TargetType) : MessageBase;

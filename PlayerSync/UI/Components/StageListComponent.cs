@@ -63,11 +63,6 @@ public class StageListComponent
             ImGui.TextColoredWrapped(ImGuiColors.ErrorForeground, _errorMessage);
         }
 
-        if (_isLoading && _pageResults.Count == 0)
-        {
-            ImGui.TextDisabled("Loading..."u8);
-        }
-
         if (_pageResults.Count > 0)
         {
             for (int i = 0; i < _pageResults.Count; i++)
@@ -102,6 +97,13 @@ public class StageListComponent
                 }
             }
         }
+        else
+        {
+            var text = _isLoading ? "(Loading...)"u8 : "(No stages)"u8;
+            var textSize = ImGui.CalcTextSize(text);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X / 2.0f - textSize.X / 2.0f);
+            ImGui.TextDisabled(text);
+        }
     }
 
     private void DrawStageListItem(StageFullInfoDto stageInfo)
@@ -115,29 +117,7 @@ public class StageListComponent
         UiSharedService.AttachToolTip("Stage Details");
 
         ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-        FontAwesomeIcon subscriptionIcon;
-        string subscriptionTooltip;
-        if (stageInfo.SubscriptionState.HasFlag(StageSubscriptionFlags.DirectlySubscribed))
-        {
-            subscriptionIcon = FontAwesomeIcon.Check;
-            subscriptionTooltip = "Subscribed to this stage." + UiSharedService.TooltipSeparator + "Click to unsubscribe from this stage.";
-        }
-        else if (stageInfo.SubscriptionState.HasFlag(StageSubscriptionFlags.OwnerFeedSubscribed))
-        {
-            subscriptionIcon = FontAwesomeIcon.ArrowUp;
-            subscriptionTooltip = $"Subscribed to this stage's owner." + UiSharedService.TooltipSeparator + "Click to subscribe to this stage directly.";
-        }
-        else
-        {
-            subscriptionIcon = FontAwesomeIcon.Plus;
-            subscriptionTooltip = "Subscribe to this stage." + UiSharedService.TooltipSeparator + "Click to subscribe to this stage.";
-        }
-        if (ImGuiComponents.IconButton(subscriptionIcon, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
-        {
-            bool isSubscribed = stageInfo.SubscriptionState.HasFlag(StageSubscriptionFlags.DirectlySubscribed);
-            _ = SetIsSubscribedAsync(stageInfo, !isSubscribed);
-        }
-        UiSharedService.AttachToolTip(subscriptionTooltip);
+        StageHelpers.DrawStagePairButton(stageInfo, _apiController, _logger);
 
         ImGui.SameLine();
         ImGui.SetCursorPosX(startX);
@@ -186,19 +166,6 @@ public class StageListComponent
 
         ImGui.Spacing();
         ImGui.Separator();
-    }
-
-    private async Task SetIsSubscribedAsync(StageFullInfoDto stageInfo, bool subscribed)
-    {
-        try
-        {
-            await _apiController.StageSetSubscribed(stageInfo.SID, subscribed).ConfigureAwait(false);
-            stageInfo.SubscriptionState = subscribed ? stageInfo.SubscriptionState | StageSubscriptionFlags.DirectlySubscribed : stageInfo.SubscriptionState & ~StageSubscriptionFlags.DirectlySubscribed;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to set subscription state for stage {sid} to {value}!", stageInfo.SID, subscribed);
-        }
     }
 
     public void LoadPage(int page)
