@@ -75,6 +75,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
     private readonly List<string> _overrideGateways = new(); // sync service
     private readonly List<string> _serviceGateways = new(); // auth/file services
+    private readonly object _loadGatewaysLock = new();
     private bool _isLoadingGateways;
     private bool _gatewayLoadRequested;
     private string? _selectedGateway;
@@ -176,7 +177,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
     public override void OnClose()
     {
-        lock (_overrideGateways)
+        lock (_loadGatewaysLock)
         {
             _overrideGateways.Clear();
             _serviceGateways.Clear();
@@ -410,7 +411,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
             List<string> gateways = await _gatewayUtils.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Gateway).ConfigureAwait(false);
             List<string> proxies = await _gatewayUtils.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Proxy).ConfigureAwait(false);
 
-            lock (_overrideGateways)
+            lock (_loadGatewaysLock)
             {
                 _overrideGateways.Clear();
                 _overrideGateways.AddRange(gateways);
