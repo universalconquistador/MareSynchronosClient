@@ -15,20 +15,20 @@ namespace MareSynchronos.WebAPI.SignalR;
 public sealed class TokenProvider : IDisposable, IMediatorSubscriber
 {
     private readonly DalamudUtilService _dalamudUtil;
-    private readonly HttpClient _httpClient;
+    private readonly HttpClientProvider _httpClientProvider;
     private readonly ILogger<TokenProvider> _logger;
     private readonly ServerConfigurationManager _serverManager;
     private readonly ConcurrentDictionary<JwtIdentifier, string> _tokenCache = new();
     private bool _hasNotifiedOfRefresh = false;
 
-    public TokenProvider(ILogger<TokenProvider> logger, ServerConfigurationManager serverManager, DalamudUtilService dalamudUtil, MareMediator mareMediator, HttpClient httpClient)
+    public TokenProvider(ILogger<TokenProvider> logger, ServerConfigurationManager serverManager, DalamudUtilService dalamudUtil, MareMediator mareMediator, HttpClientProvider httpClientProvider)
     {
         _logger = logger;
         _serverManager = serverManager;
         _dalamudUtil = dalamudUtil;
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
         Mediator = mareMediator;
-        _httpClient = httpClient;
+        _httpClientProvider = httpClientProvider;
         Mediator.Subscribe<DalamudLogoutMessage>(this, (_) =>
         {
             _lastJwtIdentifier = null;
@@ -69,7 +69,8 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
                     var secretKey = _serverManager.GetSecretKey(out _)!;
                     var auth = secretKey.GetHash256();
                     _logger.LogInformation("Sending SecretKey Request to server with auth {auth}", string.Join("", identifier.SecretKeyOrOAuth.Take(10)));
-                    result = await _httpClient.PostAsync(tokenUri, new FormUrlEncodedContent(
+                    var httpClient = _httpClientProvider.GetHttpClient();
+                    result = await httpClient.PostAsync(tokenUri, new FormUrlEncodedContent(
                     [
                             new KeyValuePair<string, string>("auth", auth),
                             new KeyValuePair<string, string>("charaIdent", await _dalamudUtil.GetPlayerNameHashedAsync().ConfigureAwait(false)),
@@ -85,18 +86,20 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
                         ]);
                     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", identifier.SecretKeyOrOAuth);
                     _logger.LogInformation("Sending OAuth Request to server with auth {auth}", string.Join("", identifier.SecretKeyOrOAuth.Take(10)));
-                    result = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+                    var httpClient = _httpClientProvider.GetHttpClient();
+                    result = await httpClient.SendAsync(request, ct).ConfigureAwait(false);
                 }
             }
             else
             {
                 _logger.LogDebug("GetNewToken: Renewal");
+                _hasNotifiedOfRefresh = false;
                 
                 tokenUri = MareAuth.RenewTokenFullPath(new Uri(_serverManager.CurrentAuthServiceUri));
                 HttpRequestMessage request = new(HttpMethod.Get, tokenUri.ToString());
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _tokenCache[identifier]);
-                result = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
-                _hasNotifiedOfRefresh = false;
+                var httpClient = _httpClientProvider.GetHttpClient();
+                result = await httpClient.SendAsync(request, ct).ConfigureAwait(false);
             }
 
             response = await result.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -261,7 +264,8 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
         HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, tokenUri.ToString());
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", oauth2.Value.OAuthToken);
         _logger.LogInformation("Sending Request to server with auth {auth}", string.Join("", oauth2.Value.OAuthToken.Take(10)));
-        var result = await _httpClient.SendAsync(request).ConfigureAwait(false);
+        var httpClient = _httpClientProvider.GetHttpClient();
+        var result = await httpClient.SendAsync(request).ConfigureAwait(false);
 
         if (!result.IsSuccessStatusCode)
         {
