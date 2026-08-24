@@ -218,18 +218,18 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
         {
             var handler = new JwtSecurityTokenHandler();
             var jwt = handler.ReadJwtToken(token);
+            if (!_hasNotifiedOfRefresh && DateTime.UtcNow >= jwt.ValidTo.Subtract(TimeSpan.FromMinutes(10)) && DateTime.UtcNow < jwt.ValidTo)
+            {
+                _hasNotifiedOfRefresh = true;
+                Mediator.Publish(new NotificationMessage("Token Refresh", "Your PlayerSync token will refresh in about 5 minutes.", NotificationType.Token));
+            }
             if (jwt.ValidTo == DateTime.MinValue || jwt.ValidTo.Subtract(TimeSpan.FromMinutes(5)) > DateTime.UtcNow)
             {
                 return token;
             }
 
             _logger.LogDebug("GetOrUpdate: Cached token requires renewal, token valid to: {valid}, UtcTime is {utcTime}", jwt.ValidTo, DateTime.UtcNow);
-            if (!_hasNotifiedOfRefresh)
-            {
-                _hasNotifiedOfRefresh = true;
-                Mediator.Publish(new NotificationMessage("Token Refresh", "Your PlayerSync token will refresh in about 5 minutes", NotificationType.Token));
-            }
-
+            
             renewal = true;
         }
         else
