@@ -19,6 +19,7 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
     private readonly ILogger<TokenProvider> _logger;
     private readonly ServerConfigurationManager _serverManager;
     private readonly ConcurrentDictionary<JwtIdentifier, string> _tokenCache = new();
+    private bool _hasNotifiedOfRefresh = false;
 
     public TokenProvider(ILogger<TokenProvider> logger, ServerConfigurationManager serverManager, DalamudUtilService dalamudUtil, MareMediator mareMediator, HttpClientProvider httpClientProvider)
     {
@@ -92,6 +93,7 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
             else
             {
                 _logger.LogDebug("GetNewToken: Renewal");
+                _hasNotifiedOfRefresh = false;
                 
                 tokenUri = MareAuth.RenewTokenFullPath(new Uri(_serverManager.CurrentAuthServiceUri));
                 HttpRequestMessage request = new(HttpMethod.Get, tokenUri.ToString());
@@ -219,12 +221,18 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
         {
             var handler = new JwtSecurityTokenHandler();
             var jwt = handler.ReadJwtToken(token);
+            if (!_hasNotifiedOfRefresh && DateTime.UtcNow >= jwt.ValidTo.Subtract(TimeSpan.FromMinutes(10)) && DateTime.UtcNow < jwt.ValidTo)
+            {
+                _hasNotifiedOfRefresh = true;
+                Mediator.Publish(new NotificationMessage("Token Refresh", "Your PlayerSync token will refresh in about 5 minutes.", NotificationType.Token));
+            }
             if (jwt.ValidTo == DateTime.MinValue || jwt.ValidTo.Subtract(TimeSpan.FromMinutes(5)) > DateTime.UtcNow)
             {
                 return token;
             }
 
             _logger.LogDebug("GetOrUpdate: Cached token requires renewal, token valid to: {valid}, UtcTime is {utcTime}", jwt.ValidTo, DateTime.UtcNow);
+            
             renewal = true;
         }
         else
