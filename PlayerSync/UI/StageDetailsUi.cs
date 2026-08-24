@@ -156,6 +156,47 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         HasEditPermissions = StageInfo == null
             || (StageInfo.Info.GroupOwnerGID == "" && StageInfo.Info.UserOwnerUID == _apiController.UID)
             || (StageInfo.Info.GroupOwnerGID != "" && _groups.Any(group => group.GroupId == StageInfo.Info.GroupOwnerGID && group.IsOwnerOrModerator));
+
+        Mediator.Subscribe<StageSubscriptionsChangedMessage>(this, OnStageSubscriptionsChanged);
+        Mediator.Subscribe<StageSubscribedContentsChangedMessage>(this, OnStageSubscribedContentsChanged);
+        Mediator.Subscribe<StageSubscribedStateChangedMessage>(this, OnStageSubscribedStateChanged);
+        Mediator.Subscribe<StageCustomizeChangedMessage>(this, OnStageCustomizeChanged);
+    }
+
+    private void OnStageSubscriptionsChanged(StageSubscriptionsChangedMessage message)
+    {
+        if (StageInfo != null && message.AddedSubscribedStages.FirstOrDefault(info => info.SID == StageInfo.SID) is StageFullInfoDto newInfo)
+        {
+            StageInfo.SubscriptionState = newInfo.SubscriptionState;
+        }
+        else if (StageInfo != null && message.RemovedSubscribedStageIds.Contains(StageInfo.SID))
+        {
+            StageInfo.SubscriptionState = StageSubscriptionFlags.None;
+        }
+    }
+
+    private void OnStageSubscribedContentsChanged(StageSubscribedContentsChangedMessage message)
+    {
+        if (StageInfo != null && message.StageId == StageInfo.SID)
+        {
+            StageInfo.Contents = message.NewContents;
+        }
+    }
+
+    private void OnStageSubscribedStateChanged(StageSubscribedStateChangedMessage message)
+    {
+        if (StageInfo != null && message.StageId == StageInfo.SID)
+        {
+            StageInfo.State = message.NewState;
+        }
+    }
+
+    private void OnStageCustomizeChanged(StageCustomizeChangedMessage message)
+    {
+        if (StageInfo != null && message.StageId == StageInfo.SID)
+        {
+            StageInfo.Customize = message.NewCustomize;
+        }
     }
 
     public override void PreDraw()
@@ -385,7 +426,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
             {
                 await _apiController.StageDelete(StageInfo.SID).ConfigureAwait(false);
                 IsOpen = false;
-                OnClose();
+                Mediator.Publish(new StageDeletedMessage(StageInfo.SID));
             }
         }
         catch (Exception ex)
@@ -507,6 +548,8 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                 _stageConfigService.Current.UploadedDefinitionPathToStageId[_newStageFilename] = StageInfo.SID;
                 _stageConfigService.Save();
             }
+
+            Mediator.Publish(new StageCreatedMessage(StageInfo));
         }
         catch (Exception ex)
         {
@@ -761,6 +804,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
 
                 CustomizeFromDto(newCustomization);
                 CustomizeToDto(StageInfo.Customize);
+                Mediator.Publish(new StageCustomizeChangedMessage(StageInfo.SID, StageInfo.Customize));
             }
 
             IsEditingCustomization = false;

@@ -138,8 +138,11 @@ public record StageSettingsChangedMessage() : MessageBase;
 public record StageSubscriptionsChangedMessage(StageFullInfoDto[] AddedSubscribedStages, string[] RemovedSubscribedStageIds) : MessageBase;
 public record StageSubscribedContentsChangedMessage(string StageId, StageContentsDto NewContents) : MessageBase;
 public record StageSubscribedStateChangedMessage(string StageId, StageStateDto NewState) : MessageBase;
+public record StageCustomizeChangedMessage(string StageId, StageCustomizeDto NewCustomize) : MessageBase;
 public record ShowStageWithIdMessage(string StageId) : MessageBase;
 public record ShowStagesForUserMessage(string UidOrAlias) : MessageBase;
 public record ShowStagesForGroupMessage(string GidOrAlias) : MessageBase;
+public record StageDeletedMessage(string StageId) : MessageBase;
+public record StageCreatedMessage(StageFullInfoDto Stage) : MessageBase;
 #pragma warning restore S2094
 #pragma warning restore MA0048 // File name must match type name

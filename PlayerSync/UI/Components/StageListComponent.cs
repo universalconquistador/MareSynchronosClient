@@ -19,7 +19,7 @@ using System.Text;
 
 namespace MareSynchronos.UI.Components;
 
-public class StageListComponent
+public class StageListComponent : MediatorSubscriberBase, IDisposable
 {
     private readonly ILogger _logger;
     private readonly MareMediator _mareMediator;
@@ -37,6 +37,7 @@ public class StageListComponent
     private bool _hasNextPage;
 
     public StageListComponent(ILogger logger, MareMediator mareMediator, ApiController apiController, PairManager pairManager, IdDisplayHandler idDisplayHandler, UiSharedService uiSharedService, Func<int, Task<(List<StageFullInfoDto>, bool)>> pageLoadCallback)
+        : base(logger, mareMediator)
     {
         _logger = logger;
         _mareMediator = mareMediator;
@@ -53,6 +54,72 @@ public class StageListComponent
         if (_apiController.IsConnected)
         {
             LoadPage(0);
+        }
+
+        Mediator.Subscribe<StageSubscriptionsChangedMessage>(this, OnStageSubscriptionsChanged);
+        Mediator.Subscribe<StageSubscribedContentsChangedMessage>(this, OnStageSubscribedContentsChanged);
+        Mediator.Subscribe<StageSubscribedStateChangedMessage>(this, OnStageSubscribedStateChanged);
+        Mediator.Subscribe<StageCustomizeChangedMessage>(this, OnStageCustomizeChanged);
+        Mediator.Subscribe<StageDeletedMessage>(this, OnStageDeleted);
+    }
+
+    private void OnStageSubscriptionsChanged(StageSubscriptionsChangedMessage message)
+    {
+        foreach (var removedStageId in message.RemovedSubscribedStageIds)
+        {
+            foreach (var resultStage in _pageResults)
+            {
+                if (resultStage.SID == removedStageId)
+                {
+                    resultStage.SubscriptionState = StageSubscriptionFlags.None;
+                }
+            }
+        }
+
+        foreach (var addedStage in message.AddedSubscribedStages)
+        {
+            foreach (var resultStage in _pageResults)
+            {
+                if (resultStage.SID == addedStage.SID)
+                {
+                    resultStage.SubscriptionState = addedStage.SubscriptionState;
+                }
+            }
+        }
+    }
+
+    private void OnStageSubscribedContentsChanged(StageSubscribedContentsChangedMessage message)
+    {
+        if (_pageResults.FirstOrDefault(result => result.SID == message.StageId) is StageFullInfoDto stage)
+        {
+            stage.Contents = message.NewContents;
+        }
+    }
+
+    private void OnStageSubscribedStateChanged(StageSubscribedStateChangedMessage message)
+    {
+        if (_pageResults.FirstOrDefault(result => result.SID == message.StageId) is StageFullInfoDto stage)
+        {
+            stage.State = message.NewState;
+        }
+    }
+
+    private void OnStageCustomizeChanged(StageCustomizeChangedMessage message)
+    {
+        if (_pageResults.FirstOrDefault(result => result.SID == message.StageId) is StageFullInfoDto stage)
+        {
+            stage.Customize = message.NewCustomize;
+        }
+    }
+
+    private void OnStageDeleted(StageDeletedMessage message)
+    {
+        for (int i = _pageResults.Count - 1; i >= 0; i--)
+        {
+            if (_pageResults[i].SID == message.StageId)
+            {
+                _pageResults.RemoveAt(i);
+            }
         }
     }
 
@@ -194,5 +261,10 @@ public class StageListComponent
             _errorMessage = ex.ToString();
         }
         _isLoading = false;
+    }
+
+    public void Dispose()
+    {
+        UnsubscribeAll();
     }
 }

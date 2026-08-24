@@ -545,6 +545,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
         Mediator.Subscribe<StageSubscriptionsChangedMessage>(this, OnStageSubscriptionsChanged);
         Mediator.Subscribe<StageSubscribedContentsChangedMessage>(this, OnStageSubscribedContentsChanged);
         Mediator.Subscribe<StageSubscribedStateChangedMessage>(this, OnStageSubscribedStateChanged);
+        Mediator.Subscribe<StageCustomizeChangedMessage>(this, OnStageCustomizeChanged);
         RefreshStageDisplayEnabled();
 
         return Task.CompletedTask;
@@ -615,7 +616,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
             return;
         }
 
-        if (_activeStages.TryGetValue(message.StageId, out var activeStage))
+        if (_activeStages.TryGetValue(message.StageId, out var activeStage) && !activeStage.IsHidden)
         {
             activeStage.StageFullInfo = new()
             {
@@ -635,11 +636,27 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
         {
             return;
         }
-        
-        // TODO: Check whether the location became or is no longer the game's current location
-        // We'll need the FullInfoDto to actually show it though so that's probably going to need to be its own server-side push
 
-        // TODO: Apply new transform
+        // If the stage in question is or was in the current location, do a full refresh of the active stages
+        var currentLocation = _ipcCallerStagehand.StagehandApi.GetLocation();
+        bool isNowCurrentLocation = currentLocation.WorldId == message.NewState.LocationWorldId
+                && currentLocation.TerritoryId == message.NewState.LocationTerritoryId
+                && currentLocation.WardId == message.NewState.LocationWardId
+                && currentLocation.DivisionId == message.NewState.LocationDivisionId
+                && currentLocation.HouseId == message.NewState.LocationHouseId
+                && currentLocation.RoomId == message.NewState.LocationRoomId;
+        if (_activeStages.ContainsKey(message.StageId) || isNowCurrentLocation)
+        {
+            _ = SetupStagesForCurrentLocation();
+        }
+    }
+
+    private void OnStageCustomizeChanged(StageCustomizeChangedMessage message)
+    {
+        if (_activeStages.TryGetValue(message.StageId, out var activeStage))
+        {
+            activeStage.StageFullInfo.Customize = message.NewCustomize;
+        }
     }
 
     // Enable state is based on a few things:

@@ -99,6 +99,14 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         ];
 
         _stageList = new(logger, Mediator, apiController, pairManager, idDisplayHandler, uiSharedService, page => apiController.StageListForGroup(groupFullInfo.GID, page));
+
+        Mediator.Subscribe<StageCreatedMessage>(this, message =>
+        {
+            if (message.Stage.Info.GroupOwnerGID == GroupFullInfo.Group.GID)
+            {
+                _stageList.LoadPage(_stageList.PageIndex);
+            }
+        });
     }
 
     public GroupFullInfoDto GroupFullInfo { get; private set; }
@@ -761,5 +769,6 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     public override void OnClose()
     {
         Mediator.Publish(new RemoveWindowMessage(this));
+        _stageList.Dispose();
     }
 }

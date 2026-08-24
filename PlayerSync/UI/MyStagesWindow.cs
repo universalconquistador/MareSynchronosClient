@@ -104,6 +104,21 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
             FindByGroupId(message.GidOrAlias);
             IsOpen = true;
         });
+        Mediator.Subscribe<StageCreatedMessage>(this, message =>
+        {
+            if (message.Stage.Info.GroupOwnerGID == "")
+            {
+                _myStageList.LoadPage(_myStageList.PageIndex);
+                if (_selectedFindType == FindType.User && (_findText == message.Stage.Info.UserOwnerUID || _findText == _apiController.DisplayName))
+                {
+                    _findStageList.LoadPage(_findStageList.PageIndex);
+                }
+            }
+            else if (_selectedFindType == FindType.Group && _findText == message.Stage.Info.GroupOwnerGID)
+            {
+                _findStageList.LoadPage(_findStageList.PageIndex);
+            }
+        });
     }
 
     public override void OnOpen()
@@ -112,6 +127,14 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
         _myStageList.LoadPage(_myStageList.PageIndex);
         _subscribedStageList.LoadPage(_subscribedStageList.PageIndex);
         _findStageList?.LoadPage(_findStageList.PageIndex);
+    }
+
+    public override void OnClose()
+    {
+        base.OnClose();
+        _myStageList.Dispose();
+        _subscribedStageList.Dispose();
+        Interlocked.Exchange(ref _findStageList, null)?.Dispose();
     }
 
     protected override void DrawInternal()
@@ -202,19 +225,19 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
                 {
                     _selectedFindType = FindType.Stage;
                     _findText = "";
-                    _findStageList = null;
+                    Interlocked.Exchange(ref _findStageList, null)?.Dispose();
                 }
                 if (ImGui.Selectable(FindType.User.ToString(), _selectedFindType == FindType.User) && _selectedFindType != FindType.User)
                 {
                     _selectedFindType = FindType.User;
                     _findText = "";
-                    _findStageList = null;
+                    Interlocked.Exchange(ref _findStageList, null)?.Dispose();
                 }
                 if (ImGui.Selectable(FindTypeToString(FindType.Group), _selectedFindType == FindType.Group) && _selectedFindType != FindType.Group)
                 {
                     _selectedFindType = FindType.Group;
                     _findText = "";
-                    _findStageList = null;
+                    Interlocked.Exchange(ref _findStageList, null)?.Dispose();
                 }
             }
         }
@@ -260,7 +283,7 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
 
     private void FindByStageId(string stageId)
     {
-        _findStageList = new(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, _uiSharedService, async page =>
+        var newFindStageList = new StageListComponent(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, _uiSharedService, async page =>
         {
             var stageInfo = await _apiController.StageGetInfo(stageId).ConfigureAwait(false);
             if (stageInfo != null)
@@ -272,15 +295,18 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
                 return (new List<StageFullInfoDto>(), false);
             }
         });
+        Interlocked.Exchange(ref _findStageList, newFindStageList)?.Dispose();
     }
 
     private void FindByUserId(string uidOrAlias)
     {
-        _findStageList = new(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, _uiSharedService, page => _apiController.StageListForUser(uidOrAlias, page));
+        var newFindStageList = new StageListComponent(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, _uiSharedService, page => _apiController.StageListForUser(uidOrAlias, page));
+        Interlocked.Exchange(ref _findStageList, newFindStageList)?.Dispose();
     }
 
     private void FindByGroupId(string gidOrAlias)
     {
-        _findStageList = new(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, _uiSharedService, page => _apiController.StageListForGroup(gidOrAlias, page));
+        var newFindStageList = new StageListComponent(_logger, Mediator, _apiController, _pairManager, _idDisplayHandler, _uiSharedService, page => _apiController.StageListForGroup(gidOrAlias, page));
+        Interlocked.Exchange(ref _findStageList, newFindStageList)?.Dispose();
     }
 }
