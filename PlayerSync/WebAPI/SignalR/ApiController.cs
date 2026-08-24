@@ -709,6 +709,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             if (!string.Equals(token, _lastUsedToken, StringComparison.Ordinal))
             {
                 Logger.LogDebug("Reconnecting due to updated token");
+                Mediator.Publish(new NotificationMessage("Token Refresh", "Reconnecting with updated auth token...", NotificationType.Token));
 
                 _doNotNotifyOnNextInfo = true;
                 await CreateConnectionsAsync().ConfigureAwait(false);
