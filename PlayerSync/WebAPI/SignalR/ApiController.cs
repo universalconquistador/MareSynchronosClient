@@ -166,7 +166,19 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         var proxyServer = _serverManager.UseServiceGatewayProxy ? !string.IsNullOrWhiteSpace(_serverManager.ServiceGatewayProxyHost) ? _serverManager.CurrentProxyServer : null : null;
         if (proxyServer != null)
         {
-            Logger.LogInformation("Using a service gateway for auth/files: {gateway}", proxyServer);
+            bool isGatewayAvailable = await _gatewayUtils.TryValidateServiceGateway(_serverManager.ServiceGatewayProxyHost, _serverManager.ServiceDomain).ConfigureAwait(false);
+            if (!isGatewayAvailable)
+            {
+                Logger.LogWarning("Auth/files service gateway configured but unavailable! {proxy}", proxyServer);
+                Mediator.Publish(new NotificationMessage("Service Gateway Unavailable", "The auth/file service gateway you've selected is unavailable. " +
+                    "Change or disable this feature in Settings -> Service -> Connection", NotificationType.Warning));
+
+                proxyServer = null;
+            }
+            else
+            {
+                Logger.LogInformation("Using a service gateway for auth/files: {gateway}", proxyServer);
+            }
         }
         _httpClientProvider.RecreateHttpClient(proxyServer);
 
@@ -374,7 +386,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                     }
                 }
 
-                if (_serverManager.UseServiceGatewayProxy && !_naggedAboutProxy)
+                if (_serverManager.UseServiceGatewayProxy && !string.IsNullOrWhiteSpace(_serverManager.ServiceGatewayProxyHost) && !_naggedAboutProxy)
                 {
                     _naggedAboutProxy = true;
                     Mediator.Publish(new NotificationMessage("Gateway Service Override", "You have the service gateway override enabled for auth/files services. " + 

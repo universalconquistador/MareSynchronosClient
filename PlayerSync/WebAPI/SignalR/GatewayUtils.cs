@@ -1,5 +1,6 @@
 ﻿using DnsClient;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
@@ -65,6 +66,22 @@ namespace MareSynchronos.WebAPI.SignalR
             var serviceGateways = await GetValidGatewaysByServiceType(serviceDomain, serviceType, ct).ConfigureAwait(false);
 
             return serviceGateways.Select(gateway =>  gateway.GatewayUri.Host.Split('.')[0]).ToList();
+        }
+
+        public async Task<bool> TryValidateServiceGateway(string serviceGateway, string serviceDomain, CancellationToken ct = default)
+        {
+            using var httpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromMilliseconds(2000)
+            };
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PlayerSync");
+
+            Uri serviceUri = MakeServiceGatewaysFromHosts([serviceGateway], serviceDomain)[0];
+
+            // this returns null if any part of the web request fails
+            var gatewayResult = await CheckGatewayAsync(httpClient, serviceUri, ct).ConfigureAwait(false);
+
+            return gatewayResult != null;
         }
 
         private async Task<List<GatewayResult>> GetValidGatewaysByServiceType(string serviceDomain, ServiceType serviceType, CancellationToken ct = default)

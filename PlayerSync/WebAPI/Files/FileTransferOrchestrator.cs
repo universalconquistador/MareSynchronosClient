@@ -37,10 +37,6 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
         _mareConfig = mareConfig;
         _tokenProvider = tokenProvider;
         _httpClientProvider = httpClientProvider;
-        var httpClient = _httpClientProvider.GetHttpClient();
-        var ver = Assembly.GetExecutingAssembly().GetName().Version;
-        httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PlayerSync", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
-        httpClient.Timeout = Timeout.InfiniteTimeSpan;
 
         _availableDownloadSlots = Math.Clamp(mareConfig.Current.ParallelDownloads, 1, 100);
         _downloadSemaphore = new(_availableDownloadSlots, _availableDownloadSlots);

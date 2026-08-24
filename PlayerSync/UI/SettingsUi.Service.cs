@@ -568,8 +568,10 @@ public partial class SettingsUi
                 else
                 {
                     var serviceGatewayProxyHost = _serverConfigurationManager.ServiceGatewayProxyHost;
-                    ImGui.SetNextItemWidth(150 * ImGuiHelpers.GlobalScale);
-                    if (ImGui.BeginCombo("Service Gateway", string.IsNullOrWhiteSpace(serviceGatewayProxyHost) ? "Select Service Gateway" : serviceGatewayProxyHost.Replace("psp-", string.Empty).ToUpper()))
+                    string placeHolderText = "Select Service Gateway";
+                    var textSize = ImGui.CalcTextSize(placeHolderText);
+                    ImGui.SetNextItemWidth((textSize.X) * ImGuiHelpers.GlobalScale);
+                    if (ImGui.BeginCombo("Service Gateway", string.IsNullOrWhiteSpace(serviceGatewayProxyHost) ? placeHolderText : serviceGatewayProxyHost.Replace("psp-", string.Empty).ToUpper()))
                     {
                         foreach (string serviceGateway in _serviceGateways)
                         {
@@ -595,9 +597,9 @@ public partial class SettingsUi
         ImGuiHelpers.ScaledDummy(5f);
 
         _hasConnectionChanges = _originalGatewayValue != _serverConfigurationManager.EnableGatewayDiscovery
-        || _originalProxyValue != _serverConfigurationManager.UseServiceGatewayProxy
-        || (!string.Equals(_originalProxyHost, _serverConfigurationManager.ServiceGatewayProxyHost, StringComparison.OrdinalIgnoreCase) 
-        && _serverConfigurationManager.UseServiceGatewayProxy);
+        || (_originalProxyValue != _serverConfigurationManager.UseServiceGatewayProxy && !string.IsNullOrWhiteSpace(_serverConfigurationManager.ServiceGatewayProxyHost))
+        || (!string.Equals(_originalProxyHost, _serverConfigurationManager.ServiceGatewayProxyHost, StringComparison.OrdinalIgnoreCase)
+        && !string.IsNullOrWhiteSpace(_serverConfigurationManager.ServiceGatewayProxyHost) && _serverConfigurationManager.UseServiceGatewayProxy);
 
         using (ImRaii.Disabled(!_hasConnectionChanges))
         {

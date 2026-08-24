@@ -28,7 +28,6 @@ public class HttpClientProvider : IDisposable
         return _currentClient;
     }
 
-    // Called by the settings UI when the proxy setting is changed
     public void RecreateHttpClient(string? proxyUri = null)
     {
         SocketsHttpHandler handler = new()
@@ -56,6 +55,7 @@ public class HttpClientProvider : IDisposable
         var newClient = new HttpClient(handler, disposeHandler: true);
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
         newClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PlayerSync", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
+        newClient.Timeout = Timeout.InfiniteTimeSpan; // we set CancellationToken timeouts for various requests
 
         var oldClient = Interlocked.Exchange(ref _currentClient, newClient); // Atomically swap in the new client and get out the previous client in a thread-safe manner
 
