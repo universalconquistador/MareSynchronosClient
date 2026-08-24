@@ -89,7 +89,7 @@ public class PlayerDataFactory
             _logger.LogDebug("Cancelled creating Character data for {object}", playerRelatedObject);
             throw;
         }
-        catch (NullReferenceException e) // shouldn't happen but there are race conditions like when zoning/teleporting
+        catch (Exception e) when (e.GetBaseException() is NullReferenceException) // shouldn't happen but there are race conditions like when zoning/teleporting
         {
             _logger.LogError(e, "Failed to create {object} data", playerRelatedObject);
         }

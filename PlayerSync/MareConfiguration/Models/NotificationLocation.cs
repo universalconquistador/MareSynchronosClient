@@ -13,5 +13,6 @@ public enum NotificationType
     Info,
     Warning,
     Error,
-    Invite
+    Invite,
+    Token
 }
