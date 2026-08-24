@@ -20,4 +20,6 @@ public class ServerConfig : IMareConfiguration
     public bool EnableGatewayDiscovery { get; set; } = true;
     public string ManualGatewayServer { get; set; } = string.Empty;
     public bool OverrideGatewaySelection { get; set; } = false;
+    public bool UseServiceGatewayProxy { get; set; } = false;
+    public string ServiceGatewayProxyHost {  get; set; } = string.Empty;
 }

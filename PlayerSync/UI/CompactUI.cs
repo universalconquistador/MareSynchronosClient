@@ -745,9 +745,11 @@ public class CompactUi : WindowMediatorSubscriberBase
 
     private string GetServerError()
     {
+        string gatewayText = Environment.NewLine + $"Sync Gateway: {_serverConfigurationManager.CurrentApiUrl.Replace("wss://", string.Empty)}";
+        string proxyText = _serverConfigurationManager.UseServiceGatewayProxy ? Environment.NewLine + "Service Gateway: " + _serverConfigurationManager.CurrentProxyServer : string.Empty;
         return _apiController.ServerState switch
         {
-            ServerState.Connecting => "Attempting to connect to the server.",
+            ServerState.Connecting => "Attempting to connect to the server." + gatewayText + proxyText,
             ServerState.Reconnecting => "Connection to server interrupted, attempting to reconnect to the server.",
             ServerState.Disconnected => "You are currently disconnected from the PlayerSync server.",
             ServerState.Disconnecting => "Disconnecting from the server",

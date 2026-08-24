@@ -6,6 +6,7 @@ using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.Models;
 using MareSynchronos.UI.ModernUi;
+using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Numerics;
@@ -15,7 +16,7 @@ namespace MareSynchronos.UI;
 public class DiagnosticsUi : WindowMediatorSubscriberBase
 {
     private readonly Progress<(DiagnosticsTestState State, string Status)> _diagnosticsProgress = new();
-    private readonly HttpClient _httpClient;
+    private readonly HttpClientProvider _httpClientProvider;
     private readonly ConcurrentQueue<(DiagnosticsTestState State, string Status)> _pendingResultTexts = new();
     private CancellationTokenSource? _diagnosticsCancellationTokenSource;
     private Task? _diagnosticsRunTask;
@@ -25,10 +26,10 @@ public class DiagnosticsUi : WindowMediatorSubscriberBase
     private readonly UiTheme _theme;
 
     public DiagnosticsUi(ILogger<DiagnosticsUi> logger, MareMediator mediator, 
-        PerformanceCollectorService performanceCollectorService, HttpClient httpClient, UiTheme theme)
+        PerformanceCollectorService performanceCollectorService, HttpClientProvider httpClientProvider, UiTheme theme)
         : base(logger, mediator, "PlayerSync Diagnostics", performanceCollectorService)
     {
-        _httpClient = httpClient;
+        _httpClientProvider = httpClientProvider;
         _theme = theme;
 
         SizeConstraints = new()
@@ -123,7 +124,7 @@ public class DiagnosticsUi : WindowMediatorSubscriberBase
         {
             try
             {
-                _finalResults = await DiagnosticTesting.RunAllDiagnosticTests(_diagnosticsProgress, _httpClient, diagnosticsCancellationToken).ConfigureAwait(false);
+                _finalResults = await DiagnosticTesting.RunAllDiagnosticTests(_diagnosticsProgress, _httpClientProvider.GetHttpClient(), diagnosticsCancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
