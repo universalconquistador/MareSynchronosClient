@@ -14,5 +14,5 @@ public class StageConfig : IMareConfiguration
     public NotificationLocation StageSavedNotificationLocation { get; set; } = NotificationLocation.Both;
 
     public HashSet<string> HiddenStageIds { get; set; } = new(StringComparer.Ordinal);
-    public Dictionary<string, string> UploadedDefinitionPathToStageId { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, string> StageIdUploadedDefinitionPath { get; set; } = new(StringComparer.Ordinal);
 }

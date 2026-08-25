@@ -427,6 +427,8 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                 await _apiController.StageDelete(StageInfo.SID).ConfigureAwait(false);
                 IsOpen = false;
                 Mediator.Publish(new StageDeletedMessage(StageInfo.SID));
+                _stageConfigService.Current.StageIdUploadedDefinitionPath.Remove(StageInfo.SID);
+                _stageConfigService.Save();
             }
         }
         catch (Exception ex)
@@ -545,7 +547,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
 
             if (_newStageFilename != null)
             {
-                _stageConfigService.Current.UploadedDefinitionPathToStageId[_newStageFilename] = StageInfo.SID;
+                _stageConfigService.Current.StageIdUploadedDefinitionPath[StageInfo.SID] = _newStageFilename;
                 _stageConfigService.Save();
             }
 
@@ -657,7 +659,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
 
                 if (_newStageFilename != null)
                 {
-                    _stageConfigService.Current.UploadedDefinitionPathToStageId[_newStageFilename] = StageInfo.SID;
+                    _stageConfigService.Current.StageIdUploadedDefinitionPath[StageInfo.SID] = _newStageFilename;
                     _stageConfigService.Save();
                 }
             }

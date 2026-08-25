@@ -33,14 +33,17 @@ public class StageSavedNotificationService : IHostedService
 
     private void OnLocalStageDefinitionEdited(string definitionFilename)
     {
-        if (_stageConfigService.Current.UploadedDefinitionPathToStageId.TryGetValue(definitionFilename, out string stageId))
+        foreach (var pair in _stageConfigService.Current.StageIdUploadedDefinitionPath)
         {
-            _logger.LogDebug("Stage saved which is uploaded.");
-            _mareMediator.Publish(new NotificationMessage("Stage Saved", $"Stage {Path.GetFileName(definitionFilename)} was just saved, which you have uploaded to PlayerSync as {stageId}.", MareConfiguration.Models.NotificationType.StageSaved, UpdatedStageFilename: definitionFilename, UpdatedStageId: stageId));
-        }
-        else
-        {
-            _logger.LogDebug("Stage saved which is not uploaded.");
+            if (pair.Value == definitionFilename)
+            {
+                _mareMediator.Publish(new NotificationMessage(
+                    "Stage Saved",
+                    $"Stage {Path.GetFileName(definitionFilename)} was just saved, which you have uploaded to PlayerSync as {pair.Key}.",
+                    MareConfiguration.Models.NotificationType.StageSaved,
+                    UpdatedStageFilename: definitionFilename,
+                    UpdatedStageId: pair.Key));
+            }
         }
     }
 

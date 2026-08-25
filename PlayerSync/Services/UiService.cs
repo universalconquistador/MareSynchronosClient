@@ -18,12 +18,13 @@ public sealed class UiService : DisposableMediatorSubscriberBase
     private readonly FileDialogManager _fileDialogManager;
     private readonly ILogger<UiService> _logger;
     private readonly MareConfigService _mareConfigService;
+    private readonly StageConfigService _stageConfigService;
     private readonly WindowSystem _windowSystem;
     private readonly UiFactory _uiFactory;
     private readonly ApiController _apiController;
 
     public UiService(ILogger<UiService> logger, IUiBuilder uiBuilder,
-        MareConfigService mareConfigService, WindowSystem windowSystem,
+        MareConfigService mareConfigService, StageConfigService stageConfigService, WindowSystem windowSystem,
         IEnumerable<WindowMediatorSubscriberBase> windows,
         UiFactory uiFactory, FileDialogManager fileDialogManager,
         MareMediator mareMediator, ApiController apiController) : base(logger, mareMediator)
@@ -32,6 +33,7 @@ public sealed class UiService : DisposableMediatorSubscriberBase
         _logger.LogTrace("Creating {type}", GetType().Name);
         _uiBuilder = uiBuilder;
         _mareConfigService = mareConfigService;
+        _stageConfigService = stageConfigService;
         _windowSystem = windowSystem;
         _uiFactory = uiFactory;
         _fileDialogManager = fileDialogManager;
@@ -130,8 +132,19 @@ public sealed class UiService : DisposableMediatorSubscriberBase
         try
         {
             var stageInfo = await _apiController.StageGetInfo(stageId).ConfigureAwait(false);
-            var window = ShowStageDetailsWindow(stageInfo, stageInfo.Info.GroupOwnerGID);
-            window.SelectDefinition(definitionFilename);
+            if (stageInfo != null)
+            {
+                var window = ShowStageDetailsWindow(stageInfo, stageInfo.Info.GroupOwnerGID);
+                window.SelectDefinition(definitionFilename);
+            }
+            else
+            {
+                _logger.LogInformation("Stage {stageId} no longer exists.", stageId);
+                if (_stageConfigService.Current.StageIdUploadedDefinitionPath.Remove(stageId))
+                {
+                    _stageConfigService.Save();
+                }
+            }
         }
         catch (Exception ex)
         {
