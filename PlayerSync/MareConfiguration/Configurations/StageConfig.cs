@@ -9,7 +9,7 @@ public class StageConfig : IMareConfiguration
 {
     public int Version { get; set; } = 1;
 
-    public bool EnableStageFeatures { get; set; } = false; // TODO: Set to TRUE by default when the feature is officially released
+    public bool EnableStageFeatures { get; set; } = true;
     public CompressedAlternateUsage StageModCompressionUsage { get; set; } = CompressedAlternateUsage.AlwaysCompressed;
     public NotificationLocation StageSavedNotificationLocation { get; set; } = NotificationLocation.Both;
 
