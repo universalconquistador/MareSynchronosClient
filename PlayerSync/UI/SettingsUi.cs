@@ -34,7 +34,8 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private readonly ApiController _apiController;
     private readonly CacheMonitor _cacheMonitor;
     private readonly MareConfigService _configService;
-    private readonly ConcurrentDictionary<GameObjectHandler, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
+    private readonly StageConfigService _stageConfigService;
+    private readonly ConcurrentDictionary<DownloadBatchInfo, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly HttpClientProvider _httpClientProvider;
     private readonly FileCacheManager _fileCacheManager;
@@ -75,6 +76,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
     private readonly List<string> _overrideGateways = new(); // sync service
     private readonly List<string> _serviceGateways = new(); // auth/file services
+    private readonly object _loadGatewaysLock = new();
     private bool _isLoadingGateways;
     private bool _gatewayLoadRequested;
     private string? _selectedGateway;
@@ -85,7 +87,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private string _originalProxyHost = string.Empty;
 
     public SettingsUi(ILogger<SettingsUi> logger,
-        UiSharedService uiShared, MareConfigService configService,
+        UiSharedService uiShared, MareConfigService configService, StageConfigService stageConfigService,
         PairManager pairManager,
         ServerConfigurationManager serverConfigurationManager,
         PlayerPerformanceConfigService playerPerformanceConfigService,
@@ -101,6 +103,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         PreloaderService preloaderService) : base(logger, mediator, "PlayerSync Settings", performanceCollector)
     {
         _configService = configService;
+        _stageConfigService = stageConfigService;
         _pairManager = pairManager;
         _serverConfigurationManager = serverConfigurationManager;
         _playerPerformanceConfigService = playerPerformanceConfigService;
@@ -141,8 +144,8 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         Mediator.Subscribe<CutsceneStartMessage>(this, (_) => UiSharedService_GposeStart());
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => UiSharedService_GposeEnd());
         Mediator.Subscribe<CharacterDataCreatedMessage>(this, (msg) => LastCreatedCharacterData = msg.CharacterData);
-        Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.DownloadId] = msg.DownloadStatus);
-        Mediator.Subscribe<DownloadFinishedMessage>(this, (msg) => _currentDownloads.TryRemove(msg.DownloadId, out _));
+        Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.BatchInfo] = msg.DownloadStatus);
+        Mediator.Subscribe<DownloadFinishedMessage>(this, (msg) => _currentDownloads.TryRemove(msg.BatchInfo, out _));
         Mediator.Subscribe<ConnectedMessage>(this, (_) =>
         {
             _accountInfo = null;
@@ -176,7 +179,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
     public override void OnClose()
     {
-        lock (_overrideGateways)
+        lock (_loadGatewaysLock)
         {
             _overrideGateways.Clear();
             _serviceGateways.Clear();
@@ -410,7 +413,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
             List<string> gateways = await _gatewayUtils.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Gateway).ConfigureAwait(false);
             List<string> proxies = await _gatewayUtils.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Proxy).ConfigureAwait(false);
 
-            lock (_overrideGateways)
+            lock (_loadGatewaysLock)
             {
                 _overrideGateways.Clear();
                 _overrideGateways.AddRange(gateways);

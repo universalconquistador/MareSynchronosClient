@@ -591,6 +591,18 @@ public partial class SettingsUi
                               + Environment.NewLine + "'Chat' will print Token Refreshnotifications in chat"
                               + Environment.NewLine + "'Toast' will show Token Refresh toast notifications in the bottom right corner"
                               + Environment.NewLine + "'Both' will show chat as well as the toast notification");
+        ImGui.SetNextItemWidth(400);
+        _uiShared.DrawCombo("Stage Save Notification Display##settingsUi", (NotificationLocation[])Enum.GetValues(typeof(NotificationLocation)), (i) => i.ToString(),
+        (i) =>
+        {
+            _stageConfigService.Current.StageSavedNotificationLocation = i;
+            _stageConfigService.Save();
+        }, _stageConfigService.Current.StageSavedNotificationLocation);
+        _uiShared.DrawHelpText("The location where \"Stage Save\" notifications will display."
+                              + Environment.NewLine + "'Nowhere' will not show any Stage Save notifications"
+                              + Environment.NewLine + "'Chat' will print Stage Save notifications in chat"
+                              + Environment.NewLine + "'Toast' will show Stage Save toast notifications in the bottom right corner"
+                              + Environment.NewLine + "'Both' will show chat as well as the toast notification");
 
         ImGuiHelpers.ScaledDummy(5);
         if (ImGui.Checkbox("Disable optional plugin warnings", ref disableOptionalPluginWarnings))

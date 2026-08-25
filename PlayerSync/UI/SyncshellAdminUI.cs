@@ -1,6 +1,7 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -10,6 +11,7 @@ using MareSynchronos.API.Dto.Group;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.Handlers;
 using MareSynchronos.UI.ModernUi;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
@@ -42,9 +44,11 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private UiNav.NavItem<SyncshellAdminNav>? _selectedNavItem;
     private readonly IReadOnlyList<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SyncshellAdminNav>> Items)> _navGroups;
     private string _filterText = string.Empty;
+    private readonly StageListComponent _stageList;
 
     public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController, UiSharedService uiSharedService, 
-        IBroadcastManager broadcastManager, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService, UiTheme theme)
+        IBroadcastManager broadcastManager, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService, UiTheme theme,
+        IdDisplayHandler idDisplayHandler)
         : base(logger, mediator, "Syncshell Admin Panel (" + groupFullInfo.GroupAliasOrGID + ")", performanceCollectorService)
     {
         GroupFullInfo = groupFullInfo;
@@ -82,6 +86,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         {
             new(SyncshellAdminNav.Access, "Access", DrawAccess, FontAwesomeIcon.DoorOpen),
             new(SyncshellAdminNav.UserManagement, "User Management", DrawUserManagement, FontAwesomeIcon.Users),
+            new(SyncshellAdminNav.StageManagement, "Stage Management", DrawStageManagement, FontAwesomeIcon.MapMarkedAlt),
             new(SyncshellAdminNav.Permissions, "Permissions", DrawPermissions, FontAwesomeIcon.Key),
             new(SyncshellAdminNav.Profile, "Profile", DrawProfile, FontAwesomeIcon.User),
         };
@@ -92,6 +97,16 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         _navGroups =[
             ("", groupItems),
         ];
+
+        _stageList = new(logger, Mediator, apiController, pairManager, idDisplayHandler, uiSharedService, page => apiController.StageListForGroup(groupFullInfo.GID, page));
+
+        Mediator.Subscribe<StageCreatedMessage>(this, message =>
+        {
+            if (message.Stage.Info.GroupOwnerGID == GroupFullInfo.Group.GID)
+            {
+                _stageList.LoadPage(_stageList.PageIndex);
+            }
+        });
     }
 
     public GroupFullInfoDto GroupFullInfo { get; private set; }
@@ -100,6 +115,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     {
         Access,
         UserManagement,
+        StageManagement,
         Permissions,
         Profile,
         Owner
@@ -627,6 +643,26 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             ImGui.EndTable();
         }
     }
+
+    private void DrawStageManagement()
+    {
+        _uiSharedService.BigText("Stage Management");
+        ImGuiHelpers.ScaledDummy(2);
+
+        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "New Stage"))
+        {
+            Mediator.Publish(new OpenStageDetailsWindow(null, GroupFullInfo.GID));
+        }
+
+        using (var stageList = ImRaii.Child("StageList"u8, ImGui.GetContentRegionAvail()))
+        {
+            if (stageList.Success)
+            {
+                _stageList.Draw();
+            }
+        }
+    }
+
     private void DrawPermissions()
     {
         _uiSharedService.BigText("Permissions");
@@ -729,8 +765,10 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         UiSharedService.AttachToolTip("Hold CTRL and Shift and click to delete this Syncshell." + Environment.NewLine + "WARNING: this action is irreversible.");
                 
     }
-public override void OnClose()
+    
+    public override void OnClose()
     {
         Mediator.Publish(new RemoveWindowMessage(this));
+        _stageList.Dispose();
     }
 }

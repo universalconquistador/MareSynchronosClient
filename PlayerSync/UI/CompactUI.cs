@@ -33,9 +33,10 @@ public class CompactUi : WindowMediatorSubscriberBase
 {
     private readonly ApiController _apiController;
     private readonly MareConfigService _configService;
+    private readonly StageConfigService _stageConfigService;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfig;
-    private readonly ConcurrentDictionary<GameObjectHandler, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
+    private readonly ConcurrentDictionary<DownloadBatchInfo, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DrawEntityFactory _drawEntityFactory;
     private readonly FileUploadManager _fileTransferManager;
     private readonly PairManager _pairManager;
@@ -52,6 +53,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private readonly PairInviteManager _pairRequestManager;
     private List<IDrawFolder> _drawFolders;
     private DrawFolderBroadcasts? _broadcastsFolder;
+    private DrawFolderStages _stagesFolder;
     private Pair? _lastAddedUser;
     private string _lastAddedUserComment = string.Empty;
     private Vector2 _lastPosition = Vector2.One;
@@ -62,7 +64,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     private bool _wasOpen;
     private float _windowContentWidth;
 
-    public CompactUi(ILogger<CompactUi> logger, UiSharedService uiShared, MareConfigService configService, ZoneSyncConfigService zoneSyncConfigService,
+    public CompactUi(ILogger<CompactUi> logger, UiSharedService uiShared, MareConfigService configService, StageConfigService stageConfigService, ZoneSyncConfigService zoneSyncConfigService,
         ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager,
         ServerConfigurationManager serverManager, MareMediator mediator, FileUploadManager fileTransferManager,
         TagHandler tagHandler, DrawEntityFactory drawEntityFactory, SelectTagForPairUi selectTagForPairUi, SelectPairForTagUi selectPairForTagUi,
@@ -72,6 +74,7 @@ public class CompactUi : WindowMediatorSubscriberBase
     {
         _uiSharedService = uiShared;
         _configService = configService;
+        _stageConfigService = stageConfigService;
         _apiController = apiController;
         _pairManager = pairManager;
         _zoneSyncConfigService = zoneSyncConfigService;
@@ -87,7 +90,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         _characterAnalyzer = characterAnalyzer;
         _serverConfigurationManager = serverConfigurationManager;
         _pairRequestManager = pairRequestManager;
-        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _serverConfigurationManager, _zoneSyncConfigService, _pairRequestManager);
+        _tabMenu = new TopTabMenu(Mediator, _apiController, _pairManager, _broadcastManager, _uiSharedService, _configService, _stageConfigService, _serverConfigurationManager, _zoneSyncConfigService, _pairRequestManager, _ipcManager);
 
         AllowClickthrough = false;
         TitleBarButtons = new()
@@ -125,6 +128,7 @@ public class CompactUi : WindowMediatorSubscriberBase
         };
 
         _drawFolders = GetDrawFolders().ToList();
+        _stagesFolder = _drawEntityFactory.CreateDrawFolderStages();
 
         string ver = _uiSharedService.Version;
 
@@ -141,8 +145,8 @@ public class CompactUi : WindowMediatorSubscriberBase
         Mediator.Subscribe<ResumeSyncMessage>(this, (_) => UiSharedService_GposeEnd());
         Mediator.Subscribe<CutsceneStartMessage>(this, (_) => UiSharedService_GposeStart());
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => UiSharedService_GposeEnd());
-        Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.DownloadId] = msg.DownloadStatus);
-        Mediator.Subscribe<DownloadFinishedMessage>(this, (msg) => _currentDownloads.TryRemove(msg.DownloadId, out _));
+        Mediator.Subscribe<DownloadStartedMessage>(this, (msg) => _currentDownloads[msg.BatchInfo] = msg.DownloadStatus);
+        Mediator.Subscribe<DownloadFinishedMessage>(this, (msg) => _currentDownloads.TryRemove(msg.BatchInfo, out _));
         Mediator.Subscribe<RefreshUiMessage>(this, (msg) =>
         {
             _drawFolders = GetDrawFolders().ToList();
@@ -285,6 +289,11 @@ public class CompactUi : WindowMediatorSubscriberBase
         ImGui.BeginChild("list", new Vector2(_windowContentWidth, ySize), border: false);
 
         _broadcastsFolder?.Draw();
+
+        if (_stageConfigService.Current.EnableStageFeatures)
+        {
+            _stagesFolder.Draw();
+        }
 
         foreach (var item in _drawFolders)
         {

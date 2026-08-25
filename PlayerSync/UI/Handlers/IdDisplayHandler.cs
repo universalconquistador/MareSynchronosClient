@@ -7,6 +7,7 @@ using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
+using MareSynchronos.WebAPI;
 
 namespace MareSynchronos.UI.Handlers;
 
@@ -277,6 +278,39 @@ public class IdDisplayHandler
         }
 
         return (textIsUid, playerText!);
+    }
+
+    public string GetUserAlias(string uid, ApiController apiController, PairManager pairManager)
+    {
+        if (uid == apiController.UID)
+        {
+            return apiController.DisplayName;
+        }
+        else
+        {
+            var ownerPair = pairManager.GetPairByUID(uid);
+            if (ownerPair != null)
+            {
+                return ownerPair.UserData.AliasOrUID;
+            }
+            else
+            {
+                return uid;
+            }
+        }
+    }
+
+    public string GetGroupAlias(string gid, PairManager pairManager)
+    {
+        var group = pairManager.Groups.FirstOrDefault(pair => pair.Key.GID == gid).Value;
+        if (group != null)
+        {
+            return group.GroupAliasOrGID;
+        }
+        else
+        {
+            return gid;
+        }
     }
 
     internal void Clear()
