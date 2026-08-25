@@ -87,7 +87,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private string _originalProxyHost = string.Empty;
 
     public SettingsUi(ILogger<SettingsUi> logger,
-        UiSharedService uiShared, MareConfigService configService,
+        UiSharedService uiShared, MareConfigService configService, StageConfigService stageConfigService,
         PairManager pairManager,
         ServerConfigurationManager serverConfigurationManager,
         PlayerPerformanceConfigService playerPerformanceConfigService,
@@ -103,6 +103,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         PreloaderService preloaderService) : base(logger, mediator, "PlayerSync Settings", performanceCollector)
     {
         _configService = configService;
+        _stageConfigService = stageConfigService;
         _pairManager = pairManager;
         _serverConfigurationManager = serverConfigurationManager;
         _playerPerformanceConfigService = playerPerformanceConfigService;
