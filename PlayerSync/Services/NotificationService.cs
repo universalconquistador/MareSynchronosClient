@@ -141,6 +141,10 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
                 PrintPairRequestChat(msg.Message);
                 break;
 
+            case NotificationType.Token:
+                PrintInfoChat(msg.Message);
+                break;
+
             case NotificationType.StageSaved:
                 if (msg.UpdatedStageFilename != null && msg.UpdatedStageId != null)
                 {
@@ -172,6 +176,10 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
 
             case NotificationType.Invite:
                 ShowNotificationLocationBased(msg, _configurationService.Current.PairRequestNotification);
+                break;
+
+            case NotificationType.Token:
+                ShowNotificationLocationBased(msg, _configurationService.Current.TokenRefreshNotification);
                 break;
 
             case NotificationType.StageSaved:
@@ -210,6 +218,7 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
             NotificationType.Warning => Dalamud.Interface.ImGuiNotification.NotificationType.Warning,
             NotificationType.Info => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
             NotificationType.Invite => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
+            NotificationType.Token => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
             NotificationType.StageSaved => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
             _ => Dalamud.Interface.ImGuiNotification.NotificationType.Info
         };

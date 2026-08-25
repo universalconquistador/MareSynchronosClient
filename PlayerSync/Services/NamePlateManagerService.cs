@@ -5,6 +5,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
+using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI;
 using Microsoft.Extensions.Hosting;
@@ -17,16 +18,18 @@ namespace PlayerSync.Services
     {
         private readonly INamePlateGui _namePlateGui;
         private readonly PairManager _pairs;
+        private readonly DalamudUtilService _dalamudUtilService;
         private readonly ILogger<NamePlateManagerService> _logger;
         private readonly MareConfigService _configService;
         private const ushort UiColorId = 41;
 
         public NamePlateManagerService(ILogger<NamePlateManagerService> logger, MareMediator mediator, INamePlateGui namePlateGui, 
-            PairManager pairManager, MareConfigService mareConfigService) : base(logger, mediator)
+            PairManager pairManager, DalamudUtilService dalamudUtilService, MareConfigService mareConfigService) : base(logger, mediator)
         {
             _namePlateGui = namePlateGui;
             _pairs = pairManager;
             _logger = logger;
+            _dalamudUtilService = dalamudUtilService;
             _configService = mareConfigService;
         }
 
@@ -98,7 +101,11 @@ namespace PlayerSync.Services
 
                 handle.FreeCompanyTag = fcTagBuilder.Build();
 
-                if (_configService.Current.ShowNameHighlights && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights))
+                bool highlightInDungeon = _dalamudUtilService.IsBoundByDuty ? _configService.Current.HighlightNamesWhileInDungeons : true;
+                bool highlightInPvp = _dalamudUtilService.IsBoundByPvP ? _configService.Current.HighlightNamesWhileInPvP : true;
+
+                if (_configService.Current.ShowNameHighlights && (!IsFriend(handle) || _configService.Current.IncludeFriendHighlights)
+                    && highlightInDungeon && highlightInPvp)
                 {
                     var textColor = MakeOpaque(color.Foreground);
                     var textGlow = MakeOpaque(color.Glow);

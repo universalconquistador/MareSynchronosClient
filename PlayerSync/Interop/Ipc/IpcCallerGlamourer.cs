@@ -133,7 +133,7 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
         }
     }
 
-    public async Task ApplyAllNoRedrawAsync(ILogger logger, GameObjectHandler handler, string? customization, Guid applicationId, CancellationToken token)
+    public async Task ApplyAllNoWait(ILogger logger, GameObjectHandler handler, string? customization, Guid applicationId, CancellationToken token)
     {
         if (!APIAvailable || string.IsNullOrEmpty(customization) || _dalamudUtil.IsZoning || handler.Address == nint.Zero)
         {
@@ -147,9 +147,9 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
                 var gameObj = _dalamudUtil.CreateGameObject(handler.Address);
                 if (gameObj is ICharacter chara)
                 {
-                    logger.LogDebug("[{appid}] Calling on IPC: GlamourerApplyAll", applicationId);
+                    logger.LogDebug("[{appid}] Calling on IPC: ApplyAllNoWait", applicationId);
                     _glamourerApplyAll!.Invoke(customization, chara.ObjectIndex, LockCode);
-                    logger.LogDebug("[{appid}] Completed IPC: GlamourerApplyAll", applicationId);
+                    logger.LogDebug("[{appid}] Completed IPC: ApplyAllNoWait", applicationId);
                 }   
             }
             catch (Exception ex)

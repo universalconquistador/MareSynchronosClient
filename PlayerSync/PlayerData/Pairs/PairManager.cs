@@ -52,7 +52,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
     private Task? _unpausePairTask;
     private Task? _pendingDeferredTask;
     private int _maxConcurrentApplyData;
-    private bool _isDeferredDueToCombatOrPerforming = false;
     private bool _isPlayerIdle = false;
 
     public PairManager(ILogger<PairManager> logger, PairFactory pairFactory, DalamudUtilService dalamudUtilService, IpcManager ipcManager,
@@ -96,15 +95,6 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (_) => _isZoning = false);
         Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => InitializePairs());
-        Mediator.Subscribe<CombatOrPerformanceStartMessage>(this, _ =>
-        {
-            if ((_configurationService.Current.AutoPauseDataApplicationWhenPerforming && _dalamudUtilService.IsPerforming) || _dalamudUtilService.IsInCombat)
-            {
-                _isDeferredDueToCombatOrPerforming = true;
-            }
-        });
-
-        Mediator.Subscribe<CombatOrPerformanceEndMessage>(this, (msg) => _isDeferredDueToCombatOrPerforming = false);
         Mediator.Subscribe<PlayerIdleStartMessage>(this, _ => _isPlayerIdle = true);
         Mediator.Subscribe<PlayerIdleEndMessage>(this, _ => _isPlayerIdle = false);
 
@@ -157,8 +147,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             }
         }
     }
-    private bool DeferringDataApplications => 
-        _isDeferredDueToCombatOrPerforming 
+    private bool IsDeferredDueToCombatOrPerforming => (_configurationService.Current.AutoPauseDataApplicationWhenPerforming && _dalamudUtilService.IsPerforming) || _dalamudUtilService.IsInCombat;
+    private bool DeferringDataApplications =>
+        IsDeferredDueToCombatOrPerforming
         || _isPlayerIdle 
         || _dalamudUtilService.IsInCutscene 
         || _dalamudUtilService.IsOccupiedInCutSceneEvent 
@@ -341,7 +332,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         if (!pair.CanApplyModdedData || DeferringDataApplications) // defer this pair for now
         {
             Logger.LogDebug("Pair is not in a valid state or we are deferring data application: {pair} CachedPlayer: {cached} IsDeferred: {deferred} IsVisible: {visible}",
-                pair.PairUIDName, pair.HasCachedPlayer, _isDeferredDueToCombatOrPerforming, pair.IsVisible);
+                pair.PairUIDName, pair.HasCachedPlayer, IsDeferredDueToCombatOrPerforming, pair.IsVisible);
 
             _deferredPairDataApplications.AddOrUpdate(pair, dto, (_, existingDto) =>
             {

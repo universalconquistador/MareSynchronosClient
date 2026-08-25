@@ -14,5 +14,6 @@ public enum NotificationType
     Warning,
     Error,
     Invite,
+    Token,
     StageSaved,
 }

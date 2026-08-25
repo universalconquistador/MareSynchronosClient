@@ -180,6 +180,22 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                         }
                     }
                 }
+                if (response.Headers.TryGetValues("CF-RAY", out var rayValues))
+                {
+                    headersBuilder.AppendLine("ResponseMessage.Headers.Cloudflare:");
+                    foreach (var value in rayValues)
+                    {
+                        headersBuilder.AppendLine($"\"Cf-Ray\": \"{value}\"");
+                    }
+                }
+                if (response.Headers.TryGetValues("CF-CACHE-STATUS", out var cacheValues))
+                {
+                    headersBuilder.AppendLine("ResponseMessage.Headers.Cloudflare:");
+                    foreach (var value in cacheValues)
+                    {
+                        headersBuilder.AppendLine($"\"Cf-Cache-Status\": \"{value}\"");
+                    }
+                }
             }
 
             if (!response.IsSuccessStatusCode)

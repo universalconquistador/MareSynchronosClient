@@ -100,6 +100,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton(new WindowSystem("PlayerSync"));
             collection.AddSingleton<FileDialogManager>();
             collection.AddSingleton(new Dalamud.Localization("PlayerSync.Localization.", "", useEmbedded: true));
+            collection.AddSingleton<HttpClientProvider>();
 
             collection.AddSingleton(pluginInterface);
             collection.AddSingleton(gameData);
@@ -170,7 +171,7 @@ public sealed class Plugin : IDalamudPlugin
                 s.GetRequiredService<MareConfigService>(), s.GetRequiredService<ServerConfigurationManager>(), s.GetRequiredService<MareMediator>()));
             collection.AddSingleton<RedrawManager>();
             collection.AddSingleton(s => new NamePlateManagerService(s.GetRequiredService<ILogger<NamePlateManagerService>>(), s.GetRequiredService<MareMediator>(), 
-                namePlateGui, s.GetRequiredService<PairManager>(), s.GetRequiredService<MareConfigService>()));
+                namePlateGui, s.GetRequiredService<PairManager>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton<IBroadcastManager, BroadcastManager>(s => new BroadcastManager(s.GetRequiredService<ILogger<BroadcastManager>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<ApiController>(), s.GetRequiredService<DalamudUtilService>(), s.GetRequiredService<PairManager>(), s.GetRequiredService<MareConfigService>()));
             collection.AddSingleton((s) => new GroupZoneSyncManager(s.GetRequiredService<ILogger<GroupZoneSyncManager>>(),
@@ -217,13 +218,6 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton((s) => new NotificationService(s.GetRequiredService<ILogger<NotificationService>>(),
                 s.GetRequiredService<MareMediator>(), s.GetRequiredService<DalamudUtilService>(),
                 notificationManager, chatGui, s.GetRequiredService<MareConfigService>(), s.GetRequiredService<StageConfigService>()));
-            collection.AddSingleton((s) =>
-            {
-                var httpClient = new HttpClient();
-                var ver = Assembly.GetExecutingAssembly().GetName().Version;
-                httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PlayerSync", ver!.Major + "." + ver!.Minor + "." + ver!.Build));
-                return httpClient;
-            });
             collection.AddSingleton((s) => new FileImageTransferHandler(s.GetRequiredService<ILogger<FileImageTransferHandler>>(), s.GetRequiredService<FileTransferOrchestrator>()));
             collection.AddSingleton((s) => new MareConfigService(pluginInterface.ConfigDirectory.FullName));
             collection.AddSingleton((s) => new ServerConfigService(pluginInterface.ConfigDirectory.FullName));

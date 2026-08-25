@@ -94,6 +94,8 @@ public class MareConfig : IMareConfiguration
     public SeStringTextColors PermsColorsDisabled { get; set; } = new(Foreground: 0x0000FFu, Glow: 0x010101u);
     public bool ShowNameHighlights { get; set; } = false;
     public bool IncludeFriendHighlights { get; set; } = false;
+    public bool HighlightNamesWhileInDungeons { get; set; } = true;
+    public bool HighlightNamesWhileInPvP { get; set; } = true;
     public SeStringTextColors NameHighlightColor { get; set; } = new(Foreground: 0xBDD671u, Glow: 0x37501Du);
     public bool MysterySetting {  get; set; } = false;
     public bool InitialSetupOptions { get; set; } = false;
@@ -116,6 +118,7 @@ public class MareConfig : IMareConfiguration
     public bool EnableValidationChecks { get; set; } = true;
     public bool EnableColorWaveNotification { get; set; } = true;
     public NotificationLocation PairRequestNotification { get; set; } = NotificationLocation.Both;
+    public NotificationLocation TokenRefreshNotification { get; set; } = NotificationLocation.Chat;
     public bool LifestreamInvitesDirectPairsOnly { get; set; } = false;
     public string LastPreloadMod { get; set; } = string.Empty;
     public bool NoPauseSubmenuForPairsOnMainUi { get; set; } = false;

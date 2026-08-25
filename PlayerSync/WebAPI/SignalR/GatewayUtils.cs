@@ -1,10 +1,11 @@
 ﻿using DnsClient;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 
-namespace PlayerSync.WebAPI.SignalR
+namespace MareSynchronos.WebAPI.SignalR
 {
     public class GatewayResult
     {
@@ -16,92 +17,129 @@ namespace PlayerSync.WebAPI.SignalR
         public required int Priority { get; init; }
     }
 
-    public class GatewayManager
+    public enum ServiceType
+    {
+        Gateway,
+        Proxy
+    }
+
+    public class GatewayUtils
     {
         private const string GatewaySubDomain = "gateways";
+        private const string ProxySubDomain = "proxies";
         private const string GatewayStatus = "gateway-status";
         private const int DelayVariance = 100;
 
         private ILogger Logger { get; }
 
-        public GatewayManager(ILogger logger) 
+        public GatewayUtils(ILogger logger) 
         {
             Logger = logger;
         }
 
-        public async Task<Uri?> GetServiceGatewayUri(Uri serviceUri, CancellationToken ct = default)
+        public async Task<Uri?> GetServiceGatewayUri(string serviceDomain, CancellationToken ct = default)
         {
-            string host = serviceUri.Host;
-            string domain = string.Join('.', host.Split('.').Skip(1));
+            var serviceGateways = await GetValidGatewaysByServiceType(serviceDomain, ServiceType.Gateway, ct).ConfigureAwait(false);
+
+            if (serviceGateways.Count == 0)
+            {
+                return null;
+            }
+
+            // get the lowest trip time
+            int lowestTotalMs = serviceGateways.Min(result => result.TotalMs);
+
+            // get the lowest trip time unless there is a higher priority (lower priority value) within 30ms of the lowest
+            var bestGateway = serviceGateways.Where(result => result.TotalMs <= lowestTotalMs + DelayVariance).OrderBy(result => result.Priority).ThenBy(result => result.TotalMs).First();
+            if (bestGateway == null)
+            {
+                return null;
+            }
+
+            Logger.LogDebug("{service} Resolved best gateway: {gateway}", nameof(GatewayUtils), bestGateway.GatewayUri.Host);
+
+            return new($"wss://{bestGateway.GatewayUri.Host}");
+        }
+
+        public async Task<List<string>> GetListOfServiceGatewaysByServiceType(string serviceDomain, ServiceType serviceType, CancellationToken ct = default)
+        {
+            var serviceGateways = await GetValidGatewaysByServiceType(serviceDomain, serviceType, ct).ConfigureAwait(false);
+
+            return serviceGateways.Select(gateway =>  gateway.GatewayUri.Host.Split('.')[0]).ToList();
+        }
+
+        public async Task<bool> TryValidateServiceGateway(string serviceGateway, string serviceDomain, CancellationToken ct = default)
+        {
             using var httpClient = new HttpClient
             {
                 Timeout = TimeSpan.FromMilliseconds(2000)
             };
             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PlayerSync");
 
-            Logger.LogTrace("{service} Host: {host} Domain: {domain}", nameof(GatewayManager), host, domain);
+            Uri serviceUri = MakeServiceGatewaysFromHosts([serviceGateway], serviceDomain)[0];
+
+            // this returns null if any part of the web request fails
+            var gatewayResult = await CheckGatewayAsync(httpClient, serviceUri, ct).ConfigureAwait(false);
+
+            return gatewayResult != null;
+        }
+
+        private async Task<List<GatewayResult>> GetValidGatewaysByServiceType(string serviceDomain, ServiceType serviceType, CancellationToken ct = default)
+        {
+            List<GatewayResult> validResults = [];
+
+            string subdomain = string.Empty;
+            if (serviceType == ServiceType.Gateway)
+            {
+                subdomain = GatewaySubDomain;
+            }
+            else if (serviceType == ServiceType.Proxy)
+            {
+                subdomain = ProxySubDomain;
+            }
+            else
+            {
+                throw new NotSupportedException();
+            }
+
+            using var httpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromMilliseconds(2000)
+            };
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PlayerSync");
+
+            Logger.LogTrace("{service} Host: {host} Domain: {domain}", nameof(GatewayUtils), subdomain, serviceDomain);
 
             Logger.LogTrace("Attempting to resolve gateways via DNS TXT record...");
-            var hosts = await TryGetTxtRecordPartsAsync($"{GatewaySubDomain}.{domain}", ct).ConfigureAwait(false);
+            var hosts = await TryGetTxtRecordPartsAsync($"{subdomain}.{serviceDomain}", ct).ConfigureAwait(false);
             if (hosts is null || hosts.Count == 0)
             {
                 Logger.LogWarning("Failed to get gateway hosts by DNS TXT record!");
                 Logger.LogTrace("Attempting to get gateways via HTTPS request...");
-                hosts = await TryGetHostRecordPartsFromWebService(httpClient, new($"https://{GatewaySubDomain}.{domain}/csv"), ct).ConfigureAwait(false);
+                hosts = await TryGetHostRecordPartsFromWebService(httpClient, new($"https://{subdomain}.{serviceDomain}/csv"), ct).ConfigureAwait(false);
             }
             if (hosts is null || hosts.Count == 0)
             {
                 Logger.LogWarning("Failed to get gateway hosts by HTTPS request!");
-                return null;
             }
-
-            Logger.LogTrace("{service} Record Entries: {entries}", nameof(GatewayManager), string.Join(',', hosts));
-
-            var serviceGateways = MakeServiceGatewaysFromHosts(hosts, domain);
-
-            Logger.LogTrace("{service} Checking gateways for availability", nameof(GatewayManager));
-
-            var tasks = serviceGateways.Select(uri => CheckGatewayAsync(httpClient, uri, ct)).ToList();
-
-            GatewayResult?[] results = await Task.WhenAll(tasks).ConfigureAwait(false); // can take up to 2000ms
-
-            var validResults = results.Where(result => result is not null).ToList();
-
-            Logger.LogTrace("{service} Number of valid gateways: {number}", nameof(GatewayManager), validResults.Count);
-
-            if (validResults.Count == 0)
-                return null;
-
-            // get the lowest trip time
-            int lowestTotalMs = validResults.Min(result => result!.TotalMs);
-
-            // get the lowest trip time unless there is a higher priority (lower priority value) within 30ms of the lowest
-            var bestGateway = validResults.Where(result => result!.TotalMs <= lowestTotalMs + DelayVariance).OrderBy(result => result!.Priority).ThenBy(result => result!.TotalMs).First();
-            if (bestGateway == null) return null;
-
-            Logger.LogDebug("{service} Resolved best gateway: {gateway}", nameof(GatewayManager), bestGateway.GatewayUri.Host);
-
-            return new($"wss://{bestGateway.GatewayUri.Host}");
-        }
-
-        public static async Task<List<string>> GetListOfServiceGateways(Uri serviceUri, CancellationToken ct = default)
-        {
-            var gatewayList = new List<string>();
-
-            string host = serviceUri.Host;
-            string domain = string.Join('.', host.Split('.').Skip(1));
-
-            var hosts = await TryGetTxtRecordPartsAsync($"{GatewaySubDomain}.{domain}", ct).ConfigureAwait(false);
-            if (hosts is null) return [];
-
-            var serviceGateways = MakeServiceGatewaysFromHosts(hosts, domain);
-
-            foreach (var gateway in serviceGateways)
+            else
             {
-                gatewayList.Add(gateway.Host.Split('.')[0]);
+                Logger.LogTrace("{service} Record Entries: {entries}", nameof(GatewayUtils), string.Join(',', hosts));
+
+                var serviceGateways = MakeServiceGatewaysFromHosts(hosts, serviceDomain);
+
+                Logger.LogTrace("{service} Checking gateways for availability", nameof(GatewayUtils));
+
+                var tasks = serviceGateways.Select(uri => CheckGatewayAsync(httpClient, uri, ct)).ToList();
+
+                GatewayResult?[] results = await Task.WhenAll(tasks).ConfigureAwait(false); // can take up to 2000ms
+
+                validResults = results.OfType<GatewayResult>().ToList();
+
+                Logger.LogTrace("{service} Number of valid gateways: {number}", nameof(GatewayUtils), validResults.Count);
             }
 
-            return gatewayList;
+            return validResults;
         }
 
         private static async Task<List<string>?> TryGetTxtRecordPartsAsync(string hostName, CancellationToken ct = default)
@@ -162,7 +200,7 @@ namespace PlayerSync.WebAPI.SignalR
         {
             Uri statusUri = new Uri(gatewayUri, $"/{GatewayStatus}");
 
-            Logger.LogTrace("{service} Checking gateway: {gateway}", nameof(GatewayManager), statusUri.ToString());
+            Logger.LogTrace("{service} Checking gateway: {gateway}", nameof(GatewayUtils), statusUri.ToString());
 
             using var requestTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             requestTimeoutCts.CancelAfter(TimeSpan.FromMilliseconds(2000)); // we don't care about anything taking > 2seconds to reply
@@ -180,7 +218,7 @@ namespace PlayerSync.WebAPI.SignalR
 
                 string json = await response.Content.ReadAsStringAsync(requestTimeoutCts.Token).ConfigureAwait(false);
 
-                Logger.LogTrace("{service} Status code: {status} Body: {body}", nameof(GatewayManager), response.StatusCode, json.ToString());
+                Logger.LogTrace("{service} Status code: {status} Body: {body}", nameof(GatewayUtils), response.StatusCode, json.ToString());
 
                 using JsonDocument document = JsonDocument.Parse(json);
                 JsonElement root = document.RootElement;
@@ -205,7 +243,7 @@ namespace PlayerSync.WebAPI.SignalR
 
                 int requestMs = (int)Math.Min(stopwatch.ElapsedMilliseconds, int.MaxValue);
 
-                Logger.LogTrace("{service} Gateway: {gateway}, Request: {time}ms", nameof(GatewayManager), statusUri.ToString(), requestMs.ToString());
+                Logger.LogTrace("{service} Gateway: {gateway}, Request: {time}ms", nameof(GatewayUtils), statusUri.ToString(), requestMs.ToString());
 
                 return new GatewayResult
                 {
