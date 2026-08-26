@@ -567,9 +567,12 @@ public partial class IntroUi : WindowMediatorSubscriberBase
                 {
                     var serviceGatewayProxyHost = _serverConfigurationManager.ServiceGatewayProxyHost;
                     string placeHolderText = "Select Service Gateway";
-                    var textSize = ImGui.CalcTextSize(placeHolderText);
-                    ImGui.SetNextItemWidth((textSize.X) * ImGuiHelpers.GlobalScale);
-                    if (ImGui.BeginCombo("Service Gateway", string.IsNullOrWhiteSpace(serviceGatewayProxyHost) ? placeHolderText : serviceGatewayProxyHost.Replace("psp-", string.Empty).ToUpper()))
+                    string previewText = string.IsNullOrWhiteSpace(serviceGatewayProxyHost) ? placeHolderText : serviceGatewayProxyHost.Replace("psp-", string.Empty).ToUpperInvariant();
+                    var textWidth = ImGui.CalcTextSize(placeHolderText).X;
+                    var itemWidth = textWidth + ImGui.GetFrameHeight() + ImGui.GetStyle().FramePadding.X *2.0f;
+
+                    ImGui.SetNextItemWidth(itemWidth);
+                    if (ImGui.BeginCombo("Service Gateway", previewText))
                     {
                         foreach (string serviceGateway in _serviceGateways)
                         {
