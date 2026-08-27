@@ -21,6 +21,7 @@ using MareSynchronos.WebAPI;
 using MareSynchronos.WebAPI.Files;
 using MareSynchronos.WebAPI.Files.Models;
 using MareSynchronos.WebAPI.SignalR.Utils;
+using MareSynchronos.WebAPI.SignalR;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Globalization;
@@ -35,7 +36,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private readonly MareConfigService _configService;
     private readonly ConcurrentDictionary<GameObjectHandler, ConcurrentDictionary<string, FileDownloadStatus>> _currentDownloads = new();
     private readonly DalamudUtilService _dalamudUtilService;
-    private readonly HttpClient _httpClient;
+    private readonly HttpClientProvider _httpClientProvider;
     private readonly FileCacheManager _fileCacheManager;
     private readonly FileCompactor _fileCompactor;
     private readonly FileUploadManager _fileTransferManager;
@@ -47,6 +48,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly UiSharedService _uiShared;
+    private readonly GatewayUtils _gatewayUtils;
     private readonly IProgress<(int, int, FileCacheEntity)> _validationProgress;
     private readonly IBroadcastManager _broadcastManager;
     private readonly PreloaderService _preloaderService;
@@ -71,6 +73,18 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private bool _wasOpen = false;
     private int _globalControlCountdown = 0;
 
+    private readonly List<string> _overrideGateways = new(); // sync service
+    private readonly List<string> _serviceGateways = new(); // auth/file services
+    private readonly object _loadGatewaysLock = new();
+    private bool _isLoadingGateways;
+    private bool _gatewayLoadRequested;
+    private string? _selectedGateway;
+    private string? _selectedServicegateway;
+    private bool _hasConnectionChanges;
+    private bool _originalGatewayValue;
+    private bool _originalProxyValue;
+    private string _originalProxyHost = string.Empty;
+
     public SettingsUi(ILogger<SettingsUi> logger,
         UiSharedService uiShared, MareConfigService configService,
         PairManager pairManager,
@@ -84,7 +98,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         FileCompactor fileCompactor, ApiController apiController,
         IpcManager ipcManager, CacheMonitor cacheMonitor,
         IBroadcastManager broadcastManager,
-        DalamudUtilService dalamudUtilService, HttpClient httpClient, UiTheme theme,
+        DalamudUtilService dalamudUtilService, HttpClientProvider httpClientProvider, UiTheme theme,
         PreloaderService preloaderService) : base(logger, mediator, "PlayerSync Settings", performanceCollector)
     {
         _configService = configService;
@@ -100,12 +114,17 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         _ipcManager = ipcManager;
         _cacheMonitor = cacheMonitor;
         _dalamudUtilService = dalamudUtilService;
-        _httpClient = httpClient;
+        _httpClientProvider = httpClientProvider;
         _fileCompactor = fileCompactor;
         _uiShared = uiShared;
         _broadcastManager = broadcastManager;
         _preloaderService = preloaderService;
+        _gatewayUtils = new(logger);
         _theme = theme;
+
+        _originalGatewayValue = _serverConfigurationManager.EnableGatewayDiscovery;
+        _originalProxyValue = _serverConfigurationManager.UseServiceGatewayProxy;
+        _originalProxyHost = _serverConfigurationManager.ServiceGatewayProxyHost;
 
         _validationProgress = new Progress<(int, int, FileCacheEntity)>(v => _currentProgress = v);
 
@@ -151,12 +170,19 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
 
     public override void OnOpen()
     {
+        _gatewayLoadRequested = false;
         _uiShared.ResetOAuthTasksState();
         OnOpenTransfers();
     }
 
     public override void OnClose()
     {
+        lock (_loadGatewaysLock)
+        {
+            _overrideGateways.Clear();
+            _serviceGateways.Clear();
+        }
+
         _uiShared.EditTrackerPosition = false;
         _uidToAddForIgnore = string.Empty;
         _uidToAddForHeightIgnore = string.Empty;
@@ -358,6 +384,50 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         if (_globalControlCountdown < 0)
         {
             _globalControlCountdown = 0;
+        }
+    }
+
+    private void LoadGateways()
+    {
+        if (!(_serverConfigurationManager.OverrideGatewaySelection ||  _serverConfigurationManager.UseServiceGatewayProxy))
+            return;
+
+        if (_gatewayLoadRequested || _isLoadingGateways)
+            return;
+
+        _gatewayLoadRequested = true;
+        _ = LoadGatewaysAsync();
+    }
+
+    private async Task LoadGatewaysAsync()
+    {
+        if (_isLoadingGateways)
+            return;
+
+        _isLoadingGateways = true;
+
+        try
+        {
+            List<string> gateways = await _gatewayUtils.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Gateway).ConfigureAwait(false);
+            List<string> proxies = await _gatewayUtils.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Proxy).ConfigureAwait(false);
+
+            lock (_loadGatewaysLock)
+            {
+                _overrideGateways.Clear();
+                _overrideGateways.AddRange(gateways);
+
+                _serviceGateways.Clear();
+                _serviceGateways.AddRange(proxies);
+                _serviceGateways.Sort(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load service gateways");
+        }
+        finally
+        {
+            _isLoadingGateways = false;
         }
     }
 }

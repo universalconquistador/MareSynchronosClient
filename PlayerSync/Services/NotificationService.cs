@@ -109,6 +109,10 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
             case NotificationType.Invite:
                 PrintPairRequestChat(msg.Message);
                 break;
+
+            case NotificationType.Token:
+                PrintInfoChat(msg.Message);
+                break;
         }
     }
 
@@ -134,6 +138,10 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
 
             case NotificationType.Invite:
                 ShowNotificationLocationBased(msg, _configurationService.Current.PairRequestNotification);
+                break;
+
+            case NotificationType.Token:
+                ShowNotificationLocationBased(msg, _configurationService.Current.TokenRefreshNotification);
                 break;
         }
     }
@@ -168,6 +176,7 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
             NotificationType.Warning => Dalamud.Interface.ImGuiNotification.NotificationType.Warning,
             NotificationType.Info => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
             NotificationType.Invite => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
+            NotificationType.Token => Dalamud.Interface.ImGuiNotification.NotificationType.Info,
             _ => Dalamud.Interface.ImGuiNotification.NotificationType.Info
         };
 

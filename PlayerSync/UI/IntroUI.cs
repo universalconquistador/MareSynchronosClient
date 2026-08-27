@@ -13,6 +13,8 @@ using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
 using MareSynchronos.UI.ModernUi;
+using MareSynchronos.WebAPI;
+using MareSynchronos.WebAPI.SignalR;
 using Microsoft.Extensions.Logging;
 using System.Numerics;
 using System.Text.RegularExpressions;
@@ -28,6 +30,8 @@ public partial class IntroUi : WindowMediatorSubscriberBase
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly UiSharedService _uiShared;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
+    private readonly GatewayUtils _gatewayUtils;
+    private readonly HttpClientProvider _httpClientProvider;
     private int _currentLanguage;
     private long _lastFsCheckMs = 0;
     private bool _cacheFolderExists = false;
@@ -36,6 +40,12 @@ public partial class IntroUi : WindowMediatorSubscriberBase
     private string[]? _tosParagraphs;
     private bool _useLegacyLogin = false;
     private ServerStorage? _selectedServer;
+
+    private readonly List<string> _serviceGateways = new(); // auth/file services
+    private readonly object _loadGatewaysLock = new();
+    private bool _isLoadingGateways;
+    private bool _gatewayLoadRequested;
+    private string? _selectedServicegateway;
 
     private readonly UiTheme _theme;
 
@@ -65,7 +75,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
     private double? _agreementUnlockAt;
 
     public IntroUi(ILogger<IntroUi> logger, UiSharedService uiShared, MareConfigService configService,
-        CacheMonitor fileCacheManager, ServerConfigurationManager serverConfigurationManager, MareMediator mareMediator,
+        CacheMonitor fileCacheManager, ServerConfigurationManager serverConfigurationManager, MareMediator mareMediator, HttpClientProvider httpClientProvider,
         PerformanceCollectorService performanceCollectorService, DalamudUtilService dalamudUtilService, ZoneSyncConfigService zoneSyncConfigService, UiTheme theme)
         : base(logger, mareMediator, "PlayerSync Setup", performanceCollectorService)
     {
@@ -76,6 +86,8 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         _dalamudUtilService = dalamudUtilService;
         _zoneSyncConfigService = zoneSyncConfigService;
         _theme = theme;
+        _gatewayUtils = new(logger);
+        _httpClientProvider = httpClientProvider;
 
         IsOpen = false;
         ShowCloseButton = false;
@@ -523,6 +535,66 @@ public partial class IntroUi : WindowMediatorSubscriberBase
             _uiShared.ResetOAuthTasksState();
             _prevIdx = serverIdx;
             }
+        ImGuiHelpers.ScaledDummy(5);
+
+        UiSharedService.TextWrapped("Enable this only if you have issues with the authentication or file services. You should only enable this during setup " +
+            "if you had to use the mirror repo.");
+
+        var useProxyServerSettings = _serverConfigurationManager.UseServiceGatewayProxy;
+        if (ImGui.Checkbox("Use service gateway for auth and file services", ref useProxyServerSettings))
+        {
+            _serverConfigurationManager.UseServiceGatewayProxy = useProxyServerSettings;
+            if (useProxyServerSettings)
+            {
+                LoadGateways();
+            }
+            else
+            {
+                _httpClientProvider.RecreateHttpClient(null);
+            }
+        }
+        _uiShared.DrawHelpText("Forces auth and file traffic through a PlayerSync gateway node.");
+
+        using (ImRaii.PushIndent(2))
+        {
+            using (ImRaii.Disabled(!useProxyServerSettings))
+            {
+                if (_isLoadingGateways)
+                {
+                    ImGui.TextUnformatted("Loading service gateways...");
+                }
+                else
+                {
+                    var serviceGatewayProxyHost = _serverConfigurationManager.ServiceGatewayProxyHost;
+                    string placeHolderText = "Select Service Gateway";
+                    string previewText = string.IsNullOrWhiteSpace(serviceGatewayProxyHost) ? placeHolderText : serviceGatewayProxyHost.Replace("psp-", string.Empty).ToUpperInvariant();
+                    var textWidth = ImGui.CalcTextSize(placeHolderText).X;
+                    var itemWidth = textWidth + ImGui.GetFrameHeight() + ImGui.GetStyle().FramePadding.X *2.0f;
+
+                    ImGui.SetNextItemWidth(itemWidth);
+                    if (ImGui.BeginCombo("Service Gateway", previewText))
+                    {
+                        foreach (string serviceGateway in _serviceGateways)
+                        {
+                            bool selected = serviceGateway == _selectedServicegateway;
+
+                            if (ImGui.Selectable(serviceGateway.Replace("psp-", string.Empty).ToUpper(), selected))
+                            {
+                                _selectedServicegateway = serviceGateway;
+                                _serverConfigurationManager.ServiceGatewayProxyHost = serviceGateway;
+                                _httpClientProvider.RecreateHttpClient(_serverConfigurationManager.CurrentProxyServer);
+                            }
+
+                            if (selected)
+                            {
+                                ImGui.SetItemDefaultFocus();
+                            }
+                        }
+                        ImGui.EndCombo();
+                    }
+                }
+            }
+        }
 
         ImGuiHelpers.ScaledDummy(5);
         _selectedServer = _serverConfigurationManager.GetServerByIndex(serverIdx);
@@ -534,14 +606,6 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         }
 
         ImGuiHelpers.ScaledDummy(5);
-        //ImGui.TextColoredWrapped(ImGuiColors.DalamudRed, "Only use the Proxied Server option if the PlayerSync Support Team has advised it, " +
-        //    "or if you are experiencing persistent connection issues that normal troubleshooting hasn't resolved.");
-        var useGatewayDiscovery = _serverConfigurationManager.EnableGatewayDiscovery;
-        if (ImGui.Checkbox("Use Gateway Discovery", ref useGatewayDiscovery))
-        {
-            _serverConfigurationManager.EnableGatewayDiscovery = useGatewayDiscovery;
-        }
-        _uiShared.DrawHelpText("Automatically selects the closest PlayerSync gateway.");
 
         if (_useLegacyLogin)
         {
@@ -771,4 +835,44 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 
     [GeneratedRegex("^([A-F0-9]{2})+")]
     private static partial Regex HexRegex();
+
+    private void LoadGateways()
+    {
+        if (!_serverConfigurationManager.UseServiceGatewayProxy)
+            return;
+
+        if (_gatewayLoadRequested || _isLoadingGateways)
+            return;
+
+        _gatewayLoadRequested = true;
+        _ = LoadGatewaysAsync();
+    }
+
+    private async Task LoadGatewaysAsync()
+    {
+        if (_isLoadingGateways)
+            return;
+
+        _isLoadingGateways = true;
+
+        try
+        {
+            List<string> proxies = await _gatewayUtils.GetListOfServiceGatewaysByServiceType(_serverConfigurationManager.ServiceDomain, ServiceType.Proxy).ConfigureAwait(false);
+
+            lock (_loadGatewaysLock)
+            {
+                _serviceGateways.Clear();
+                _serviceGateways.AddRange(proxies);
+                _serviceGateways.Sort(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load service gateways");
+        }
+        finally
+        {
+            _isLoadingGateways = false;
+        }
+    }
 }

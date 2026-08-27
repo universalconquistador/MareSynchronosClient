@@ -10,6 +10,7 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI;
 using MareSynchronos.WebAPI.Files.Models;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace MareSynchronos.Services;
 
@@ -20,7 +21,7 @@ public class PlayerPerformanceService
     private readonly ILogger<PlayerPerformanceService> _logger;
     private readonly MareMediator _mediator;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfigService;
-    private readonly Dictionary<string, bool> _warnedForPlayers = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, bool> _warnedForPlayers = new(StringComparer.Ordinal);
 
     public PlayerPerformanceService(ILogger<PlayerPerformanceService> logger, MareMediator mediator,
         PlayerPerformanceConfigService playerPerformanceConfigService, FileCacheManager fileCacheManager,
