@@ -186,6 +186,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                             filesTooLargeorEmpty[fileReplacements.Key] = [];
                         }
                         filesTooLargeorEmpty[fileReplacements.Key].Add(replacement);
+                        Logger.LogWarning("File with hash {hash} is too large or empty (0.00B) and will not be uploaded to the server.", replacement.Hash);
                     }
                 }
             }
