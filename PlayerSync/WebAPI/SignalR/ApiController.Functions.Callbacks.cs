@@ -143,7 +143,7 @@ public partial class ApiController
     public Task Client_UserReceiveCharacterData(OnlineUserCharaDataDto dataDto)
     {
         Logger.LogTrace("Client_UserReceiveCharacterData: {user}", dataDto.User);
-        ExecuteSafely(() => _pairManager.ReceiveCharaDataInternal(dataDto));
+        ExecuteSafely(() => _pairManager.ReceiveCharaData(dataDto));
         return Task.CompletedTask;
     }
 

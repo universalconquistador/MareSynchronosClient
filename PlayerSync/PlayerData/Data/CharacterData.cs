@@ -1,6 +1,6 @@
 ﻿using MareSynchronos.API.Data;
-
 using MareSynchronos.API.Data.Enum;
+using MareSynchronos.PlayerData.Pairs;
 
 namespace MareSynchronos.PlayerData.Data;
 
@@ -40,6 +40,31 @@ public class CharacterData
             FileReplacements[kind] = fragment.FileReplacements;
             GlamourerString[kind] = fragment.GlamourerString;
             LociData[kind] = fragment.LociData;
+        }
+    }
+
+    public void SetAddonPluginPlayerData(PlayerChanges playerChanges, string data)
+    {
+        switch (playerChanges)
+        {
+            case PlayerChanges.Honorific:
+                HonorificData = data;
+                return;
+
+            case PlayerChanges.Heels:
+                HeelsData = data;
+                return;
+
+            case PlayerChanges.Moodles:
+                MoodlesData = data;
+                return;
+
+            case PlayerChanges.PetNames:
+                PetNamesData = data;
+                return;
+
+            default:
+                return;
         }
     }
 

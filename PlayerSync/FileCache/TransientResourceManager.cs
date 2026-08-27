@@ -126,9 +126,17 @@ public sealed class TransientResourceManager : DisposableMediatorSubscriberBase
         var transientResources = resources.ToList();
         Logger.LogDebug("Persisting {count} transient resources", transientResources.Count);
         List<string> newlyAddedGamePaths = resources.Except(semiTransientResources, StringComparer.Ordinal).ToList();
-        foreach (var gamePath in transientResources)
+        try
         {
-            semiTransientResources.Add(gamePath);
+            foreach (var gamePath in transientResources)
+            {
+                semiTransientResources.Add(gamePath);
+            }
+        }
+        catch
+        {
+            Logger.LogError("Transient Resource Manager failure! Was the game modified with something like Tex Tools?");
+            throw;
         }
 
         bool saveConfig = false;

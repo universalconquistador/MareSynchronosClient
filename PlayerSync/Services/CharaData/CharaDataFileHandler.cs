@@ -303,6 +303,6 @@ public sealed class CharaDataFileHandler : IDisposable
 
     internal async Task<List<string>> UploadFiles(List<string> fileList, ValueProgress<string> uploadProgress, CancellationToken token)
     {
-        return await _fileUploadManager.UploadFiles(fileList, uploadProgress, token).ConfigureAwait(false);
+        return (await _fileUploadManager.UploadFiles(fileList, uploadProgress, token).ConfigureAwait(false)).Failed;
     }
 }

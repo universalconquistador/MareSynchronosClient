@@ -5,7 +5,6 @@ using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.UI.ModernUi;
 using Microsoft.Extensions.Logging;
-using PlayerSync.WebAPI.SignalR;
 using System.Numerics;
 using System.Text.Json;
 
@@ -13,11 +12,6 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
-    private readonly List<string> _overrideGateways = new();
-    private bool _isLoadingGateways;
-    private bool _gatewayLoadRequested;
-    private string? _selectedGateway;
-
     private UiNav.Tab<DebugTabs>? _selectedTabDebug;
 
     private IReadOnlyList<UiNav.Tab<DebugTabs>>? _debugTabs;
@@ -182,6 +176,15 @@ public partial class SettingsUi
                 }
             }
         }
+
+        //ImGuiHelpers.ScaledDummy(5);
+        //bool disableIdleCheck = _configService.Current.DisableIdleCheck;
+        //if (ImGui.Checkbox("Disable Idle Check", ref disableIdleCheck))
+        //{
+        //    _configService.Current.DisableIdleCheck = disableIdleCheck;
+        //    _configService.Save();
+        //}
+        //_uiShared.DrawHelpText("Prevents the deferral of pair data once the idle time is reached.");
     }
 
     private void DrawDebugData()
@@ -214,46 +217,5 @@ public partial class SettingsUi
             }
         }
         UiSharedService.AttachToolTip("Use this when reporting mods being rejected from the server.");
-    }
-
-    private void LoadGateways()
-    {
-        if (!_serverConfigurationManager.OverrideGatewaySelection)
-            return;
-
-        if (_gatewayLoadRequested || _isLoadingGateways || _overrideGateways.Count > 0)
-            return;
-
-        _gatewayLoadRequested = true;
-        _ = LoadGatewaysAsync();
-    }
-
-    private async Task LoadGatewaysAsync()
-    {
-        if (_isLoadingGateways)
-            return;
-
-        _isLoadingGateways = true;
-
-        try
-        {
-            Uri serviceUri = new Uri(_serverConfigurationManager.RealApiUrl);
-
-            List<string> gateways = await GatewayManager.GetListOfServiceGateways(serviceUri).ConfigureAwait(false);
-
-            lock (_overrideGateways)
-            {
-                _overrideGateways.Clear();
-                _overrideGateways.AddRange(gateways);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to load service gateways");
-        }
-        finally
-        {
-            _isLoadingGateways = false;
-        }
     }
 }

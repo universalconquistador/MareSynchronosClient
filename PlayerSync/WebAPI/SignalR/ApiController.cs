@@ -15,7 +15,6 @@ using MareSynchronos.WebAPI.SignalR;
 using MareSynchronos.WebAPI.SignalR.Utils;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
-using PlayerSync.WebAPI.SignalR;
 using System.Reflection;
 
 namespace MareSynchronos.WebAPI;
@@ -32,7 +31,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private readonly ServerConfigurationManager _serverManager;
     private readonly TokenProvider _tokenProvider;
     private readonly MareConfigService _mareConfigService;
-    private readonly GatewayManager _gatewayManager;
+    private readonly GatewayUtils _gatewayUtils;
+    private readonly HttpClientProvider _httpClientProvider;
     private CancellationTokenSource _connectionCancellationTokenSource;
     private ConnectionDto? _connectionDto;
     private bool _doNotNotifyOnNextInfo = false;
@@ -45,7 +45,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public ApiController(ILogger<ApiController> logger, HubFactory hubFactory, DalamudUtilService dalamudUtil,
         PairManager pairManager, ServerConfigurationManager serverManager, MareMediator mediator,
-        TokenProvider tokenProvider, MareConfigService mareConfigService) : base(logger, mediator)
+        TokenProvider tokenProvider, MareConfigService mareConfigService, HttpClientProvider httpClientProvider) : base(logger, mediator)
     {
         _hubFactory = hubFactory;
         _dalamudUtil = dalamudUtil;
@@ -54,7 +54,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         _tokenProvider = tokenProvider;
         _mareConfigService = mareConfigService;
         _connectionCancellationTokenSource = new CancellationTokenSource();
-        _gatewayManager = new(logger);
+        _gatewayUtils = new(logger);
+        _httpClientProvider = httpClientProvider;
 
         Mediator.Subscribe<DalamudLoginMessage>(this, (_) => DalamudUtilOnLogIn());
         Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => DalamudUtilOnLogOut());
@@ -161,6 +162,25 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             _connectionCancellationTokenSource?.Cancel();
             return;
         }
+
+        var proxyServer = _serverManager.UseServiceGatewayProxy ? !string.IsNullOrWhiteSpace(_serverManager.ServiceGatewayProxyHost) ? _serverManager.CurrentProxyServer : null : null;
+        if (proxyServer != null)
+        {
+            bool isGatewayAvailable = await _gatewayUtils.TryValidateServiceGateway(_serverManager.ServiceGatewayProxyHost, _serverManager.ServiceDomain).ConfigureAwait(false);
+            if (!isGatewayAvailable)
+            {
+                Logger.LogWarning("Auth/files service gateway configured but unavailable! {proxy}", proxyServer);
+                Mediator.Publish(new NotificationMessage("Service Gateway Unavailable", "The auth/file service gateway you've selected is unavailable. " +
+                    "Change or disable this feature in Settings -> Service -> Connection", NotificationType.Warning));
+
+                proxyServer = null;
+            }
+            else
+            {
+                Logger.LogInformation("Using a service gateway for auth/files: {gateway}", proxyServer);
+            }
+        }
+        _httpClientProvider.RecreateHttpClient(proxyServer);
 
         if (!_serverManager.CurrentServer.UseOAuth2)
         {
@@ -273,7 +293,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                         Uri? resolvedGateway = null;
                         try
                         {
-                            resolvedGateway = await _gatewayManager.GetServiceGatewayUri(new(_serverManager.CurrentServer.ServerUri), token).ConfigureAwait(false);
+                            resolvedGateway = await _gatewayUtils.GetServiceGatewayUri(_serverManager.ServiceDomain, token).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
@@ -366,6 +386,14 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                     }
                 }
 
+                if (_serverManager.UseServiceGatewayProxy && !string.IsNullOrWhiteSpace(_serverManager.ServiceGatewayProxyHost) && !_naggedAboutProxy)
+                {
+                    _naggedAboutProxy = true;
+                    Mediator.Publish(new NotificationMessage("Gateway Service Override", "You have the service gateway override enabled for auth/files services. " + 
+                        "It is not recomennded to enable this setting for normal use as it can be slower than a default connection.",
+                           NotificationType.Warning));
+                }
+
                 await LoadIninitialPairsAsync().ConfigureAwait(false);
                 await LoadOnlinePairsAsync().ConfigureAwait(false);
                 Mediator.Publish(new GroupZoneSyncUpdateMessage());
@@ -407,6 +435,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     private bool _naggedAboutLod = false;
     private bool _warnCdnOverride = false;
+    private bool _naggedAboutProxy = false;
 
     public Task CyclePauseAsync(UserData userData)
     {
@@ -639,11 +668,14 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             Logger.LogDebug("Attaching Census Data: {data}", dto);
         }
 
+        _pairManager.DeferRecreate = true;
         foreach (var entry in await UserGetOnlinePairs(dto).ConfigureAwait(false))
         {
             Logger.LogDebug("Pair online: {pair}", entry);
             _pairManager.MarkPairOnline(entry, sendNotif: false);
         }
+        _pairManager.DeferRecreate = false;
+        _pairManager.RecreateLazy();
     }
 
     private void MareHubOnClosed(Exception? arg)
@@ -706,6 +738,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             if (!string.Equals(token, _lastUsedToken, StringComparison.Ordinal))
             {
                 Logger.LogDebug("Reconnecting due to updated token");
+                Mediator.Publish(new NotificationMessage("Token Refresh", "Reconnecting with updated auth token...", NotificationType.Token));
 
                 _doNotNotifyOnNextInfo = true;
                 await CreateConnectionsAsync().ConfigureAwait(false);
