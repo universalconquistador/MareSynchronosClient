@@ -27,7 +27,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
     private readonly HashSet<UserData> _usersToPushDataTo = [];
     private readonly SemaphoreSlim _pushDataSemaphore = new(1, 1);
     private readonly CancellationTokenSource _runtimeCts = new();
-    private readonly HashSet<string> _filesTooLargeHashes = new HashSet<string>();
+    private readonly HashSet<string> _filesTooLargeOrEmptyHasBeenNotified = new HashSet<string>();
 
     private Task<CharacterData>? _fileUploadTask = null;
     private CharacterData? _lastCreatedData;
@@ -179,9 +179,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             if (_fileUploadTask == null || (_fileUploadTask?.IsCompleted ?? false) || forced)
             {
                 _uploadingCharacterData = _lastCreatedData.DeepClone();
-
-                RemoveFilesThatAreTooLarge(); // psync allows for 200 MiB to the server, 300 MiB once decompressed
-
+                RemoveFilesThatAreTooLargeOrEmpty(); // psync allows for 200 MiB to the server, 300 MiB once decompressed
                 Logger.LogDebug("Starting UploadTask for {hash}, Reason: TaskIsNull: {task}, TaskIsCompleted: {taskCpl}, Forced: {frc}",
                     _lastCreatedData.DataHash, _fileUploadTask == null, _fileUploadTask?.IsCompleted ?? false, forced);
 
@@ -213,44 +211,60 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
         });
     }
 
-    private void RemoveFilesThatAreTooLarge()
+    private void RemoveFilesThatAreTooLargeOrEmpty()
     {
         try
         {
-            // check for files that are larger than what the server allows for
-            Dictionary<ObjectKind, List<FileReplacementData>> filesTooLarge = new();
+            Dictionary<ObjectKind, List<FileReplacementData>> filesTooLargeorEmpty = new();
             foreach (var fileReplacements in _uploadingCharacterData!.FileReplacements)
             {
                 foreach (var replacement in fileReplacements.Value)
                 {
+                    bool mustRemoveReplacementData = false;
+
                     var cache = _fileCacheManager.GetFileCacheByHash(replacement.Hash);
                     if (cache == null)
                     {
                         continue;
                     }
 
-                    if ((cache.Size != null && cache.Size > 300 * 1024 * 1024) || (cache.CompressedSize != null && cache.CompressedSize > 200 * 1024 * 1024))
+                    // check for empty files
+                    if (cache.Size != null && cache.Size == 0)
+                    {
+                        mustRemoveReplacementData = true;
+                    }
+
+                    // check for files that are larger than what the server allows for
+                    else if ((cache.Size != null && cache.Size > 300 * 1024 * 1024) || (cache.CompressedSize != null && cache.CompressedSize > 200 * 1024 * 1024))
                     {
                         Logger.LogWarning("File {file} exceeds the size limit to sync and will not be sent. (300 MiB, or 200 MiB compressed)", cache.ResolvedFilepath);
-                        if (!filesTooLarge.Keys.Contains(fileReplacements.Key))
-                        {
-                            filesTooLarge[fileReplacements.Key] = new();
-                        }
-                        filesTooLarge[fileReplacements.Key].Add(replacement);
 
-                        if (!_filesTooLargeHashes.Contains(cache.Hash) && _configService.Current.ShowFileUnableToSyncNotification)
+                        if (!_filesTooLargeOrEmptyHasBeenNotified.Contains(cache.Hash) && _configService.Current.ShowFileUnableToSyncNotification)
                         {
                             var isTexFile = cache.ResolvedFilepath.EndsWith(".tex", StringComparison.OrdinalIgnoreCase);
                             var texInfo = isTexFile ? " Ensure it is compressed and consider reducing its resolution." : "";
-                            Mediator.Publish(new NotificationMessage("File Size Error", $"The file {cache.ResolvedFilepath} exceeds the size limit and will not sync. (300 MiB, or 200 MiB compressed)" 
-                                + texInfo, MareConfiguration.Models.NotificationType.Warning));
-
-                            _filesTooLargeHashes.Add(cache.Hash);
+                            Mediator.Publish(new NotificationMessage("File Size Error", $"The file {cache.ResolvedFilepath} exceeds the size limit and will not sync. (300 MiB, or 200 MiB compressed)" + texInfo, MareConfiguration.Models.NotificationType.Warning));
+                            _filesTooLargeOrEmptyHasBeenNotified.Add(cache.Hash);
                         }
+
+                        mustRemoveReplacementData = true;
+                    }
+
+                    if (mustRemoveReplacementData)
+                    {
+                        if (!filesTooLargeorEmpty.ContainsKey(fileReplacements.Key))
+                        {
+                            // create an empty replacements list for this ObjectKind if ObjectKind not already in the dictionary
+                            filesTooLargeorEmpty[fileReplacements.Key] = [];
+                        }
+                        filesTooLargeorEmpty[fileReplacements.Key].Add(replacement);
+                        Logger.LogWarning("File with hash {hash} is too large or empty (0.00B) and will not be uploaded to the server.", replacement.Hash);
                     }
                 }
             }
-            foreach (var replacements in filesTooLarge)
+
+            // check each ObjectKind that is present for any items in its replacement list to remove
+            foreach (var replacements in filesTooLargeorEmpty)
             {
                 foreach (var replacement in replacements.Value)
                 {
@@ -260,7 +274,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to properly detect if files to upload are too large.");
+            Logger.LogError(ex, "Failed to properly detect if files to upload are too large or empty.");
         }   
     }
 

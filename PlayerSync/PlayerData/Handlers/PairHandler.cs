@@ -1085,10 +1085,37 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 {
                     Logger.LogTrace("[BASE-{appBase}] {this} visibility changed, now: {visi}, cached data exists", appData, this, IsVisible);
 
-                    _ = Task.Run(() =>
+                    // gate so we don't get spammed with visibility changes nor try to apply if there is some how an incomming dto in progress
+                    if (Pair.DataApplicationId != null)
                     {
-                        ApplyCharacterData(appData, _cachedData!, forceApplyCustomization: true);
-                    });
+                        Logger.LogWarning("[BASE-{appBase}] Application for cached data called to run for {pair} but another application is in progress!", appData, Pair.PairUIDName);
+                    }
+                    else
+                    {
+                        Pair.DataApplicationId = appData;
+
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await ApplyCharacterDataAsync(appData, _cachedData, CancellationToken.None, forceApplyCustomization: true).ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                Logger.LogDebug("[BASE-{appBase}] Cached data application was cancelled for {pair}", appData, Pair.PairUIDName);
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.LogError(ex, "[BASE-{appBase}] Failed to apply cached pair data for {pair}", appData, Pair.PairUIDName);
+                            }
+                            finally
+                            {
+                                Pair.DataApplicationId = null;
+                                Pair.LastDataApplicationTime = DateTimeOffset.UtcNow;
+                                Logger.LogTrace("[BASE-{appBase}] Cached data application complete.", appData);
+                            }
+                        });
+                    }
                 }
                 else
                 {
