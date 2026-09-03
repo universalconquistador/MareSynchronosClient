@@ -24,7 +24,10 @@ public class Pair
     private readonly SemaphoreSlim _creationSemaphore = new(1);
 
     private CancellationTokenSource _applicationCts = new();
+    private readonly object _applyDataLock = new();
     private OnlineUserIdentDto? _onlineUserIdentDto = null;
+    private Guid? _dataApplicationId = null;
+    private DateTimeOffset _lastDataApplicationTime = DateTimeOffset.MinValue;
     private bool? _hasProfile = null;
 
     public Pair(ILogger<Pair> logger, UserFullPairDto userPair, PairHandlerFactory cachedPlayerFactory,
@@ -49,7 +52,7 @@ public class Pair
     public bool IsZoneSyncOnlyPair => IndividualPairStatus != IndividualPairStatus.Bidirectional && UserPair.Groups.All(g => g.StartsWith(Constants.GroupZoneSyncPrefix));
     public bool IsPaused => UserPair.OwnPermissions.IsPaused();
     public bool IsVisible => CachedPlayer?.IsVisible ?? false;
-    public bool CanApplyModdedData => HasCachedPlayer && IsVisible;
+    public bool CanApplyModdedData => HasCachedPlayer && IsVisible && DataApplicationId == null && (DateTimeOffset.UtcNow - LastDataApplicationTime > TimeSpan.FromMilliseconds(250));
     public CharacterData? LastReceivedCharacterData { get; set; }
     public string? PlayerName => CachedPlayer?.PlayerName ?? string.Empty;
     public string PairUIDName => $"{UserData.UID}:{(string.IsNullOrWhiteSpace(PlayerName) ? "NULLPLAYER" : PlayerName)}";
@@ -80,6 +83,42 @@ public class Pair
         set
         {
             _hasProfile = value;
+        }
+    }
+
+    public Guid? DataApplicationId
+    {
+        get
+        {
+            lock (_applyDataLock)
+            {
+                return _dataApplicationId; 
+            }
+        }
+        set
+        {
+            lock (_applyDataLock)
+            {
+                _dataApplicationId = value;
+            }
+        }
+    }
+
+    public DateTimeOffset LastDataApplicationTime
+    {
+        get
+        {
+            lock (_applyDataLock)
+            {
+                return _lastDataApplicationTime;
+            }
+        }
+        set
+        {
+            lock (_applyDataLock)
+            {
+                _lastDataApplicationTime = value;
+            }
         }
     }
 
