@@ -331,8 +331,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
         if (!pair.CanApplyModdedData || DeferringDataApplications) // defer this pair for now
         {
-            Logger.LogDebug("Pair is not in a valid state or we are deferring data application: {pair} CachedPlayer: {cached} IsDeferred: {deferred} IsVisible: {visible}",
-                pair.PairUIDName, pair.HasCachedPlayer, IsDeferredDueToCombatOrPerforming, pair.IsVisible);
+            Logger.LogDebug("Pair is not in a valid state or we are deferring data application: {pair} CachedPlayer: {cached} IsDeferred: {deferred} IsVisible: {visible} " +
+                "Existing Data Application: {app} Last Application Time: {time}",
+                pair.PairUIDName, pair.HasCachedPlayer, IsDeferredDueToCombatOrPerforming, pair.IsVisible, pair.DataApplicationId, pair.LastDataApplicationTime);
 
             _deferredPairDataApplications.AddOrUpdate(pair, dto, (_, existingDto) =>
             {
@@ -735,6 +736,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         Stopwatch? stopwatch = null;
         bool hadErrors = false;
         Guid applicationBase = Guid.NewGuid();
+        pair.DataApplicationId = applicationBase;
 
         try
         {
@@ -780,6 +782,9 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
             {
                 _runningApplyDataTasks.Remove(pair); // ensure we always remove the entry, pass or fail
             }
+
+            pair.DataApplicationId = null;
+            pair.LastDataApplicationTime = DateTimeOffset.UtcNow;
 
             ProcessApplyDataQueue(); // continue processing since we aren't running an infinite while loop
         }
