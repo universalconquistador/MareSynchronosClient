@@ -525,7 +525,7 @@ public partial class SettingsUi
             foreach (var item in _fileTransferOrchestrator.ForbiddenTransfers)
             {
                 ImGui.TableNextColumn();
-                if (item is UploadFileTransfer transfer)
+                if (item is UploadFileTransfer transfer && !string.IsNullOrWhiteSpace(transfer.LocalFile))
                 {
                     ImGui.TextUnformatted(transfer.LocalFile);
                 }
