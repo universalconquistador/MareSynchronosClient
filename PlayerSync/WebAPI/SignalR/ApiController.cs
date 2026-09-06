@@ -389,8 +389,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                 if (_serverManager.UseServiceGatewayProxy && !string.IsNullOrWhiteSpace(_serverManager.ServiceGatewayProxyHost) && !_naggedAboutProxy)
                 {
                     _naggedAboutProxy = true;
-                    Mediator.Publish(new NotificationMessage("Gateway Service Override", "You have the service gateway override enabled for auth/files services. " + 
-                        "It is not recomennded to enable this setting for normal use as it can be slower than a default connection.",
+                    Mediator.Publish(new NotificationMessage("Gateway Service Override", "You have the service gateway override enabled for auth/files services. " +
+                        "It is not recommended to enable this setting for normal use as it can be slower than a default connection.",
                            NotificationType.Warning));
                 }
 
