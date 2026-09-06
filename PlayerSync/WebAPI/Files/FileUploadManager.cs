@@ -414,7 +414,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         {
             using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() parallel v2 upload"))
             {
-                var task = Parallel.ForEachAsync(filesToUpload.Where(f => !f.IsForbidden).DistinctBy(f => f.Hash), new ParallelOptions()
+                var task = Parallel.ForEachAsync(filesToUpload.DistinctBy(f => f.Hash), new ParallelOptions()
                 {
                     MaxDegreeOfParallelism = filesToUpload.Count,
                     CancellationToken = uploadToken,
@@ -432,6 +432,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                             // If there isn't an entry in the forbidden transfers list for this hash, add this one
                             if (_orchestrator.ForbiddenTransfers.TrueForAll(f => !string.Equals(f.Hash, file.Hash, StringComparison.Ordinal)))
                             {
+                                Logger.LogWarning("Attempted to upload a forbidden file: {hash}", file.Hash);
                                 _orchestrator.ForbiddenTransfers.Add(transfer);
                             }
 
