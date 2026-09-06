@@ -414,7 +414,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         {
             using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() parallel v2 upload"))
             {
-                var task = Parallel.ForEachAsync(filesToUpload.Where(f => !f.IsForbidden).DistinctBy(f => f.Hash), new ParallelOptions()
+                var task = Parallel.ForEachAsync(filesToUpload.DistinctBy(f => f.Hash), new ParallelOptions()
                 {
                     MaxDegreeOfParallelism = filesToUpload.Count,
                     CancellationToken = uploadToken,
