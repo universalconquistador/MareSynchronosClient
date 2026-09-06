@@ -5,6 +5,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
+using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
@@ -22,11 +23,12 @@ public class DrawFolderGroup : DrawFolderBase
     private readonly MareMediator _mareMediator;
     private readonly PairManager _pairManager;
     private readonly ServerConfigurationManager _serverConfigurationManager;
+    private readonly StageConfigService _stageConfigService;
     private readonly IBroadcastManager _broadcastManager;
 
     public DrawFolderGroup(string id, GroupFullInfoDto groupFullInfoDto, ApiController apiController,
         IImmutableList<DrawUserPair> drawPairs, IImmutableList<Pair> allPairs, TagHandler tagHandler, IdDisplayHandler idDisplayHandler,
-        MareMediator mareMediator, PairManager pairManager, ServerConfigurationManager serverConfigurationManager, UiSharedService uiSharedService, IBroadcastManager broadcastManager) :
+        MareMediator mareMediator, PairManager pairManager, ServerConfigurationManager serverConfigurationManager, UiSharedService uiSharedService, StageConfigService stageConfigService, IBroadcastManager broadcastManager) :
         base(id, drawPairs, allPairs, tagHandler, uiSharedService)
     {
         _groupFullInfoDto = groupFullInfoDto;
@@ -35,6 +37,7 @@ public class DrawFolderGroup : DrawFolderBase
         _mareMediator = mareMediator;
         _pairManager = pairManager;
         _serverConfigurationManager = serverConfigurationManager;
+        _stageConfigService = stageConfigService;
         _broadcastManager = broadcastManager;
     }
 
@@ -135,6 +138,14 @@ public class DrawFolderGroup : DrawFolderBase
             ImGui.SetClipboardText(UiSharedService.GetNotes(DrawPairs.Select(k => k.Pair).ToList()));
         }
         UiSharedService.AttachToolTip("Copies all your notes for all users in this Syncshell to the clipboard." + Environment.NewLine + "They can be imported via Settings -> General -> Notes -> Import notes from clipboard");
+        if (_stageConfigService.Current.EnableStageFeatures)
+        {
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.MapMarkedAlt, "Find Stages", menuWidth, true))
+            {
+                _mareMediator.Publish(new ShowStagesForGroupMessage(_groupFullInfoDto.GroupAliasOrGID));
+            }
+            UiSharedService.AttachToolTip("Opens the stage search window to find this group's visible stages");
+        }
 
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.ArrowCircleLeft, "Leave Syncshell", menuWidth, true) && UiSharedService.CtrlPressed())
         {

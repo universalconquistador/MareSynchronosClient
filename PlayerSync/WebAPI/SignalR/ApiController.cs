@@ -635,6 +635,10 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         OnStartEmoteSyncGroup(dto => _ = Client_StartEmoteSyncGroup(dto));
         OnProcessJsonDataType(dto => _ = Client_ProcessJsonDataType(dto));
 
+        OnStageSubscriptionsChanged((added, removed) => _ = Client_StageSubscriptionsChanged(added, removed));
+        OnStageSubscribedContentsChanged((stageId, dto) => _ = Client_StageSubscribedContentsChanged(stageId, dto));
+        OnStageSubscribedStateChanged((stageId, dto) => _ = Client_StageSubscribedStateChanged(stageId, dto));
+
         _healthCheckTokenSource?.Cancel();
         _healthCheckTokenSource?.Dispose();
         _healthCheckTokenSource = new CancellationTokenSource();
