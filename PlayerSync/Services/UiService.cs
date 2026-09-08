@@ -1,10 +1,12 @@
 ﻿using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Windowing;
+using MareSynchronos.API.Dto.Stage;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI;
 using MareSynchronos.UI.Components.Popup;
+using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.Services;
@@ -16,22 +18,26 @@ public sealed class UiService : DisposableMediatorSubscriberBase
     private readonly FileDialogManager _fileDialogManager;
     private readonly ILogger<UiService> _logger;
     private readonly MareConfigService _mareConfigService;
+    private readonly StageConfigService _stageConfigService;
     private readonly WindowSystem _windowSystem;
     private readonly UiFactory _uiFactory;
+    private readonly ApiController _apiController;
 
     public UiService(ILogger<UiService> logger, IUiBuilder uiBuilder,
-        MareConfigService mareConfigService, WindowSystem windowSystem,
+        MareConfigService mareConfigService, StageConfigService stageConfigService, WindowSystem windowSystem,
         IEnumerable<WindowMediatorSubscriberBase> windows,
         UiFactory uiFactory, FileDialogManager fileDialogManager,
-        MareMediator mareMediator) : base(logger, mareMediator)
+        MareMediator mareMediator, ApiController apiController) : base(logger, mareMediator)
     {
         _logger = logger;
         _logger.LogTrace("Creating {type}", GetType().Name);
         _uiBuilder = uiBuilder;
         _mareConfigService = mareConfigService;
+        _stageConfigService = stageConfigService;
         _windowSystem = windowSystem;
         _uiFactory = uiFactory;
         _fileDialogManager = fileDialogManager;
+        _apiController = apiController;
 
         _uiBuilder.DisableGposeUiHide = true;
         _uiBuilder.Draw += Draw;
@@ -103,12 +109,79 @@ public sealed class UiService : DisposableMediatorSubscriberBase
             }
         });
 
+        Mediator.Subscribe<OpenStageDetailsWindow>(this, msg =>
+        {
+            ShowStageDetailsWindow(msg.StartingStageInfo, msg.OwningGroupId);
+        });
+
+        Mediator.Subscribe<OpenStageUpdateWindow>(this, msg =>
+        {
+            _ = TryShowUpdateStage(msg.StageId, msg.NewDefinitionFilename);
+        });
+
         Mediator.Subscribe<RemoveWindowMessage>(this, (msg) =>
         {
             _windowSystem.RemoveWindow(msg.Window);
             _createdWindows.Remove(msg.Window);
             msg.Window.Dispose();
         });
+    }
+
+    private async Task TryShowUpdateStage(string stageId, string definitionFilename)
+    {
+        try
+        {
+            var stageInfo = await _apiController.StageGetInfo(stageId).ConfigureAwait(false);
+            if (stageInfo != null)
+            {
+                var window = ShowStageDetailsWindow(stageInfo, stageInfo.Info.GroupOwnerGID);
+                window.SelectDefinition(definitionFilename);
+            }
+            else
+            {
+                _logger.LogInformation("Stage {stageId} no longer exists.", stageId);
+                if (_stageConfigService.Current.StageIdUploadedDefinitionPath.Remove(stageId))
+                {
+                    _stageConfigService.Save();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to show update stage window!");
+        }
+    }
+
+    private StageDetailsUi ShowStageDetailsWindow(StageFullInfoDto? startingStageInfo, string? owningGroupId)
+    {
+        if (startingStageInfo != null)
+        {
+            // For viewing/editing an existing stage, find and activate that window if it already exists
+            var window = _createdWindows.FirstOrDefault(window => window is StageDetailsUi stageWindow && stageWindow.StageInfo != null && stageWindow.StageInfo.SID == startingStageInfo.SID) as StageDetailsUi;
+            if (window != null)
+            {
+                window.IsOpen = true;
+                window.RequestFocus = true;
+                window.BringToFront();
+            }
+            else
+            {
+                window = _uiFactory.CreateStageDetailsUi(startingStageInfo, owningGroupId);
+                _createdWindows.Add(window);
+                _windowSystem.AddWindow(window);
+                window.IsOpen = true;
+            }
+            return window;
+        }
+        else
+        {
+            // For creating a new stage, we always create a new window
+            var window = _uiFactory.CreateStageDetailsUi(startingStageInfo, owningGroupId);
+            _createdWindows.Add(window);
+            _windowSystem.AddWindow(window);
+            window.IsOpen = true;
+            return window;
+        }
     }
 
     public void ToggleMainUi()

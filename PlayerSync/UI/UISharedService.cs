@@ -55,6 +55,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly ITextureProvider _textureProvider;
     private readonly TokenProvider _tokenProvider;
+    private readonly IDataManager _dataManager;
     private bool _brioExists = false;
     private bool _cacheDirectoryHasOtherFilesThanCache = false;
     private bool _cacheDirectoryIsValidPath = true;
@@ -74,6 +75,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
     private bool _isPenumbraDirectory = false;
     private bool _moodlesExists = false;
     private bool _lociExists = false;
+    private bool _stagehandExists = false;
     private Dictionary<string, DateTime> _oauthTokenExpiry = new();
     private bool _penumbraExists = false;
     private bool _petNamesExists = false;
@@ -85,7 +87,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         MareConfigService configService, DalamudUtilService dalamudUtil, IDalamudPluginInterface pluginInterface,
         ITextureProvider textureProvider,
         Dalamud.Localization localization,
-        ServerConfigurationManager serverManager, TokenProvider tokenProvider, MareMediator mediator) : base(logger, mediator)
+        ServerConfigurationManager serverManager, TokenProvider tokenProvider, MareMediator mediator, IDataManager dataManager) : base(logger, mediator)
     {
         _ipcManager = ipcManager;
         _apiController = apiController;
@@ -98,6 +100,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         _localization = localization;
         _serverConfigurationManager = serverManager;
         _tokenProvider = tokenProvider;
+        _dataManager = dataManager;
         _localization.SetupWithLangCode("en");
 
         _isDirectoryWritable = IsDirectoryWritable(_configService.Current.CacheFolder);
@@ -113,6 +116,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
             _lociExists = _ipcManager.Loci.APIAvailable;
             _petNamesExists = _ipcManager.PetNames.APIAvailable;
             _brioExists = _ipcManager.Brio.APIAvailable;
+            _stagehandExists = _ipcManager.Stagehand.APIAvailable;
         });
 
         UidFont = _pluginInterface.UiBuilder.FontAtlas.NewDelegateFontHandle(e =>
@@ -921,6 +925,10 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
 
         ColorText("Brio", GetBoolColor(_brioExists));
         AttachToolTip($"Brio is " + (_brioExists ? "available and up to date." : "unavailable or not up to date."));
+        ImGui.SameLine(0, mySpace * spacey * sglobal);
+
+        ColorText("Stagehand", GetBoolColor(_stagehandExists));
+        AttachToolTip("Stagehand is " + (_stagehandExists ? "available and up to date." : "unavailable or not up to date."));
 
         ImGui.PopFont();
 
@@ -1186,6 +1194,15 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         _ => null
     };
 
+    public static string GetStageVisibilityString(StageVisibility visibility, bool isGroupOwned) => visibility switch
+    {
+        StageVisibility.OwnersOnly => isGroupOwned ? "Owner & Moderators" : "Owner",
+        StageVisibility.DirectPairs => isGroupOwned ? "Members (no Guests)" : "Direct Pairs",
+        StageVisibility.AllPairs => isGroupOwned ? "Members (including Guests)" : "All Pairs",
+        StageVisibility.Everyone => "Everyone",
+        _ => "(invalid)",
+    };
+
     internal static void DistanceSeparator()
     {
         ImGuiHelpers.ScaledDummy(5);
@@ -1346,5 +1363,97 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         float alpha = 0.70f - (0.55f * timefade);
 
         return new Vector4(fadeColor.X, fadeColor.Y, fadeColor.Z, alpha);
+    }
+
+    public string LocationToString(int worldId, int territoryId, int wardId, int divisionId, int houseId, int roomId)
+    {
+        var stringBuilder = new StringBuilder();
+
+        if (worldId == -1)
+        {
+            stringBuilder.Append("Every World, ");
+        }
+        else if (worldId >= 0 && _dataManager.GetExcelSheet<Lumina.Excel.Sheets.World>().TryGetRow((uint)worldId, out var worldInfo))
+        {
+            stringBuilder.Append($"{worldInfo.Name}, ");
+        }
+        else
+        {
+            stringBuilder.Append($"World {worldId}, ");
+        }
+
+        if (territoryId == -1)
+        {
+            stringBuilder.Append("Every Zone");
+        }
+        else if (territoryId >= 0 && _dataManager.GetExcelSheet<Lumina.Excel.Sheets.TerritoryType>().TryGetRow((uint)territoryId, out var territoryInfo))
+        {
+            stringBuilder.Append($"{territoryInfo.PlaceName.ValueNullable?.Name}");
+        }
+        else
+        {
+            stringBuilder.Append($"Zone {territoryId}");
+        }
+
+        if (wardId != -1 || divisionId != -1 || houseId != -1 || roomId != -1)
+        {
+            if (wardId == -1)
+            {
+                stringBuilder.Append(", Every Ward");
+            }
+            else
+            {
+                stringBuilder.Append($", Ward {wardId}");
+            }
+
+            if (divisionId != -1 || houseId != -1 || roomId != -1)
+            {
+                if (divisionId == -1)
+                {
+                    stringBuilder.Append(" Main & Subdivision");
+                }
+                else if (divisionId == 2)
+                {
+                    stringBuilder.Append(" Subdivision");
+                }
+                
+                if (houseId != -1 || roomId != -1)
+                {
+                    if (houseId == -1)
+                    {
+                        stringBuilder.Append(", Every House & Apartment");
+                    }
+                    else if (houseId >= 1)
+                    {
+                        stringBuilder.Append($", House {(divisionId == 2 ? houseId + 30 : houseId)}");
+                    }
+
+                    if (roomId == -1)
+                    {
+                        stringBuilder.Append(houseId == 0 ? ", Every Apartment" : ", Every Room");
+                    }
+                    else if (roomId == 0)
+                    {
+                        if (houseId == 0)
+                        {
+                            stringBuilder.Append(", Lobby");
+                        }
+                    }
+                    else
+                    {
+                        if (houseId == 0)
+                        {
+                            stringBuilder.Append($", Apartment {roomId}");
+                        }
+                        else
+                        {
+                            stringBuilder.Append($", Room {roomId}");
+                        }
+                    }
+                }
+            }
+        }
+
+        return stringBuilder.ToString();
     }
 }

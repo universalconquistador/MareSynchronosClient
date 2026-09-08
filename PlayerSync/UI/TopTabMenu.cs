@@ -7,6 +7,7 @@ using Dalamud.Utility;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
@@ -24,9 +25,11 @@ public class TopTabMenu : IMediatorSubscriber
     private readonly IBroadcastManager _broadcastManager;
     private readonly UiSharedService _uiSharedService;
     private readonly MareConfigService _mareConfigService;
+    private readonly StageConfigService _stageConfigService;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
     private readonly PairInviteManager _pairRequestManager;
+    private readonly IpcManager _ipcManager;
     private string _filter = string.Empty;
     private int _globalControlCountdown = 0;
 
@@ -35,7 +38,8 @@ public class TopTabMenu : IMediatorSubscriber
 
     private SelectedTab _selectedTab = SelectedTab.None;
     public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, 
-        MareConfigService mareConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService, PairInviteManager pairRequestManager)
+        MareConfigService mareConfigService, StageConfigService stageConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService, PairInviteManager pairRequestManager,
+        IpcManager ipcManager)
     {
         _mareMediator = mareMediator;
         _apiController = apiController;
@@ -43,9 +47,11 @@ public class TopTabMenu : IMediatorSubscriber
         _broadcastManager = broadcastManager;
         _uiSharedService = uiSharedService;
         _mareConfigService = mareConfigService;
+        _stageConfigService = stageConfigService;
         _serverConfigurationManager = serverConfigurationManager;
         _zoneSyncConfigService = zoneSyncConfigService;
         _pairRequestManager = pairRequestManager;
+        _ipcManager = ipcManager;
     }
 
     private string PlayerName => _uiSharedService.PlayerName;
@@ -55,6 +61,7 @@ public class TopTabMenu : IMediatorSubscriber
         None,
         Individual,
         Syncshell,
+        Stage,
         Filter,
         PlayerSync,
         UserConfig
@@ -134,6 +141,25 @@ public class TopTabMenu : IMediatorSubscriber
                     underlineColor, 2);
         }
         UiSharedService.AttachToolTip("Syncshell Menu");
+
+        // Stage tab
+        ImGui.SameLine();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var x = ImGui.GetCursorScreenPos();
+            if (ImGui.Button(FontAwesomeIcon.MapMarkedAlt.ToIconString(), buttonSize)) // MapMarkerAlt? Sign? MapMarkedAlt? 
+            {
+                TabSelection = TabSelection == SelectedTab.Stage ? SelectedTab.None : SelectedTab.Stage;
+            }
+
+            ImGui.SameLine();
+            var xAfter = ImGui.GetCursorScreenPos();
+            if (TabSelection == SelectedTab.Stage)
+                drawList.AddLine(x with { Y = x.Y + buttonSize.Y + spacing.Y },
+                    xAfter with { Y = xAfter.Y + buttonSize.Y + spacing.Y, X = xAfter.X - spacing.X },
+                    underlineColor, 2);
+        }
+        UiSharedService.AttachToolTip("Stage Menu");
 
         // Filter tab
         ImGui.SameLine();
@@ -227,6 +253,10 @@ public class TopTabMenu : IMediatorSubscriber
         else if (TabSelection == SelectedTab.PlayerSync)
         {
             DrawPlayerSync(availableWidth, spacing.X);
+        }
+        else if (TabSelection == SelectedTab.Stage)
+        {
+            DrawStage(availableWidth, spacing.X);
         }
         else if (TabSelection == SelectedTab.UserConfig)
         {
@@ -644,6 +674,39 @@ public class TopTabMenu : IMediatorSubscriber
             {
                 _mareMediator.Publish(new UiToggleMessage(typeof(JoinSyncshellUI)));
             }
+        }
+    }
+
+    private void DrawStage(float availableWidth, float spacingX)
+    {
+        var buttonX = (availableWidth - spacingX) / 2f;
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Create new Stage", buttonX))
+        {
+            _mareMediator.Publish(new OpenStageDetailsWindow(StartingStageInfo: null, OwningGroupId: null));
+        }
+        UiSharedService.AttachToolTip("Upload a new stage");
+
+        ImGui.SameLine();
+        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Tasks, "Manage Stages", buttonX))
+        {
+            _mareMediator.Publish(new UiToggleMessage(typeof(MyStagesWindow)));
+        }
+        UiSharedService.AttachToolTip("View your stages and the stages you are subscribed to");
+
+        bool missingStagehand = !_ipcManager.Stagehand.APIAvailable && !_stageConfigService.Current.EnableStageFeatures;
+        using (ImRaii.Disabled(missingStagehand))
+        {
+            if (_uiSharedService.IconTextButton(_stageConfigService.Current.EnableStageFeatures ? FontAwesomeIcon.TimesCircle : FontAwesomeIcon.MapMarkedAlt, _stageConfigService.Current.EnableStageFeatures ? "Disable Stage Features" : "Enable Stage Features", availableWidth))
+            {
+                _stageConfigService.Current.EnableStageFeatures = !_stageConfigService.Current.EnableStageFeatures;
+                _stageConfigService.Save();
+                _mareMediator.Publish(new StageSettingsChangedMessage());
+            }
+        }
+
+        if (missingStagehand)
+        {
+            UiSharedService.AttachToolTip("Stagehand is missing or disabled.\n\nInstall the Stagehand plugin to use stage features.");
         }
     }
 
