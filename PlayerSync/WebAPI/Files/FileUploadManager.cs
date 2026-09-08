@@ -508,6 +508,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                             // If there isn't an entry in the forbidden transfers list for this hash, add this one
                             if (_orchestrator.ForbiddenTransfers.TrueForAll(f => !string.Equals(f.Hash, file.Hash, StringComparison.Ordinal)))
                             {
+                                Logger.LogWarning("Attempted to upload a forbidden file: {hash}", file.Hash);
                                 _orchestrator.ForbiddenTransfers.Add(transfer);
                             }
 

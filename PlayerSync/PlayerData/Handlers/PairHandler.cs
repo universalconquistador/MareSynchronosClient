@@ -443,10 +443,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             // we should have all of our files by now, if not, we need to investigate/mitigate the root cause
             if (toDownloadReplacements.Count > 0 && !linkedCts.IsCancellationRequested)
             {
-                Logger.LogError("[BASE-{appBase}] Failed to download {count} hashes for {player}:{uid} Hashes: {hashes}", 
-                    applicationBase, toDownloadReplacements.Count, PlayerName, Pair.UserData.UID, string.Join(',', toDownloadReplacements.Select(file => file.Hash)));
-                Logger.LogDebug("[BASE-{appBase}] Failed files: {files}", applicationBase, string.Join(',', toDownloadReplacements.Select(file => file.FileSwapPath)));
-                //throw new InvalidOperationException($"Failed to download one or more required files for {PlayerName}:{Pair.UserData.UID}");
+                Logger.LogWarning("[BASE-{appBase}] Failed to download {count} hashes for {pair} (file(s) may be forbidden) Hashes: {hashes}", 
+                    applicationBase, toDownloadReplacements.Count, Pair.PairUIDName, string.Join(',', toDownloadReplacements.Select(file => file.Hash)));
             }
 
             if (numberOfFilesToDownload > 0) // we may not have needed to download anything, so don't report it
