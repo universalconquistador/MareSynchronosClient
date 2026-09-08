@@ -578,5 +578,16 @@ public partial class SettingsUi
             "Setting this to any number above 0 will limit the concurrent data applications. A lower number may help smooth loading and prevent lag/lockups for " +
             "PCs with modest specs.");
         ImGui.TextUnformatted("0 = Unlimited/Max");
+
+        ImGuiHelpers.ScaledDummy(5);
+
+        bool enableStageFeatures = _stageConfigService.Current.EnableStageFeatures;
+        if (ImGui.Checkbox("Enable stage features", ref enableStageFeatures))
+        {
+            _stageConfigService.Current.EnableStageFeatures = enableStageFeatures;
+            _stageConfigService.Save();
+            Mediator.Publish(new StageSettingsChangedMessage());
+        }
+        _uiShared.DrawHelpText("Shows the stages you are subscribed to.");
     }
 }

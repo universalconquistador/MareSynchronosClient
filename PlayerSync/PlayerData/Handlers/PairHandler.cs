@@ -400,7 +400,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                     $"Starting download for {toDownloadReplacements.Count} files")));
                 Dictionary<string, string> compressionSubstitutions = new Dictionary<string, string>();
                 // This gets a list of file download dtos from the file server that we need for this pair, not the actual files. This contains meta data and download links for each file.
-                var toDownloadFiles = await _downloadManager.InitiateDownloadList(_charaHandler!, toDownloadReplacements, compressedAlternateUsage, compressionSubstitutions, locallyPresentFiles, linkedCts.Token).ConfigureAwait(false);
+                var toDownloadFiles = await _downloadManager.InitiateDownloadList(_charaHandler!.Name, toDownloadReplacements.Select(f => f.Hash).Distinct(StringComparer.Ordinal).ToList(), compressedAlternateUsage, compressionSubstitutions, locallyPresentFiles, 0, linkedCts.Token).ConfigureAwait(false);
                 if (numberOfFilesToDownload < 0)
                 {
                     numberOfFilesToDownload = toDownloadFiles.Count;
@@ -414,7 +414,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
                 }
 
                 // start background task to download needed files
-                _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(_charaHandler!, toDownloadReplacements, compressionSubstitutions, linkedCts.Token).ConfigureAwait(false));
+                _pairDownloadTask = Task.Run(async () => await _downloadManager.DownloadFiles(new DownloadBatchInfo(_charaHandler!.Name, "Player", _charaHandler), toDownloadReplacements, compressionSubstitutions, linkedCts.Token).ConfigureAwait(false));
 
                 await _pairDownloadTask.ConfigureAwait(false);
 
@@ -443,10 +443,8 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
             // we should have all of our files by now, if not, we need to investigate/mitigate the root cause
             if (toDownloadReplacements.Count > 0 && !linkedCts.IsCancellationRequested)
             {
-                Logger.LogError("[BASE-{appBase}] Failed to download {count} hashes for {player}:{uid} Hashes: {hashes}", 
-                    applicationBase, toDownloadReplacements.Count, PlayerName, Pair.UserData.UID, string.Join(',', toDownloadReplacements.Select(file => file.Hash)));
-                Logger.LogDebug("[BASE-{appBase}] Failed files: {files}", applicationBase, string.Join(',', toDownloadReplacements.Select(file => file.FileSwapPath)));
-                //throw new InvalidOperationException($"Failed to download one or more required files for {PlayerName}:{Pair.UserData.UID}");
+                Logger.LogWarning("[BASE-{appBase}] Failed to download {count} hashes for {pair} (file(s) may be forbidden) Hashes: {hashes}", 
+                    applicationBase, toDownloadReplacements.Count, Pair.PairUIDName, string.Join(',', toDownloadReplacements.Select(file => file.Hash)));
             }
 
             if (numberOfFilesToDownload > 0) // we may not have needed to download anything, so don't report it

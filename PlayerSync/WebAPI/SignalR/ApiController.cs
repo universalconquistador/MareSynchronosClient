@@ -389,8 +389,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
                 if (_serverManager.UseServiceGatewayProxy && !string.IsNullOrWhiteSpace(_serverManager.ServiceGatewayProxyHost) && !_naggedAboutProxy)
                 {
                     _naggedAboutProxy = true;
-                    Mediator.Publish(new NotificationMessage("Gateway Service Override", "You have the service gateway override enabled for auth/files services. " + 
-                        "It is not recomennded to enable this setting for normal use as it can be slower than a default connection.",
+                    Mediator.Publish(new NotificationMessage("Gateway Service Override", "You have the service gateway override enabled for auth/files services. " +
+                        "It is not recommended to enable this setting for normal use as it can be slower than a default connection.",
                            NotificationType.Warning));
                 }
 
@@ -634,6 +634,10 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         OnUpdateEmoteSyncUsers(dto => _ = Client_UpdateEmoteSyncUsers(dto));
         OnStartEmoteSyncGroup(dto => _ = Client_StartEmoteSyncGroup(dto));
         OnProcessJsonDataType(dto => _ = Client_ProcessJsonDataType(dto));
+
+        OnStageSubscriptionsChanged((added, removed) => _ = Client_StageSubscriptionsChanged(added, removed));
+        OnStageSubscribedContentsChanged((stageId, dto) => _ = Client_StageSubscribedContentsChanged(stageId, dto));
+        OnStageSubscribedStateChanged((stageId, dto) => _ = Client_StageSubscribedStateChanged(stageId, dto));
 
         _healthCheckTokenSource?.Cancel();
         _healthCheckTokenSource?.Dispose();

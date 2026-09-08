@@ -237,12 +237,12 @@ public partial class SettingsUi
 
                     foreach (var transfer in _currentDownloads.ToArray())
                     {
-                        var userName = transfer.Key.Name;
+                        var displayName = transfer.Key.DisplayName;
                         foreach (var entry in transfer.Value)
                         {
                             var color = UiSharedService.UploadColor((entry.Value.TransferredBytes, entry.Value.TotalBytes));
                             ImGui.TableNextColumn();
-                            ImGui.TextUnformatted(userName);
+                            ImGui.TextUnformatted(displayName);
                             ImGui.TableNextColumn();
                             ImGui.TextUnformatted(entry.Key);
                             var col = ImRaii.PushColor(ImGuiCol.Text, color);
@@ -525,7 +525,7 @@ public partial class SettingsUi
             foreach (var item in _fileTransferOrchestrator.ForbiddenTransfers)
             {
                 ImGui.TableNextColumn();
-                if (item is UploadFileTransfer transfer)
+                if (item is UploadFileTransfer transfer && !string.IsNullOrWhiteSpace(transfer.LocalFile))
                 {
                     ImGui.TextUnformatted(transfer.LocalFile);
                 }

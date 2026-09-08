@@ -1,0 +1,270 @@
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Colors;
+using Dalamud.Interface.Components;
+using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
+using MareSynchronos.API.Data.Enum;
+using MareSynchronos.API.Dto.Stage;
+using MareSynchronos.PlayerData.Pairs;
+using MareSynchronos.Services.Mediator;
+using MareSynchronos.UI.Handlers;
+using MareSynchronos.WebAPI;
+using Microsoft.Extensions.Logging;
+using Stagehand.Definitions;
+using System;
+using System.Collections.Generic;
+using System.Numerics;
+using System.Text;
+
+namespace MareSynchronos.UI.Components;
+
+public class StageListComponent : MediatorSubscriberBase, IDisposable
+{
+    private readonly ILogger _logger;
+    private readonly MareMediator _mareMediator;
+    private readonly ApiController _apiController;
+    private readonly PairManager _pairManager;
+    private readonly IdDisplayHandler _idDisplayHandler;
+    private readonly UiSharedService _uiSharedService;
+    private readonly Func<int, Task<(List<StageFullInfoDto>, bool)>> _pageLoadCallback;
+
+    private bool _isLoading = false;
+    private string? _errorMessage = null;
+
+    private List<StageFullInfoDto> _pageResults;
+    public int PageIndex { get; private set; }
+    private bool _hasNextPage;
+
+    public StageListComponent(ILogger logger, MareMediator mareMediator, ApiController apiController, PairManager pairManager, IdDisplayHandler idDisplayHandler, UiSharedService uiSharedService, Func<int, Task<(List<StageFullInfoDto>, bool)>> pageLoadCallback)
+        : base(logger, mareMediator)
+    {
+        _logger = logger;
+        _mareMediator = mareMediator;
+        _apiController = apiController;
+        _pairManager = pairManager;
+        _idDisplayHandler = idDisplayHandler;
+        _uiSharedService = uiSharedService;
+        _pageLoadCallback = pageLoadCallback;
+
+        PageIndex = 0;
+        _hasNextPage = false;
+        _pageResults = new();
+
+        if (_apiController.IsConnected)
+        {
+            LoadPage(0);
+        }
+
+        Mediator.Subscribe<StageSubscriptionsChangedMessage>(this, OnStageSubscriptionsChanged);
+        Mediator.Subscribe<StageSubscribedContentsChangedMessage>(this, OnStageSubscribedContentsChanged);
+        Mediator.Subscribe<StageSubscribedStateChangedMessage>(this, OnStageSubscribedStateChanged);
+        Mediator.Subscribe<StageCustomizeChangedMessage>(this, OnStageCustomizeChanged);
+        Mediator.Subscribe<StageDeletedMessage>(this, OnStageDeleted);
+    }
+
+    private void OnStageSubscriptionsChanged(StageSubscriptionsChangedMessage message)
+    {
+        foreach (var removedStageId in message.RemovedSubscribedStageIds)
+        {
+            foreach (var resultStage in _pageResults)
+            {
+                if (resultStage.SID == removedStageId)
+                {
+                    resultStage.SubscriptionState = StageSubscriptionFlags.None;
+                }
+            }
+        }
+
+        foreach (var addedStage in message.AddedSubscribedStages)
+        {
+            foreach (var resultStage in _pageResults)
+            {
+                if (resultStage.SID == addedStage.SID)
+                {
+                    resultStage.SubscriptionState = addedStage.SubscriptionState;
+                }
+            }
+        }
+    }
+
+    private void OnStageSubscribedContentsChanged(StageSubscribedContentsChangedMessage message)
+    {
+        if (_pageResults.FirstOrDefault(result => result.SID == message.StageId) is StageFullInfoDto stage)
+        {
+            stage.Contents = message.NewContents;
+        }
+    }
+
+    private void OnStageSubscribedStateChanged(StageSubscribedStateChangedMessage message)
+    {
+        if (_pageResults.FirstOrDefault(result => result.SID == message.StageId) is StageFullInfoDto stage)
+        {
+            stage.State = message.NewState;
+        }
+    }
+
+    private void OnStageCustomizeChanged(StageCustomizeChangedMessage message)
+    {
+        if (_pageResults.FirstOrDefault(result => result.SID == message.StageId) is StageFullInfoDto stage)
+        {
+            stage.Customize = message.NewCustomize;
+        }
+    }
+
+    private void OnStageDeleted(StageDeletedMessage message)
+    {
+        for (int i = _pageResults.Count - 1; i >= 0; i--)
+        {
+            if (_pageResults[i].SID == message.StageId)
+            {
+                _pageResults.RemoveAt(i);
+            }
+        }
+    }
+
+    public void Draw()
+    {
+        if (_errorMessage != null)
+        {
+            ImGui.TextColoredWrapped(ImGuiColors.ErrorForeground, _errorMessage);
+        }
+
+        if (_pageResults.Count > 0)
+        {
+            for (int i = 0; i < _pageResults.Count; i++)
+            {
+                using (ImRaii.PushId($"ListItem{i}"))
+                {
+                    DrawStageListItem(_pageResults[i]);
+                }
+            }
+
+            if (PageIndex > 0 || _hasNextPage)
+            {
+                using (ImRaii.Disabled(PageIndex == 0 || _isLoading))
+                {
+                    if (ImGui.Button("Previous Page"u8))
+                    {
+                        LoadPage(PageIndex - 1);
+                    }
+                }
+            }
+
+            if (_hasNextPage)
+            {
+                ImGui.SameLine();
+
+                using (ImRaii.Disabled(_isLoading))
+                {
+                    if (ImGui.Button("Next Page"u8))
+                    {
+                        LoadPage(PageIndex + 1);
+                    }
+                }
+            }
+        }
+        else
+        {
+            var text = _isLoading ? "(Loading...)"u8 : "(No stages)"u8;
+            var textSize = ImGui.CalcTextSize(text);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X / 2.0f - textSize.X / 2.0f);
+            ImGui.TextDisabled(text);
+        }
+    }
+
+    private void DrawStageListItem(StageFullInfoDto stageInfo)
+    {
+        var startX = ImGui.GetCursorPosX();
+        ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() * 2 - ImGui.GetStyle().ItemInnerSpacing.X);
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.InfoCircle, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+        {
+            _mareMediator.Publish(new OpenStageDetailsWindow(stageInfo, stageInfo.Info.GroupOwnerGID == "" ? null : stageInfo.Info.GroupOwnerGID));
+        }
+        UiSharedService.AttachToolTip("Stage Details");
+
+        ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+        StageHelpers.DrawStagePairButton(stageInfo, _apiController, _logger);
+
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(startX);
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.TextUnformatted(FontAwesomeIcon.MapMarkerAlt.ToIconString());
+        }
+        if (ImGui.IsItemHovered())
+        {
+            using (ImRaii.Tooltip())
+            {
+                ImGui.TextUnformatted(_uiSharedService.LocationToString(
+                    stageInfo.State.LocationWorldId,
+                    stageInfo.State.LocationTerritoryId,
+                    stageInfo.State.LocationWardId,
+                    stageInfo.State.LocationDivisionId,
+                    stageInfo.State.LocationHouseId,
+                    stageInfo.State.LocationHouseId));
+            }
+        }
+        ImGui.SameLine();
+        using (ImRaii.TextWrapPos(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() * 2 - ImGui.GetStyle().ItemInnerSpacing.X * 2))
+        {
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextWrapped(string.IsNullOrEmpty(stageInfo.Customize.DisplayName) ? stageInfo.SID : stageInfo.Customize.DisplayName);
+            ImGui.SameLine();
+            using (ImRaii.Disabled())
+            {
+                ImGui.TextWrapped(stageInfo.Customize.Version);
+            }
+        }
+
+        bool ownedByGroup = stageInfo.Info.GroupOwnerGID != "";
+        string ownerDisplayName;
+        if (ownedByGroup)
+        {
+            ownerDisplayName = _idDisplayHandler.GetGroupAlias(stageInfo.Info.GroupOwnerGID, _pairManager);
+        }
+        else
+        {
+            ownerDisplayName = _idDisplayHandler.GetUserAlias(stageInfo.Info.UserOwnerUID, _apiController, _pairManager);
+        }
+        ImGui.TextDisabled(ownerDisplayName);
+        ImGui.SameLine();
+        ImGui.TextDisabled($"(updated {stageInfo.Contents.RevisionDateUtc.ToLocalTime().ToString("g")})");
+
+        ImGui.Spacing();
+        ImGui.Separator();
+    }
+
+    public void LoadPage(int page)
+    {
+        if (!_isLoading)
+        {
+            _isLoading = true;
+            _errorMessage = null;
+            _ = LoadDataAsync(page);
+        }
+    }
+
+    private async Task LoadDataAsync(int page)
+    {
+        try
+        {
+            (var results, bool hasMore) = await _pageLoadCallback.Invoke(page).ConfigureAwait(false);
+
+            PageIndex = page;
+            _pageResults = results;
+            _hasNextPage = hasMore;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch stage list page!");
+            _errorMessage = ex.ToString();
+        }
+        _isLoading = false;
+    }
+
+    public void Dispose()
+    {
+        UnsubscribeAll();
+    }
+}

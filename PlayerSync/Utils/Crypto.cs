@@ -21,6 +21,11 @@ public static class Crypto
         return Convert.ToHexString(hashBytes);
     }
 
+    public static async Task<string> GetStreamHashAsync(Stream stream, CancellationToken token = default)
+    {
+        return Convert.ToHexString(await SHA1.HashDataAsync(stream, token).ConfigureAwait(false));
+    }
+
     public static string GetHash256(this (string, ushort) playerToHash)
     {
         if (_hashListPlayersSHA256.TryGetValue(playerToHash, out var hash))
