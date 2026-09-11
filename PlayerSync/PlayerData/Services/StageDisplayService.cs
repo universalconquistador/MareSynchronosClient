@@ -566,7 +566,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
 
     private static bool StageIsInLocation(StageStateDto state, StageLocation location)
     {
-        return state.LocationWorldId == location.WorldId
+        return (state.LocationWorldId == -1 || state.LocationWorldId == location.WorldId)
             && state.LocationTerritoryId == location.TerritoryId
             && state.LocationWardId == location.WardId
             && state.LocationDivisionId == location.DivisionId
