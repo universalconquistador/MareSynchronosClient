@@ -566,7 +566,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
 
     private static bool StageIsInLocation(StageStateDto state, StageLocation location)
     {
-        return state.LocationWorldId == location.WorldId
+        return (state.LocationWorldId == -1 || state.LocationWorldId == location.WorldId)
             && state.LocationTerritoryId == location.TerritoryId
             && state.LocationWardId == location.WardId
             && state.LocationDivisionId == location.DivisionId
@@ -639,7 +639,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
 
         // If the stage in question is or was in the current location, do a full refresh of the active stages
         var currentLocation = _ipcCallerStagehand.StagehandApi.GetLocation();
-        bool isNowCurrentLocation = currentLocation.WorldId == message.NewState.LocationWorldId
+        bool isNowCurrentLocation = (message.NewState.LocationWorldId == -1 || currentLocation.WorldId == message.NewState.LocationWorldId)
                 && currentLocation.TerritoryId == message.NewState.LocationTerritoryId
                 && currentLocation.WardId == message.NewState.LocationWardId
                 && currentLocation.DivisionId == message.NewState.LocationDivisionId

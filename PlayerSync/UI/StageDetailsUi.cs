@@ -856,7 +856,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                 return $"World {worldId}";
             }
         }
-        using (var worldCombo = ImRaii.Combo("World"u8, WorldIdToString(_locationWorldId)))
+        using (var worldCombo = ImRaii.Combo("World"u8, _locationWorldId == -1 ? "(All Worlds)" : WorldIdToString(_locationWorldId)))
         {
             if (worldCombo.Success)
             {
@@ -872,6 +872,11 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                 {
                     if (items.Success)
                     {
+                        if (ImGui.Selectable("(All Worlds)", _locationWorldId == -1, size: new(ImGui.GetContentRegionAvail().X, ImGui.GetTextLineHeight())))
+                        {
+                            _locationWorldId = -1;
+                            ImGui.CloseCurrentPopup();
+                        }
                         var worldSheet = _dataManager.Excel.GetSheet<World>();
                         foreach (var worldRow in worldSheet)
                         {
