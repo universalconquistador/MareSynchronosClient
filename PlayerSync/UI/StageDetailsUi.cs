@@ -243,7 +243,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                 StageInfo.State.LocationWardId,
                 StageInfo.State.LocationDivisionId,
                 StageInfo.State.LocationHouseId,
-                StageInfo.State.LocationHouseId);
+                StageInfo.State.LocationRoomId);
             ImGui.TextWrapped(locationString);
             UiSharedService.AttachToolTip(locationString + UiSharedService.TooltipSeparator + "Click to copy location");
             if (ImGui.IsItemClicked())
