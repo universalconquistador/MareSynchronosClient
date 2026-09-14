@@ -160,15 +160,15 @@
       },
       "Stagehand.Api": {
         "type": "Direct",
-        "requested": "[0.4.8, )",
-        "resolved": "0.4.8",
-        "contentHash": "XFvV3jEMmpB7hvZ+Fxlzlxe2XLdE1JRg/v7lt+JRA1ZgoYzs6K+okX0Ui/6KKHSgR7P7KlKzgMhVPVKfbAhIuw=="
+        "requested": "[0.4.13, )",
+        "resolved": "0.4.13",
+        "contentHash": "OVLB0b0dj1h+6NMZ5RoPhIU6FZ2K+8+Ed5gWMXcP1OzeEOYAq49B/2CGhKGypkh8gaV0LuDImOpn5kdYlfE6ew=="
       },
       "Stagehand.Definitions": {
         "type": "Direct",
-        "requested": "[0.4.8, )",
-        "resolved": "0.4.8",
-        "contentHash": "BAjdNCWUeHIkW6WS+uRCNf9ipjn6D6hfNMx3XtplOUMWjZYSRkjy8dYt6VtWjgdfhObXnhFI1lltIe+ZR7GXEA=="
+        "requested": "[0.4.13, )",
+        "resolved": "0.4.13",
+        "contentHash": "Leb41F2K3f6Tk6IYyc78jEMA5R012Jlivk3Tiyvn2oVzLTsnIuqlrUBgXYoWQ5gWZwT9m/pECQXghSyAzASUhw=="
       },
       "System.IdentityModel.Tokens.Jwt": {
         "type": "Direct",
