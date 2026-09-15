@@ -109,7 +109,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         StageFullInfoDto? startingStageInfo, string? owningGroupId, ApiController apiController, PairManager pairManager,
         IpcManager ipcManager, FileUploadManager fileUploadManager, UiSharedService uiSharedService, IdDisplayHandler idDisplayHandler,
         StageConfigService stageConfigService, IClientState clientState, IPlayerState playerState, IDataManager dataManager)
-        : base(logger, mediator, $"{startingStageInfo?.Customize.DisplayName ?? "New Stage"}###StageDetails{Guid.NewGuid()}", performanceCollector)
+        : base(logger, mediator, $"{startingStageInfo?.Customize.DisplayName ?? "Upload Stage to PlayerSync"}###StageDetails{Guid.NewGuid()}", performanceCollector)
     {
         StageInfo = startingStageInfo;
         _apiController = apiController;

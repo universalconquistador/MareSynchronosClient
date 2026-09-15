@@ -4,6 +4,7 @@ using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Dto.Stage;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -34,6 +35,7 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
         Group,
     }
 
+    private readonly IpcManager _ipcManager;
     private readonly UiTheme _uiTheme;
     private readonly UiSharedService _uiSharedService;
     private readonly ApiController _apiController;
@@ -54,9 +56,10 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
     private string _findText = "";
     private StageListComponent? _findStageList = null;
 
-    public MyStagesWindow(ILogger<MyStagesWindow> logger, MareMediator mediator, PerformanceCollectorService performanceCollectorService, UiTheme uiTheme, UiSharedService uiSharedService, ApiController apiController, PairManager pairManager, IdDisplayHandler idDisplayHandler)
+    public MyStagesWindow(ILogger<MyStagesWindow> logger, MareMediator mediator, PerformanceCollectorService performanceCollectorService, IpcManager ipcManager, UiTheme uiTheme, UiSharedService uiSharedService, ApiController apiController, PairManager pairManager, IdDisplayHandler idDisplayHandler)
         : base(logger, mediator, "Stages", performanceCollectorService)
     {
+        _ipcManager = ipcManager;
         _uiTheme = uiTheme;
         _uiSharedService = uiSharedService;
         _apiController = apiController;
@@ -176,10 +179,14 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
         _uiSharedService.BigText("My Stages");
         ImGuiHelpers.ScaledDummy(2);
 
-        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "New Stage"))
+        using (ImRaii.Disabled(!_ipcManager.Stagehand.APIAvailable))
         {
-            Mediator.Publish(new OpenStageDetailsWindow(null, null));
+            if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "New Stage"))
+            {
+                Mediator.Publish(new OpenStageDetailsWindow(null, null));
+            }
         }
+        UiSharedService.AttachToolTip(_ipcManager.Stagehand.APIAvailable ? "Upload a stage from Stagehand" : "Could not connect to the Stagehand plugin.\nMake sure it is installed, enabled, and up to date.");
 
         ImGuiHelpers.ScaledDummy(1);
 
