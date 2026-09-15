@@ -680,11 +680,14 @@ public class TopTabMenu : IMediatorSubscriber
     private void DrawStage(float availableWidth, float spacingX)
     {
         var buttonX = (availableWidth - spacingX) / 2f;
-        if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Create new Stage", buttonX))
+        using (ImRaii.Disabled(!_ipcManager.Stagehand.APIAvailable))
         {
-            _mareMediator.Publish(new OpenStageDetailsWindow(StartingStageInfo: null, OwningGroupId: null));
+            if (_uiSharedService.IconTextButton(FontAwesomeIcon.Plus, "Upload new Stage", buttonX))
+            {
+                _mareMediator.Publish(new OpenStageDetailsWindow(StartingStageInfo: null, OwningGroupId: null));
+            }
         }
-        UiSharedService.AttachToolTip("Upload a new stage");
+        UiSharedService.AttachToolTip(_ipcManager.Stagehand.APIAvailable ? "Upload a stage from Stagehand" : "Could not connect to the Stagehand plugin.\nMake sure it is installed, enabled, and up to date.");
 
         ImGui.SameLine();
         if (_uiSharedService.IconTextButton(FontAwesomeIcon.Tasks, "Manage Stages", buttonX))

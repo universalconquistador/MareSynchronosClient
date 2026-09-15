@@ -2,6 +2,7 @@
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto.Stage;
 using MareSynchronos.UI;
@@ -54,5 +55,39 @@ public static class StageHelpers
             _ = SetIsSubscribedAsync(stageInfo, !isSubscribed, apiController, logger);
         }
         UiSharedService.AttachToolTip(subscriptionTooltip);
+    }
+
+    public static void DrawAlertBanner(FontAwesomeIcon icon, ImU8String text, ImU8String tooltip, Vector4 color)
+    {
+        bool hovered;
+        using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, ImGui.GetStyle().FramePadding * 2.0f))
+        {
+            var start = ImGui.GetCursorPos();
+            ImGui.SetNextItemWidth(-1.0f);
+            ImGui.Dummy(new Vector2(ImGui.CalcItemWidth(), ImGui.GetFrameHeight()));
+            hovered = ImGui.IsItemHovered();
+            var rectMin = ImGui.GetItemRectMin();
+            var rectMax = ImGui.GetItemRectMax();
+            ImGui.GetWindowDrawList().AddRectFilled(rectMin, rectMax, ImGui.ColorConvertFloat4ToU32(color), 4.0f);
+            ImGui.SameLine(0.0f, 0.0f);
+            ImGui.SetCursorPos(start);
+            ImGui.AlignTextToFramePadding();
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetStyle().FramePadding.X);
+            using (ImRaii.PushFont(UiBuilder.IconFontFixedWidth))
+            {
+                ImGui.TextUnformatted(icon.ToIconString());
+            }
+            ImGui.SameLine();
+            ImGui.TextUnformatted(text);
+        }
+
+        if (hovered && tooltip.Length > 0)
+        {
+            using (ImRaii.Tooltip())
+            using (ImRaii.TextWrapPos(400.0f * ImGuiHelpers.GlobalScale))
+            {
+                ImGui.TextWrapped(tooltip);
+            }
+        }
     }
 }

@@ -109,7 +109,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         StageFullInfoDto? startingStageInfo, string? owningGroupId, ApiController apiController, PairManager pairManager,
         IpcManager ipcManager, FileUploadManager fileUploadManager, UiSharedService uiSharedService, IdDisplayHandler idDisplayHandler,
         StageConfigService stageConfigService, IClientState clientState, IPlayerState playerState, IDataManager dataManager)
-        : base(logger, mediator, $"{startingStageInfo?.Customize.DisplayName ?? "New Stage"}###StageDetails{Guid.NewGuid()}", performanceCollector)
+        : base(logger, mediator, $"{startingStageInfo?.Customize.DisplayName ?? "Upload Stage to PlayerSync"}###StageDetails{Guid.NewGuid()}", performanceCollector)
     {
         StageInfo = startingStageInfo;
         _apiController = apiController;
@@ -359,12 +359,9 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                     }
                     foreach (var group in _groups)
                     {
-                        using (ImRaii.Disabled(!group.IsOwnerOrModerator))
+                        if (group.IsOwnerOrModerator && ImGui.Selectable($"{group.GroupIdOrAlias}###{group.GroupId}", _newStageOwner == group))
                         {
-                            if (ImGui.Selectable($"{group.GroupIdOrAlias}###{group.GroupId}", _newStageOwner == group))
-                            {
-                                _newStageOwner = group;
-                            }
+                            _newStageOwner = group;
                         }
                     }
                 }
@@ -567,12 +564,22 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
         _uiSharedService.HeaderText(StageInfo == null ? "Select Stage" : "Update Stage");
         ImGuiHelpers.ScaledDummy(3.0f);
 
+        if (!_ipcManager.Stagehand.APIAvailable)
+        {
+            StageHelpers.DrawAlertBanner(
+                FontAwesomeIcon.ExclamationTriangle,
+                "Stagehand Plugin Unavailable",
+                "Could not connect to the Stagehand plugin.\nMake sure it is installed, enabled, and up to date.",
+                ImGuiColors.ErrorBackground);
+        }
+        
         if (StageInfo == null || IsEditingContents)
         {
-            using (ImRaii.Disabled(_isLoadingStageDefinition))
+            bool hasStagehand = _ipcManager.Stagehand.APIAvailable;
+            using (ImRaii.Disabled(_isLoadingStageDefinition || !hasStagehand))
             using (var stageCombo = ImRaii.Combo("Stage"u8, _newStageDefinition != null ? $"{_newStageDefinition.Info.Name} (ver. {_newStageDefinition.Info.VersionString})" : "<Select>"u8))
             {
-                if (stageCombo.Success)
+                if (stageCombo.Success && hasStagehand)
                 {
                     foreach (var availableStage in _ipcManager.Stagehand.StagehandApi.GetLocalStageDefinitions())
                     {
