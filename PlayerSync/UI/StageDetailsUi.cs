@@ -359,12 +359,9 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                     }
                     foreach (var group in _groups)
                     {
-                        using (ImRaii.Disabled(!group.IsOwnerOrModerator))
+                        if (group.IsOwnerOrModerator && ImGui.Selectable($"{group.GroupIdOrAlias}###{group.GroupId}", _newStageOwner == group))
                         {
-                            if (ImGui.Selectable($"{group.GroupIdOrAlias}###{group.GroupId}", _newStageOwner == group))
-                            {
-                                _newStageOwner = group;
-                            }
+                            _newStageOwner = group;
                         }
                     }
                 }
