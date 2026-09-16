@@ -71,7 +71,7 @@ public class UiFactory
     public SyncshellAdminUI CreateSyncshellAdminUi(GroupFullInfoDto dto)
     {
         return new SyncshellAdminUI(_loggerFactory.CreateLogger<SyncshellAdminUI>(), _mareMediator,
-            _apiController, _uiSharedService, _broadcastManager, _pairManager, dto, _performanceCollectorService, _theme, _idDisplayHandler);
+            _apiController, _uiSharedService, _broadcastManager, _pairManager, dto, _performanceCollectorService, _theme, _idDisplayHandler, _ipcManager);
     }
 
     public SyncshellProfileUi CreateSyncshellProfileUi(GroupFullInfoDto dto)

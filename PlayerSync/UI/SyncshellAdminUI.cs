@@ -8,6 +8,7 @@ using Dalamud.Interface.Windowing;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
+using MareSynchronos.Interop.Ipc;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -30,6 +31,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private readonly PairManager _pairManager;
     private readonly UiSharedService _uiSharedService;
     private readonly IBroadcastManager _broadcastManager;
+    private readonly IpcManager _ipcManager;
     private List<BannedGroupUserDto> _bannedUsers = [];
     private int _multiInvites;
     private string _newPassword;
@@ -48,7 +50,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
     public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController, UiSharedService uiSharedService, 
         IBroadcastManager broadcastManager, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService, UiTheme theme,
-        IdDisplayHandler idDisplayHandler)
+        IdDisplayHandler idDisplayHandler, IpcManager ipcManager)
         : base(logger, mediator, "Syncshell Admin Panel (" + groupFullInfo.GroupAliasOrGID + ")", performanceCollectorService)
     {
         GroupFullInfo = groupFullInfo;
@@ -56,6 +58,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         _uiSharedService = uiSharedService;
         _broadcastManager = broadcastManager;
         _pairManager = pairManager;
+        _ipcManager = ipcManager;
         _theme = theme;
         _isOwner = string.Equals(GroupFullInfo.OwnerUID, _apiController.UID, System.StringComparison.Ordinal);
         _isModerator = GroupFullInfo.GroupUserInfo.IsModerator();
@@ -649,10 +652,14 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         _uiSharedService.BigText("Stage Management");
         ImGuiHelpers.ScaledDummy(2);
 
-        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "New Stage"))
+        using (ImRaii.Disabled(!_ipcManager.Stagehand.APIAvailable))
         {
-            Mediator.Publish(new OpenStageDetailsWindow(null, GroupFullInfo.GID));
+            if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "New Stage"))
+            {
+                Mediator.Publish(new OpenStageDetailsWindow(null, GroupFullInfo.GID));
+            }
         }
+        UiSharedService.AttachToolTip(_ipcManager.Stagehand.APIAvailable ? "Upload a stage from Stagehand" : "Could not connect to the Stagehand plugin.\nMake sure it is installed, enabled, and up to date.");
 
         using (var stageList = ImRaii.Child("StageList"u8, ImGui.GetContentRegionAvail()))
         {
