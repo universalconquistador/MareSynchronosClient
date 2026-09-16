@@ -47,6 +47,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private readonly IReadOnlyList<(string GroupLabel, IReadOnlyList<UiNav.NavItem<SyncshellAdminNav>> Items)> _navGroups;
     private string _filterText = string.Empty;
     private readonly StageListComponent _stageList;
+    private bool _offlinePin;
 
     public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController, UiSharedService uiSharedService, 
         IBroadcastManager broadcastManager, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService, UiTheme theme,
@@ -356,6 +357,8 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
 
         ImGui.SetNextItemWidth(280f * ImGuiHelpers.GlobalScale);
         ImGui.InputText("Filter##userfilter", ref _filterText, 20);
+        ImGui.SameLine();
+        ImGui.Checkbox("Move Offline Users To Top", ref _offlinePin);
         ImGuiHelpers.ScaledDummy(2);
 
         var tableSize = new Vector2(0f, ImGui.GetContentRegionAvail().Y);
@@ -364,10 +367,10 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         if (!table)
             return;
 
-        ImGui.TableSetupColumn("Alias/UID/Note", ImGuiTableColumnFlags.None, 2);
-        ImGui.TableSetupColumn("Online/Name", ImGuiTableColumnFlags.None, 2);
-        ImGui.TableSetupColumn("Flags", ImGuiTableColumnFlags.None, 1);
-        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.None, 2);
+        ImGui.TableSetupColumn("Alias/UID/Note", ImGuiTableColumnFlags.WidthStretch, 3);
+        ImGui.TableSetupColumn("Online/Name", ImGuiTableColumnFlags.WidthStretch, 1.5f);
+        ImGui.TableSetupColumn("Flags", ImGuiTableColumnFlags.WidthStretch, .5f);
+        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthStretch, 2);
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableHeadersRow();
 
@@ -383,16 +386,22 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
                     ? (GroupPairUserInfo?)value
                     : null
             })
-            .OrderBy(pairInfo =>
+            .OrderBy(s =>
             {
-                if (pairInfo.Info == null) return 10;
-                if (pairInfo.Info.Value.IsModerator()) return 1;
-                if (pairInfo.Info.Value.IsPinned()) return 2;
-                if (pairInfo.Info.Value.IsGuest()) return 0;
-                return 10;
+                var info = s.Info;
+
+                bool ShellMod = info?.IsModerator() ?? false;
+                bool ShellPinned = info?.IsPinned() ?? false;
+                bool ShellGuest = info?.IsGuest() ?? false;
+
+                int modpinned = ShellMod ? 0 : (ShellPinned ? 1 : 2);
+                int shellperm = (ShellMod || ShellPinned) ? 0
+                    : (_offlinePin ? (s.Pair.IsOnline ? 2 : 1) : (s.Pair.IsOnline ? 1 : 2));
+                int tempguest = ShellGuest ? 3 : 2;
+                return (modpinned, shellperm, tempguest);
             })
-            .ThenBy(pairInfo => pairInfo.Pair.GetNote() ?? pairInfo.Pair.UserData.AliasOrUID, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .ThenBy(
+                s => s.Pair.GetNote() ?? s.Pair.UserData.AliasOrUID, StringComparer.OrdinalIgnoreCase).ToList();
 
         var style = ImGui.GetStyle();
         var rowHeight = MathF.Max(ImGui.GetTextLineHeight(), ImGui.GetFrameHeight()) + (style.CellPadding.Y * 2f) + 1f;
