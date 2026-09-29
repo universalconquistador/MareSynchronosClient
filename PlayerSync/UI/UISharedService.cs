@@ -618,8 +618,8 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         }
         else if (!_cacheDirectoryIsValidPath)
         {
-            ColorTextWrapped("Your selected directory contains illegal characters unreadable by FFXIV. " +
-                             "Restrict yourself to latin letters (A-Z), underscores (_), dashes (-) and arabic numbers (0-9).", ImGuiColors.DalamudRed);
+            ColorTextWrapped("Your selected directory contains characters unreadable by FFXIV. " +
+                             "Restrict yourself to latin letters (A-Z), and avoid illegal characters (< > : \" | ? *).", ImGuiColors.DalamudRed);
         }
 
         float maxCacheSize = (float)_configService.Current.MaxLocalCacheInGiB;
@@ -1237,7 +1237,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         ImGui.SetWindowPos(new Vector2(center.X - width / 2, center.Y - height / 2), cond);
     }
 
-    [GeneratedRegex(@"^(?:[a-zA-Z]:\\[\w\s\-\\]+?|\/(?:[\w\s\-\/])+?)$", RegexOptions.ECMAScript, 5000)]
+    [GeneratedRegex(@"^(?:[a-zA-Z]:\\|\/)[\x20-\x7E-[<>:""|?*]]+$", RegexOptions.ECMAScript, 5000)]
     private static partial Regex PathRegex();
 
     private static void FontText(string text, IFontHandle font, Vector4? color = null)
