@@ -80,16 +80,19 @@ public sealed class CharaDataFileHandler : IDisposable
     public async Task<CharacterData?> CreatePlayerData()
     {
         var chara = await _dalamudUtilService.GetPlayerCharacterAsync().ConfigureAwait(false);
+        var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
         if (_dalamudUtilService.IsInGpose)
         {
-            chara = (IPlayerCharacter?)(await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(chara.Name.TextValue, _dalamudUtilService.IsInGpose).ConfigureAwait(false));
+            chara = (IPlayerCharacter?)(await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(playerName, _dalamudUtilService.IsInGpose).ConfigureAwait(false));
         }
 
         if (chara == null)
             return null;
 
+        var charaObjectIndex = await _dalamudUtilService.RunOnFrameworkThread(
+            () => chara.ObjectIndex).ConfigureAwait(false);
         using var tempHandler = await _gameObjectHandlerFactory.Create(ObjectKind.Player,
-                        () => _dalamudUtilService.GetCharacterFromObjectTableByIndex(chara.ObjectIndex)?.Address ?? IntPtr.Zero, isWatched: false).ConfigureAwait(false);
+                        () => _dalamudUtilService.GetCharacterFromObjectTableByIndex(charaObjectIndex)?.Address ?? IntPtr.Zero, isWatched: false).ConfigureAwait(false);
         PlayerData.Data.CharacterData newCdata = new();
         var fragment = await _playerDataFactory.BuildCharacterData(tempHandler, CancellationToken.None).ConfigureAwait(false);
         newCdata.SetFragment(ObjectKind.Player, fragment);

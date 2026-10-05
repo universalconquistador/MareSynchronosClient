@@ -949,6 +949,9 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
         if (chara == null)
             return;
 
+        var charaObjectIndex = await _dalamudUtilService.RunOnFrameworkThread(
+            () => chara.ObjectIndex).ConfigureAwait(false);
+
         var applicationId = Guid.NewGuid();
 
         var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
@@ -966,7 +969,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
 
         Logger.LogTrace("[{appId}] Computing local missing files", applicationId);
 
-        using GameObjectHandler? tempHandler = await _characterHandler.TryCreateGameObjectHandler(chara.ObjectIndex).ConfigureAwait(false);
+        using GameObjectHandler? tempHandler = await _characterHandler.TryCreateGameObjectHandler(charaObjectIndex).ConfigureAwait(false);
         if (tempHandler == null) return;
 
         if (missingFiles.Any())
