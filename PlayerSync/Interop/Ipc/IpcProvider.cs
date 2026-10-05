@@ -14,6 +14,7 @@ public class IpcProvider : IHostedService, IMediatorSubscriber
     private readonly ILogger<IpcProvider> _logger;
     private readonly IDalamudPluginInterface _pi;
     private readonly CharaDataManager _charaDataManager;
+    private readonly DalamudUtilService _dalamudUtilService;
     private ICallGateProvider<string, IGameObject, bool>? _loadFileProvider;
     private ICallGateProvider<string, IGameObject, bool>? _loadFilePSProvider;
     private ICallGateProvider<string, IGameObject, Task<bool>>? _loadFileAsyncProvider;
@@ -25,11 +26,12 @@ public class IpcProvider : IHostedService, IMediatorSubscriber
     public MareMediator Mediator { get; init; }
 
     public IpcProvider(ILogger<IpcProvider> logger, IDalamudPluginInterface pi,
-        CharaDataManager charaDataManager, MareMediator mareMediator)
+        CharaDataManager charaDataManager, DalamudUtilService dalamudUtilService, MareMediator mareMediator)
     {
         _logger = logger;
         _pi = pi;
         _charaDataManager = charaDataManager;
+        _dalamudUtilService = dalamudUtilService;
         Mediator = mareMediator;
 
         Mediator.Subscribe<GameObjectHandlerCreatedMessage>(this, (msg) =>
@@ -94,7 +96,9 @@ public class IpcProvider : IHostedService, IMediatorSubscriber
     {
         _charaDataManager.LoadMcdf(path);
         await (_charaDataManager.LoadedMcdfHeader ?? Task.CompletedTask).ConfigureAwait(false);
-        _charaDataManager.McdfApplyToTarget(target.Name.TextValue);
+        var targetName = await _dalamudUtilService.RunOnFrameworkThread(
+            () => target.Name.TextValue).ConfigureAwait(false);
+        _charaDataManager.McdfApplyToTarget(targetName);
     }
 
     private List<nint> GetHandledAddresses()

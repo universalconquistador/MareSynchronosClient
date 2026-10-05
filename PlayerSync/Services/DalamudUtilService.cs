@@ -239,10 +239,13 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
     public async Task<IGameObject?> GetGposeTargetGameObjectAsync()
     {
-        if (!HasGposeTarget)
-            return null;
+        return await _framework.RunOnFrameworkThread(() =>
+        {
+            if (!HasGposeTarget)
+                return null;
 
-        return await _framework.RunOnFrameworkThread(() => _objectTable[GPoseTargetIdx]).ConfigureAwait(true);
+            return _objectTable[GPoseTargetIdx];
+        }).ConfigureAwait(true);
     }
     public bool IsAnythingDrawing { get; private set; } = false;
     public bool IsInCutscene { get; private set; } = false;

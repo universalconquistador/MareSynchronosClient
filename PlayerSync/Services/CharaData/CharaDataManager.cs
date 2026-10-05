@@ -153,7 +153,8 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
         return UiBlockingComputation = DataApplicationTask = Task.Run(async () =>
         {
             var obj = await _dalamudUtilService.GetGposeTargetGameObjectAsync().ConfigureAwait(false);
-            var charaName = obj?.Name.TextValue ?? string.Empty;
+            var charaName = await _dalamudUtilService.RunOnFrameworkThread(
+                () => obj?.Name.TextValue ?? string.Empty).ConfigureAwait(false);
             if (string.IsNullOrEmpty(charaName)) return;
 
             await ApplyCharaData(dataMetaInfoDto, charaName).ConfigureAwait(false);
@@ -163,7 +164,8 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
     public async Task ApplyOwnDataToGposeTarget(CharaDataFullExtendedDto dataDto)
     {
         var chara = await _dalamudUtilService.GetGposeTargetGameObjectAsync().ConfigureAwait(false);
-        var charaName = chara?.Name.TextValue ?? string.Empty;
+        var charaName = await _dalamudUtilService.RunOnFrameworkThread(
+            () => chara?.Name.TextValue ?? string.Empty).ConfigureAwait(false);
         CharaDataDownloadDto downloadDto = new(dataDto.Id, dataDto.Uploader)
         {
             CustomizeData = dataDto.CustomizeData,
@@ -251,7 +253,8 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             if (playerChar == null) return;
             if (_dalamudUtilService.IsInGpose)
             {
-                playerChar = await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(playerChar.Name.TextValue, true).ConfigureAwait(false);
+                var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
+                playerChar = await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(playerName, true).ConfigureAwait(false);
             }
             if (playerChar == null) return;
             var worldData = await _ipcManager.Brio.GetTransformAsync(playerChar.Address).ConfigureAwait(false);
@@ -272,18 +275,13 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
     public async Task<(bool CanApply, string TargetName)> CanApplyInGpose()
     {
         var obj = await _dalamudUtilService.GetGposeTargetGameObjectAsync().ConfigureAwait(false);
-        string targetName = string.Empty;
-        bool canApply = _dalamudUtilService.IsInGpose && obj != null
-            && obj.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc;
-        if (canApply)
-        {
-            targetName = obj!.Name.TextValue;
-        }
-        else
-        {
-            targetName = "Invalid Target";
-        }
-        return (canApply, targetName);
+        if (!_dalamudUtilService.IsInGpose || obj == null)
+            return (false, "Invalid Target");
+
+        return await _dalamudUtilService.RunOnFrameworkThread(() =>
+            obj.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc
+                ? (true, obj.Name.TextValue)
+                : (false, "Invalid Target")).ConfigureAwait(false);
     }
 
     public void CancelDataApplication()
@@ -477,8 +475,8 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             {
                 using GameObjectHandler? tempHandler = await _characterHandler.TryCreateGameObjectHandler(charaName, true).ConfigureAwait(false);
                 if (tempHandler == null) return;
-                var playerChar = await _dalamudUtilService.GetPlayerCharacterAsync().ConfigureAwait(false);
-                bool isSelf = playerChar != null && string.Equals(playerChar.Name.TextValue, tempHandler.Name, StringComparison.Ordinal);
+                var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
+                bool isSelf = string.Equals(playerName, tempHandler.Name, StringComparison.Ordinal);
 
                 long expectedExtractedSize = LoadedMcdfHeader.Result.ExpectedLength;
                 var charaFile = LoadedMcdfHeader.Result.LoadedFile;
@@ -551,9 +549,11 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             if (newActor == null) return null;
             await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
-            await ApplyCharaData(charaDataDownloadDto, newActor.Name.TextValue).ConfigureAwait(false);
+            var actorName = await _dalamudUtilService.RunOnFrameworkThread(
+                () => newActor.Name.TextValue).ConfigureAwait(false);
+            await ApplyCharaData(charaDataDownloadDto, actorName).ConfigureAwait(false);
 
-            return _characterHandler.HandledCharaData.FirstOrDefault(f => string.Equals(f.Name, newActor.Name.TextValue, StringComparison.Ordinal));
+            return _characterHandler.HandledCharaData.FirstOrDefault(f => string.Equals(f.Name, actorName, StringComparison.Ordinal));
         });
         UiBlockingComputation = task;
         return task;
@@ -567,9 +567,11 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             if (newActor == null) return null;
             await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
 
-            await ApplyCharaData(charaDataMetaInfoDto, newActor.Name.TextValue).ConfigureAwait(false);
+            var actorName = await _dalamudUtilService.RunOnFrameworkThread(
+                () => newActor.Name.TextValue).ConfigureAwait(false);
+            await ApplyCharaData(charaDataMetaInfoDto, actorName).ConfigureAwait(false);
 
-            return _characterHandler.HandledCharaData.FirstOrDefault(f => string.Equals(f.Name, newActor.Name.TextValue, StringComparison.Ordinal));
+            return _characterHandler.HandledCharaData.FirstOrDefault(f => string.Equals(f.Name, actorName, StringComparison.Ordinal));
         });
         UiBlockingComputation = task;
         return task;
@@ -722,7 +724,8 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             if (playerChar == null) return;
             if (_dalamudUtilService.IsInGpose)
             {
-                playerChar = await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(playerChar.Name.TextValue, true).ConfigureAwait(false);
+                var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
+                playerChar = await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(playerName, true).ConfigureAwait(false);
             }
             if (playerChar == null) return;
             var poseData = await _ipcManager.Brio.GetPoseAsync(playerChar.Address).ConfigureAwait(false);
@@ -741,10 +744,13 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             var newActor = await _ipcManager.Brio.SpawnActorAsync().ConfigureAwait(false);
             if (newActor == null) return;
             await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
-            unsafe
+            await _dalamudUtilService.RunOnFrameworkThread(() =>
             {
-                _dalamudUtilService.GposeTarget = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)newActor.Address;
-            }
+                unsafe
+                {
+                    _dalamudUtilService.GposeTarget = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)newActor.Address;
+                }
+            }).ConfigureAwait(false);
 
             await McdfApplyToGposeTarget().ConfigureAwait(false);
         });
@@ -785,11 +791,14 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
 
     internal unsafe void TargetGposeActor(HandledCharaDataEntry actor)
     {
-        var gposeActor = _dalamudUtilService.GetGposeCharacterFromObjectTableByName(actor.Name, true);
-        if (gposeActor != null)
+        _dalamudUtilService.RunOnFrameworkThread(() =>
         {
-            _dalamudUtilService.GposeTarget = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gposeActor.Address;
-        }
+            var gposeActor = _dalamudUtilService.GetGposeCharacterFromObjectTableByName(actor.Name, true);
+            if (gposeActor != null)
+            {
+                _dalamudUtilService.GposeTarget = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gposeActor.Address;
+            }
+        }).GetAwaiter().GetResult();
     }
 
     protected override void Dispose(bool disposing)
@@ -942,8 +951,10 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
 
         var applicationId = Guid.NewGuid();
 
-        var playerChar = await _dalamudUtilService.GetPlayerCharacterAsync().ConfigureAwait(false);
-        bool isSelf = playerChar != null && string.Equals(playerChar.Name.TextValue, chara.Name.TextValue, StringComparison.Ordinal);
+        var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
+        var charaNameSnapshot = await _dalamudUtilService.RunOnFrameworkThread(
+            () => chara.Name.TextValue).ConfigureAwait(false);
+        bool isSelf = string.Equals(playerName, charaNameSnapshot, StringComparison.Ordinal);
 
         DataApplicationProgress = "Checking local files";
 
