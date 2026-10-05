@@ -656,12 +656,20 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
     {
         try
         {
+            _updateContentsError = null;
+
+            if (definition.FormatVersion > StageDefinition.CurrentFormatVersion)
+            {
+                const string message = "The selected stage was created by a newer version of Stagehand than this PlayerSync build supports, and might be uploaded incorrectly.";
+                _logger.LogWarning(message);
+                _updateContentsError = message;
+            }
+
             if (StageInfo != null)
             {
                 (string mainHash, var mods) = await UploadContentsAsync(definition, progress).ConfigureAwait(false);
                 var newContents = await _apiController.StageOverwriteContents(StageInfo.SID, mainHash, mods).ConfigureAwait(false);
                 StageInfo.Contents = newContents;
-                _updateContentsError = null;
                 IsEditingContents = false;
 
                 if (_newStageFilename != null)
