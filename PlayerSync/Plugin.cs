@@ -159,6 +159,7 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddSingleton((s) => new IpcProvider(s.GetRequiredService<ILogger<IpcProvider>>(),
                 pluginInterface,
                 s.GetRequiredService<CharaDataManager>(),
+                s.GetRequiredService<DalamudUtilService>(),
                 s.GetRequiredService<MareMediator>()));
             collection.AddSingleton<SelectPairForTagUi>();
             collection.AddSingleton((s) => new EventAggregator(pluginInterface.ConfigDirectory.FullName,
