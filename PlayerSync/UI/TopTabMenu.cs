@@ -37,7 +37,7 @@ public class TopTabMenu : IMediatorSubscriber
     MareMediator IMediatorSubscriber.Mediator => _mareMediator;
 
     private SelectedTab _selectedTab = SelectedTab.None;
-    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService, 
+    public TopTabMenu(MareMediator mareMediator, ApiController apiController, PairManager pairManager, IBroadcastManager broadcastManager, UiSharedService uiSharedService,
         MareConfigService mareConfigService, StageConfigService stageConfigService, ServerConfigurationManager serverConfigurationManager, ZoneSyncConfigService zoneSyncConfigService, PairInviteManager pairRequestManager,
         IpcManager ipcManager)
     {

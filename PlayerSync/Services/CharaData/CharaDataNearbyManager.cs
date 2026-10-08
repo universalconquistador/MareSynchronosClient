@@ -1,5 +1,6 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using MareSynchronos.API.Data;
+using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.Interop;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services.CharaData.Models;
@@ -186,10 +187,19 @@ public sealed class CharaDataNearbyManager : DisposableMediatorSubscriberBase
         var previousPoses = _nearbyData.Keys.ToList();
         _nearbyData.Clear();
 
-        var ownLocation = await _dalamudUtilService.RunOnFrameworkThread(() => _dalamudUtilService.GetMapData()).ConfigureAwait(false);
-        var player = await _dalamudUtilService.RunOnFrameworkThread(() => _dalamudUtilService.GetPlayerCharacter()).ConfigureAwait(false);
-        var currentServer = player.CurrentWorld;
-        var playerPos = player.Position;
+        var playerData = await _dalamudUtilService.RunOnFrameworkThread(() =>
+        {
+            var player = _dalamudUtilService.GetPlayerCharacter();
+
+            return player == null ? ((LocationInfo Location, uint ServerId, Vector3 Position)?)null : (_dalamudUtilService.GetMapData(), player.CurrentWorld.RowId, player.Position);
+        }).ConfigureAwait(false);
+        if (playerData == null)
+        {
+            return;
+        }
+        var ownLocation = playerData.Value.Location;
+        var currentServer = playerData.Value.ServerId;
+        var playerPos = playerData.Value.Position;
 
         var cameraYaw = GetCameraYaw(cameraPos, cameraLookAt);
 
@@ -220,16 +230,16 @@ public sealed class CharaDataNearbyManager : DisposableMediatorSubscriberBase
 
 
                 bool addEntry = (!isInHousing && poseLocation.MapId == ownLocation.MapId
-                        && (!onlyCurrentServer || poseLocation.ServerId == currentServer.RowId))
+                    && (!onlyCurrentServer || poseLocation.ServerId == currentServer))
                     || (isInHousing
-                        && (((ignoreHousingLimits && !onlyCurrentServer)
-                            || (ignoreHousingLimits && onlyCurrentServer) && poseLocation.ServerId == currentServer.RowId)
-                            || poseLocation.ServerId == currentServer.RowId)
-                        && ((poseLocation.HouseId == 0 && poseLocation.DivisionId == ownLocation.DivisionId
-                                && (ignoreHousingLimits || poseLocation.WardId == ownLocation.WardId))
-                            || (poseLocation.HouseId > 0
-                                && (ignoreHousingLimits || (poseLocation.HouseId == ownLocation.HouseId && poseLocation.WardId == ownLocation.WardId && poseLocation.DivisionId == ownLocation.DivisionId && poseLocation.RoomId == ownLocation.RoomId)))
-                           ));
+                    && (((ignoreHousingLimits && !onlyCurrentServer)
+                    || (ignoreHousingLimits && onlyCurrentServer) && poseLocation.ServerId == currentServer)
+                    || poseLocation.ServerId == currentServer)
+                    && ((poseLocation.HouseId == 0 && poseLocation.DivisionId == ownLocation.DivisionId
+                    && (ignoreHousingLimits || poseLocation.WardId == ownLocation.WardId))
+                    || (poseLocation.HouseId > 0
+                    && (ignoreHousingLimits || (poseLocation.HouseId == ownLocation.HouseId && poseLocation.WardId == ownLocation.WardId && poseLocation.DivisionId == ownLocation.DivisionId && poseLocation.RoomId == ownLocation.RoomId)))
+                    ));
 
                 if (addEntry)
                     _nearbyData[pose] = new() { Direction = GetAngleToTarget(cameraPos, cameraYaw, pose.Position), Distance = distance };

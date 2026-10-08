@@ -49,7 +49,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
     private readonly StageListComponent _stageList;
     private bool _offlinePin;
 
-    public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController, UiSharedService uiSharedService, 
+    public SyncshellAdminUI(ILogger<SyncshellAdminUI> logger, MareMediator mediator, ApiController apiController, UiSharedService uiSharedService,
         IBroadcastManager broadcastManager, PairManager pairManager, GroupFullInfoDto groupFullInfo, PerformanceCollectorService performanceCollectorService, UiTheme theme,
         IdDisplayHandler idDisplayHandler, IpcManager ipcManager)
         : base(logger, mediator, "Syncshell Admin Panel (" + groupFullInfo.GroupAliasOrGID + ")", performanceCollectorService)
@@ -98,7 +98,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         if (_isOwner)
             groupItems.Add(new(SyncshellAdminNav.Owner, "Owner Settings", DrawOwnerSettings, FontAwesomeIcon.Crown));
 
-        _navGroups =[
+        _navGroups = [
             ("", groupItems),
         ];
 
@@ -208,7 +208,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             }
         }
         ImGuiHelpers.ScaledDummy(2f);
-            
+
     }
 
     private void DrawAccess()
@@ -229,7 +229,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         }
         ImGuiHelpers.ScaledDummy(5f);
         _uiSharedService.HeaderText("Guest Mode");
-        UiSharedService.TextWrapped("Guest Mode enables joining a Syncshell without a password." + Environment.NewLine 
+        UiSharedService.TextWrapped("Guest Mode enables joining a Syncshell without a password." + Environment.NewLine
             + "Users joining without a password will be marked as \"guests\" in the User Management tab.");
         bool enabledGuest = perm.IsEnableGuestMode();
         if (!enabledGuest)
@@ -321,8 +321,8 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             {
                 ImGui.SetClipboardText(invites);
             }
-        }                
-            
+        }
+
     }
 
     // defining this here to keep consistancy with other windows that use partial classes
@@ -725,7 +725,7 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
         }
 
         UiSharedService.TextWrapped("Note: those suggested permissions will be shown to users on joining the Syncshell.");
-            
+
     }
 
     private void DrawOwnerSettings()
@@ -779,9 +779,9 @@ public class SyncshellAdminUI : WindowMediatorSubscriberBase
             _ = _apiController.GroupDelete(new(GroupFullInfo.Group));
         }
         UiSharedService.AttachToolTip("Hold CTRL and Shift and click to delete this Syncshell." + Environment.NewLine + "WARNING: this action is irreversible.");
-                
+
     }
-    
+
     public override void OnClose()
     {
         Mediator.Publish(new RemoveWindowMessage(this));

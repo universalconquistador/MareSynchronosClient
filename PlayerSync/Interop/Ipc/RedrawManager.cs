@@ -15,7 +15,7 @@ public class RedrawManager
     private readonly ConcurrentDictionary<nint, bool> _penumbraRedrawRequests = [];
     private CancellationTokenSource _disposalCts = new();
 
-    public SemaphoreSlim RedrawSemaphore { get; init; } = new(4, 4);
+    public SemaphoreSlim RedrawSemaphore { get; init; } = new(2, 2);
 
     public RedrawManager(MareMediator mareMediator, DalamudUtilService dalamudUtil)
     {
@@ -23,32 +23,32 @@ public class RedrawManager
         _dalamudUtil = dalamudUtil;
     }
 
-    public async Task PenumbraRedrawInternalAsync(ILogger logger, GameObjectHandler handler, Guid applicationId, Action<ICharacter> action, CancellationToken token)
-    {
-        _mareMediator.Publish(new PenumbraStartRedrawMessage(handler.Address));
+    //public async Task PenumbraRedrawInternalAsync(ILogger logger, GameObjectHandler handler, Guid applicationId, Action<ICharacter> action, CancellationToken token)
+    //{
+    //    _mareMediator.Publish(new PenumbraStartRedrawMessage(handler.Guid));
 
-        _penumbraRedrawRequests[handler.Address] = true;
+    //    _penumbraRedrawRequests[handler.Address] = true;
 
-        try
-        {
-            using CancellationTokenSource cancelToken = new CancellationTokenSource();
-            using CancellationTokenSource combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancelToken.Token, token, _disposalCts.Token);
-            var combinedToken = combinedCts.Token;
-            cancelToken.CancelAfter(TimeSpan.FromSeconds(15));
-            await handler.ActOnFrameworkAfterEnsureNoDrawAsync(action, combinedToken).ConfigureAwait(false);
+    //    try
+    //    {
+    //        using CancellationTokenSource cancelToken = new CancellationTokenSource();
+    //        using CancellationTokenSource combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancelToken.Token, token, _disposalCts.Token);
+    //        var combinedToken = combinedCts.Token;
+    //        cancelToken.CancelAfter(TimeSpan.FromSeconds(15));
+    //        await handler.ActOnFrameworkAfterEnsureNoDrawAsync(action, combinedToken).ConfigureAwait(false);
 
-            if (!_disposalCts.Token.IsCancellationRequested)
-                await _dalamudUtil.WaitWhileCharacterIsDrawing(logger, handler, applicationId, 3000, false, combinedToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            _penumbraRedrawRequests[handler.Address] = false;
-            _mareMediator.Publish(new PenumbraEndRedrawMessage(handler.Address));
-        }
-    }
+    //        if (!_disposalCts.Token.IsCancellationRequested)
+    //            await _dalamudUtil.WaitWhileCharacterIsDrawing(logger, handler, applicationId, 3000, combinedToken).ConfigureAwait(false);
+    //    }
+    //    finally
+    //    {
+    //        _penumbraRedrawRequests[handler.Address] = false;
+    //        _mareMediator.Publish(new PenumbraEndRedrawMessage(handler.Guid));
+    //    }
+    //}
 
-    internal void Cancel()
-    {
-        _disposalCts = _disposalCts.CancelRecreate();
-    }
+    //internal void Cancel()
+    //{
+    //    _disposalCts = _disposalCts.CancelRecreate();
+    //}
 }

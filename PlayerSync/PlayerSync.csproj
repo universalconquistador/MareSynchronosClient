@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Authors></Authors>
     <Company></Company>
-    <Version>1.15.5.9</Version>
+    <Version>1.15.999.17</Version>
     <Description></Description>
     <Copyright></Copyright>
     <PackageProjectUrl>https://github.com/MareSynchronos/client</PackageProjectUrl>
@@ -11,8 +11,10 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows7.0</TargetFramework>
+	  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <Platforms>x64</Platforms>
     <Nullable>enable</Nullable>
+	  <SelfContained>false</SelfContained>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -41,9 +43,10 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageReference Include="Glamourer.Api" Version="2.8.0" />
     <PackageReference Include="NReco.Logging.File" Version="1.2.2" />
     <PackageReference Include="Penumbra.Api" Version="5.15.1" />
@@ -56,7 +59,7 @@
     </PackageReference>
     <PackageReference Include="Stagehand.Api" Version="0.5.4" />
     <PackageReference Include="Stagehand.Definitions" Version="0.5.4" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -93,7 +96,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.39" />
+    <PackageReference Update="DotNet.ReproducibleBuilds" Version="2.0.5" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="FileCache\Migrations\" />
+  </ItemGroup>
+  <Target Name="IncludeDalamudForEfMigration" AfterTargets="ResolvePackageAssets" BeforeTargets="ResolveAssemblyReferences" Condition="'$(EFMigrationBuild)' == 'true'">
+    <ItemGroup>
+      <Reference Update="Dalamud">
+        <Private>true</Private>
+      </Reference>
+    </ItemGroup>
+  </Target>
 </Project>

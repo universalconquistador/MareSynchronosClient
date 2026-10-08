@@ -42,7 +42,7 @@ public partial class SettingsUi
         _uiShared.BigText("Storage");
         ImGuiHelpers.ScaledDummy(2);
 
-        UiSharedService.TextWrapped("PlayerSync stores downloaded files from paired people permanently. This is to improve loading performance and requiring less downloads. " +
+        UiSharedService.TextWrapped("PlayerSync stores downloaded files for paired players permanently. This is to improve loading performance and requiring less downloads. " +
             "The storage governs itself by clearing data beyond the set storage size. Please set the storage size accordingly. It is not necessary to manually clear the storage.");
 
         _uiShared.DrawFileScanState();
@@ -59,21 +59,21 @@ public partial class SettingsUi
         }
 
         ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("Monitoring PlayerSync Storage Folder: " + (_cacheMonitor.MareWatcher?.Path ?? "Not monitoring"));
-        if (string.IsNullOrEmpty(_cacheMonitor.MareWatcher?.Path))
+        ImGui.TextUnformatted("Monitoring PlayerSync Storage Folder: " + (_cacheMonitor.PlayerSyncWatcher?.Path ?? "Not monitoring"));
+        if (string.IsNullOrEmpty(_cacheMonitor.PlayerSyncWatcher?.Path))
         {
             ImGui.SameLine();
             using var id = ImRaii.PushId("mareMonitor");
             if (_uiShared.IconTextButton(FontAwesomeIcon.ArrowsToCircle, "Try to reinitialize Monitor"))
             {
-                _cacheMonitor.StartMareWatcher(_configService.Current.CacheFolder);
+                _cacheMonitor.StartPlayerSyncWatcher(_configService.Current.CacheFolder);
             }
         }
-        if (_cacheMonitor.MareWatcher == null || _cacheMonitor.PenumbraWatcher == null)
+        if (_cacheMonitor.PlayerSyncWatcher == null || _cacheMonitor.PenumbraWatcher == null)
         {
             if (_uiShared.IconTextButton(FontAwesomeIcon.Play, "Resume Monitoring"))
             {
-                _cacheMonitor.StartMareWatcher(_configService.Current.CacheFolder);
+                _cacheMonitor.StartPlayerSyncWatcher(_configService.Current.CacheFolder);
                 _cacheMonitor.StartPenumbraWatcher(_ipcManager.Penumbra.ModDirectory);
                 _cacheMonitor.InvokeScan();
             }
@@ -178,6 +178,8 @@ public partial class SettingsUi
             if (_uiShared.IconTextButton(FontAwesomeIcon.Times, "Cancel"))
             {
                 _validationCts?.Cancel();
+                _currentProgress.Item1 = 0;
+                _currentProgress.Item2 = 0;
             }
         }
 
@@ -211,13 +213,14 @@ public partial class SettingsUi
             ImGui.BeginDisabled();
         if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Clear local storage") && UiSharedService.CtrlPressed() && _readClearCache)
         {
-            _ = Task.Run(() =>
-            {
-                foreach (var file in Directory.GetFiles(_configService.Current.CacheFolder))
-                {
-                    File.Delete(file);
-                }
-            });
+            _ = _fileCacheManager.ClearLocalStorageAsync();
+            //_ = Task.Run(() =>
+            //{
+            //    foreach (var file in Directory.GetFiles(_configService.Current.CacheFolder))
+            //    {
+            //        File.Delete(file);
+            //    }
+            //});
         }
         UiSharedService.AttachToolTip("You normally do not need to do this. THIS IS NOT SOMETHING YOU SHOULD BE DOING REGULARLY TO TRY TO FIX SYNC ISSUES." + Environment.NewLine
             + "This will solely remove all downloaded data from all players and will require you to re-download everything again." + Environment.NewLine

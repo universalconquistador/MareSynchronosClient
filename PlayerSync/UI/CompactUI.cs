@@ -8,7 +8,6 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
-using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -112,16 +111,16 @@ public class CompactUi : WindowMediatorSubscriberBase
             },
             new TitleBarButton()
             {
-                Icon = FontAwesomeIcon.Book,
+                Icon = FontAwesomeIcon.PersonCircleQuestion,
                 Click = (msg) =>
                 {
-                    Mediator.Publish(new UiToggleMessage(typeof(EventViewerUI)));
+                    Mediator.Publish(new UiToggleMessage(typeof(HelpUi)));
                 },
                 IconOffset = new(2,1),
                 ShowTooltip = () =>
                 {
                     ImGui.BeginTooltip();
-                    ImGui.Text("Open PlayerSync Event Viewer");
+                    ImGui.Text("Open PlayerSync Help");
                     ImGui.EndTooltip();
                 }
             }
@@ -358,10 +357,10 @@ public class CompactUi : WindowMediatorSubscriberBase
         {
             if (_uiSharedService.IconButton(FontAwesomeIcon.Eye))
             {
-                Mediator.Publish(new UiToggleMessage(typeof(PlayerAnalysisViewerUI)));
+                Mediator.Publish(new UiToggleMessage(typeof(PairAnalysisViewerUI)));
             }
         }
-        UiSharedService.AttachToolTip("Open Player Analysis Viewer");
+        UiSharedService.AttachToolTip("Open Pair Analysis Viewer");
 
         }
 
@@ -774,6 +773,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.OAuthLoginTokenStale => "Your OAuth2 login token is stale and cannot be used to renew. Go to the Settings -> Service Settings and unlink then relink your OAuth2 configuration.",
             ServerState.NoAutoLogon => "This character has automatic login into PlayerSync disabled. Press the connect button to connect to PlayerSync.",
             ServerState.Discovering => "Auto discovering the best PlayerSync gateway...",
+            ServerState.WaitingForDatabase => "Database migration in progress, this can take a minute and should only happen one time.",
             _ => string.Empty
         };
     }
@@ -797,6 +797,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.OAuthLoginTokenStale => ImGuiColors.DalamudRed,
             ServerState.NoAutoLogon => ImGuiColors.DalamudYellow,
             ServerState.Discovering => ImGuiColors.DalamudYellow,
+            ServerState.WaitingForDatabase => ImGuiColors.DalamudYellow,
             _ => ImGuiColors.DalamudRed
         };
     }
@@ -820,6 +821,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.NoAutoLogon => "Auto Login disabled",
             ServerState.Discovering => "Discovering Gateways",
             ServerState.Connected => _apiController.DisplayName,
+            ServerState.WaitingForDatabase => "Initializing Database",
             _ => string.Empty
         };
     }

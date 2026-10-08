@@ -1,5 +1,6 @@
 ﻿using Dalamud.Utility;
 using MareSynchronos.API.Data;
+using MareSynchronos.PlayerData;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.Utils;
 using System.Globalization;
@@ -14,6 +15,8 @@ public sealed record GposeLobbyUserData(UserData UserData)
     {
         HasWorldDataUpdate = WorldData != null;
         HasPoseDataUpdate = ApplicablePoseData != null;
+        Interlocked.Increment(ref WorldRevision);
+        Interlocked.Increment(ref PoseRevision);
         SpawnedVfxId = null;
         LastAppliedCharaDataDate = DateTime.MinValue;
     }
@@ -24,11 +27,14 @@ public sealed record GposeLobbyUserData(UserData UserData)
         get => _worldData; set
         {
             _worldData = value;
+            Interlocked.Increment(ref WorldRevision);
             HasWorldDataUpdate = true;
         }
     }
 
     public bool HasWorldDataUpdate { get; set; } = false;
+    public int WorldRevision;
+    public int LastAppliedWorldRevision;
 
     private PoseData? _fullPoseData;
     private PoseData? _deltaPoseData;
@@ -56,6 +62,9 @@ public sealed record GposeLobbyUserData(UserData UserData)
     }
 
     public PoseData? ApplicablePoseData { get; private set; }
+    public string? ApplicablePoseJson { get; set; }
+    public int PoseRevision;
+    public int LastAppliedPoseRevision;
     public bool HasPoseDataUpdate { get; set; } = false;
     public Guid? SpawnedVfxId { get; set; }
     public Vector3? LastWorldPosition { get; set; }
@@ -73,8 +82,9 @@ public sealed record GposeLobbyUserData(UserData UserData)
 
     public DateTime LastUpdatedCharaData { get; private set; } = DateTime.MaxValue;
     public DateTime LastAppliedCharaDataDate { get; set; } = DateTime.MinValue;
-    public nint Address { get; set; }
     public string AssociatedCharaName { get; set; } = string.Empty;
+    public ushort? AssociatedCharaIndex { get; set; }
+    public ulong AssociatedCharaGameObjectId { get; set; }
 
     private PoseData? CombinePoseData()
     {
@@ -131,17 +141,17 @@ public sealed record GposeLobbyUserData(UserData UserData)
     public Lumina.Excel.Sheets.Map Map { get; private set; }
     public HandledCharaDataEntry? HandledChara { get; set; }
 
-    public async Task SetWorldDataDescriptor(DalamudUtilService dalamudUtilService)
+    public Task SetWorldDataDescriptor(DalamudUtilService dalamudUtilService)
     {
         if (WorldData == null)
         {
             WorldDataDescriptor = "No World Data found";
+
+            return Task.CompletedTask;
         }
 
-        var worldData = WorldData!.Value;
-        MapCoordinates = await dalamudUtilService.RunOnFrameworkThread(() =>
-                MapUtil.WorldToMap(new Vector2(worldData.PositionX, worldData.PositionY), dalamudUtilService.MapData.Value[worldData.LocationInfo.MapId].Map))
-            .ConfigureAwait(false);
+        var worldData = WorldData.Value;
+        MapCoordinates = MapUtil.WorldToMap(new Vector2(worldData.PositionX, worldData.PositionY), dalamudUtilService.MapData.Value[worldData.LocationInfo.MapId].Map);
         Map = dalamudUtilService.MapData.Value[worldData.LocationInfo.MapId].Map;
 
         StringBuilder sb = new();
@@ -170,5 +180,7 @@ public sealed record GposeLobbyUserData(UserData UserData)
         }
         sb.AppendLine("Coordinates: X: " + MapCoordinates.X.ToString("0.0", CultureInfo.InvariantCulture) + ", Y: " + MapCoordinates.Y.ToString("0.0", CultureInfo.InvariantCulture));
         WorldDataDescriptor = sb.ToString();
+
+        return Task.CompletedTask;
     }
 }

@@ -2,12 +2,9 @@
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.API.Dto.User;
-using MareSynchronos.Services;
-using MareSynchronos.Services.ServerConfiguration;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using System.Text;
-using System.Xml.Linq;
 
 namespace MareSynchronos.WebAPI;
 
@@ -136,7 +133,7 @@ public partial class ApiController
     {
         if (request.RequestTargetIdent != null)
         {
-            var name = _dalamudUtil.FindPlayerByNameHash(request.RequestTargetIdent).Name;
+            var name = _dalamudUtil.FindPlayerByNameHash(request.RequestTargetIdent);
             _serverManager.AddPendingRequestForIdent(request.RequestTargetIdent, name ?? "");
         }
         else if (request.UserData != null)
@@ -144,7 +141,7 @@ public partial class ApiController
             var pair = _pairManager.GetPairByUID(request.UserData.UID);
             if (pair != null)
             {
-                _serverManager.AddPendingRequestForIdent(pair.Ident, pair.PlayerName ?? "No Name");
+                _serverManager.AddPendingRequestForIdent(pair.HashedCID, pair.PlayerName ?? "No Name");
             }
         }
         else
@@ -194,12 +191,12 @@ public partial class ApiController
         Logger.LogDebug("Chara data contained: {nl} {data}", Environment.NewLine, sb.ToString());
 
         CensusDataDto? censusDto = null;
-        if (_serverManager.SendCensusData && _lastCensus != null)
-        {
-            var world = await _dalamudUtil.GetWorldIdAsync().ConfigureAwait(false);
-            censusDto = new((ushort)world, _lastCensus.RaceId, _lastCensus.TribeId, _lastCensus.Gender);
-            Logger.LogDebug("Attaching Census Data: {data}", censusDto);
-        }
+        //if (_serverManager.SendCensusData && _lastCensus != null)
+        //{
+        //    var world = await _dalamudUtil.GetWorldIdAsync().ConfigureAwait(false);
+        //    censusDto = new((ushort)world, _lastCensus.RaceId, _lastCensus.TribeId, _lastCensus.Gender);
+        //    Logger.LogDebug("Attaching Census Data: {data}", censusDto);
+        //}
 
         await UserPushData(new(visibleCharacters, character, censusDto)).ConfigureAwait(false);
     }

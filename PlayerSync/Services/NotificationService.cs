@@ -54,7 +54,7 @@ public class NotificationService : DisposableMediatorSubscriberBase, IHostedServ
     {
         _chatGui.RemoveChatLinkHandler();
         _inviteTogglePayload = null;
-
+        UnsubscribeAll();
         return Task.CompletedTask;
     }
 

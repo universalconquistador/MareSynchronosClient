@@ -4,6 +4,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using static FFXIVClientStructs.FFXIV.Client.Game.Character.DrawDataContainer;
 using ObjectKind = MareSynchronos.API.Data.Enum.ObjectKind;
@@ -14,20 +15,26 @@ namespace MareSynchronos.PlayerData.Handlers;
 public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighPriorityMediatorSubscriber
 {
     private readonly DalamudUtilService _dalamudUtil;
-    private readonly PerformanceCollectorService _performanceCollector;
 
     private readonly Func<IntPtr> _getAddress;
     private readonly bool _isOwnedObject;
+    private readonly bool _registeredForFrameworkUpdates;
 
     private CancellationTokenSource _zoningCts = new();
     private byte _classJob = 0;
     private Task? _delayedZoningTask;
-    private bool _haltProcessing = false;
+    private volatile bool _haltProcessing = false;
+    private volatile bool _modelReady;
+    private int _disposed;
+    private ushort _objectIndex = ushort.MaxValue;
+    private bool _gameObjectPresent;
+    private bool _isRedrawing;
+    private long _redrawTimeStart = -1;
 
-    public GameObjectHandler(ILogger<GameObjectHandler> logger, PerformanceCollectorService performanceCollector,
-        MareMediator mediator, DalamudUtilService dalamudUtil, ObjectKind objectKind, Func<IntPtr> getAddress, bool ownedObject = true) : base(logger, mediator)
+    public GameObjectHandler(ILogger<GameObjectHandler> logger, PerformanceCollectorService performanceCollector, MareMediator mediator,
+        DalamudUtilService dalamudUtil, ObjectKind objectKind, Func<IntPtr> getAddress, bool ownedObject = true,
+        bool trackOnFramework = false, ulong contentId = 0) : base(logger, mediator)
     {
-        _performanceCollector = performanceCollector;
         ObjectKind = objectKind;
         _dalamudUtil = dalamudUtil;
         _getAddress = () =>
@@ -36,6 +43,7 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
             return getAddress.Invoke();
         };
         _isOwnedObject = ownedObject;
+        ContentId = contentId;
         Name = string.Empty;
 
         if (ownedObject)
@@ -44,13 +52,15 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
             {
                 if (_delayedZoningTask?.IsCompleted ?? true)
                 {
-                    if (msg.Address != Address) return;
+                    if (msg.ObjectKind != null && msg.ObjectKind != ObjectKind)
+                    {
+                        return;
+                    }
                     Mediator.Publish(new CreateCacheForObjectMessage(this));
                 }
             });
         }
 
-        Mediator.Subscribe<FrameworkUpdateMessage>(this, (_) => FrameworkUpdate());
         Mediator.Subscribe<ZoneSwitchEndMessage>(this, (_) => ZoneSwitchEnd());
         Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) => ZoneSwitchStart());
 
@@ -65,234 +75,257 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
             ZoneSwitchEnd();
         });
 
+        // TODO: do something with this
         Mediator.Subscribe<PenumbraStartRedrawMessage>(this, (msg) =>
         {
-            if (msg.Address == Address)
+            if (string.Equals(msg.Name, Name, StringComparison.OrdinalIgnoreCase))
             {
                 _haltProcessing = true;
             }
         });
 
+        // TODO: do something with this
         Mediator.Subscribe<PenumbraEndRedrawMessage>(this, (msg) =>
         {
-            if (msg.Address == Address)
+            if (string.Equals(msg.Name, Name, StringComparison.OrdinalIgnoreCase))
             {
                 _haltProcessing = false;
             }
         });
 
+        Mediator.Subscribe<PenumbraRedrawMessage>(this, (msg) =>
+        {
+            if (_dalamudUtil.IsOnFrameworkThread && msg.ObjTblIdx == _objectIndex && msg.Address == _getAddress())
+            {
+                _gameObjectPresent = false;
+                ModelReady = false;
+                IsRedrawingViaIpcRequest = false;
+            }
+        });
+
+        _registeredForFrameworkUpdates = _isOwnedObject || trackOnFramework;
+        Logger.LogTrace("Handler {handler} is being tracked: {tracked}", this, _registeredForFrameworkUpdates);
+        if (_registeredForFrameworkUpdates)
+        {
+            _dalamudUtil.RegisterGameObjectHandler(this);
+        }
         Mediator.Publish(new GameObjectHandlerCreatedMessage(this, _isOwnedObject));
-
-        _dalamudUtil.RunOnFrameworkThread(CheckAndUpdateObject).GetAwaiter().GetResult();
     }
 
-    public enum DrawCondition
-    {
-        None,
-        ObjectZero,
-        DrawObjectZero,
-        RenderFlags,
-        ModelInSlotLoaded,
-        ModelFilesInSlotLoaded
-    }
-
-    public IntPtr Address { get; private set; }
+    // do not use this
+    public IntPtr Address { get; private set; } = IntPtr.Zero;
+    public ulong ContentId { get; }
     public DrawCondition CurrentDrawCondition { get; set; } = DrawCondition.None;
-    public byte Gender { get; private set; }
+    public bool ModelReady
+    {
+        get => _modelReady;
+        private set => _modelReady = value;
+    }
+    public bool IsRedrawingViaIpcRequest
+    {
+        get
+        {
+            return _isRedrawing;
+        }
+        set
+        {
+            if (value)
+            {
+                if (_redrawTimeStart != -1)
+                {
+                    Logger.LogWarning("{this} called to redraw but redraw already requested!", this);
+                }
+                else
+                {
+                    _redrawTimeStart = Stopwatch.GetTimestamp();
+                }
+                _haltProcessing = true;
+                _isRedrawing = true;
+            }
+            else
+            {
+                if (_redrawTimeStart != -1) // another plugin may have triggered this redraw
+                {
+                    Logger.LogTrace("Total redraw time for {this}: {time:F3}ms", this, Stopwatch.GetElapsedTime(_redrawTimeStart).TotalMilliseconds);
+                }
+                _haltProcessing = false;
+                _isRedrawing = false;
+                _redrawTimeStart = -1;
+            }
+        }
+    }
+    internal bool IsOwnedObject => _isOwnedObject;
+    //public byte Gender { get; private set; }
     public string Name { get; private set; }
     public ObjectKind ObjectKind { get; }
-    public byte RaceId { get; private set; }
-    public byte TribeId { get; private set; }
+    public ulong PlayerCharacterId { get; private set; }
+    //public byte RaceId { get; private set; }
+    //public byte TribeId { get; private set; }
     private byte[] CustomizeData { get; set; } = new byte[26];
-    private IntPtr DrawObjectAddress { get; set; }
     private byte[] EquipSlotData { get; set; } = new byte[40];
     private ushort[] MainHandData { get; set; } = new ushort[3];
     private ushort[] OffHandData { get; set; } = new ushort[3];
 
-    public async Task ActOnFrameworkAfterEnsureNoDrawAsync(Action<Dalamud.Game.ClientState.Objects.Types.ICharacter> act, CancellationToken token)
+    public unsafe Dalamud.Game.ClientState.Objects.Types.IGameObject? GetGameObject()
     {
-        while (await _dalamudUtil.RunOnFrameworkThread(() =>
-               {
-                   if (_haltProcessing)
-                   {
-                       CheckAndUpdateObject();
-                   }
-
-                   if (CurrentDrawCondition is not (DrawCondition.None or DrawCondition.ObjectZero))
-                   {
-                       return true;
-                   }
-
-                   var gameObj = _dalamudUtil.CreateGameObject(Address);
-                   if (gameObj is Dalamud.Game.ClientState.Objects.Types.ICharacter chara)
-                   {
-                       act.Invoke(chara);
-                   }
-
-                   return false;
-
-               }).ConfigureAwait(false))
-        {
-            await Task.Delay(250, token).ConfigureAwait(false);
-        }
-    }
-
-    public void CompareNameAndThrow(string name)
-    {
-        if (!string.Equals(Name, name, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("Player name not equal to requested name, pointer invalid");
-        }
-        if (Address == IntPtr.Zero)
-        {
-            throw new InvalidOperationException("Player pointer is zero, pointer invalid");
-        }
-    }
-
-    public Dalamud.Game.ClientState.Objects.Types.IGameObject? GetGameObject()
-    {
-        return _dalamudUtil.CreateGameObject(Address);
+        return _dalamudUtil.GetGameObjectByAddress(_getAddress());
     }
 
     public void Invalidate()
     {
         Address = IntPtr.Zero;
-        DrawObjectAddress = IntPtr.Zero;
-        _haltProcessing = false;
-    }
-
-    public async Task<bool> IsBeingDrawnRunOnFrameworkAsync(bool doGlobalBlocking = true)
-    {
-        return await _dalamudUtil.RunOnFrameworkThread(() => IsBeingDrawn(doGlobalBlocking)).ConfigureAwait(false);
+        _gameObjectPresent = false;
+        _objectIndex = ushort.MaxValue;
+        ModelReady = false;
+        PlayerCharacterId = 0;
+        CurrentDrawCondition = DrawCondition.ObjectZero;
     }
 
     public override string ToString()
     {
         var owned = _isOwnedObject ? "Self" : "Other";
 
-        return $"{owned}/{ObjectKind}:{Name} ({Address:X},{DrawObjectAddress:X})";
+        return $"{owned}/{ObjectKind}:{Name} ({ContentId})";
     }
 
     protected override void Dispose(bool disposing)
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
         base.Dispose(disposing);
 
+        try
+        {
+            _zoningCts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        if (_registeredForFrameworkUpdates)
+        {
+            _dalamudUtil.UnregisterGameObjectHandler(this);
+        }
         Mediator.Publish(new GameObjectHandlerDestroyedMessage(this, _isOwnedObject));
     }
 
-    private unsafe void CheckAndUpdateObject()
+    /// <summary>
+    /// Gets this handler's current character's draw state and model visibility.
+    /// Must be called while on the Framework thread.
+    /// </summary>
+    public CharacterDrawState GetChareacterDrawStateFromFramework(nint? address = null)
     {
-        var prevAddr = Address;
-        var prevDrawObj = DrawObjectAddress;
+        _dalamudUtil.EnsureIsOnFramework();
+        ModelReady = false;
 
-        Address = _getAddress();
-        if (Address != IntPtr.Zero)
+        var localPlayer = _dalamudUtil.GetPlayerCharacter();
+        if (localPlayer == null)
         {
-            var drawObjAddr = (IntPtr)((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)Address)->DrawObject;
-            DrawObjectAddress = drawObjAddr;
-            CurrentDrawCondition = DrawCondition.None;
+            return new(DrawState.Missing, DrawCondition.ObjectZero);
         }
-        else
+        if (_dalamudUtil.IsZoning || (localPlayer.IsDead && _dalamudUtil.IsBoundByDuty) || _delayedZoningTask is { IsCompleted: false })
         {
-            DrawObjectAddress = IntPtr.Zero;
-            CurrentDrawCondition = DrawCondition.DrawObjectZero;
+            return new(DrawState.Loading, DrawCondition.Zoning);
         }
 
-        CurrentDrawCondition = IsBeingDrawnUnsafe();
-
-        if (_haltProcessing) return;
-
-        bool drawObjDiff = DrawObjectAddress != prevDrawObj;
-        bool addrDiff = Address != prevAddr;
-
-        if (Address != IntPtr.Zero && DrawObjectAddress != IntPtr.Zero)
+        if (address == null)
         {
-            var chara = (Character*)Address;
-            var name = chara->GameObject.NameString;
-            bool nameChange = !string.Equals(name, Name, StringComparison.Ordinal);
-            if (nameChange)
-            {
-                Name = name;
-            }
-            bool equipDiff = false;
-
-            if (((DrawObject*)DrawObjectAddress)->Object.GetObjectType() == ObjectType.CharacterBase
-                && ((CharacterBase*)DrawObjectAddress)->GetModelType() == CharacterBase.ModelType.Human)
-            {
-                var classJob = chara->CharacterData.ClassJob;
-                if (classJob != _classJob)
-                {
-                    Logger.LogTrace("[{this}] classjob changed from {old} to {new}", this, _classJob, classJob);
-                    _classJob = classJob;
-                    Mediator.Publish(new ClassJobChangedMessage(this));
-                }
-
-                equipDiff = CompareAndUpdateEquipByteData((byte*)&((Human*)DrawObjectAddress)->Head);
-
-                ref var mh = ref chara->DrawData.Weapon(WeaponSlot.MainHand);
-                ref var oh = ref chara->DrawData.Weapon(WeaponSlot.OffHand);
-                equipDiff |= CompareAndUpdateMainHand((Weapon*)mh.DrawObject);
-                equipDiff |= CompareAndUpdateOffHand((Weapon*)oh.DrawObject);
-
-                if (equipDiff)
-                    Logger.LogTrace("Checking [{this}] equip data as human from draw obj, result: {diff}", this, equipDiff);
-            }
-            else
-            {
-                equipDiff = CompareAndUpdateEquipByteData((byte*)Unsafe.AsPointer(ref chara->DrawData.EquipmentModelIds[0]));
-                if (equipDiff)
-                    Logger.LogTrace("Checking [{this}] equip data from game obj, result: {diff}", this, equipDiff);
-            }
-
-            if (equipDiff && !_isOwnedObject) // send the message out immediately and cancel out, no reason to continue if not self
-            {
-                Logger.LogTrace("[{this}] Changed", this);
-                return;
-            }
-
-            bool customizeDiff = false;
-
-            if (((DrawObject*)DrawObjectAddress)->Object.GetObjectType() == ObjectType.CharacterBase
-                && ((CharacterBase*)DrawObjectAddress)->GetModelType() == CharacterBase.ModelType.Human)
-            {
-                var gender = ((Human*)DrawObjectAddress)->Customize.Sex;
-                var raceId = ((Human*)DrawObjectAddress)->Customize.Race;
-                var tribeId = ((Human*)DrawObjectAddress)->Customize.Tribe;
-
-                if (_isOwnedObject && ObjectKind == ObjectKind.Player
-                    && (gender != Gender || raceId != RaceId || tribeId != TribeId))
-                {
-                    Mediator.Publish(new CensusUpdateMessage(gender, raceId, tribeId));
-                    Gender = gender;
-                    RaceId = raceId;
-                    TribeId = tribeId;
-                }
-
-                customizeDiff = CompareAndUpdateCustomizeData(((Human*)DrawObjectAddress)->Customize.Data);
-                if (customizeDiff)
-                    Logger.LogTrace("Checking [{this}] customize data as human from draw obj, result: {diff}", this, customizeDiff);
-            }
-            else
-            {
-                customizeDiff = CompareAndUpdateCustomizeData(chara->DrawData.CustomizeData.Data);
-                if (customizeDiff)
-                    Logger.LogTrace("Checking [{this}] customize data from game obj, result: {diff}", this, equipDiff);
-            }
-
-            if ((addrDiff || drawObjDiff || equipDiff || customizeDiff || nameChange) && _isOwnedObject)
-            {
-                Logger.LogDebug("[{this}] Changed, Sending CreateCacheObjectMessage", this);
-                Mediator.Publish(new CreateCacheForObjectMessage(this));
-            }
+            address = _getAddress();
         }
-        else if (addrDiff || drawObjDiff)
+        var drawState = _dalamudUtil.GetCharacterDrawStateFromFramework(address.Value, _objectIndex);
+        if (drawState.State == DrawState.Missing)
         {
-            CurrentDrawCondition = DrawCondition.DrawObjectZero;
-            Logger.LogTrace("[{this}] Changed", this);
-            if (_isOwnedObject && ObjectKind != ObjectKind.Player)
+            return drawState;
+        }
+
+        ModelReady = drawState.State == DrawState.Ready;
+
+        return drawState;
+    }
+
+    internal nint GetAddressFromFramework()
+    {
+        return _getAddress();
+    }
+
+    private unsafe void CheckAndUpdateObject(CharacterDrawState drawState, nint address)
+    {
+        bool hadGameObject = _gameObjectPresent;
+        bool haveGameObject = address != nint.Zero && drawState.State == DrawState.Ready && ModelReady;
+        CurrentDrawCondition = drawState.Condition;
+
+        if (!haveGameObject)
+        {
+            _gameObjectPresent = false;
+            PlayerCharacterId = 0;
+            _objectIndex = ushort.MaxValue;
+            if (hadGameObject && _isOwnedObject && ObjectKind != ObjectKind.Player)
             {
                 Mediator.Publish(new ClearCacheForObjectMessage(this));
             }
+
+            return;
+        }
+
+        if (_haltProcessing)
+        {
+            _gameObjectPresent = false;
+
+            return;
+        }
+
+        _gameObjectPresent = true;
+        var gameObject = (GameObject*)address;
+        bool changedObject = !hadGameObject || _objectIndex != gameObject->ObjectIndex || PlayerCharacterId != (ulong)gameObject->EntityId;
+        _objectIndex = gameObject->ObjectIndex;
+        PlayerCharacterId = (ulong)gameObject->EntityId;
+        var drawObjectAddress = (nint)gameObject->DrawObject;
+        var chara = (Character*)address;
+        var name = chara->GameObject.NameString;
+        bool nameChange = !string.Equals(name, Name, StringComparison.Ordinal);
+        if (nameChange)
+        {
+            Name = name;
+        }
+        bool equipDiff;
+        if (((DrawObject*)drawObjectAddress)->Object.GetObjectType() == ObjectType.CharacterBase
+            && ((CharacterBase*)drawObjectAddress)->GetModelType() == CharacterBase.ModelType.Human)
+        {
+            var classJob = chara->CharacterData.ClassJob;
+            if (classJob != _classJob)
+            {
+                _classJob = classJob;
+                Mediator.Publish(new ClassJobChangedMessage(this));
+            }
+            equipDiff = CompareAndUpdateEquipByteData((byte*)&((Human*)drawObjectAddress)->Head);
+            ref var mh = ref chara->DrawData.Weapon(WeaponSlot.MainHand);
+            ref var oh = ref chara->DrawData.Weapon(WeaponSlot.OffHand);
+            equipDiff |= CompareAndUpdateMainHand((Weapon*)mh.DrawObject);
+            equipDiff |= CompareAndUpdateOffHand((Weapon*)oh.DrawObject);
+        }
+        else
+        {
+            equipDiff = CompareAndUpdateEquipByteData((byte*)Unsafe.AsPointer(ref chara->DrawData.EquipmentModelIds[0]));
+        }
+        if (equipDiff && !_isOwnedObject)
+        {
+            return;
+        }
+        bool customizeDiff;
+        if (((DrawObject*)drawObjectAddress)->Object.GetObjectType() == ObjectType.CharacterBase
+            && ((CharacterBase*)drawObjectAddress)->GetModelType() == CharacterBase.ModelType.Human)
+        {
+            customizeDiff = CompareAndUpdateCustomizeData(((Human*)drawObjectAddress)->Customize.Data);
+        }
+        else
+        {
+            customizeDiff = CompareAndUpdateCustomizeData(chara->DrawData.CustomizeData.Data);
+        }
+        if ((changedObject || equipDiff || customizeDiff || nameChange) && _isOwnedObject)
+        {
+            Mediator.Publish(new CreateCacheForObjectMessage(this));
         }
     }
 
@@ -365,91 +398,45 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
         return hasChanges;
     }
 
-    private void FrameworkUpdate()
+    internal unsafe void FrameworkUpdate(bool canReadObjects)
     {
-        if (!_delayedZoningTask?.IsCompleted ?? false) return;
-
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            return;
+        }
         try
         {
-            _performanceCollector.LogPerformance(this, $"CheckAndUpdateObject>{(_isOwnedObject ? "Self" : "Other")}+{ObjectKind}/{(string.IsNullOrEmpty(Name) ? "Unk" : Name)}"
-                + $"+{Address.ToString("X")}", CheckAndUpdateObject);
+            if (!canReadObjects || _delayedZoningTask is { IsCompleted: false })
+            {
+                Invalidate();
+
+                return;
+            }
+            var address = _getAddress();
+            if (address != nint.Zero)
+            {
+                Address = address; // for resource load event
+            }
+            var drawState = GetChareacterDrawStateFromFramework(address);
+            if (drawState.State != DrawState.Ready || !ModelReady)
+            {
+                address = nint.Zero;
+            }
+            CheckAndUpdateObject(drawState, address);
         }
         catch (Exception ex)
         {
+            Invalidate();
             Logger.LogWarning(ex, "Error during FrameworkUpdate of {this}", this);
         }
     }
 
-    private bool IsBeingDrawn(bool includeGlobalBlock)
-    {
-        if (_haltProcessing)
-        {
-            CheckAndUpdateObject();
-        }
-
-        Logger.LogTrace("[{this}] IsBeingDrawn, Condition: {cond}", this, CurrentDrawCondition);
-
-        if (includeGlobalBlock && _dalamudUtil.IsAnythingDrawing)
-        {
-            Logger.LogTrace("[{this}] IsBeingDrawn, Global draw block", this);
-
-            return true;
-        }
-
-        //if (CurrentDrawCondition == DrawCondition.ObjectZero)
-        //{
-        //    Logger.LogTrace("[{this}] IsBeingDrawn, object is gone", this);
-
-        //    return false;
-        //}
-
-        if (CurrentDrawCondition is not (DrawCondition.None or DrawCondition.ObjectZero))
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    private unsafe DrawCondition IsBeingDrawnUnsafe()
-    {
-        if (Address == IntPtr.Zero)
-        {
-            return DrawCondition.ObjectZero;
-        }
-
-        if (DrawObjectAddress == IntPtr.Zero)
-        {
-            return DrawCondition.DrawObjectZero;
-        }
-
-        var hasRenderFlags = ((GameObject*)Address)->RenderFlags != VisibilityFlags.None;
-        if (hasRenderFlags)
-        {
-            return DrawCondition.RenderFlags;
-        }
-
-        if (ObjectKind == ObjectKind.Player)
-        {
-            var modelInSlotLoaded = (((CharacterBase*)DrawObjectAddress)->HasModelInSlotLoaded != 0);
-            if (modelInSlotLoaded)
-            {
-                return DrawCondition.ModelInSlotLoaded;
-            }
-
-            var modelFilesInSlotLoaded = (((CharacterBase*)DrawObjectAddress)->HasModelFilesInSlotLoaded != 0);
-            if (modelFilesInSlotLoaded)
-            {
-                return DrawCondition.ModelFilesInSlotLoaded;
-            }
-        }
-
-        return DrawCondition.None;
-    }
-
     private void ZoneSwitchEnd()
     {
-        if (!_isOwnedObject) return;
+        if (!_isOwnedObject)
+        {
+            return;
+        }
 
         try
         {
@@ -467,15 +454,28 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
 
     private void ZoneSwitchStart()
     {
-        if (!_isOwnedObject) return;
+        Invalidate();
 
-        _zoningCts = new();
+        if (!_isOwnedObject)
+        {
+            return;
+        }
+
+        var zoningCts = new CancellationTokenSource();
+        var previous = Interlocked.Exchange(ref _zoningCts, zoningCts);
+        try
+        {
+            previous.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
         Logger.LogDebug("[{obj}] Starting Delay After Zoning", this);
         _delayedZoningTask = Task.Run(async () =>
         {
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(120), _zoningCts.Token).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(120), zoningCts.Token).ConfigureAwait(false);
             }
             catch
             {
@@ -484,7 +484,7 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
             finally
             {
                 Logger.LogDebug("[{this}] Delay after zoning complete", this);
-                _zoningCts.Dispose();
+                zoningCts.Dispose();
             }
         });
     }

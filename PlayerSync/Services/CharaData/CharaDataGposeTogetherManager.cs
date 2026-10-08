@@ -1,5 +1,4 @@
-﻿using Dalamud.Game.ClientState.Objects.SubKinds;
-using MareSynchronos.API.Data;
+﻿using MareSynchronos.API.Data;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.Interop;
 using MareSynchronos.Interop.Ipc;
@@ -7,6 +6,7 @@ using MareSynchronos.Services.CharaData.Models;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Numerics;
 using System.Text.Json.Nodes;
@@ -21,7 +21,7 @@ public class CharaDataGposeTogetherManager : DisposableMediatorSubscriberBase
     private readonly CharaDataFileHandler _charaDataFileHandler;
     private readonly CharaDataManager _charaDataManager;
     private readonly DalamudUtilService _dalamudUtil;
-    private readonly Dictionary<string, GposeLobbyUserData> _usersInLobby = [];
+    private readonly ConcurrentDictionary<string, GposeLobbyUserData> _usersInLobby = [];
     private readonly VfxSpawnManager _vfxSpawnManager;
     private (CharacterData ApiData, CharaDataDownloadDto Dto)? _lastCreatedCharaData;
     private PoseData? _lastDeltaPoseData;
@@ -211,7 +211,7 @@ public class CharaDataGposeTogetherManager : DisposableMediatorSubscriberBase
         _lobbyCts.Dispose();
         _lobbyCts = new();
         CurrentGPoseLobbyId = string.Empty;
-        foreach (var user in _usersInLobby.ToDictionary())
+        foreach (var user in _usersInLobby.ToArray())
         {
             if (revertCharas)
                 _charaDataManager.RevertChara(user.Value.HandledChara);
@@ -369,14 +369,13 @@ public class CharaDataGposeTogetherManager : DisposableMediatorSubscriberBase
 
             try
             {
-                var chara = await _dalamudUtil.GetPlayerCharacterAsync().ConfigureAwait(false);
-                if (_dalamudUtil.IsInGpose)
+                var poseJson = await _dalamudUtil.RunOnFrameworkThread(() =>
                 {
-                    chara = (IPlayerCharacter?)(await _dalamudUtil.GetGposeCharacterFromObjectTableByNameAsync(chara.Name.TextValue, _dalamudUtil.IsInGpose).ConfigureAwait(false));
-                }
-                if (chara == null || chara.Address == nint.Zero) continue;
+                    var local = _dalamudUtil.GetPlayerCharacter();
+                    var actor = local == null ? null : _dalamudUtil.GetGposeCharacterFromObjectTableByName(local.Name.ToString());
 
-                var poseJson = await _brio.GetPoseAsync(chara.Address).ConfigureAwait(false);
+                    return actor == null ? null : _brio.GetPose(actor);
+                }).ConfigureAwait(false);
                 if (string.IsNullOrEmpty(poseJson)) continue;
 
                 var lastFullData = _poseGenerationExecutions++ >= 12 ? null : _lastFullPoseData;
@@ -423,36 +422,53 @@ public class CharaDataGposeTogetherManager : DisposableMediatorSubscriberBase
             try
             {
                 // get own player data
-                var player = (Dalamud.Game.ClientState.Objects.Types.ICharacter?)(await _dalamudUtil.GetPlayerCharacterAsync().ConfigureAwait(false));
-                if (player == null) continue;
-                WorldData worldData;
-                if (_dalamudUtil.IsInGpose)
+                var playerData = await _dalamudUtil.RunOnFrameworkThread(() =>
                 {
-                    player = await _dalamudUtil.GetGposeCharacterFromObjectTableByNameAsync(player.Name.TextValue, true).ConfigureAwait(false);
-                    if (player == null) continue;
-                    worldData = (await _brio.GetTransformAsync(player.Address).ConfigureAwait(false));
-                }
-                else
-                {
-                    var rotQuaternion = Quaternion.CreateFromAxisAngle(new Vector3(0, 1, 0), player.Rotation);
-                    worldData = new()
+                    var local = _dalamudUtil.GetPlayerCharacter();
+                    if (local == null)
                     {
-                        PositionX = player.Position.X,
-                        PositionY = player.Position.Y,
-                        PositionZ = player.Position.Z,
-                        RotationW = rotQuaternion.W,
-                        RotationX = rotQuaternion.X,
-                        RotationY = rotQuaternion.Y,
-                        RotationZ = rotQuaternion.Z,
-                        ScaleX = 1,
-                        ScaleY = 1,
-                        ScaleZ = 1
-                    };
+                        return (WorldData?)null;
+                    }
+                    WorldData data;
+                    if (_dalamudUtil.IsInGpose)
+                    {
+                        var actor = _dalamudUtil.GetGposeCharacterFromObjectTableByName(local.Name.ToString());
+                        if (actor == null)
+                        {
+                            return (WorldData?)null;
+                        }
+                        data = _brio.GetTransform(actor);
+                    }
+                    else
+                    {
+                        var rotation = Quaternion.CreateFromAxisAngle(new Vector3(0, 1, 0), local.Rotation);
+                        data = new WorldData
+                        {
+                            PositionX = local.Position.X,
+                            PositionY = local.Position.Y,
+                            PositionZ = local.Position.Z,
+                            RotationW = rotation.W,
+                            RotationX = rotation.X,
+                            RotationY = rotation.Y,
+                            RotationZ = rotation.Z,
+                            ScaleX = 1,
+                            ScaleY = 1,
+                            ScaleZ = 1
+                        };
+                    }
+                    if (data == default)
+                    {
+                        return (WorldData?)null;
+                    }
+                    data.LocationInfo = _dalamudUtil.GetMapData();
+
+                    return data;
+                }).ConfigureAwait(false);
+                if (playerData == null)
+                {
+                    continue;
                 }
-
-                var loc = await _dalamudUtil.GetMapDataAsync().ConfigureAwait(false);
-                worldData.LocationInfo = loc;
-
+                WorldData worldData = playerData.Value;
                 if (_forceResendWorldData || worldData != _lastWorldData)
                 {
                     _forceResendWorldData = false;
@@ -508,33 +524,36 @@ public class CharaDataGposeTogetherManager : DisposableMediatorSubscriberBase
     {
         foreach (var kvp in _usersInLobby)
         {
-            if (!string.IsNullOrWhiteSpace(kvp.Value.AssociatedCharaName))
+            var user = kvp.Value;
+            if (string.IsNullOrWhiteSpace(user.AssociatedCharaName))
             {
-                kvp.Value.Address = _dalamudUtil.GetGposeCharacterFromObjectTableByName(kvp.Value.AssociatedCharaName, true)?.Address ?? nint.Zero;
-                if (kvp.Value.Address == nint.Zero)
+                continue;
+            }
+            var actor = _dalamudUtil.GetGposeCharacterFromObjectTableByName(user.AssociatedCharaName);
+            if (actor == null)
+            {
+                user.AssociatedCharaName = string.Empty;
+
+                continue;
+            }
+            int poseRevision = Volatile.Read(ref user.PoseRevision);
+            if (poseRevision != Volatile.Read(ref user.LastAppliedPoseRevision) && user.ApplicablePoseJson is { } poseJson)
+            {
+                if (_brio.SetPose(actor, poseJson))
                 {
-                    kvp.Value.AssociatedCharaName = string.Empty;
+                    Volatile.Write(ref user.LastAppliedPoseRevision, poseRevision);
+                    user.HasPoseDataUpdate = Volatile.Read(ref user.PoseRevision) != poseRevision;
                 }
             }
-
-            if (kvp.Value.Address != nint.Zero && (kvp.Value.HasWorldDataUpdate || kvp.Value.HasPoseDataUpdate))
+            int worldRevision = Volatile.Read(ref user.WorldRevision);
+            if (worldRevision != Volatile.Read(ref user.LastAppliedWorldRevision) && user.WorldData is { } worldData)
             {
-                bool hadPoseDataUpdate = kvp.Value.HasPoseDataUpdate;
-                bool hadWorldDataUpdate = kvp.Value.HasWorldDataUpdate;
-                kvp.Value.HasPoseDataUpdate = false;
-                kvp.Value.HasWorldDataUpdate = false;
-
-                _ = Task.Run(async () =>
+                var currentActor = _dalamudUtil.GetGposeCharacterFromObjectTableByName(user.AssociatedCharaName);
+                if (currentActor != null && _brio.ApplyTransform(currentActor, worldData))
                 {
-                    if (hadPoseDataUpdate && kvp.Value.ApplicablePoseData != null)
-                    {
-                        await _brio.SetPoseAsync(kvp.Value.Address, CreateJsonFromPoseData(kvp.Value.ApplicablePoseData)).ConfigureAwait(false);
-                    }
-                    if (hadWorldDataUpdate && kvp.Value.WorldData != null)
-                    {
-                        await _brio.ApplyTransformAsync(kvp.Value.Address, kvp.Value.WorldData.Value).ConfigureAwait(false);
-                    }
-                });
+                    Volatile.Write(ref user.LastAppliedWorldRevision, worldRevision);
+                    user.HasWorldDataUpdate = Volatile.Read(ref user.WorldRevision) != worldRevision;
+                }
             }
         }
     }
@@ -607,7 +626,7 @@ public class CharaDataGposeTogetherManager : DisposableMediatorSubscriberBase
         }
 
         lobbyData.CharaData = charaDataDownloadDto;
-        if (lobbyData.Address != nint.Zero && !string.IsNullOrEmpty(lobbyData.AssociatedCharaName))
+        if (!string.IsNullOrEmpty(lobbyData.AssociatedCharaName))
         {
             _ = ApplyCharaData(lobbyData);
         }
@@ -615,17 +634,23 @@ public class CharaDataGposeTogetherManager : DisposableMediatorSubscriberBase
 
     public async Task ApplyCharaData(GposeLobbyUserData userData)
     {
-        if (userData.CharaData == null || userData.Address == nint.Zero || string.IsNullOrEmpty(userData.AssociatedCharaName))
+        var data = userData.CharaData;
+        string actorName = userData.AssociatedCharaName;
+        if (data == null || string.IsNullOrEmpty(actorName))
+        {
             return;
+        }
 
         await _charaDataCreationSemaphore.WaitAsync(_lobbyCts.Token).ConfigureAwait(false);
 
         try
         {
-            await _charaDataManager.ApplyCharaData(userData.CharaData!, userData.AssociatedCharaName).ConfigureAwait(false);
-            userData.LastAppliedCharaDataDate = userData.CharaData.UpdatedDate;
+            await _charaDataManager.ApplyCharaData(data, actorName).ConfigureAwait(false);
+            userData.LastAppliedCharaDataDate = data.UpdatedDate;
             userData.HasPoseDataUpdate = true;
             userData.HasWorldDataUpdate = true;
+            Interlocked.Increment(ref userData.PoseRevision);
+            Interlocked.Increment(ref userData.WorldRevision);
         }
         finally
         {
@@ -651,6 +676,8 @@ public class CharaDataGposeTogetherManager : DisposableMediatorSubscriberBase
             userData.AssociatedCharaName = chara.Name;
             userData.HasPoseDataUpdate = true;
             userData.HasWorldDataUpdate = true;
+            Interlocked.Increment(ref userData.PoseRevision);
+            Interlocked.Increment(ref userData.WorldRevision);
         }
         finally
         {
@@ -669,25 +696,30 @@ public class CharaDataGposeTogetherManager : DisposableMediatorSubscriberBase
             lobbyData.DeltaPoseData = poseData;
         else
             lobbyData.FullPoseData = poseData;
+        lobbyData.ApplicablePoseJson = lobbyData.ApplicablePoseData == null ? null : CreateJsonFromPoseData(lobbyData.ApplicablePoseData);
+        Interlocked.Increment(ref lobbyData.PoseRevision);
     }
 
     private void OnReceiveWorldData(UserData userData, WorldData worldData)
     {
-        _usersInLobby[userData.UID].WorldData = worldData;
-        _ = _usersInLobby[userData.UID].SetWorldDataDescriptor(_dalamudUtil);
+        if (!_usersInLobby.TryGetValue(userData.UID, out var lobbyData))
+        {
+            return;
+        }
+        lobbyData.WorldData = worldData;
+        _ = lobbyData.SetWorldDataDescriptor(_dalamudUtil);
     }
 
     private void OnUserJoinLobby(UserData userData)
     {
-        if (_usersInLobby.ContainsKey(userData.UID))
-            OnUserLeaveLobby(userData);
+        OnUserLeaveLobby(userData);
         _usersInLobby[userData.UID] = new(userData);
         _ = PushCharacterDownloadDto();
     }
 
     private void OnUserLeaveLobby(UserData msg)
     {
-        _usersInLobby.Remove(msg.UID, out var existingData);
+        _usersInLobby.TryRemove(msg.UID, out var existingData);
         if (existingData != default)
         {
             _ = _dalamudUtil.RunOnFrameworkThread(() => _vfxSpawnManager.DespawnObject(existingData.SpawnedVfxId));

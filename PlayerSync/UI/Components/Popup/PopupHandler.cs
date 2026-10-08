@@ -18,7 +18,7 @@ public class PopupHandler : WindowMediatorSubscriberBase
 
     public PopupHandler(ILogger<PopupHandler> logger, MareMediator mediator, IEnumerable<IPopupHandler> popupHandlers,
         PerformanceCollectorService performanceCollectorService, UiSharedService uiSharedService)
-        : base(logger, mediator, "MarePopupHandler", performanceCollectorService)
+        : base(logger, mediator, "PlayerSyncPopupHandler", performanceCollectorService)
     {
         Flags = ImGuiWindowFlags.NoBringToFrontOnFocus
           | ImGuiWindowFlags.NoDecoration
@@ -42,12 +42,12 @@ public class PopupHandler : WindowMediatorSubscriberBase
             IsOpen = true;
         });
 
-        Mediator.Subscribe<OpenCensusPopupMessage>(this, (msg) =>
-        {
-            _openPopup = true;
-            _currentHandler = _handlers.OfType<CensusPopupHandler>().Single();
-            IsOpen = true;
-        });
+        //Mediator.Subscribe<OpenCensusPopupMessage>(this, (msg) =>
+        //{
+        //    _openPopup = true;
+        //    _currentHandler = _handlers.OfType<CensusPopupHandler>().Single();
+        //    IsOpen = true;
+        //});
         _uiSharedService = uiSharedService;
         DisableWindowSounds = true;
     }

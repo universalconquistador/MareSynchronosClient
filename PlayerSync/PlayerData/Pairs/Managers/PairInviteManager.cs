@@ -54,6 +54,7 @@ namespace MareSynchronos.PlayerData.Pairs
         {
             Logger.LogDebug("Pair Request Manger stopped.");
             _dalamudContextMenu.OnMenuOpened -= DalamudContextMenuOnOnOpenGameObjectContextMenu;
+            UnsubscribeAll();
 
             return Task.CompletedTask;
         }
@@ -125,7 +126,7 @@ namespace MareSynchronos.PlayerData.Pairs
                 }
 
                 var name = "";
-                name = _dalamudUtilService.FindPlayerByNameHash(req.RequestorIdent).Name;
+                name = _dalamudUtilService.FindPlayerByNameHash(req.RequestorIdent);
                 if (string.IsNullOrWhiteSpace(name))
                 {
                     var pair = _pairManager.GetPairByUID(req.Requestor.UID);
@@ -177,7 +178,7 @@ namespace MareSynchronos.PlayerData.Pairs
             if (args.Target is not MenuTargetDefault) return;
             if (args.AddonName != null) return; // This should prevent most game windows from registering
 
-            var target = _dalamudUtilService.TargetAddress;
+            var target = _dalamudUtilService.SoftTargetAddress != nint.Zero ? _dalamudUtilService.SoftTargetAddress : _dalamudUtilService.TargetAddress;
             if (target == nint.Zero) return;
 
             // don't add menu to self
@@ -192,7 +193,7 @@ namespace MareSynchronos.PlayerData.Pairs
             var existingPair = _pairManager.DirectPairs.SingleOrDefault(p => p.Address == target);
             if (existingPair != null && existingPair.UserPair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional) return;
 
-            var targetIdent = DalamudUtilService.GetHashedCIDFromPlayerPointer(target);
+            var targetIdent = _dalamudUtilService.GetHashedCIDFromPlayerPointer(target);
             if (targetIdent == null) return;
 
             try

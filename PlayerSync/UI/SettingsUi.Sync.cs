@@ -572,7 +572,7 @@ public partial class SettingsUi
             {
                 maxConcurrent = 0;
             }
-            _pairManager.MaxConcurrentApplyData = maxConcurrent;
+            _dataManager.MaxConcurrentApplyData = maxConcurrent;
         }
         _uiShared.DrawHelpText("This affects how many pairs you download/apply mods to at the same time." + UiSharedService.TooltipSeparator +
             "Setting this to any number above 0 will limit the concurrent data applications. A lower number may help smooth loading and prevent lag/lockups for " +

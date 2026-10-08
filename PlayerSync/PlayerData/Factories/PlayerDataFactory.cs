@@ -1,4 +1,4 @@
-﻿using FFXIVClientStructs.FFXIV.Client.Game.Character;
+﻿using Dalamud.Game.ClientState.Objects.Types;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
@@ -9,6 +9,8 @@ using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
+using System.Text;
 
 
 namespace MareSynchronos.PlayerData.Factories;
@@ -25,6 +27,7 @@ public class PlayerDataFactory
     private readonly XivDataAnalyzer _modelAnalyzer;
     private readonly MareMediator _mareMediator;
     private readonly TransientResourceManager _transientResourceManager;
+    private bool _isFirstTimeLoading = true;
 
     private DateTimeOffset _nextErrorTime = DateTimeOffset.MinValue;
 
@@ -43,45 +46,70 @@ public class PlayerDataFactory
         _logger.LogTrace("Creating {this}", nameof(PlayerDataFactory));
     }
 
-    public async Task<CharacterDataFragment?> BuildCharacterData(GameObjectHandler playerRelatedObject, CancellationToken token)
+    public Task<CharacterDataFragment?> BuildCharacterData(GameObjectHandler playerRelatedObject, CancellationToken token)
+    {
+        return BuildCharacterData(playerRelatedObject, null, token);
+    }
+
+    public async Task<CharacterDataFragment?> BuildLocalCharacterData(CancellationToken token)
+    {
+        return await BuildCharacterData(null, () =>
+        {
+            var localPlayer = _dalamudUtil.GetPlayerCharacter();
+            if (localPlayer == null)
+            {
+                return null;
+            }
+
+            return _dalamudUtil.IsInGpose ? _dalamudUtil.GetGposeCharacterFromObjectTableByName(localPlayer.Name.ToString()) : localPlayer;
+        }, token).ConfigureAwait(false);
+    }
+
+    private async Task<CharacterDataFragment?> BuildCharacterData(GameObjectHandler? playerRelatedObject, Func<ICharacter?>? characterFunc, CancellationToken token)
     {
         if (!_ipcManager.Initialized)
         {
             throw new InvalidOperationException("Penumbra or Glamourer is not connected");
         }
 
-        if (playerRelatedObject == null) return null;
-
-        bool pointerIsZero = true;
-        try
+        if (playerRelatedObject == null && characterFunc == null)
         {
-            pointerIsZero = playerRelatedObject.Address == IntPtr.Zero;
-            try
-            {
-                pointerIsZero = await CheckForNullDrawObject(playerRelatedObject.Address).ConfigureAwait(false);
-            }
-            catch
-            {
-                pointerIsZero = true;
-                _logger.LogDebug("NullRef for {object}", playerRelatedObject);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not create data for {object}", playerRelatedObject);
-        }
-
-        if (pointerIsZero)
-        {
-            _logger.LogTrace("Pointer was zero for {objectKind}", playerRelatedObject.ObjectKind);
             return null;
         }
+        var objectKind = playerRelatedObject?.ObjectKind ?? ObjectKind.Player;
 
         try
         {
-            return await _performanceCollector.LogPerformance(this, $"CreateCharacterData>{playerRelatedObject.ObjectKind}", async () =>
+            if (_isFirstTimeLoading)
             {
-                return await CreateCharacterData(playerRelatedObject, token).ConfigureAwait(false);
+                await _dalamudUtil.RunOnFrameworkThread(() =>
+                {
+                    var address = _dalamudUtil.GetPlayerPtr();
+                    _ipcManager.Penumbra.RedrawOnFramework(_logger, Guid.Empty, address);
+
+                    var minionOrMount = _dalamudUtil.GetMinionOrMountPtrFromFramework(address);
+                    if (minionOrMount != IntPtr.Zero)
+                    {
+                        _ipcManager.Penumbra.RedrawOnFramework(_logger, Guid.Empty, minionOrMount);
+                    }
+                    var companion = _dalamudUtil.GetCompanionPtrFromFramework(address);
+                    if (companion != IntPtr.Zero)
+                    {
+                        _ipcManager.Penumbra.RedrawOnFramework(_logger, Guid.Empty, companion);
+                    }
+                    var pet = _dalamudUtil.GetPetPtrFromFramework(address);
+                    if (pet != IntPtr.Zero)
+                    {
+                        _ipcManager.Penumbra.RedrawOnFramework(_logger, Guid.Empty, pet);
+                    }
+                }).ConfigureAwait(false);
+
+                _isFirstTimeLoading = false;
+            }
+
+            return await _performanceCollector.LogPerformance(this, $"CreateCharacterData>{objectKind}", async () =>
+            {
+                return await CreateCharacterData(playerRelatedObject, characterFunc, token).ConfigureAwait(false);
             }).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
@@ -97,13 +125,14 @@ public class PlayerDataFactory
         {
             _logger.LogError(e, "Failed to create {object} data", playerRelatedObject);
 
-            if (playerRelatedObject.ObjectKind == ObjectKind.Player)
+            if (objectKind == ObjectKind.Player)
             {
                 DateTimeOffset now = DateTimeOffset.UtcNow;
                 if (now > _nextErrorTime)
                 {
                     _nextErrorTime = now.Add(ReportErrorIntervalMinutes);
-                    _mareMediator.Publish(new NotificationMessage("Character Data Failed", "One or more errors occurred when creating character data. Check the /xllog for more details.", NotificationType.Error));
+                    _mareMediator.Publish(new NotificationMessage("Character Data Failed", "One or more errors occurred when creating character data. " +
+                        "Check the /xllog for more details.", NotificationType.Error));
                 }
             }
         }
@@ -111,53 +140,79 @@ public class PlayerDataFactory
         return null;
     }
 
-    private async Task<bool> CheckForNullDrawObject(IntPtr playerPointer)
+    private async Task<CharacterDataFragment?> CreateCharacterData(GameObjectHandler? playerRelatedObject, Func<ICharacter?>? characterFunc, CancellationToken ct)
     {
-        return await _dalamudUtil.RunOnFrameworkThread(() => CheckForNullDrawObjectUnsafe(playerPointer)).ConfigureAwait(false);
-    }
-
-    private unsafe bool CheckForNullDrawObjectUnsafe(IntPtr playerPointer)
-    {
-        return ((Character*)playerPointer)->GameObject.DrawObject == null;
-    }
-
-    private async Task<CharacterDataFragment> CreateCharacterData(GameObjectHandler playerRelatedObject, CancellationToken ct)
-    {
-        var objectKind = playerRelatedObject.ObjectKind;
+        var objectKind = playerRelatedObject?.ObjectKind ?? ObjectKind.Player;
         CharacterDataFragment fragment = objectKind == ObjectKind.Player ? new CharacterDataFragmentPlayer() : new();
 
         _logger.LogDebug("Building character data for {obj}", playerRelatedObject);
 
         // wait until chara is not drawing and present so nothing spontaneously explodes
-        await _dalamudUtil.WaitWhileCharacterIsDrawing(_logger, playerRelatedObject, Guid.NewGuid(), 30000, true, ct: ct).ConfigureAwait(false);
-        int totalWaitTime = 10000;
-        while (!await _dalamudUtil.IsObjectPresentAsync(await _dalamudUtil.CreateGameObjectAsync(playerRelatedObject.Address).ConfigureAwait(false)).ConfigureAwait(false) && totalWaitTime > 0)
+        DrawWaitResult waitResult;
+        if (characterFunc == null)
         {
-            _logger.LogTrace("Character is null but it shouldn't be, waiting");
-            await Task.Delay(50, ct).ConfigureAwait(false);
-            totalWaitTime -= 50;
+            waitResult = await _dalamudUtil.WaitWhileCharacterIsDrawing(_logger, playerRelatedObject!, Guid.NewGuid(), 30000, ct: ct).ConfigureAwait(false);
+        }
+        else
+        {
+            var timer = Stopwatch.StartNew();
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                var state = await _dalamudUtil.RunOnFrameworkThread(() =>
+                {
+                    var actor = characterFunc();
+
+                    return actor == null ? DrawState.Missing : _dalamudUtil.GetCharacterDrawStateFromFramework(actor.Address, actor.ObjectIndex).State;
+                }).ConfigureAwait(false);
+                if (state != DrawState.Loading || timer.ElapsedMilliseconds >= 30000)
+                {
+                    waitResult = state == DrawState.Ready ? DrawWaitResult.Ready : state == DrawState.Missing ? DrawWaitResult.Missing : DrawWaitResult.TimedOut;
+
+                    break;
+                }
+
+                await Task.Delay(100, ct).ConfigureAwait(false);
+            }
+        }
+
+        if (waitResult == DrawWaitResult.Missing)
+        {
+            return null;
+        }
+        if (waitResult != DrawWaitResult.Ready)
+        {
+            throw new InvalidDataException($"Cannot collect {objectKind}: draw wait ended with {waitResult}.");
         }
 
         ct.ThrowIfCancellationRequested();
 
-        Dictionary<string, List<ushort>>? boneIndices =
-            objectKind != ObjectKind.Player
-            ? null
-            : await _dalamudUtil.RunOnFrameworkThread(() => _modelAnalyzer.GetSkeletonBoneIndices(playerRelatedObject)).ConfigureAwait(false);
-
-        DateTime start = DateTime.UtcNow;
-
-        // penumbra call, it's currently broken
+        Dictionary<string, List<ushort>>? boneIndices;
         Dictionary<string, HashSet<string>>? resolvedPaths;
+        DateTime start = DateTime.UtcNow;
+        var captured = await _dalamudUtil.RunOnFrameworkThread(() =>
+        {
+            var actor = characterFunc == null ? playerRelatedObject!.GetGameObject() as ICharacter : characterFunc();
 
-        resolvedPaths = (await _ipcManager.Penumbra.GetCharacterData(_logger, playerRelatedObject).ConfigureAwait(false));
-        if (resolvedPaths == null) throw new InvalidOperationException("Penumbra returned null data");
+            if (actor == null)
+            {
+                throw new InvalidDataException("Character became unavailable during capture.");
+            }
+
+            return (Bones: objectKind == ObjectKind.Player ? _modelAnalyzer.GetSkeletonBoneIndices(actor.Address) : null, Paths: _ipcManager.Penumbra.GetCharacterDataOnFramework(actor.ObjectIndex));
+        }).ConfigureAwait(false);
+
+        boneIndices = captured.Bones;
+        resolvedPaths = captured.Paths;
+        if (resolvedPaths == null)
+        {
+            throw new InvalidOperationException("Penumbra returned null data");
+        }
 
         ct.ThrowIfCancellationRequested();
 
-        fragment.FileReplacements =
-                new HashSet<FileReplacement>(resolvedPaths.Select(c => new FileReplacement([.. c.Value], c.Key)), FileReplacementComparer.Instance)
-                .Where(p => p.HasFileReplacement).ToHashSet();
+        fragment.FileReplacements = new HashSet<FileReplacement>(resolvedPaths.Select(c => new FileReplacement([.. c.Value], c.Key)), FileReplacementComparer.Instance)
+            .Where(p => p.HasFileReplacement).ToHashSet();
         fragment.FileReplacements.RemoveWhere(c => c.GamePaths.Any(g => !CacheMonitor.AllowedFileExtensions.Any(e => g.EndsWith(e, StringComparison.OrdinalIgnoreCase))));
 
         ct.ThrowIfCancellationRequested();
@@ -214,48 +269,58 @@ public class PlayerDataFactory
         fragment.FileReplacements = new HashSet<FileReplacement>(fragment.FileReplacements.Where(v => v.HasFileReplacement).OrderBy(v => v.ResolvedPath, StringComparer.Ordinal), FileReplacementComparer.Instance);
 
         // gather up data from ipc
-        Task<string> getHeelsOffset = _ipcManager.Heels.GetOffsetAsync();
-        Task<string> getGlamourerData = _ipcManager.Glamourer.GetCharacterCustomizationAsync(playerRelatedObject.Address);
-        Task<string?> getCustomizeData = _ipcManager.CustomizePlus.GetScaleAsync(playerRelatedObject.Address);
-        Task<string> getLociData = _ipcManager.Loci.GetActorManager(playerRelatedObject.Address);
-        Task<string> getHonorificTitle = _ipcManager.Honorific.GetTitle();
-        fragment.GlamourerString = await getGlamourerData.ConfigureAwait(false);
-        _logger.LogDebug("Glamourer is now: {data}", fragment.GlamourerString);
-        var customizeScale = await getCustomizeData.ConfigureAwait(false);
-        fragment.CustomizePlusScale = customizeScale ?? string.Empty;
-        _logger.LogDebug("Customize is now: {data}", fragment.CustomizePlusScale);
-        fragment.LociData = await getLociData.ConfigureAwait(false);
-        _logger.LogDebug("Loci is now: {data}", fragment.LociData);
+        var playerFragment = fragment as CharacterDataFragmentPlayer;
 
-
-        if (objectKind == ObjectKind.Player)
+        await _dalamudUtil.RunOnFrameworkThread(() =>
         {
-            var playerFragment = (fragment as CharacterDataFragmentPlayer)!;
-            playerFragment.ManipulationString = _ipcManager.Penumbra.GetMetaManipulations();
+            var chara = characterFunc == null ? playerRelatedObject!.GetGameObject() as ICharacter : characterFunc();
+            if (chara == null)
+            {
+                throw new InvalidOperationException("Player character became unavailable while collecting IPC data.");
+            }
 
-            playerFragment!.HonorificData = await getHonorificTitle.ConfigureAwait(false);
-            _logger.LogDebug("Honorific is now: {data}", playerFragment!.HonorificData);
+            var index = chara.ObjectIndex;
+            var address = chara.Address;
 
-            playerFragment!.HeelsData = await getHeelsOffset.ConfigureAwait(false);
-            _logger.LogDebug("Heels is now: {heels}", playerFragment!.HeelsData);
+            fragment.GlamourerString = _ipcManager.Glamourer.GetCharacterCustomizationOnFramework(index);
+            fragment.CustomizePlusScale = _ipcManager.CustomizePlus.GetScaleOnFramework(index);
+            fragment.LociData = _ipcManager.Loci.GetActorManagerOnFramework(address);
 
-            playerFragment!.MoodlesData = await _ipcManager.Moodles.GetStatusAsync(playerRelatedObject.Address).ConfigureAwait(false) ?? string.Empty;
-            _logger.LogDebug("Moodles is now: {moodles}", playerFragment!.MoodlesData);
-
-            playerFragment!.PetNamesData = _ipcManager.PetNames.GetLocalNames();
-            _logger.LogDebug("Pet Nicknames is now: {petnames}", playerFragment!.PetNamesData);
-        }
+            if (playerFragment != null)
+            {
+                playerFragment.ManipulationString = _ipcManager.Penumbra.GetMetaManipulationsOnFramework();
+                playerFragment.HonorificData = _ipcManager.Honorific.GetTitleOnFramework();
+                playerFragment.HeelsData = _ipcManager.Heels.GetOffsetOnFramework();
+                playerFragment.MoodlesData = _ipcManager.Moodles.GetStatusOnFramework(address) ?? string.Empty;
+                playerFragment.PetNamesData = _ipcManager.PetNames.GetLocalNamesOnFramework();
+            }
+        }).ConfigureAwait(false);
 
         ct.ThrowIfCancellationRequested();
 
+        fragment.CustomizePlusScale = string.IsNullOrEmpty(fragment.CustomizePlusScale) ? string.Empty
+            : Convert.ToBase64String(Encoding.UTF8.GetBytes(fragment.CustomizePlusScale));
+        if (playerFragment != null)
+        {
+            playerFragment.HonorificData = string.IsNullOrEmpty(playerFragment.HonorificData) ? string.Empty
+                : Convert.ToBase64String(Encoding.UTF8.GetBytes(playerFragment.HonorificData));
+        }
+
+        // remove missing mods files
+
         var toCompute = fragment.FileReplacements.Where(f => !f.IsFileSwap).ToArray();
         _logger.LogDebug("Getting Hashes for {amount} Files", toCompute.Length);
-        var computedPaths = _fileCacheManager.GetFileCachesByPaths(toCompute.Select(c => c.ResolvedPath).ToArray());
+        // This is one of the worst code paths ever, it essentially tries to account for every possible scenario why we might not have a valid file cache and
+        // tries to create/correct for it. This really should be thought through, especially if ResolvedPath is reworked.
+        var computedPaths = await _fileCacheManager.GetOrCreateValidatedFileCachesByPathsAsync(toCompute.Select(c => c.ResolvedPath).ToArray(), ct).ConfigureAwait(false);
+
+        ct.ThrowIfCancellationRequested();
+
         foreach (var file in toCompute)
         {
-            ct.ThrowIfCancellationRequested();
             file.Hash = computedPaths[file.ResolvedPath]?.Hash ?? string.Empty;
         }
+
         var removed = fragment.FileReplacements.RemoveWhere(f => !f.IsFileSwap && string.IsNullOrEmpty(f.Hash));
         if (removed > 0)
         {
@@ -397,26 +462,35 @@ public class PlayerDataFactory
         return pathsToResolve;
     }
 
-    // TODO: This needs to be reworked for thread and memory safety
     public async Task<string> GetAddonPluginPlayerData(PlayerChanges playerChanges)
     {
-        switch (playerChanges)
+        string data = await _dalamudUtil.RunOnFrameworkThread(() =>
         {
-            case PlayerChanges.Honorific:
-                return await _ipcManager.Honorific.GetTitle().ConfigureAwait(false);
-
-            case PlayerChanges.Heels:
-                return await _ipcManager.Heels.GetOffsetAsync().ConfigureAwait(false);
-
-            case PlayerChanges.Moodles:
-                var playerChara = await _dalamudUtil.GetPlayerCharacterAsync().ConfigureAwait(false);
-                return await _ipcManager.Moodles.GetStatusAsync(playerChara.Address).ConfigureAwait(false) ?? string.Empty;
-
-            case PlayerChanges.PetNames:
-                return _ipcManager.PetNames.GetLocalNames();
-
-            default:
+            var chara = _dalamudUtil.GetPlayerCharacter();
+            if (chara == null)
+            {
                 return string.Empty;
-        }
+            }
+
+            switch (playerChanges)
+            {
+                case PlayerChanges.Honorific:
+                    return _ipcManager.Honorific.GetTitleOnFramework();
+
+                case PlayerChanges.Heels:
+                    return _ipcManager.Heels.GetOffsetOnFramework();
+
+                case PlayerChanges.Moodles:
+                    return _ipcManager.Moodles.GetStatusOnFramework(chara.Address) ?? string.Empty;
+
+                case PlayerChanges.PetNames:
+                    return _ipcManager.PetNames.GetLocalNamesOnFramework();
+
+                default:
+                    return string.Empty;
+            }
+        }).ConfigureAwait(false);
+
+        return playerChanges == PlayerChanges.Honorific && !string.IsNullOrEmpty(data) ? Convert.ToBase64String(Encoding.UTF8.GetBytes(data)) : data;
     }
 }

@@ -572,7 +572,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                 "Could not connect to the Stagehand plugin.\nMake sure it is installed, enabled, and up to date.",
                 ImGuiColors.ErrorBackground);
         }
-        
+
         if (StageInfo == null || IsEditingContents)
         {
             bool hasStagehand = _ipcManager.Stagehand.APIAvailable;
@@ -697,7 +697,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                 if (StageDefinition.TryParseJSONStream(stream, out var definition))
                 {
                     _newStageDefinition = definition;
-                    
+
                     if (StageInfo == null)
                     {
                         _displayName = definition.Info.Name;
@@ -882,7 +882,7 @@ public class StageDetailsUi : WindowMediatorSubscriberBase
                 {
                     _worldFilter = "";
                 }
-                
+
                 using (var items = ImRaii.Child("###WorldOptions", new Vector2(ImGui.GetContentRegionAvail().X, 100.0f * ImGuiHelpers.GlobalScale), border: false, ImGuiWindowFlags.AlwaysVerticalScrollbar))
                 {
                     if (items.Success)

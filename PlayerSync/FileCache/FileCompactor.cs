@@ -1,6 +1,7 @@
 ﻿using MareSynchronos.MareConfiguration;
 using MareSynchronos.Services;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 
 namespace MareSynchronos.FileCache;
@@ -10,7 +11,7 @@ public sealed class FileCompactor
     public const uint FSCTL_DELETE_EXTERNAL_BACKING = 0x90314U;
     public const ulong WOF_PROVIDER_FILE = 2UL;
 
-    private readonly Dictionary<string, int> _clusterSizes;
+    private readonly ConcurrentDictionary<string, int> _clusterSizes;
 
     private readonly WOF_FILE_COMPRESSION_INFO_V1 _efInfo;
     private readonly ILogger<FileCompactor> _logger;
@@ -73,8 +74,16 @@ public sealed class FileCompactor
 
         var clusterSize = GetClusterSize(fileInfo);
         if (clusterSize == -1) return fileInfo.Length;
-        var losize = GetCompressedFileSizeW(fileInfo.FullName, out uint hosize);
-        var size = (long)hosize << 32 | losize;
+        Marshal.SetLastPInvokeError(0); 
+        var lowSize = GetCompressedFileSizeW(fileInfo.FullName, out var highSize);
+        // something fails and we show huge storage sizes, need to skip on error
+        // probably the use of DangerousGetHandle returning a stale ptr
+        if (lowSize == uint.MaxValue && Marshal.GetLastPInvokeError() != 0)
+        {
+            return fileInfo.Length;
+        }
+
+        var size = ((long)highSize << 32) | lowSize;
         return ((size + clusterSize - 1) / clusterSize) * clusterSize;
     }
 
@@ -93,9 +102,9 @@ public sealed class FileCompactor
     [DllImport("kernel32.dll")]
     private static extern int DeviceIoControl(IntPtr hDevice, uint dwIoControlCode, IntPtr lpInBuffer, uint nInBufferSize, IntPtr lpOutBuffer, uint nOutBufferSize, out IntPtr lpBytesReturned, out IntPtr lpOverlapped);
 
-    [DllImport("kernel32.dll")]
+    [DllImport("kernel32.dll", SetLastError = true)]
     private static extern uint GetCompressedFileSizeW([In, MarshalAs(UnmanagedType.LPWStr)] string lpFileName,
-                                              [Out, MarshalAs(UnmanagedType.U4)] out uint lpFileSizeHigh);
+        [Out, MarshalAs(UnmanagedType.U4)] out uint lpFileSizeHigh);
 
     [DllImport("kernel32.dll", SetLastError = true, PreserveSig = true)]
     private static extern int GetDiskFreeSpaceW([In, MarshalAs(UnmanagedType.LPWStr)] string lpRootPathName,

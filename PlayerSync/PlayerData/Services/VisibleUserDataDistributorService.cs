@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.PlayerData.Pairs;
 
-public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
+public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBase
 {
     private readonly TimeSpan _cacheCreationDelay = TimeSpan.FromSeconds(5);
 
@@ -36,7 +36,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
     private DateTimeOffset _lastCacheCreationRequest = DateTimeOffset.MinValue;
 
 
-    public VisibleUserDataDistributor(ILogger<VisibleUserDataDistributor> logger, ApiController apiController, DalamudUtilService dalamudUtil,
+    public VisibleUserDataDistributorService(ILogger<VisibleUserDataDistributorService> logger, ApiController apiController, DalamudUtilService dalamudUtil,
         PairManager pairManager, MareMediator mediator, FileUploadManager fileTransferManager, MareConfigService mareConfigService, FileCacheManager fileCacheManager) : base(logger, mediator)
     {
         _apiController = apiController;
@@ -60,7 +60,6 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                 Logger.LogTrace("Data hash {hash} equal to stored data", newData.DataHash.Value);
             }
         });
-
         Mediator.Subscribe<PairOfflineMessage>(this, (msg) =>
         {
             lock (_pushDataLock)
@@ -70,7 +69,6 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             }
             
         });
-
         Mediator.Subscribe<DisconnectedMessage>(this, (_) =>
         {
             lock (_pushDataLock)
@@ -78,7 +76,13 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                 _previouslyVisiblePlayers.Clear();
             }
         });
-
+        Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => // useful if you get disconnected from the game but are able to log back in
+        {
+            lock (_pushDataLock)
+            {
+                _previouslyVisiblePlayers.Clear();
+            }
+        });
         Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, (_) => FrameworkOnUpdate());
         Mediator.Subscribe<AddonPluginChangesCreatedMessage>(this, (msg) => PushAddonPluginPlayerChanges(msg.PlayerChanges, msg.Data));
         Mediator.Subscribe<ConnectedMessage>(this, (_) => PushToAllVisibleUsers());
@@ -222,7 +226,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                 {
                     bool mustRemoveReplacementData = false;
 
-                    var cache = _fileCacheManager.GetFileCacheByHash(replacement.Hash);
+                    var cache = _fileCacheManager.GetFirstFileCacheEntityByHash(replacement.Hash);
                     if (cache == null)
                     {
                         continue;
@@ -243,7 +247,8 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                         {
                             var isTexFile = cache.ResolvedFilepath.EndsWith(".tex", StringComparison.OrdinalIgnoreCase);
                             var texInfo = isTexFile ? " Ensure it is compressed and consider reducing its resolution." : "";
-                            Mediator.Publish(new NotificationMessage("File Size Error", $"The file {cache.ResolvedFilepath} exceeds the size limit and will not sync. (300 MiB, or 200 MiB compressed)" + texInfo, MareConfiguration.Models.NotificationType.Warning));
+                            Mediator.Publish(new NotificationMessage("File Size Error", $"The file {cache.ResolvedFilepath} exceeds the size limit and will not sync. (300 MiB, or 200 MiB compressed)" 
+                                + texInfo, MareConfiguration.Models.NotificationType.Warning));
                             _filesTooLargeOrEmptyHasBeenNotified.Add(cache.Hash);
                         }
 
@@ -300,31 +305,31 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             return;
         }
 
-        //CharacterData characterData = new();
+        CharacterData characterData = new();
         AddonPlugin plugin;
         
         switch (playerChanges)
         {
             case PlayerChanges.Honorific:
-                //characterData.HonorificData = data;
+                characterData.HonorificData = data;
                 _lastCreatedData.HonorificData = data;
                 plugin = AddonPlugin.Honorific;
                 break;
 
             case PlayerChanges.Heels:
-                //characterData.HeelsData = data;
+                characterData.HeelsData = data;
                 _lastCreatedData.HeelsData = data;
                 plugin = AddonPlugin.Heels;
                 break;
 
             case PlayerChanges.Moodles:
-                //characterData.MoodlesData = data;
+                characterData.MoodlesData = data;
                 _lastCreatedData.MoodlesData = data;
                 plugin = AddonPlugin.Moodles;
                 break;
 
             case PlayerChanges.PetNames:
-                //characterData.PetNamesData = data;
+                characterData.PetNamesData = data;
                 _lastCreatedData.PetNamesData = data;
                 plugin = AddonPlugin.PetNames;
                 break;
@@ -338,8 +343,8 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             _uploadingCharacterData = _lastCreatedData.DeepClone(); // do this so we don't push again on next DelayedFrameworkUpdate
 
             await _pushDataSemaphore.WaitAsync(_runtimeCts.Token).ConfigureAwait(false);
-            //await _apiController.UserPushData(new([.. _usersToPushDataTo], characterData, null, plugin)).ConfigureAwait(false);
-            await _apiController.UserPushData(new([.. _usersToPushDataTo], _uploadingCharacterData, null, plugin)).ConfigureAwait(false);
+            await _apiController.UserPushData(new([.. _usersToPushDataTo], characterData, null, plugin)).ConfigureAwait(false);
+            //await _apiController.UserPushData(new([.. _usersToPushDataTo], _uploadingCharacterData, null, plugin)).ConfigureAwait(false);
             
         }
         finally

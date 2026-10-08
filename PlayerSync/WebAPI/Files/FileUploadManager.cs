@@ -196,9 +196,9 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         // deal with duplicate hashes for .ToDictionary()
         var hashesToExtensions = hashesToUpload
             .Distinct(StringComparer.Ordinal)
-            .Select(h => _fileDbManager.GetFileCacheByHash(h))
+            .Select(h => _fileDbManager.GetFirstFileCacheEntityByHash(h))
             .Where(cache => cache != null)
-            .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.PrefixedFilePath), StringComparer.Ordinal);
+            .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.FilePathWithinFileStore), StringComparer.Ordinal);
 
         var filesPresentLocally = hashesToExtensions.Keys.ToHashSet(StringComparer.Ordinal);
         var locallyMissingFiles = hashesToUpload.Except(filesPresentLocally, StringComparer.Ordinal).ToList();
@@ -243,7 +243,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                             compressedData = await _fileDbManager.GetCompressedFileData(fileToUpload.Hash, token).ConfigureAwait(false);
                         }
 
-                        var filename = _fileDbManager.GetFileCacheByHash(compressedData.Item1)!.ResolvedFilepath;
+                        var filename = _fileDbManager.GetFirstFileCacheEntityByHash(compressedData.Item1)!.ResolvedFilepath;
                         Logger.LogDebug("[{hash}] Starting upload for {filePath}", compressedData.Item1, filename);
                         using (ProfiledScope.BeginLoggedScope(Logger, "UploadFiles() uploading " + fileToUpload.Hash))
                         {
@@ -461,7 +461,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             }
 
             transfer.Total = compressedData.Item2.Length;
-            var filename = _fileDbManager.GetFileCacheByHash(compressedData.Item1)!.ResolvedFilepath;
+            var filename = _fileDbManager.GetFirstFileCacheEntityByHash(compressedData.Item1)!.ResolvedFilepath;
             Logger.LogDebug("[{hash}] Starting upload for {filePath}", compressedData.Item1, filename);
             using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() uploading " + transfer.Hash))
             {
@@ -479,9 +479,9 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
     private async Task UploadUnverifiedFiles(HashSet<string> unverifiedUploadHashes, List<UserData> visiblePlayers, int fileStoreId, CancellationToken uploadToken)
     {
         var hashesToExtensions = unverifiedUploadHashes
-            .Select(h => _fileDbManager.GetFileCacheByHash(h))
+            .Select(h => _fileDbManager.GetFirstFileCacheEntityByHash(h))
             .Where(cache => cache != null)
-            .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.PrefixedFilePath));
+            .ToDictionary(cache => cache!.Hash, cache => Path.GetExtension(cache!.FilePathWithinFileStore));
 
         Logger.LogDebug("Verifying {count} files sequentially", hashesToExtensions.Count);
         var filesToUpload = await FilesSend([.. hashesToExtensions.Keys.ToHashSet()], visiblePlayers.Select(p => p.UID).ToList(), hashesToExtensions, fileStoreId, uploadToken).ConfigureAwait(false);
@@ -500,7 +500,7 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
                     {
                         var transfer = new UploadFileTransfer(file, token)
                         {
-                            Total = new FileInfo(_fileDbManager.GetFileCacheByHash(file.Hash)!.ResolvedFilepath).Length
+                            Total = new FileInfo(_fileDbManager.GetFirstFileCacheEntityByHash(file.Hash)!.ResolvedFilepath).Length
                         };
 
                         if (file.IsForbidden)

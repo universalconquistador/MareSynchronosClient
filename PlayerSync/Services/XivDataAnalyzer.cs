@@ -30,10 +30,22 @@ public sealed class XivDataAnalyzer
         _configService = configService;
     }
 
-    public unsafe Dictionary<string, List<ushort>>? GetSkeletonBoneIndices(GameObjectHandler handler)
+    public Dictionary<string, List<ushort>>? GetSkeletonBoneIndices(GameObjectHandler handler)
     {
-        if (handler.Address == nint.Zero) return null;
-        var chara = (CharacterBase*)(((Character*)handler.Address)->GameObject.DrawObject);
+        return GetSkeletonBoneIndices(handler.GetAddressFromFramework());
+    }
+
+    public unsafe Dictionary<string, List<ushort>>? GetSkeletonBoneIndices(nint address)
+    {
+        if (address == nint.Zero)
+        {
+            return null;
+        }
+        var chara = (CharacterBase*)(((Character*)address)->GameObject.DrawObject);
+        if (chara == null)
+        {
+            return null;
+        }
         if (chara->GetModelType() != CharacterBase.ModelType.Human) return null;
         var resHandles = chara->Skeleton->SkeletonResourceHandles;
         Dictionary<string, List<ushort>> outputIndices = [];
@@ -71,7 +83,7 @@ public sealed class XivDataAnalyzer
         if (_configService.Current.BonesDictionary.TryGetValue(hash, out var bones))
             return bones;
 
-        var cacheEntity = _fileCacheManager.GetFileCacheByHash(hash);
+        var cacheEntity = _fileCacheManager.GetFirstFileCacheEntityByHash(hash);
         if (cacheEntity == null)
             return null;
 
@@ -209,7 +221,7 @@ public sealed class XivDataAnalyzer
         if (_failedCalculatedTris.Contains(hash, StringComparer.Ordinal))
             return 0;
 
-        var path = _fileCacheManager.GetFileCacheByHash(hash);
+        var path = _fileCacheManager.GetFirstFileCacheEntityByHash(hash);
         if (path == null || !path.ResolvedFilepath.EndsWith(".mdl", StringComparison.OrdinalIgnoreCase))
             return 0;
 

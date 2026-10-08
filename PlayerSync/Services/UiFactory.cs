@@ -41,7 +41,7 @@ public class UiFactory
 
     public UiFactory(ILoggerFactory loggerFactory, MareMediator mareMediator, ApiController apiController,
         UiSharedService uiSharedService, PairManager pairManager, ServerConfigurationManager serverConfigManager,
-        MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService, 
+        MareProfileManager mareProfileManager, IBroadcastManager broadcastManager, PerformanceCollectorService performanceCollectorService,
         UiTheme theme, FileImageTransferHandler fileImageTransferHandler, PairInviteManager pairRequestManager, MareConfigService mareConfigService, StageConfigService stageConfigService,
         IpcManager ipcManager, FileUploadManager fileUploadManager, IdDisplayHandler idDisplayHandler, IClientState clientState, IPlayerState playerState,
         IDataManager dataManager)
@@ -82,7 +82,7 @@ public class UiFactory
 
     public StandaloneProfileUi CreateStandaloneProfileUi(Pair pair)
     {
-        return new StandaloneProfileUi(_loggerFactory.CreateLogger<StandaloneProfileUi>(), _mareMediator, _uiSharedService, _serverConfigManager, 
+        return new StandaloneProfileUi(_loggerFactory.CreateLogger<StandaloneProfileUi>(), _mareMediator, _uiSharedService, _serverConfigManager,
             _mareProfileManager, _pairManager, pair, _mareConfigService, _performanceCollectorService, _theme, _fileImageTransferHandler, _pairRequestManager);
     }
 

@@ -705,19 +705,19 @@ public partial class SettingsUi
 
         _uiShared.BigText("Account");
         ImGuiHelpers.ScaledDummy(2);
-        var sendCensus = _serverConfigurationManager.SendCensusData;
-        if (ImGui.Checkbox("Send Statistical Census Data", ref sendCensus))
-        {
-            _serverConfigurationManager.SendCensusData = sendCensus;
-        }
-        _uiShared.DrawHelpText("This will allow sending census data to the currently connected service." + UiSharedService.TooltipSeparator
-            + "Census data contains:" + Environment.NewLine
-            + "- Current World" + Environment.NewLine
-            + "- Current Gender" + Environment.NewLine
-            + "- Current Race" + Environment.NewLine
-            + "- Current Clan (this is not your Free Company, this is e.g. Keeper or Seeker for Miqo'te)" + UiSharedService.TooltipSeparator
-            + "The census data is only saved temporarily and will be removed from the server on disconnect. It is stored temporarily associated with your UID while you are connected." + UiSharedService.TooltipSeparator
-            + "If you do not wish to participate in the statistical census, untick this box and reconnect to the server.");
+        //var sendCensus = _serverConfigurationManager.SendCensusData;
+        //if (ImGui.Checkbox("Send Statistical Census Data", ref sendCensus))
+        //{
+        //    _serverConfigurationManager.SendCensusData = sendCensus;
+        //}
+        //_uiShared.DrawHelpText("This will allow sending census data to the currently connected service." + UiSharedService.TooltipSeparator
+        //    + "Census data contains:" + Environment.NewLine
+        //    + "- Current World" + Environment.NewLine
+        //    + "- Current Gender" + Environment.NewLine
+        //    + "- Current Race" + Environment.NewLine
+        //    + "- Current Clan (this is not your Free Company, this is e.g. Keeper or Seeker for Miqo'te)" + UiSharedService.TooltipSeparator
+        //    + "The census data is only saved temporarily and will be removed from the server on disconnect. It is stored temporarily associated with your UID while you are connected." + UiSharedService.TooltipSeparator
+        //    + "If you do not wish to participate in the statistical census, untick this box and reconnect to the server.");
 
         if (ApiController.ServerAlive)
         {

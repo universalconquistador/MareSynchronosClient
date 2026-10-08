@@ -6,6 +6,7 @@ using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace MareSynchronos.Interop.Ipc;
 
@@ -14,35 +15,35 @@ public class IpcProvider : IHostedService, IMediatorSubscriber
     private readonly ILogger<IpcProvider> _logger;
     private readonly IDalamudPluginInterface _pi;
     private readonly CharaDataManager _charaDataManager;
-    private readonly DalamudUtilService _dalamudUtilService;
+    private readonly DalamudUtilService _dalamudUtil;
     private ICallGateProvider<string, IGameObject, bool>? _loadFileProvider;
     private ICallGateProvider<string, IGameObject, bool>? _loadFilePSProvider;
     private ICallGateProvider<string, IGameObject, Task<bool>>? _loadFileAsyncProvider;
     private ICallGateProvider<string, IGameObject, Task<bool>>? _loadFileAsyncPSProvider;
     private ICallGateProvider<List<nint>>? _handledGameAddresses;
     private ICallGateProvider<List<nint>>? _handledGameAddressesPS;
-    private readonly List<GameObjectHandler> _activeGameObjectHandlers = [];
+    private readonly ConcurrentDictionary<GameObjectHandler, byte> _activeGameObjectHandlers = [];
 
     public MareMediator Mediator { get; init; }
 
     public IpcProvider(ILogger<IpcProvider> logger, IDalamudPluginInterface pi,
-        CharaDataManager charaDataManager, DalamudUtilService dalamudUtilService, MareMediator mareMediator)
+        CharaDataManager charaDataManager, MareMediator mareMediator, DalamudUtilService dalamudUtil)
     {
         _logger = logger;
         _pi = pi;
         _charaDataManager = charaDataManager;
-        _dalamudUtilService = dalamudUtilService;
+        _dalamudUtil = dalamudUtil;
         Mediator = mareMediator;
 
         Mediator.Subscribe<GameObjectHandlerCreatedMessage>(this, (msg) =>
         {
             if (msg.OwnedObject) return;
-            _activeGameObjectHandlers.Add(msg.GameObjectHandler);
+            _activeGameObjectHandlers.TryAdd(msg.GameObjectHandler, 0);
         });
         Mediator.Subscribe<GameObjectHandlerDestroyedMessage>(this, (msg) =>
         {
             if (msg.OwnedObject) return;
-            _activeGameObjectHandlers.Remove(msg.GameObjectHandler);
+            _activeGameObjectHandlers.TryRemove(msg.GameObjectHandler, out _);
         });
     }
 
@@ -78,31 +79,55 @@ public class IpcProvider : IHostedService, IMediatorSubscriber
         return Task.CompletedTask;
     }
 
-    private async Task<bool> LoadMcdfAsync(string path, IGameObject target)
+    private Task<bool> LoadMcdfAsync(string path, IGameObject chara)
     {
-        await ApplyFileAsync(path, target).ConfigureAwait(false);
+        if (!_dalamudUtil.IsOnFrameworkThread || chara is not ICharacter character || !character.IsValid())
+        {
+            return Task.FromResult(false);
+        }
+        var actor = _dalamudUtil.GetGposeCharacterFromObjectTableByIndex(character.ObjectIndex);
+
+        if (actor == null)
+        {
+            return Task.FromResult(false);
+        }
+        string name = actor.Name.ToString();
+
+        return Task.Run(() => ApplyFileAsync(path, name));
+    }
+
+    private bool LoadMcdf(string path, IGameObject chara)
+    {
+        if (!_dalamudUtil.IsOnFrameworkThread || chara is not ICharacter character || !character.IsValid())
+        {
+            return false;
+        }
+        var actor = _dalamudUtil.GetGposeCharacterFromObjectTableByIndex(character.ObjectIndex);
+        if (actor == null)
+        {
+            return false;
+        }
+        string name = actor.Name.ToString();
+        _ = Task.Run(() => ApplyFileAsync(path, name));
 
         return true;
     }
 
-    private bool LoadMcdf(string path, IGameObject target)
+    private async Task<bool> ApplyFileAsync(string path, string name)
     {
-        _ = Task.Run(async () => await ApplyFileAsync(path, target).ConfigureAwait(false)).ConfigureAwait(false);
+        var header = await _charaDataManager.LoadMcdf(path).ConfigureAwait(false);
+        _charaDataManager.McdfApplyToTarget(name, header);
 
         return true;
-    }
-
-    private async Task ApplyFileAsync(string path, IGameObject target)
-    {
-        _charaDataManager.LoadMcdf(path);
-        await (_charaDataManager.LoadedMcdfHeader ?? Task.CompletedTask).ConfigureAwait(false);
-        var targetName = await _dalamudUtilService.RunOnFrameworkThread(
-            () => target.Name.TextValue).ConfigureAwait(false);
-        _charaDataManager.McdfApplyToTarget(targetName);
     }
 
     private List<nint> GetHandledAddresses()
     {
-        return _activeGameObjectHandlers.Where(g => g.Address != nint.Zero).Select(g => g.Address).Distinct().ToList();
+        if (!_dalamudUtil.IsOnFrameworkThread)
+        {
+            return [];
+        }
+
+        return _activeGameObjectHandlers.Keys.Select(g => g.GetAddressFromFramework()).Where(address => address != nint.Zero).Distinct().ToList();
     }
 }

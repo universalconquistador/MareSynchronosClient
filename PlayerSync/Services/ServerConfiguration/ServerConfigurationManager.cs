@@ -126,31 +126,31 @@ public class ServerConfigurationManager
         }
     }
 
-    public bool SendCensusData
-    {
-        get
-        {
-            return _configService.Current.SendCensusData;
-        }
-        set
-        {
-            _configService.Current.SendCensusData = value;
-            _configService.Save();
-        }
-    }
+    //public bool SendCensusData
+    //{
+    //    get
+    //    {
+    //        return _configService.Current.SendCensusData;
+    //    }
+    //    set
+    //    {
+    //        _configService.Current.SendCensusData = value;
+    //        _configService.Save();
+    //    }
+    //}
 
-    public bool ShownCensusPopup
-    {
-        get
-        {
-            return _configService.Current.ShownCensusPopup;
-        }
-        set
-        {
-            _configService.Current.ShownCensusPopup = value;
-            _configService.Save();
-        }
-    }
+    //public bool ShownCensusPopup
+    //{
+    //    get
+    //    {
+    //        return _configService.Current.ShownCensusPopup;
+    //    }
+    //    set
+    //    {
+    //        _configService.Current.ShownCensusPopup = value;
+    //        _configService.Save();
+    //    }
+    //}
 
     public int CurrentServerIndex
     {

@@ -1,4 +1,6 @@
-﻿using Dalamud.Game.Gui.NamePlate;
+﻿using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.Gui.NamePlate;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -45,6 +47,7 @@ namespace PlayerSync.Services
         {
             _logger.LogTrace("Stopping NamePlateManager");
             _namePlateGui.OnNamePlateUpdate -= UpdateNamePlate;
+            UnsubscribeAll();
             return Task.CompletedTask;
         }
 
@@ -63,6 +66,7 @@ namespace PlayerSync.Services
                 if (handle.NamePlateKind != NamePlateKind.PlayerCharacter) continue;
                 var addr = handle.PlayerCharacter?.Address ?? nint.Zero;
                 if (addr == nint.Zero) continue;
+                if (!(handle.PlayerCharacter is IPlayerCharacter character && character.IsValid())) continue;
                 if (handle.PlayerCharacter?.ObjectIndex is null or 0) continue;
                 if (!visibleByAddress.TryGetValue(addr, out var pair)) continue;
                 var color = _configService.Current.NameHighlightColor;

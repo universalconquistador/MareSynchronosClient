@@ -16,5 +16,6 @@ public enum ServerState
     OAuthMisconfigured,
     OAuthLoginTokenStale,
     NoAutoLogon,
-    Discovering
+    Discovering,
+    WaitingForDatabase
 }
