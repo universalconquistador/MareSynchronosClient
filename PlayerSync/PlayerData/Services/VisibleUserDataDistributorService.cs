@@ -290,20 +290,19 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
             _usersToPushDataTo.Add(user);
         }
 
-        if (_usersToPushDataTo.Count > 0)
-        {
-            Logger.LogDebug("Pushing only addon plugin changes for {count} users", _usersToPushDataTo.Count);
-            _ = PushAddonPluginPlayerChangesInternal(playerChanges, data);
-        }
+        Logger.LogDebug("Pushing only addon plugin changes for {count} users", _usersToPushDataTo.Count);
+        _ = PushAddonPluginPlayerChangesInternal(playerChanges, data);
     }
 
     // Send full CharacterData for now to maintain backwards compatability.
     private async Task PushAddonPluginPlayerChangesInternal(PlayerChanges playerChanges, string data)
     {
-        if (_usersToPushDataTo.Count == 0 || !HasCacheOrCreateIfEmpty())
+        if (!HasCacheOrCreateIfEmpty())
         {
             return;
         }
+
+        var updatedData = _lastCreatedData!.DeepClone();
 
         CharacterData characterData = new();
         AddonPlugin plugin;
@@ -312,25 +311,25 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
         {
             case PlayerChanges.Honorific:
                 characterData.HonorificData = data;
-                _lastCreatedData.HonorificData = data;
+                updatedData.HonorificData = data;
                 plugin = AddonPlugin.Honorific;
                 break;
 
             case PlayerChanges.Heels:
                 characterData.HeelsData = data;
-                _lastCreatedData.HeelsData = data;
+                updatedData.HeelsData = data;
                 plugin = AddonPlugin.Heels;
                 break;
 
             case PlayerChanges.Moodles:
                 characterData.MoodlesData = data;
-                _lastCreatedData.MoodlesData = data;
+                updatedData.MoodlesData = data;
                 plugin = AddonPlugin.Moodles;
                 break;
 
             case PlayerChanges.PetNames:
                 characterData.PetNamesData = data;
-                _lastCreatedData.PetNamesData = data;
+                updatedData.PetNamesData = data;
                 plugin = AddonPlugin.PetNames;
                 break;
 
@@ -338,10 +337,15 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
                 return;
         }
 
+        _lastCreatedData = updatedData; // do this so we don't push again on next DelayedFrameworkUpdate
+
+        if (_usersToPushDataTo.Count == 0)
+        {
+            return;
+        }
+
         try
         {
-            _uploadingCharacterData = _lastCreatedData.DeepClone(); // do this so we don't push again on next DelayedFrameworkUpdate
-
             await _pushDataSemaphore.WaitAsync(_runtimeCts.Token).ConfigureAwait(false);
             await _apiController.UserPushData(new([.. _usersToPushDataTo], characterData, null, plugin)).ConfigureAwait(false);
             //await _apiController.UserPushData(new([.. _usersToPushDataTo], _uploadingCharacterData, null, plugin)).ConfigureAwait(false);

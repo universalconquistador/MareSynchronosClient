@@ -561,7 +561,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
 
                 bool visible = await _dalamudUtilService.RunOnFrameworkThread(() =>
                 {
-                    var currentVisibility = _dalamudUtilService.GetFrameworkCharacterVisibility(contentId);
+                    var currentVisibility = _dalamudUtilService.GetFrameworkCharacterVisibilityByContentId(contentId);
 
                     return currentVisibility?.Visible == true;
                 }).ConfigureAwait(false);
@@ -590,7 +590,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
                 List<ObjectTablePlayersFrameworkUpdate> visible = [];
                 foreach (var playerIdent in idents)
                 {
-                    var visibility = _dalamudUtilService.GetFrameworkCharacterVisibility(playerIdent);
+                    var visibility = _dalamudUtilService.GetFrameworkCharacterVisibilityByIdent(playerIdent);
                     if (visibility?.Visible == true)
                     {
                         visible.Add(new(visibility.Value.ContentId, playerIdent, visibility.Value.Name, true));

@@ -332,7 +332,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         _handlersTrackedOnFrameworkQueue.Enqueue((handler, false));
     }
 
-    public CharacterVisibilityUpdate? GetFrameworkCharacterVisibility(ulong contentId)
+    public CharacterVisibilityUpdate? GetFrameworkCharacterVisibilityByContentId(ulong contentId)
     {
         EnsureIsOnFramework();
         if (!_frameworkCharacters.TryGetValue(contentId, out var character))
@@ -345,20 +345,17 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return new(character.Name, contentId, visible, ready);
     }
 
-    public CharacterVisibilityUpdate? GetFrameworkCharacterVisibility(string ident)
+    public CharacterVisibilityUpdate? GetFrameworkCharacterVisibilityByIdent(string ident)
     {
         EnsureIsOnFramework();
-        foreach (var character in _frameworkCharacters)
+        var id = _frameworkCharacters.FirstOrDefault(chara => chara.Value.Ident == ident);
+        if (id.Key == 0)
         {
-            if (string.Equals(character.Value.Ident, ident, StringComparison.Ordinal))
-            {
-                return GetFrameworkCharacterVisibility(character.Key);
-            }
+            return null; // return null here so we don't do another dictionary lookup
         }
 
-        return null;
+        return GetFrameworkCharacterVisibilityByContentId(id.Key);
     }
-
 
     /// <summary>
     /// Check if the player exists in the current frame and is able to perform an action before performing it.
@@ -439,7 +436,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         {
             return new(DrawState.Loading, DrawCondition.ModelFilesInSlotLoaded);
         }
-        if (!IsModelRenderableOnFramework(address))
+        if (!(gameObject->Visibility == 0 && gameObject->RenderFlags == VisibilityFlags.None))
         {
             return new(DrawState.Loading, DrawCondition.NotRenderable);
         }
@@ -496,18 +493,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
         return _objectTable[index] is ICharacter character && character.IsValid() ? character : null;
     }
-
-    //public ICharacter? GetCharacterFromObjectTableByIndex(int index, ulong gameObjectId, string? name = null)
-    //{
-    //    var character = GetCharacterFromObjectTableByIndex(index);
-    //    if (character == null || character.GameObjectId != gameObjectId
-    //        || (name != null && !string.Equals(character.Name.ToString(), name, StringComparison.Ordinal)))
-    //    {
-    //        return null;
-    //    }
-
-    //    return character;
-    //}
 
     public ICharacter? GetCharacterFromObjectTableByName(string name)
     {
@@ -983,45 +968,43 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         }
     }
 
-    public async Task<DrawWaitResult> WaitWhileCharacterIsDrawing(ILogger logger, ushort objectIndex, ulong gameObjectId, string name, Guid redrawId, int timeOut = 5000, CancellationToken ct = default)
-    {
-        var timer = Stopwatch.StartNew();
-        while (true)
-        {
-            ct.ThrowIfCancellationRequested();
-            var state = await RunOnFrameworkThread(() =>
-            {
-                var character = objectIndex >= GposeFirstObjectIndex
-                    ? GetGposeCharacterFromObjectTableByIndex(objectIndex) : GetCharacterFromObjectTableByIndex(objectIndex);
-                if (character == null || character.GameObjectId != gameObjectId
-                    || !string.Equals(character.Name.ToString(), name, StringComparison.Ordinal))
-                {
-                    return new CharacterDrawState(DrawState.Missing, DrawCondition.ObjectZero);
-                }
+    //public async Task<DrawWaitResult> WaitWhileCharacterIsDrawing(ILogger logger, ushort objectIndex, ulong gameObjectId, string name, Guid redrawId, int timeOut = 5000, CancellationToken ct = default)
+    //{
+    //    var timer = Stopwatch.StartNew();
+    //    while (true)
+    //    {
+    //        ct.ThrowIfCancellationRequested();
+    //        var state = await RunOnFrameworkThread(() =>
+    //        {
+    //            var character = objectIndex >= GposeFirstObjectIndex ? GetGposeCharacterFromObjectTableByIndex(objectIndex) : GetCharacterFromObjectTableByIndex(objectIndex);
+    //            if (character == null || character.GameObjectId != gameObjectId || !string.Equals(character.Name.ToString(), name, StringComparison.Ordinal))
+    //            {
+    //                return new CharacterDrawState(DrawState.Missing, DrawCondition.ObjectZero);
+    //            }
 
-                return GetCharacterDrawStateFromFrameworkInternal(character.Address);
-            }).ConfigureAwait(false);
+    //            return GetCharacterDrawStateFromFrameworkInternal(character.Address);
+    //        }).ConfigureAwait(false);
 
-            if (state.State == DrawState.Ready)
-            {
-                return DrawWaitResult.Ready;
-            }
-            if (state.State == DrawState.Missing)
-            {
-                return DrawWaitResult.Missing;
-            }
+    //        if (state.State == DrawState.Ready)
+    //        {
+    //            return DrawWaitResult.Ready;
+    //        }
+    //        if (state.State == DrawState.Missing)
+    //        {
+    //            return DrawWaitResult.Missing;
+    //        }
 
-            TimeSpan remaining = TimeSpan.FromMilliseconds(timeOut) - timer.Elapsed;
-            if (remaining <= TimeSpan.Zero)
-            {
-                logger.LogWarning("[{redrawId}] Timed out waiting for {name}/{objectIndex} condition: {condition}", redrawId, name, objectIndex, state.Condition);
+    //        TimeSpan remaining = TimeSpan.FromMilliseconds(timeOut) - timer.Elapsed;
+    //        if (remaining <= TimeSpan.Zero)
+    //        {
+    //            logger.LogWarning("[{redrawId}] Timed out waiting for {name}/{objectIndex} condition: {condition}", redrawId, name, objectIndex, state.Condition);
 
-                return DrawWaitResult.TimedOut;
-            }
+    //            return DrawWaitResult.TimedOut;
+    //        }
 
-            await Task.Delay(remaining < TimeSpan.FromMilliseconds(100) ? remaining : TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
-        }
-    }
+    //        await Task.Delay(remaining < TimeSpan.FromMilliseconds(100) ? remaining : TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
+    //    }
+    //}
 
     public API.Data.Enum.ObjectKind? GetOwnedObjectKindOnFramework(nint address)
     {
@@ -1054,18 +1037,18 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return null;
     }
 
-    public unsafe bool IsModelRenderableOnFramework(nint address)
-    {
-        EnsureIsOnFramework();
-        if (address == nint.Zero)
-        {
-            return false;
-        }
+    //public unsafe bool IsModelRenderableOnFramework(nint address)
+    //{
+    //    EnsureIsOnFramework();
+    //    if (address == nint.Zero)
+    //    {
+    //        return false;
+    //    }
 
-        var gameObject = (GameObject*)address;
+    //    var gameObject = (GameObject*)address;
 
-        return gameObject->Visibility == 0 && gameObject->RenderFlags == VisibilityFlags.None;
-    }
+    //    return gameObject->Visibility == 0 && gameObject->RenderFlags == VisibilityFlags.None;
+    //}
 
     public Vector2 WorldToScreen(IGameObject? obj)
     {

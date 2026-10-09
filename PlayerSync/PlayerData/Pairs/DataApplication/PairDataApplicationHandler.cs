@@ -198,7 +198,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
 
         _dalamudUtil.RunOnFrameworkThread(() =>
         {
-            var visibility = _dalamudUtil.GetFrameworkCharacterVisibility(Pair.ContendId);
+            var visibility = _dalamudUtil.GetFrameworkCharacterVisibilityByContentId(Pair.ContendId);
             if (visibility?.Ready == true)
             {
                 _dalamudUtil.TryActOnFramework(Pair.ContendId, (chara, _) =>
@@ -271,6 +271,9 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         });
     }
 
+    // When a pair enters or exits the ObjectTable frame-to-frame, we treat that has "visible" vs not
+    // If they are mid data application then become no longer visible, we need to stop processing their data
+    // It is very important to keep and honor the CTokens throughout the pipeline
     public void UpdateVisibility(bool visible)
     {
         if (!visible)
@@ -278,15 +281,18 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
             if (_isPairValid)
             {
                 _isPairValid = false;
-                var ct = Interlocked.Exchange(ref _dataApplicationCancellationTokenSource, null);
-                if (ct != null)
+                var cts = Interlocked.Exchange(ref _dataApplicationCancellationTokenSource, null);
+                if (cts != null)
                 {
                     try
                     {
-                        _ = ct.CancelAsync().ContinueWith((_) => ct.Dispose(), TaskScheduler.Default);
+                        // We need to wait for the cancelled tasks to resolve before disposing of the CT
+                        // We really want to preserve a predictable state for a pair at all times
+                        _ = cts.CancelAsync().ContinueWith((_) => cts.Dispose(), TaskScheduler.Default);
                     }
                     catch (ObjectDisposedException)
                     {
+                        //
                     }
                 }
             }
@@ -298,8 +304,11 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         {
             _isPairValid = true;
 
+            // It is questionable how much of this is needed vs letter Glam/Pen handle it with cached player state
+            // This at least validates any file issues, but realistically this should be reviewed in depth
             if (HasCachedData)
             {
+                Logger.LogDebug("Pair {pair} has cached data {data}", Pair.PairUIDName, HasCachedData);
                 // this is OK because it is not a SameThreadMessage
                 Mediator.Publish(new ReapplyCachedPairDataMessage(Pair, Force: true));
             }
@@ -1504,6 +1513,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         List<FileReplacementData> replacementList = [];
         List<FileReplacementData> fileSwapList = [];
         HashSet<string> sourceHashes = new(StringComparer.Ordinal);
+        HashSet<string> nonTextureHashes = new(StringComparer.OrdinalIgnoreCase);
         HashSet<string> invalidPaths = new(StringComparer.OrdinalIgnoreCase);
         int invalidReplacementCount = 0;
 
@@ -1532,6 +1542,10 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
 
                 replacementList.Add(replacement);
                 sourceHashes.Add(replacement.Hash);
+                if (replacement.GamePaths.Length == 0 || replacement.GamePaths.Any(path => !path.EndsWith(".tex", StringComparison.OrdinalIgnoreCase)))
+                {
+                    nonTextureHashes.Add(replacement.Hash);
+                }
             }
         }
 
@@ -1563,6 +1577,14 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
                 {
                     token.ThrowIfCancellationRequested();
 
+                    if (nonTextureHashes.Contains(sourceHash))
+                    {
+                        alternateInfo[sourceHash] = (true, null);
+                        initialLookupHashes.Add(sourceHash);
+
+                        continue;
+                    }
+
                     var confirmed = _compressedAlternateManager.TryGetCachedCompressedAlternate(sourceHash, out var alternateHash);
                     alternateInfo[sourceHash] = (confirmed, alternateHash);
 
@@ -1578,6 +1600,22 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
             }
 
             var fileCachesByHash = await _fileDbManager.GetFirstFileCacheEntitiesByHashes(initialLookupHashes, token).ConfigureAwait(false);
+
+            // filter out non-tex files and files smaller than 4KB since we're never going to have alternates for them anyway
+            if (compressedAlternateUsage != CompressedAlternateUsage.AlwaysSourceQuality)
+            {
+                foreach (var sourceHash in sourceHashes)
+                {
+                    if (!nonTextureHashes.Contains(sourceHash) && fileCachesByHash.TryGetValue(sourceHash, out var sourceFileCache))
+                    {
+                        if (sourceFileCache != null && sourceFileCache.Size >= 0 && sourceFileCache.Size < 4096)
+                        {
+                            _compressedAlternateManager.SetCompressedAlternate(sourceHash, null, neverWillHaveAlternate: true);
+                            alternateInfo[sourceHash] = (true, null);
+                        }
+                    }
+                }
+            }
 
             if (compressedAlternateUsage == CompressedAlternateUsage.CompressedNewDownloads)
             {
@@ -1628,21 +1666,15 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
                         compressionSubstitutions[sourceHash] = selectedHash;
                         fileCachesByHash.TryGetValue(selectedHash, out fileCache);
 
-                        if (Logger.IsEnabled(LogLevel.Trace))
-                        {
-                            Logger.LogTrace("CompressSubstitution[{character}]: {path} is [{new}] instead of source [{old}] (TryCalculateModdedDictionary)",
+                        Logger.LogTrace("CompressSubstitution[{character}]: {path} is [{new}] instead of source [{old}] (TryCalculateModdedDictionary)",
                                 PlayerName, string.Join(',', item.GamePaths), selectedHash, sourceHash);
-                        }
                     }
                     else if (compressedAlternateUsage == CompressedAlternateUsage.AlwaysCompressed && !alternate.Confirmed)
                     {
                         if (fileCache != null)
                         {
-                            if (Logger.IsEnabled(LogLevel.Trace))
-                            {
-                                Logger.LogTrace("CompressSubstitution[{character}]: sending {path} source [{old}] for re-download to check for alternates (TryCalculateModdedDictionary)",
+                            Logger.LogTrace("CompressSubstitution[{character}]: sending {path} source [{old}] for re-download to check for alternates (TryCalculateModdedDictionary)",
                                     PlayerName, string.Join(',', item.GamePaths), sourceHash);
-                            }
 
                             locallyPresentFiles.Add(sourceHash);
                         }

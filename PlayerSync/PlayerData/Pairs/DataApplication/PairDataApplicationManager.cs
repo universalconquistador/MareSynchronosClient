@@ -207,8 +207,10 @@ public sealed class PairDataApplicationManager : DisposableMediatorSubscriberBas
             try
             {
                 if (pair == null || pair.CachedPlayer == null || _dataApplicationPipelineTopLevelCts.IsCancellationRequested || _dataApplicationManagerCts.IsCancellationRequested 
-                    || !_isConnected || _isZoning || !pair.IsVisible || !pair.HasCachedData)
+                    || !_isConnected || !pair.IsVisible || !pair.HasCachedData)
                 {
+                    Logger.LogDebug("Cached data application for {pair} stopped! {pair} {cached} {conn} {visible} {data}",
+                        pair?.PairUIDName ?? string.Empty, pair == null, pair.CachedPlayer == null, !_isConnected, !pair.IsVisible, !pair.HasCachedData);
                     return;
                 }
 
