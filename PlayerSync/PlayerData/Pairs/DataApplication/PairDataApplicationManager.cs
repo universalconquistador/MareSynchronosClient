@@ -51,7 +51,7 @@ public sealed class PairDataApplicationManager : DisposableMediatorSubscriberBas
         _dalamudUtilService = dalamudUtilService;
         _ipcManager = ipcManager;
         _pairManager = pairManager;
-        _maxConcurrentApplyData = _configurationService.Current.MaxConcurrentApplications < 0 ? 0 : _configurationService.Current.MaxConcurrentApplications;
+        _maxConcurrentApplyData = _configurationService.Current.MaxConcurrentApplications < 1 ? 1 : _configurationService.Current.MaxConcurrentApplications;
 
         Mediator.Subscribe<ReapplyCachedPairDataMessage>(this, (msg) => _ = ReapplyCachedPairData(msg.Pair, msg.Force));
         Mediator.Subscribe<DisconnectedMessage>(this, (_) =>
@@ -111,9 +111,9 @@ public sealed class PairDataApplicationManager : DisposableMediatorSubscriberBas
             lock (_applyDataLock)
             {
                 var max = value;
-                if (max < 0)
+                if (max < 1)
                 {
-                    max = 0;
+                    max = 1;
                 }
                 _maxConcurrentApplyData = max;
                 _configurationService.Current.MaxConcurrentApplications = max;
@@ -549,6 +549,8 @@ public sealed class PairDataApplicationManager : DisposableMediatorSubscriberBas
                     Logger.LogDebug("[BASE-{appBase}] Queued data application finished for {pair} in {elapsedMs}ms",
                         applicationBase, pair.PairUIDName, stopwatch!.ElapsedMilliseconds);
                 }
+
+                await Task.Delay(20 + Random.Shared.Next(1, 10), _dataApplicationPipelineTopLevelCts!.Token).ConfigureAwait(false);
             }
 
             lock (_applyDataLock)
