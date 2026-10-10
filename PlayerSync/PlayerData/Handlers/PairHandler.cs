@@ -64,15 +64,14 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         return Pair == null ? base.ToString() ?? string.Empty : Pair.UserData.AliasOrUID + ":" + PlayerName + ":" + (IsVisible ? "HasChar" : "NoChar");
     }
 
-    public void Initialize(string name, ulong contendId)
+    public async Task Initialize(string name, ulong contendId)
     {
-        _charaHandler = _gameObjectHandlerFactory.Create(ObjectKind.Player, () =>
+        _charaHandler = await _gameObjectHandlerFactory.Create(ObjectKind.Player, () =>
         {
             _dalamudUtil.TryGetPlayerAddressAndIndexOnFrameworkByContentId(contendId, out var address, out _);
 
             return address;
-        }, contendId, isOwnObject: false).GetAwaiter().GetResult();
-
+        }, contendId, isOwnObject: false).ConfigureAwait(false);
         PlayerName = name;
         _serverConfigManager.AutoPopulateNoteForUid(Pair.UserData.UID, name);
     }

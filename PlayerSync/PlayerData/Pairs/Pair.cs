@@ -102,28 +102,25 @@ public class Pair
         DataHandler?.UpdateVisibility(visible);
     }
 
-    public void Initialize(string playerName, ulong contendId)
+    public async Task Initialize(string playerName, ulong contendId)
     {
-        _creationSemaphore.Wait();
-
+        await _creationSemaphore.WaitAsync().ConfigureAwait(false);
         bool hadErrors = false;
-
         try
         {
             CreateCachedPlayer();
             CreateDataHandler();
-
             var cachedPlayer = CachedPlayer;
             if (cachedPlayer != null && !string.IsNullOrEmpty(playerName))
             {
-                cachedPlayer.Initialize(playerName, contendId);
+                await cachedPlayer.Initialize(playerName, contendId).ConfigureAwait(false);
                 var dataHandler = DataHandler;
                 if (dataHandler != null)
                 {
                     var handler = cachedPlayer.CharacterHandler;
                     if (handler != null)
                     {
-                        dataHandler.Initialize(handler);
+                        await dataHandler.Initialize(handler).ConfigureAwait(false);
                     }
                 }
             }
@@ -149,7 +146,6 @@ public class Pair
         {
             _creationSemaphore.Release();
         }
-
         if (!hadErrors)
         {
             _mediator.Publish(new EventMessage(new DataApplicationEvent(Guid.Empty, DataApplicationStatus.Waiting, PlayerName, UserData,

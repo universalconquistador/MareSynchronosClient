@@ -557,7 +557,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
                 }
 
                 Logger.LogDebug("One-Time Initializing {uid}:{name}", pair.UserData.UID, name);
-                pair.Initialize(name, contentId);
+                await pair.Initialize(name, contentId).ConfigureAwait(false);
 
                 bool visible = await _dalamudUtilService.RunOnFrameworkThread(() =>
                 {

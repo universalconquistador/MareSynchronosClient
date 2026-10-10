@@ -191,13 +191,12 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         return Pair == null ? base.ToString() ?? string.Empty : Pair.UserData.AliasOrUID + ":" + PlayerName + ":" + (Pair.IsVisible ? "HasChar" : "NoChar");
     }
 
-    public void Initialize(GameObjectHandler charaHandler)
+    public async Task Initialize(GameObjectHandler charaHandler)
     {
         _charaHandler = charaHandler;
-        _penumbraCollection ??= _ipcManager.Penumbra.CreateTemporaryCollectionAsync(Logger, Pair.UserData.UID).ConfigureAwait(false).GetAwaiter().GetResult();
-
-        _dalamudUtil.RunOnFrameworkThread(() =>
+        await _dalamudUtil.RunOnFrameworkThread(() =>
         {
+            _penumbraCollection ??= _ipcManager.Penumbra.CreateTemporaryCollectionOnFramework(Logger, Pair.UserData.UID);
             var visibility = _dalamudUtil.GetFrameworkCharacterVisibilityByContentId(Pair.ContendId);
             if (visibility?.Ready == true)
             {
@@ -206,7 +205,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
                     _ipcManager.Penumbra.AssignTemporaryCollection(Logger, _penumbraCollection.Value, chara.ObjectIndex);
                 }, out _);
             }
-        }).GetAwaiter().GetResult();
+        }).ConfigureAwait(false);
         if (_initialized)
         {
             return;
