@@ -1373,9 +1373,12 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
                                             break;
 
                                         case PlayerChanges.ForcedRedraw:
-                                            _charaHandler.IsRedrawingViaIpcRequest = true;
+                                            if (objectKind == ObjectKind.Player)
+                                            {
+                                                _charaHandler.IsRedrawingViaIpcRequest = true;
+                                            }
                                             var redrawRequested = IIpcCaller.GetIPCTimeToCompletion(() => _ipcManager.Penumbra.RedrawOnFramework(Logger, applicationId, characterAddress), out redrawTime);
-                                            if (!redrawRequested)
+                                            if (!redrawRequested && objectKind == ObjectKind.Player)
                                             {
                                                 _charaHandler.IsRedrawingViaIpcRequest = false;
 
@@ -1418,17 +1421,14 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
                 {
                     return penumbraApplied;
                 }
-
+                
                 // we can't simply wait for the IsRedrawingViaIpcRequest to turn false because the character could become invalid
-                if (_charaHandler.IsRedrawingViaIpcRequest)
+                if (objectKind == ObjectKind.Player && orderedCharacterChanges.Contains(PlayerChanges.ForcedRedraw))
                 {
                     try
                     {
                         // so we need to wait for it properly
-                        if (await WaitForCharacterToDrawAsync(applicationId, objectKind, cancellationToken).ConfigureAwait(false) == null)
-                        {
-                            return penumbraApplied;
-                        }
+                        await WaitForCharacterToDrawAsync(applicationId, objectKind, cancellationToken).ConfigureAwait(false);
                     }
                     finally
                     {
@@ -1481,16 +1481,16 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         }
     }
 
-    private async Task<string?> WaitForCharacterToDrawAsync(Guid applicationId, ObjectKind objectKind, CancellationToken linkedToken, GameObjectHandler? redrawHandler = null)
+    private async Task<string?> WaitForCharacterToDrawAsync(Guid applicationId, ObjectKind objectKind, CancellationToken linkedToken)
     {
         linkedToken.ThrowIfCancellationRequested();
 
-        if (_charaHandler == null || (redrawHandler != null && !ReferenceEquals(_charaHandler, redrawHandler)))
+        if (_charaHandler == null)
         {
             throw new PairDataApplicationException(PairDataExceptionReason.InvalidCharacterState, "Character data application deferred because the player became unavailable");
         }
 
-        var result = await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, Pair.ContendId, objectKind, applicationId, 30000, linkedToken, redrawHandler).ConfigureAwait(false);
+        var result = await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, Pair.ContendId, objectKind, applicationId, 30000, linkedToken).ConfigureAwait(false);
         if (result == DrawWaitResult.Missing && objectKind != ObjectKind.Player)
         {
             return null;
@@ -1500,7 +1500,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
             throw new PairDataApplicationException(PairDataExceptionReason.InvalidCharacterState, $"Draw wait for {objectKind} ended with {result}");
         }
 
-        return $"{Pair.PairUIDName}/{objectKind.ToString()}";
+        return $"{Pair.PairUIDName}/{objectKind}";
     }
 
     private async Task<(List<FileReplacementData> MissingFiles, HashSet<string> LocallyPresentFiles, Dictionary<(string GamePath, string? Hash), string> ModdedDictionary)> TryCalculateModdedDictionary(Guid applicationBase, CharacterData charaData, CompressedAlternateUsage compressedAlternateUsage, ConcurrentDictionary<string, string> compressionSubstitutions, CancellationToken token)

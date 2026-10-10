@@ -926,31 +926,31 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         }
     }
 
-    public async Task<DrawWaitResult> WaitWhileCharacterIsDrawing(ILogger logger, ulong contentId, API.Data.Enum.ObjectKind objectKind, Guid redrawId, int timeOut = 5000, CancellationToken ct = default, GameObjectHandler? redrawHandler = null)
+    public async Task<DrawWaitResult> WaitWhileCharacterIsDrawing(ILogger logger, ulong contentId, API.Data.Enum.ObjectKind objectKind, Guid redrawId, int timeOut = 5000, CancellationToken ct = default)
     {
         var timer = Stopwatch.StartNew();
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            var result = await RunOnFrameworkThread(() =>
+            var drawState = await RunOnFrameworkThread(() =>
             {
                 if (!TryGetPlayerAddressAndIndexOnFrameworkByContentId(contentId, out var ownerAddress, out var ownerIndex))
                 {
-                    return (DrawState: new CharacterDrawState(DrawState.Missing, DrawCondition.ObjectZero), Redrawing: redrawHandler?.IsRedrawingViaIpcRequest ?? false);
+                    return new CharacterDrawState(DrawState.Missing, DrawCondition.ObjectZero);
                 }
 
                 nint address = GetObjectAddressByObjectKindAndAddress(objectKind, ownerAddress);
-                var drawState = GetCharacterDrawStateFromFramework(address, objectKind == API.Data.Enum.ObjectKind.Player ? ownerIndex : ushort.MaxValue, objectKind == API.Data.Enum.ObjectKind.Player);
-                _logger.LogTrace("[{guid}]- Draw state for {contentId}/{objectKind} is {state}", redrawId, contentId, objectKind, drawState);
+                var state = GetCharacterDrawStateFromFramework(address, objectKind == API.Data.Enum.ObjectKind.Player ? ownerIndex : ushort.MaxValue, objectKind == API.Data.Enum.ObjectKind.Player);
+                _logger.LogTrace("[{guid}]- Draw state for {contentId}/{objectKind} is {state}", redrawId, contentId, objectKind, state);
 
-                return (DrawState: drawState, Redrawing: redrawHandler?.IsRedrawingViaIpcRequest ?? false);
+                return state;
             }).ConfigureAwait(false);
 
-            if (result.DrawState.State == DrawState.Ready && !result.Redrawing)
+            if (drawState.State == DrawState.Ready)
             {
                 return DrawWaitResult.Ready;
             }
-            if (result.DrawState.State == DrawState.Missing)
+            if (drawState.State == DrawState.Missing)
             {
                 return DrawWaitResult.Missing;
             }
@@ -958,8 +958,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             TimeSpan remaining = TimeSpan.FromMilliseconds(timeOut) - timer.Elapsed;
             if (remaining <= TimeSpan.Zero)
             {
-                logger.LogWarning("[{redrawId}] Timed out waiting for {contentId}/{objectKind} condition: {condition}, redraw pending: {redrawing}",
-                    redrawId, contentId, objectKind, result.DrawState.Condition, result.Redrawing);
+                logger.LogWarning("[{redrawId}] Timed out waiting for {contentId}/{objectKind} condition: {condition}", redrawId, contentId, objectKind, drawState.Condition);
 
                 return DrawWaitResult.TimedOut;
             }
