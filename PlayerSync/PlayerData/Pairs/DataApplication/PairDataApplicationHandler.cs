@@ -1542,7 +1542,8 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
 
                 replacementList.Add(replacement);
                 sourceHashes.Add(replacement.Hash);
-                if (replacement.GamePaths.Length == 0 || replacement.GamePaths.Any(path => !path.EndsWith(".tex", StringComparison.OrdinalIgnoreCase)))
+                if (replacement.GamePaths.Length == 0 || replacement.GamePaths.Any(path => !path.EndsWith(".tex", StringComparison.OrdinalIgnoreCase) 
+                && !path.EndsWith(".atex", StringComparison.OrdinalIgnoreCase)))
                 {
                     nonTextureHashes.Add(replacement.Hash);
                 }
