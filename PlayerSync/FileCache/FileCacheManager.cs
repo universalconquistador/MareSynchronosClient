@@ -11,6 +11,7 @@ using PlayerSync.Utils;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.Threading;
 
 namespace MareSynchronos.FileCache;
 
@@ -55,6 +56,7 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
         RefreshFileStoreRoots(); // TODO: The UI Shared Service must call this right before .Save()
 
         Mediator.Subscribe<PenumbraDirectoryChangedMessage>(this, (_) => RefreshFileStoreRoots());
+        Mediator.Subscribe<DisconnectedMessage>(this, (__) => _ = FlushFileCacheTicksAsync(CancellationToken.None));
     }
 
     public string CacheFolder => _configService.Current.CacheFolder;
