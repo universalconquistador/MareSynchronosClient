@@ -171,7 +171,14 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         ServerState previosState = ServerState;
         while (!_fileCacheManager.DatabaseStatus.IsReady)
         {
-            ServerState = ServerState.WaitingForDatabase;
+            if (_fileCacheManager.DatabaseStatus.State == DatabaseState.CacheInit)
+            {
+                ServerState = ServerState.WaitingForCache;
+            }
+            else
+            {
+                ServerState = ServerState.WaitingForDatabase;
+            }
             Logger.LogTrace("Database is not ready yet, waiting to create server connection...");
 
             await Task.Delay(250).ConfigureAwait(false);

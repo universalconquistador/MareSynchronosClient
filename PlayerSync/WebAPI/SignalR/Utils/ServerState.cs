@@ -17,5 +17,6 @@ public enum ServerState
     OAuthLoginTokenStale,
     NoAutoLogon,
     Discovering,
-    WaitingForDatabase
+    WaitingForDatabase,
+    WaitingForCache
 }

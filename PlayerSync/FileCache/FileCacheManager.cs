@@ -11,7 +11,6 @@ using PlayerSync.Utils;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using System.Threading;
 
 namespace MareSynchronos.FileCache;
 
@@ -60,12 +59,12 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
     }
 
     public string CacheFolder => _configService.Current.CacheFolder;
-    public (bool IsReady, string Reason) DatabaseStatus { get; private set; } = (false, "Starting");
+    public (bool IsReady, DatabaseState State) DatabaseStatus { get; private set; } = (false, DatabaseState.Starting);
     public bool IsCacheReady { get; private set; } = false;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        DatabaseStatus = (false, "Starting");
+        DatabaseStatus = (false, DatabaseState.Starting);
         _logger.LogInformation("Starting FileCacheManager");
 
         await _databaseWriteSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -93,7 +92,7 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        DatabaseStatus = (false, "Stopping");
+        DatabaseStatus = (false, DatabaseState.Stopping);
 
         // if you know of an easier/complete shut down sequence that won't throw dispose exceptions, let me know
 
@@ -173,7 +172,7 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
         _startupTask = null;
         _dbFilesToUpdateTicksTask = null;
 
-        DatabaseStatus = (false, "Stopped");
+        DatabaseStatus = (false, DatabaseState.Stopped);
     }
 
     public void RefreshFileStoreRoots()
@@ -263,11 +262,34 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
     /// <param name="hash"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
+    //public async Task<FileCacheEntity?> GetFirstFileCacheEntityByHash(string hash, CancellationToken cancellationToken, bool validate = true, bool cacheResults = true)
+    //{
+    //    var fileCaches = await GetFirstFileCacheEntitiesByHashes([hash], cancellationToken, validate, cacheResults).ConfigureAwait(false);
+
+    //    return fileCaches.TryGetValue(hash, out var fileCache) ? fileCache : null;
+    //}
     public async Task<FileCacheEntity?> GetFirstFileCacheEntityByHash(string hash, CancellationToken cancellationToken, bool validate = true, bool cacheResults = true)
     {
-        var fileCaches = await GetFirstFileCacheEntitiesByHashes([hash], cancellationToken, validate, cacheResults).ConfigureAwait(false);
+        hash = StringUtils.NormalizeHash(hash);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _dbLifetimeCts.Token);
+        var linkedToken = linkedCts.Token;
+        var fileCaches = await GetAllMemoryFrontedNonVerifiedFileCacheEntitiesByHashesInternal([hash], cacheResults, linkedToken).ConfigureAwait(false);
+        if (!fileCaches.TryGetValue(hash, out var matchingFileCaches))
+        {
+            return null;
+        }
 
-        return fileCaches.TryGetValue(hash, out var fileCache) ? fileCache : null;
+        FileCacheEntity? fileCache = null;
+        foreach (var matchingFileCache in matchingFileCaches)
+        {
+            linkedToken.ThrowIfCancellationRequested();
+            var validatedFileCache = validate ? await ValidateFileCacheAsync(matchingFileCache, linkedToken).ConfigureAwait(false) : matchingFileCache;
+            fileCache ??= validatedFileCache;
+        }
+        AddToFileCacheAccessUpdates(fileCache);
+        LogMemoryCacheUsage();
+
+        return fileCache;
     }
 
     /// <summary>
@@ -1834,8 +1856,8 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
 
     private async Task PreloadMostRecentlyAccessedFileCacheEntitiesAsync(CancellationToken cancellationToken)
     {
-        const int batchSize = 10000;
-        var preloadCount = 100000;
+        const int batchSize = 50000;
+        var preloadCount = 1000000;
 
         if (!_memoryCache.IsMemoryCacheEnabled || preloadCount <= 0)
         {
@@ -1902,7 +1924,7 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
             var cacheVersion = _memoryCache.GetVersion();
             var entities = await db.FileCaches
                 .AsNoTracking()
-                .Where(fileCache => hashBatch.Contains(fileCache.Hash))
+                .Where(fileCache => EF.Parameter(hashBatch).Contains(fileCache.Hash)) // this is an EF 10 thing else it will error
                 .OrderBy(fileCache => fileCache.Hash)
                 .ThenBy(fileCache => fileCache.Store)
                 .ThenBy(fileCache => fileCache.Id)
@@ -2037,7 +2059,7 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
         {
             await MigrateCsvToDatabaseAsync(cancellationToken).ConfigureAwait(false);
 
-            DatabaseStatus = (false, "Validating database");
+            DatabaseStatus = (false, DatabaseState.Validating);
 
             await using (var db = _db.CreateDbContext())
             {
@@ -2050,19 +2072,21 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
                 }
             }
 
-            _ = Task.Run(async () => await PreloadMostRecentlyAccessedFileCacheEntitiesAsync(_dbLifetimeCts.Token).ConfigureAwait(false), _dbLifetimeCts.Token);
+            DatabaseStatus = (false, DatabaseState.CacheInit);
+            //_ = Task.Run(async () => await PreloadMostRecentlyAccessedFileCacheEntitiesAsync(_dbLifetimeCts.Token).ConfigureAwait(false), _dbLifetimeCts.Token);
+            await PreloadMostRecentlyAccessedFileCacheEntitiesAsync(_dbLifetimeCts.Token).ConfigureAwait(false);
 
-            DatabaseStatus = (true, "Ready");
+            DatabaseStatus = (true, DatabaseState.Ready);
             _logger.LogInformation("Database initialization completed");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            DatabaseStatus = (false, "Stopped");
+            DatabaseStatus = (false, DatabaseState.Stopped);
             _logger.LogInformation("Database initialization was cancelled");
         }
         catch (Exception ex)
         {
-            DatabaseStatus = (false, "Database init failed");
+            DatabaseStatus = (false, DatabaseState.Failed);
             _logger.LogError(ex, "Database initialization failed");
         }
     }
@@ -2076,7 +2100,7 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
         }
 
         _logger.LogInformation("[DATABASE] Found legacy file cache CSV {path}, starting migration", _oldDataFile);
-        DatabaseStatus = (false, "Running initial migration");
+        DatabaseStatus = (false, DatabaseState.Migrating);
 
         const int batchSize = 5000;
         Dictionary<(FileCacheStore Store, string FilePathWithinFileStore), FileCacheEntity> batch = [];

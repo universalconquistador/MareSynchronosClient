@@ -774,6 +774,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.NoAutoLogon => "This character has automatic login into PlayerSync disabled. Press the connect button to connect to PlayerSync.",
             ServerState.Discovering => "Auto discovering the best PlayerSync gateway...",
             ServerState.WaitingForDatabase => "Database migration in progress, this can take a minute and should only happen one time.",
+            ServerState.WaitingForCache => "Prepopulating database cache...",
             _ => string.Empty
         };
     }
@@ -798,6 +799,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.NoAutoLogon => ImGuiColors.DalamudYellow,
             ServerState.Discovering => ImGuiColors.DalamudYellow,
             ServerState.WaitingForDatabase => ImGuiColors.DalamudYellow,
+            ServerState.WaitingForCache => ImGuiColors.DalamudYellow,
             _ => ImGuiColors.DalamudRed
         };
     }
@@ -822,6 +824,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.Discovering => "Discovering Gateways",
             ServerState.Connected => _apiController.DisplayName,
             ServerState.WaitingForDatabase => "Initializing Database",
+            ServerState.WaitingForCache => "Initializing Cache",
             _ => string.Empty
         };
     }

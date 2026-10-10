@@ -367,7 +367,13 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                     downloadFileInfoFromService[i] = file.CompressedAlternateFileDownload;
                     compressedSubstitutions[file.Hash] = file.CompressedAlternateFileDownload.Hash;
 
-                    if (!locallyPresentFiles.Contains(file.CompressedAlternateFileDownload.Hash) && _fileDbManager.GetFirstFileCacheEntityByHash(file.CompressedAlternateFileDownload.Hash) != null)
+                    //if (!locallyPresentFiles.Contains(file.CompressedAlternateFileDownload.Hash) && _fileDbManager.GetFirstFileCacheEntityByHash(file.CompressedAlternateFileDownload.Hash) != null)
+                    //{
+                    //    Logger.LogDebug("But compressed alternate {file} is already downloaded! Not downloading again.", file.CompressedAlternateFileDownload.Hash);
+                    //    locallyPresentFiles.Add(file.CompressedAlternateFileDownload.Hash);
+                    //}
+                    if (!locallyPresentFiles.Contains(file.CompressedAlternateFileDownload.Hash) 
+                        && (await _fileDbManager.GetFirstFileCacheEntityByHash(file.CompressedAlternateFileDownload.Hash, ct).ConfigureAwait(false)) != null)
                     {
                         Logger.LogDebug("But compressed alternate {file} is already downloaded! Not downloading again.", file.CompressedAlternateFileDownload.Hash);
                         locallyPresentFiles.Add(file.CompressedAlternateFileDownload.Hash);
@@ -393,7 +399,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             // ok, listen, the timing on some of this is so tight, this check is actually needed
             // the 60-90ms timing is real between different pairs and when they get the response for FilesGetSizes
             // someone else may have already downloaded the file before they even got here
-            if (_fileDbManager.GetFirstFileCacheEntityByHash(download.Hash) != null)
+            if (await _fileDbManager.GetFirstFileCacheEntityByHash(download.Hash, ct).ConfigureAwait(false) != null)
             {
                 continue;
             }
