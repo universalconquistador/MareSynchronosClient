@@ -37,7 +37,7 @@ public class PlayerPerformanceService
     public async Task<bool> CheckBothThresholds(Pair pair, CharacterData charaData)
     {
         var config = _playerPerformanceConfigService.Current;
-        bool notPausedAfterVram = ComputeAndAutoPauseOnVRAMUsageThresholds(pair, charaData, []);
+        bool notPausedAfterVram = await ComputeAndAutoPauseOnVRAMUsageThresholds(pair, charaData, []).ConfigureAwait(false);
         if (!notPausedAfterVram) return false;
         bool notPausedAfterTris = await CheckTriangleUsageThresholds(pair, charaData).ConfigureAwait(false);
         if (!notPausedAfterTris) return false;
@@ -164,7 +164,7 @@ public class PlayerPerformanceService
         return true;
     }
 
-    public bool ComputeAndAutoPauseOnVRAMUsageThresholds(Pair pair, CharacterData charaData, List<DownloadFileTransfer> toDownloadFiles)
+    public async Task<bool> ComputeAndAutoPauseOnVRAMUsageThresholds(Pair pair, CharacterData charaData, List<DownloadFileTransfer> toDownloadFiles, CancellationToken cancellationToken = default)
     {
         var config = _playerPerformanceConfigService.Current;
         var compressionRedirects = pair.ActiveCompressionRedirects;
@@ -185,10 +185,11 @@ public class PlayerPerformanceService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var fileCaches = await _fileCacheManager.GetFirstFileCacheEntitiesByHashes(moddedTextureHashes.Except(toDownloadFiles.Select(file => file.Hash), StringComparer.OrdinalIgnoreCase), cancellationToken).ConfigureAwait(false);
         foreach (var hash in moddedTextureHashes)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             long fileSize = 0;
-
             var download = toDownloadFiles.Find(f => string.Equals(hash, f.Hash, StringComparison.OrdinalIgnoreCase));
             if (download != null)
             {
@@ -196,21 +197,17 @@ public class PlayerPerformanceService
             }
             else
             {
-                var fileEntry = _fileCacheManager.GetFirstFileCacheEntityByHash(hash);
-                if (fileEntry == null)
+                if (!fileCaches.TryGetValue(hash.Trim().ToUpperInvariant(), out var fileEntry) || fileEntry == null)
                 {
                     continue;
                 }
-
                 if (fileEntry.Size < 0)
                 {
                     fileEntry.Size = new FileInfo(fileEntry.ResolvedFilepath).Length;
-                    _fileCacheManager.UpdateFileCache(fileEntry, computeProperties: false).GetAwaiter().GetResult();
+                    await _fileCacheManager.UpdateFileCache(fileEntry, computeProperties: false, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
-
                 fileSize = fileEntry.Size;
             }
-
             vramUsage += fileSize;
         }
 

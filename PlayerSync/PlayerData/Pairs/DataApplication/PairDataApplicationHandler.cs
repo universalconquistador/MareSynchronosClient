@@ -827,7 +827,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
                 }
 
                 // basically check the meta data for each of the files before we even download them to see if it'll exceed thresholds
-                if (!_playerPerformanceService.ComputeAndAutoPauseOnVRAMUsageThresholds(Pair, charaData, toDownloadFiles))
+                if (!await _playerPerformanceService.ComputeAndAutoPauseOnVRAMUsageThresholds(Pair, charaData, toDownloadFiles, cancellationToken).ConfigureAwait(false))
                 {
                     _downloadManager.ClearDownload();
 
@@ -1084,7 +1084,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
 
             Logger.LogDebug("[BASE-{applicationId}] Starting application task for {this}: {appId}", applicationBase, this, applicationId);
             Logger.LogDebug("[{applicationId}] Waiting for initial draw for for {handler}", applicationId, _charaHandler);
-            var drawResult = await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, _charaHandler!, applicationId, 30000, cancellationToken).ConfigureAwait(false);
+            var drawResult = await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, _charaHandler!, applicationId, 10000, cancellationToken).ConfigureAwait(false);
             if (drawResult != DrawWaitResult.Ready)
             {
                 throw new PairDataApplicationException(PairDataExceptionReason.InvalidCharacterState,
@@ -1428,7 +1428,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
                     try
                     {
                         // so we need to wait for it properly
-                        await WaitForCharacterToDrawAsync(applicationId, objectKind, cancellationToken).ConfigureAwait(false);
+                        await WaitForCharacterToDrawAsync(applicationId, objectKind, cancellationToken, _charaHandler).ConfigureAwait(false);
                     }
                     finally
                     {
@@ -1481,7 +1481,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         }
     }
 
-    private async Task<string?> WaitForCharacterToDrawAsync(Guid applicationId, ObjectKind objectKind, CancellationToken linkedToken)
+    private async Task<string?> WaitForCharacterToDrawAsync(Guid applicationId, ObjectKind objectKind, CancellationToken linkedToken, GameObjectHandler? charaHandler = null)
     {
         linkedToken.ThrowIfCancellationRequested();
 
@@ -1490,7 +1490,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
             throw new PairDataApplicationException(PairDataExceptionReason.InvalidCharacterState, "Character data application deferred because the player became unavailable");
         }
 
-        var result = await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, Pair.ContendId, objectKind, applicationId, 30000, linkedToken).ConfigureAwait(false);
+        var result = await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, Pair.ContendId, objectKind, applicationId, 10000, linkedToken, charaHandler).ConfigureAwait(false);
         if (result == DrawWaitResult.Missing && objectKind != ObjectKind.Player)
         {
             return null;
