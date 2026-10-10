@@ -38,6 +38,7 @@ public record GposeEndMessage : MessageBase;
 public record CutsceneEndMessage : MessageBase;
 public record ResumeSyncMessage : MessageBase;
 public record ChangeFilterMessage : MessageBase;
+public record UnpauseByReasonMessage(PauseReason Reason) : MessageBase;
 public record CutsceneFrameworkUpdateMessage : SameThreadMessage;
 public record ConnectedMessage(ConnectionDto Connection) : MessageBase;
 public record DisconnectedMessage : SameThreadMessage;
