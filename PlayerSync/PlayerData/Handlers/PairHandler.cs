@@ -33,7 +33,7 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
 
         if (!configService.Current.DebugDisableSoundIndicators)
         {
-            Mediator.Subscribe<PenumbraResourceLoadMessage>(this, OnPenumbraResourceLoaded);
+            Mediator.Subscribe<PenumbraSoundResourceLoadMessage>(this, OnPenumbraResourceLoaded);
         }
     }
 
@@ -82,20 +82,13 @@ public sealed class PairHandler : DisposableMediatorSubscriberBase
         IsVisible = visible;
     }
 
-    private void OnPenumbraResourceLoaded(PenumbraResourceLoadMessage resourceLoad)
+    private void OnPenumbraResourceLoaded(PenumbraSoundResourceLoadMessage resourceLoad)
     {
-        if (!resourceLoad.GamePath.EndsWith(".scd", StringComparison.OrdinalIgnoreCase) || !_dalamudUtil.IsOnFrameworkThread || !IsVisible
-            || !_dalamudUtil.TryGetPlayerAddressAndIndexOnFrameworkByContentId(Pair.ContendId, out var playerAddress, out _))
+        if (!_dalamudUtil.IsOnFrameworkThread || !IsVisible || resourceLoad.ContentId != Pair.ContendId)
         {
             return;
         }
-        var resourceAddress = resourceLoad.GameObject;
-        if (resourceAddress != playerAddress && resourceAddress != _dalamudUtil.GetCompanionPtrFromFramework(playerAddress)
-            && resourceAddress != _dalamudUtil.GetMinionOrMountPtrFromFramework(playerAddress)
-            && resourceAddress != _dalamudUtil.GetPetPtrFromFramework(playerAddress))
-        {
-            return;
-        }
+
         Pair.LastLoadedSoundSinceRedrawTime = DateTimeOffset.UtcNow;
         Pair.LastLoadedSoundSinceRedraw = resourceLoad.FilePath;
     }

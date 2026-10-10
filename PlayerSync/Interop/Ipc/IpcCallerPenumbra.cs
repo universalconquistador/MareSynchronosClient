@@ -371,6 +371,14 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
         if (ptr != IntPtr.Zero && string.Compare(arg1, arg2, ignoreCase: true, System.Globalization.CultureInfo.InvariantCulture) != 0)
         {
             _mareMediator.Publish(new PenumbraResourceLoadMessage(ptr, arg1, arg2));
+            if (_dalamudUtil.IsOnFrameworkThread && arg1.EndsWith(".scd", StringComparison.OrdinalIgnoreCase))
+            {
+                ulong contentId = _dalamudUtil.GetContentIdForObjectAddressOnFramework(ptr);
+                if (contentId != 0)
+                {
+                    _mareMediator.Publish(new PenumbraSoundResourceLoadMessage(contentId, arg2));
+                }
+            }
         }
     }
 

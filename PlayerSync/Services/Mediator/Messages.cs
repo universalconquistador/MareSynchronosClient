@@ -52,6 +52,7 @@ public record GlamourerChangedMessage(ObjectKind? ObjectKind) : MessageBase;
 public record PlayerDrawEndMessage(string PlayerName) : MessageBase;
 public record HeelsOffsetMessage : MessageBase;
 public record PenumbraResourceLoadMessage(IntPtr GameObject, string GamePath, string FilePath) : SameThreadMessage;
+public record PenumbraSoundResourceLoadMessage(ulong ContentId, string FilePath) : SameThreadMessage;
 public record CustomizePlusMessage(ObjectKind? ObjectKind, bool All = false) : MessageBase;
 public record HonorificMessage(string NewHonorificTitle) : MessageBase;
 public record MoodlesMessage(ObjectKind? ObjectKind) : MessageBase;

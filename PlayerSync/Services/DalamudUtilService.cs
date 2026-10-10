@@ -619,6 +619,52 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         };
     }
 
+    public unsafe ulong GetContentIdForObjectAddressOnFramework(nint address)
+    {
+        EnsureIsOnFramework();
+        if (address == nint.Zero || _pairedHandlersByContentId.Count == 0)
+        {
+            return 0;
+        }
+        for (int i = 0; i < 200; i += 2)
+        {
+            if (_objectTable[i] is not IBattleChara chara || chara.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc || !chara.IsValid())
+            {
+                continue;
+            }
+
+            nint playerAddress = chara.Address;
+            if (playerAddress == nint.Zero)
+            {
+                continue;
+            }
+
+            ulong contentId = ((BattleChara*)playerAddress)->Character.ContentId;
+            if (!_pairedHandlersByContentId.ContainsKey(contentId))
+            {
+                continue;
+            }
+
+            if (address == playerAddress)
+            {
+                return contentId;
+            }
+
+            var minionOrMount = _objectTable[chara.ObjectIndex + 1];
+            if (minionOrMount != null && minionOrMount.IsValid() && minionOrMount.Address == address)
+            {
+                return contentId;
+            }
+
+            if (address == GetCompanionPtrFromFramework(playerAddress) || address == GetPetPtrFromFramework(playerAddress))
+            {
+                return contentId;
+            }
+        }
+
+        return 0;
+    }
+
     /// <summary>
     /// Defaults to the local player if no ptr is passed
     /// </summary>
@@ -926,7 +972,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         }
     }
 
-    public async Task<DrawWaitResult> WaitWhileCharacterIsDrawing(ILogger logger, ulong contentId, API.Data.Enum.ObjectKind objectKind, Guid redrawId, int timeOut = 5000, CancellationToken ct = default)
+    public async Task<DrawWaitResult> WaitWhileCharacterIsDrawing(ILogger logger, ulong contentId, API.Data.Enum.ObjectKind objectKind, Guid redrawId, int timeOut = 5000, CancellationToken ct = default, GameObjectHandler? charaHandler = null)
     {
         var timer = Stopwatch.StartNew();
         while (true)
@@ -946,7 +992,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
                 return state;
             }).ConfigureAwait(false);
 
-            if (drawState.State == DrawState.Ready)
+            if (drawState.State == DrawState.Ready && charaHandler?.IsRedrawingViaIpcRequest != true)
             {
                 return DrawWaitResult.Ready;
             }

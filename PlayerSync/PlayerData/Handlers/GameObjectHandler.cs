@@ -95,7 +95,7 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
 
         Mediator.Subscribe<PenumbraRedrawMessage>(this, (msg) =>
         {
-            if (_dalamudUtil.IsOnFrameworkThread && msg.ObjTblIdx == _objectIndex && msg.Address == _getAddress())
+            if (_dalamudUtil.IsOnFrameworkThread && msg.Address != nint.Zero && msg.Address == _getAddress())
             {
                 _gameObjectPresent = false;
                 ModelReady = false;
@@ -211,11 +211,7 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
         Mediator.Publish(new GameObjectHandlerDestroyedMessage(this, _isOwnedObject));
     }
 
-    /// <summary>
-    /// Gets this handler's current character's draw state and model visibility.
-    /// Must be called while on the Framework thread.
-    /// </summary>
-    public CharacterDrawState GetChareacterDrawStateFromFramework(nint? address = null)
+    public unsafe CharacterDrawState GetChareacterDrawStateFromFramework(nint? address = null)
     {
         _dalamudUtil.EnsureIsOnFramework();
         ModelReady = false;
@@ -237,9 +233,14 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
         var drawState = _dalamudUtil.GetCharacterDrawStateFromFramework(address.Value, _objectIndex);
         if (drawState.State == DrawState.Missing)
         {
+            _objectIndex = ushort.MaxValue;
+
             return drawState;
         }
-
+        if (drawState.State == DrawState.Loading)
+        {
+            _objectIndex = ((GameObject*)address.Value)->ObjectIndex;
+        }
         ModelReady = drawState.State == DrawState.Ready;
 
         return drawState;
@@ -260,7 +261,10 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
         {
             _gameObjectPresent = false;
             PlayerCharacterId = 0;
-            _objectIndex = ushort.MaxValue;
+            if (drawState.State == DrawState.Missing)
+            {
+                _objectIndex = ushort.MaxValue;
+            }
             if (hadGameObject && _isOwnedObject && ObjectKind != ObjectKind.Player)
             {
                 Mediator.Publish(new ClearCacheForObjectMessage(this));
