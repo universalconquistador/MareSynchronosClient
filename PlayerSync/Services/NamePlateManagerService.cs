@@ -1,5 +1,4 @@
 ﻿using Dalamud.Game.ClientState.Objects.SubKinds;
-using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Gui.NamePlate;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
@@ -12,7 +11,6 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Collections.Immutable;
 
 namespace PlayerSync.Services
 {
@@ -59,7 +57,16 @@ namespace PlayerSync.Services
                 || _configService.Current.ShowNameHighlights)) return;
 
             var visiblePairs = _pairs.GetVisiblePairs();
-            var visibleByAddress = visiblePairs.Where(p => p.Address != nint.Zero).ToImmutableDictionary(p => p.Address, p => p);
+            Dictionary<nint, Pair> visibleByAddress = new();
+            foreach (var pair in visiblePairs)
+            {
+                var address = pair.Address;
+                if (address == nint.Zero)
+                {
+                    continue;
+                }
+                visibleByAddress.Add(address, pair);
+            }
 
             foreach (var handle in handlers)
             {
