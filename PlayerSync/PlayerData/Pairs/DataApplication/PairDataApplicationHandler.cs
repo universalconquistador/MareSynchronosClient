@@ -42,6 +42,14 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
     private static readonly IImmutableList<string> FileExtensionsToValidate = [".avfx", ".tmb"];
     private static readonly ConcurrentDictionary<string, byte> _filesThatHaveBeenVerifiedGood = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, byte> _filesThatHaveBeenVerifiedBad = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<PlayerChanges, AddonPlugin> _playerChangesToAddonPlugin = new()
+            {
+                { PlayerChanges.Honorific, AddonPlugin.Honorific },
+                { PlayerChanges.Heels, AddonPlugin.Heels },
+                { PlayerChanges.Moodles, AddonPlugin.Moodles },
+                { PlayerChanges.Loci, AddonPlugin.Loci },
+                { PlayerChanges.PetNames, AddonPlugin.PetNames }
+            };
     private static int _pendingDataIpcCounts = 0;
 
     private readonly DalamudUtilService _dalamudUtil;
@@ -56,7 +64,6 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
     private readonly ZoneSyncConfigService _zoneSyncConfig;
     private readonly IHostApplicationLifetime _lifetime;
     private readonly IDataManager _dataManager;
-    //private readonly JsonlStreamLogger _jsonlStreamLogger;
 
     private readonly ICompressedAlternateManager _compressedAlternateManager;
     private readonly Dictionary<ObjectKind, Guid?> _customizeIds = [];
@@ -97,7 +104,6 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         PlayerPerformanceConfigService performanceConfig,
         ZoneSyncConfigService zoneSyncConfig,
         IDataManager dataManager
-        //JsonlStreamLogger jsonlStreamLogger
         ) : base(logger, mediator)
     {
         Pair = pair;
@@ -115,7 +121,6 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         _configService = configService;
         _zoneSyncConfig = zoneSyncConfig;
         _isVanillaEnforced = IsVanillaEnforced();
-        //_jsonlStreamLogger = jsonlStreamLogger;
 
         Mediator.Subscribe<PenumbraInitializedMessage>(this, (_) =>
         {
@@ -184,7 +189,6 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
     private Pair Pair { get; set; }
     private string PlayerName => Pair.PlayerName ?? string.Empty;
     private Task? _pairDownloadTask;
-    private bool IsCachedDataApplication => _currentVersion == _pendingVersion;
 
     public override string ToString()
     {
@@ -594,6 +598,25 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         };
 
         await ValidatePairDataApplicationReadiness(dataApplication, linkedToken).ConfigureAwait(false);
+
+        // this is a shortcut for instances where only addon data has changed and we don't want to check mod files again
+        if (dataApplication.CharacterDataToUpdate.TryGetValue(ObjectKind.Player, out var playerChanges) && playerChanges.Count == 1)
+        {
+            var playerChange = playerChanges.First();
+            if (_playerChangesToAddonPlugin.ContainsKey(playerChange))
+            {
+                // this updates the cached data so we don't need to do it again
+                await HandleOptionalPluginDataAsync(_playerChangesToAddonPlugin[playerChange], characterData).ConfigureAwait(false);
+                _currentVersion = _pendingVersion;
+                LastDataApplicationTime = DateTimeOffset.UtcNow;
+                Logger.LogTrace("[BASE-{appId}] Running fast path for addon {addon} for {pair}", applicationBase, playerChange, Pair.PairUIDName);
+                Mediator.Publish(new EventMessage(new DataApplicationEvent(applicationBase, DataApplicationStatus.Completed, Pair.PlayerName,
+                    Pair.UserData, nameof(HandleOptionalPluginDataAsync), EventSeverity.Informational, $"Applied addon data {playerChange} for {Pair.PairUIDName}")));
+
+                return;
+            }
+        }
+
         var moddedPaths = await DownloadAndVerifyCharacterModFilesAsync(dataApplication, linkedToken).ConfigureAwait(false);
         if (moddedPaths == null)
         {
@@ -627,6 +650,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
 
     private Task ValidatePairDataApplicationReadiness(DataApplication dataApplication, CancellationToken cancellationToken)
     {
+        Logger.LogTrace("[BASE-{appBase}] {method} {pair}", dataApplication.ApplicationBase, nameof(ValidatePairDataApplicationReadiness), Pair.PairUIDName);
         cancellationToken.ThrowIfCancellationRequested();
 
         var applicationBase = dataApplication.ApplicationBase;
@@ -745,21 +769,20 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
             _pluginWarningNotificationManager.NotifyForMissingPlugins(Pair.UserData, PlayerName!, playerChanges);
         }
 
-        Logger.LogDebug("[BASE-{appbase}] Downloading and applying character for {name}", applicationBase, this);
-
-        // Move on to downloading
-        //return DownloadAndCheckCharacterModFilesAsync(dataApplication, cancellationToken);
         return Task.CompletedTask;
     }
 
     // This step figures out what mod files we need for the pair and downloads them
     private async Task<Dictionary<(string GamePath, string? Hash), string>?> DownloadAndVerifyCharacterModFilesAsync(DataApplication dataApplication, CancellationToken cancellationToken)
     {
+        Logger.LogTrace("[BASE-{appBase}] {method} {pair}", dataApplication.ApplicationBase, nameof(DownloadAndVerifyCharacterModFilesAsync), Pair.PairUIDName);
         cancellationToken.ThrowIfCancellationRequested();
 
         var applicationBase = dataApplication.ApplicationBase;
         var updatedData = dataApplication.CharacterDataToUpdate;
         var charaData = dataApplication.CharacterData;
+
+        Logger.LogDebug("[BASE-{appbase}] Downloading and applying character for {name}", applicationBase, this);
 
         if (!updatedData.Any())
         {
@@ -942,7 +965,6 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
             Pair.UserData, nameof(DownloadAndVerifyCharacterModFilesAsync), EventSeverity.Informational,
             $"Finished file checks and downloads for {Pair.PairUIDName}")));
 
-        //await ApplyDataApplicationAsync(dataApplication, moddedPaths, cancellationToken).ConfigureAwait(false);
         return moddedPaths;
     }
 
@@ -958,6 +980,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
 
     private async Task ValidateCharacterModFilesAsync(DataApplication dataApplication, Dictionary<(string GamePath, string? Hash), string> moddedPaths, CancellationToken cancellationToken)
     {
+        Logger.LogTrace("[BASE-{appBase}] {method} {pair}", dataApplication.ApplicationBase, nameof(ValidateCharacterModFilesAsync), Pair.PairUIDName);
         var applicationBase = dataApplication.ApplicationBase;
         var charaData = dataApplication.CharacterData;
 
@@ -1053,6 +1076,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
 
     private async Task ApplyDataApplicationAsync(DataApplication dataApplication, Dictionary<(string GamePath, string? Hash), string> moddedPaths, CancellationToken cancellationToken)
     {
+        Logger.LogTrace("[BASE-{appBase}] {method} {pair}", dataApplication.ApplicationBase, nameof(ApplyDataApplicationAsync), Pair.PairUIDName);
         var applicationId = Guid.NewGuid();
         var applicationBase = dataApplication.ApplicationBase;
         var charaData = dataApplication.CharacterData;
@@ -1259,7 +1283,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         var updateModdedPaths = dataApplication.UpdateModdedPaths;
         var updateManip = dataApplication.UpdateManip;
 
-        Logger.LogDebug("[{applicationId}] Applying Customization Data for {handler}", applicationId, handlerInfo);
+        Logger.LogDebug("[{applicationId}] Applying Mod Data for {handler}", applicationId, handlerInfo);
 
         Interlocked.Increment(ref _pendingDataIpcCounts);
         Logger.LogTrace("Number of pending data applications via IPCs: {count}", Volatile.Read(ref _pendingDataIpcCounts));

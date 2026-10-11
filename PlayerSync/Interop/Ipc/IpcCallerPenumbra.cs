@@ -356,7 +356,7 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
 
         string modKey = uid == null ? "MareChara_Meta" : $"PS_{uid}_Meta";
 
-        logger.LogTrace("[{applicationId}] Manip: {data}", applicationId, manipulationData);
+        //logger.LogTrace("[{applicationId}] Manip: {data}", applicationId, manipulationData);
         var retAdd = _penumbraAddTemporaryMod.Invoke(modKey, collId, [], manipulationData, 0);
         logger.LogTrace("[{applicationId}] Setting temp meta mod for {collId}, Success: {ret}", applicationId, collId, retAdd);
     }
