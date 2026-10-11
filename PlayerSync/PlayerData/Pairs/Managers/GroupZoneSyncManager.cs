@@ -135,6 +135,10 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
         }
         var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
         var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
+        if (_dalamudUtilService.IsOnFrameworkThread)
+        {
+            await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+        }
         var datacenter = _dalamudUtilService.GetDataCenterIdForWorld((ushort)ownLocation.ServerId);
         var instanceBound = _dalamudUtilService.IsBoundByDuty/*PvE Duty */ || _dalamudUtilService.IsPvPExcludingDen/*PvP Duty*/;
 

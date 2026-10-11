@@ -1082,19 +1082,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return null;
     }
 
-    //public unsafe bool IsModelRenderableOnFramework(nint address)
-    //{
-    //    EnsureIsOnFramework();
-    //    if (address == nint.Zero)
-    //    {
-    //        return false;
-    //    }
-
-    //    var gameObject = (GameObject*)address;
-
-    //    return gameObject->Visibility == 0 && gameObject->RenderFlags == VisibilityFlags.None;
-    //}
-
     public Vector2 WorldToScreen(IGameObject? obj)
     {
         if (obj == null)
@@ -1143,8 +1130,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         List<string> result = [];
         for (int i = 0; i < 200; i += 2)
         {
-            if (_objectTable[i] is IBattleChara chara && chara.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc
-                && chara.IsValid() && chara.Address != nint.Zero)
+            if (_objectTable[i] is IBattleChara chara && chara.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc && chara.IsValid() && chara.Address != nint.Zero)
             {
                 var pc = (BattleChara*)chara.Address;
                 if (pc->IsAllianceMember || pc->IsPartyMember)

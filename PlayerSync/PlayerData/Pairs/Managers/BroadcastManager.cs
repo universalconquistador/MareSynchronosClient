@@ -1,5 +1,4 @@
-﻿using Dalamud.Interface.Internal.UiDebug.Browsing;
-using MareSynchronos.API.Data.Comparer;
+﻿using MareSynchronos.API.Data.Comparer;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.API.Dto.Group;
@@ -202,7 +201,10 @@ namespace MareSynchronos.PlayerData.Pairs
         {
             //var ident = await _dalamudUtilService.GetPlayerNameHashedAsync().ConfigureAwait(false);
             string ident = await _dalamudUtilService.RunOnFrameworkThread(() => _dalamudUtilService.GetHashedCIDFromPlayerPointer()).ConfigureAwait(false);
-
+            if (_dalamudUtilService.IsOnFrameworkThread)
+            {
+                await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+            }
             try
             {
                 await _apiController.BroadcastStartListening(ident).ConfigureAwait(false);
@@ -224,6 +226,10 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private async Task StopListeningInternal()
         {
+            if (_dalamudUtilService.IsOnFrameworkThread)
+            {
+                await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+            }
             try
             {
                 await _apiController.BroadcastStopListening().ConfigureAwait(false);
@@ -262,7 +268,7 @@ namespace MareSynchronos.PlayerData.Pairs
         {
             if (Interlocked.CompareExchange(ref _pollingBroadcasts, 1, 0) == 0)
             {
-                _ = PollBroadcastsInternal().ConfigureAwait(false);
+                _ = Task.Run(PollBroadcastsInternal);
             }
         }
 
@@ -298,6 +304,10 @@ namespace MareSynchronos.PlayerData.Pairs
 
                     return (idents, worldData);
                 }).ConfigureAwait(false);
+                if (_dalamudUtilService.IsOnFrameworkThread)
+                {
+                    await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+                }
                 string locationString = $"Server {location.LocationInfo.ServerId} / Map {location.LocationInfo.MapId} / Territory {location.LocationInfo.TerritoryId} / Division {location.LocationInfo.DivisionId} / Ward {location.LocationInfo.WardId} / House {location.LocationInfo.HouseId} / Room {location.LocationInfo.RoomId}";
                 string? broadcastGroupId = BroadcastingGroupId;
                 List<GroupBroadcastDto> broadcasts;

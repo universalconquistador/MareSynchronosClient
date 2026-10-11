@@ -201,7 +201,10 @@ public class PlayerDataFactory
 
             return (Bones: objectKind == ObjectKind.Player ? _modelAnalyzer.GetSkeletonBoneIndices(actor.Address) : null, Paths: _ipcManager.Penumbra.GetCharacterDataOnFramework(actor.ObjectIndex));
         }).ConfigureAwait(false);
-
+        if (_dalamudUtil.IsOnFrameworkThread)
+        {
+            await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+        }
         boneIndices = captured.Bones;
         resolvedPaths = captured.Paths;
         if (resolvedPaths == null)
@@ -295,10 +298,14 @@ public class PlayerDataFactory
                 playerFragment.PetNamesData = _ipcManager.PetNames.GetLocalNamesOnFramework();
             }
         }).ConfigureAwait(false);
+        if (_dalamudUtil.IsOnFrameworkThread)
+        {
+            await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+        }
 
         ct.ThrowIfCancellationRequested();
 
-        fragment.CustomizePlusScale = string.IsNullOrEmpty(fragment.CustomizePlusScale) ? string.Empty
+        fragment.CustomizePlusScale = string.IsNullOrEmpty(fragment.CustomizePlusScale) ? string.Empty 
             : Convert.ToBase64String(Encoding.UTF8.GetBytes(fragment.CustomizePlusScale));
         if (playerFragment != null)
         {
