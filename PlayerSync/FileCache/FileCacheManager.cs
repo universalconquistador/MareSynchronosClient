@@ -40,6 +40,7 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
     private Task? _startupTask;
     private Task? _dbFilesToUpdateTicksTask;
     private FileStoreRoots _fileStoreRoots = new(null, null);
+    private DateTimeOffset _lastMemCacheUpdateTime = DateTimeOffset.MinValue;
 
 
     public FileCacheManager(ILogger<FileCacheManager> logger, IpcManager ipcManager, MareConfigService configService,
@@ -1738,12 +1739,17 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
     // Logs the mem cache state when logging is set to "Trace"
     private void LogMemoryCacheUsage()
     {
-        return;
         // don't take time to pull stats unless trace logging is enabled
         if (!_logger.IsEnabled(LogLevel.Trace) || !_memoryCache.IsMemoryCacheEnabled)
         {
             return;
         }
+
+        if (DateTimeOffset.UtcNow - _lastMemCacheUpdateTime < TimeSpan.FromSeconds(5))
+        {
+            return;
+        }
+        _lastMemCacheUpdateTime = DateTimeOffset.UtcNow;
 
         var statistics = _memoryCache.GetCurrentStatistics();
         if (statistics == null)
@@ -1884,10 +1890,10 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
             cancellationToken.ThrowIfCancellationRequested();
 
             var take = Math.Min(batchSize, preloadCount - selectedEntityCount);
+            // this was changed to include both stores since we obviously use the Penumbra store for other players
             var recentEntities = await db.FileCaches
                 .AsNoTracking()
-                .Where(fileCache => fileCache.Store == FileCacheStore.Cache && (fileCache.LastAccessedDateTicks < lastAccessedDateTicks
-                    || fileCache.LastAccessedDateTicks == lastAccessedDateTicks && fileCache.Id < lastId))
+                .Where(fileCache => (fileCache.LastAccessedDateTicks < lastAccessedDateTicks) || (fileCache.LastAccessedDateTicks == lastAccessedDateTicks && fileCache.Id < lastId))
                 .OrderByDescending(fileCache => fileCache.LastAccessedDateTicks)
                 .ThenByDescending(fileCache => fileCache.Id)
                 .Select(fileCache => new
