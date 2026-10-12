@@ -117,8 +117,7 @@ public sealed class IpcCallerCustomize : IIpcCaller
         {
             return;
         }
-        var obj = c > 200 ? _dalamudUtil.GetGposeCharacterFromObjectTableByIndex(c)
-            : _dalamudUtil.GetCharacterFromObjectTableByIndex(c);
+        var obj = _dalamudUtil.GetCharacterFromObjectTableByIndex(c);
         _mareMediator.Publish(new CustomizePlusMessage(obj == null ? null : _dalamudUtil.GetOwnedObjectKindOnFramework(obj.Address), obj == null));
     }
 

@@ -575,8 +575,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         }
         if (sequence < _currentVersion)
         {
-            Logger.LogDebug("[BASE-{appBase}] Skipping outdated character data sequence {sequence}; current sequence is {current}",
-                applicationBase, sequence, _currentVersion);
+            Logger.LogDebug("[BASE-{appBase}] Skipping outdated character data sequence {sequence}; current sequence is {current}", applicationBase, sequence, _currentVersion);
 
             return;
         }
@@ -620,6 +619,13 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         var moddedPaths = await DownloadAndVerifyCharacterModFilesAsync(dataApplication, linkedToken).ConfigureAwait(false);
         if (moddedPaths == null)
         {
+            SetPairCharacterData(characterData);
+            _currentVersion = _pendingVersion;
+            LastDataApplicationTime = DateTimeOffset.UtcNow;
+            Mediator.Publish(new EventMessage(new DataApplicationEvent(applicationBase, DataApplicationStatus.Completed,
+                Pair.PlayerName, Pair.UserData, nameof(DownloadAndVerifyCharacterModFilesAsync), EventSeverity.Informational,
+                $"Pair {Pair.PairUIDName} has no updates to apply.")));
+
             return;
         }
         await ValidateCharacterModFilesAsync(dataApplication, moddedPaths, linkedToken).ConfigureAwait(false);
@@ -787,12 +793,6 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         if (!updatedData.Any())
         {
             Logger.LogDebug("[BASE-{appBase}] Nothing to update for {obj}", applicationBase, this);
-            SetPairCharacterData(charaData);
-            _currentVersion = _pendingVersion;
-            LastDataApplicationTime = DateTimeOffset.UtcNow;
-            Mediator.Publish(new EventMessage(new DataApplicationEvent(applicationBase, DataApplicationStatus.Completed,
-                Pair.PlayerName, Pair.UserData, nameof(DownloadAndVerifyCharacterModFilesAsync), EventSeverity.Informational,
-                $"Pair {Pair.PairUIDName} has no updates to apply.")));
 
             return null;
         }

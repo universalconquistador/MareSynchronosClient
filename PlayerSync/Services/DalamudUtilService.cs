@@ -389,22 +389,22 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public CharacterDrawState GetCharacterDrawStateFromFramework(nint address, ushort objectIndex = ushort.MaxValue, bool requireRenderable = true)
     {
         EnsureIsOnFramework();
-        if (address == nint.Zero)
+        if (address == nint.Zero || GetCharacterFromObjectTableByAddressWhenAlreadyOnFrameworkThread(address) == null)
         {
             return new(DrawState.Missing, DrawCondition.ObjectZero);
         }
-        if (objectIndex < 200 && _objectTable[objectIndex] is ICharacter character && character.IsValid() && character.Address == address)
-        {
-            return GetCharacterDrawStateFromFrameworkInternal(address, requireRenderable);
-        }
-        if (objectIndex >= GposeFirstObjectIndex && GetGposeCharacterFromObjectTableByIndex(objectIndex) is { } gposeCharacter && gposeCharacter.Address == address)
-        {
-            return GetCharacterDrawStateFromFrameworkInternal(address, requireRenderable);
-        }
-        if (GetCharacterFromObjectTableByAddressWhenAlreadyOnFrameworkThread(address) == null)
-        {
-            return new(DrawState.Missing, DrawCondition.ObjectZero);
-        }
+        //if (objectIndex < 200 && _objectTable[objectIndex] is ICharacter character && character.IsValid() && character.Address == address)
+        //{
+        //    return GetCharacterDrawStateFromFrameworkInternal(address, requireRenderable);
+        //}
+        //if (objectIndex >= GposeFirstObjectIndex && GetCharacterFromObjectTableByIndex(objectIndex) is { } gposeCharacter && gposeCharacter.Address == address)
+        //{
+        //    return GetCharacterDrawStateFromFrameworkInternal(address, requireRenderable);
+        //}
+        //if (GetCharacterFromObjectTableByAddressWhenAlreadyOnFrameworkThread(address) == null)
+        //{
+        //    return new(DrawState.Missing, DrawCondition.ObjectZero);
+        //}
 
         return GetCharacterDrawStateFromFrameworkInternal(address, requireRenderable);
     }
@@ -462,37 +462,15 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return null;
     }
 
-    public void EnsureIsOnFramework()
-    {
-        if (!_framework.IsInFrameworkUpdateThread)
-        {
-            throw new InvalidOperationException("Can only be run on Framework");
-        }
-    }
-
-    private const int GposeFirstObjectIndex = 201;
-
-    public ICharacter? GetGposeCharacterFromObjectTableByIndex(int index)
-    {
-        EnsureIsOnFramework();
-        if (index < GposeFirstObjectIndex || index >= _objectTable.Length)
-        {
-            return null;
-        }
-
-        return _objectTable[index] is ICharacter character && character.IsValid() ? character : null;
-    }
-
     public ICharacter? GetCharacterFromObjectTableByIndex(int index)
     {
         EnsureIsOnFramework();
-        if (index < 0 || index > 199)
-        {
-            return null;
-        }
 
         return _objectTable[index] is ICharacter character && character.IsValid() ? character : null;
     }
+
+    private const int GposeFirstObjectIndex = 201;
+    // Brio can extend beyond 242 so we just scan to the end of the table for gpose 
 
     public ICharacter? GetCharacterFromObjectTableByName(string name)
     {
@@ -508,18 +486,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return null;
     }
 
-    public ICharacter? GetGposeTargetOnFramework()
-    {
-        EnsureIsOnFramework();
-        if (!IsInGpose)
-        {
-            return null;
-        }
-
-        return GetGposeCharacterFromObjectTableByIndex(GPoseTargetIdx);
-    }
-
-    public ICharacter? GetGposeCharacterFromObjectTableByName(string name)
+    public ICharacter? GetGposeCharacterFromObjectTableByName(string name) // basically just a slight optimization to start earlier in the table
     {
         EnsureIsOnFramework();
         for (int i = GposeFirstObjectIndex; i < _objectTable.Length; i++)
@@ -533,7 +500,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return null;
     }
 
-    public IEnumerable<ICharacter?> GetGposeCharactersFromObjectTable()
+    public IEnumerable<ICharacter?> GetGposeCharactersFromObjectTable() // just a slight optimization to start earlier in the table
     {
         EnsureIsOnFramework();
         var characters = new List<ICharacter?>();
@@ -546,6 +513,17 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         }
 
         return characters;
+    }
+
+    public ICharacter? GetGposeTargetOnFramework()
+    {
+        EnsureIsOnFramework();
+        if (!IsInGpose)
+        {
+            return null;
+        }
+
+        return GetCharacterFromObjectTableByIndex(GPoseTargetIdx);
     }
 
     ///////////////////////////
@@ -561,134 +539,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public async Task<bool> GetIsPlayerPresentAsync()
     {
         return await RunOnFrameworkThread(GetIsPlayerPresent).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Defaults to the local player if no ptr is passed
-    /// </summary>
-    public unsafe IntPtr GetCompanionPtrFromFramework(IntPtr? playerPointer = null)
-    {
-        EnsureIsOnFramework();
-        playerPointer ??= _objectTable.LocalPlayer?.Address;
-        if (playerPointer is null || playerPointer.Value == IntPtr.Zero)
-        {
-            return IntPtr.Zero;
-        }
-
-        var mgr = CharacterManager.Instance();
-        if ((IntPtr)mgr == IntPtr.Zero)
-        {
-            return IntPtr.Zero;
-        }
-
-        return (IntPtr)mgr->LookupBuddyByOwnerObject((BattleChara*)playerPointer.Value);
-    }
-
-    /// <summary>
-    /// Defaults to the local player if no ptr is passed
-    /// </summary>
-    public IntPtr GetMinionOrMountPtrFromFramework(IntPtr? playerPointer = null)
-    {
-        EnsureIsOnFramework();
-        playerPointer ??= _objectTable.LocalPlayer?.Address;
-        if (playerPointer is null || playerPointer.Value == IntPtr.Zero)
-        {
-            return IntPtr.Zero;
-        }
-
-        var player = GetCharacterFromObjectTableByAddressWhenAlreadyOnFrameworkThread(playerPointer.Value);
-        if (player == null || player.ObjectIndex + 1 > 199)
-        {
-            return IntPtr.Zero;
-        }
-
-        var character = _objectTable[player.ObjectIndex + 1];
-
-        return character != null && character.IsValid() ? character.Address : IntPtr.Zero;
-    }
-
-    public unsafe nint GetObjectAddressByObjectKindAndAddress(API.Data.Enum.ObjectKind kind, nint address)
-    {
-        return kind switch
-        {
-            API.Data.Enum.ObjectKind.Player => address,
-            API.Data.Enum.ObjectKind.Companion => GetCompanionPtrFromFramework(address),
-            API.Data.Enum.ObjectKind.MinionOrMount => GetMinionOrMountPtrFromFramework(address),
-            API.Data.Enum.ObjectKind.Pet => GetPetPtrFromFramework(address),
-            _ => nint.Zero
-        };
-    }
-
-    public unsafe ulong GetContentIdForObjectAddressOnFramework(nint address)
-    {
-        EnsureIsOnFramework();
-        if (address == nint.Zero || _pairedHandlersByContentId.Count == 0)
-        {
-            return 0;
-        }
-        for (int i = 0; i < 200; i += 2)
-        {
-            if (_objectTable[i] is not IBattleChara chara || chara.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc || !chara.IsValid())
-            {
-                continue;
-            }
-
-            nint playerAddress = chara.Address;
-            if (playerAddress == nint.Zero)
-            {
-                continue;
-            }
-
-            ulong contentId = ((BattleChara*)playerAddress)->Character.ContentId;
-            if (!_pairedHandlersByContentId.ContainsKey(contentId))
-            {
-                continue;
-            }
-
-            if (address == playerAddress)
-            {
-                return contentId;
-            }
-
-            var minionOrMount = _objectTable[chara.ObjectIndex + 1];
-            if (minionOrMount != null && minionOrMount.IsValid() && minionOrMount.Address == address)
-            {
-                return contentId;
-            }
-
-            if (address == GetCompanionPtrFromFramework(playerAddress) || address == GetPetPtrFromFramework(playerAddress))
-            {
-                return contentId;
-            }
-        }
-
-        return 0;
-    }
-
-    /// <summary>
-    /// Defaults to the local player if no ptr is passed
-    /// </summary>
-    public unsafe IntPtr GetPetPtrFromFramework(IntPtr? playerPointer = null)
-    {
-        EnsureIsOnFramework();
-        playerPointer ??= _objectTable.LocalPlayer?.Address;
-        if (playerPointer is null || playerPointer.Value == IntPtr.Zero)
-        {
-            return IntPtr.Zero;
-        }
-
-        if (_classJobIdsIgnoredForPets.Contains(((Character*)playerPointer.Value)->CharacterData.ClassJob))
-        {
-            return IntPtr.Zero;
-        }
-
-        var mgr = CharacterManager.Instance();
-        if ((IntPtr)mgr == IntPtr.Zero)
-        {
-            return IntPtr.Zero;
-        }
-
-        return (IntPtr)mgr->LookupPetByOwnerObject((BattleChara*)playerPointer.Value);
     }
 
     public IPlayerCharacter GetPlayerCharacter()
@@ -736,6 +586,88 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     {
         EnsureIsOnFramework();
         return _objectTable.LocalPlayer?.Address ?? IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// Defaults to the local player if no ptr is passed
+    /// </summary>
+    public unsafe IntPtr GetCompanionPtrFromFramework(IntPtr? playerPointer = null)
+    {
+        EnsureIsOnFramework();
+        playerPointer ??= _objectTable.LocalPlayer?.Address;
+        if (playerPointer is null || playerPointer.Value == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        var mgr = CharacterManager.Instance();
+        if ((IntPtr)mgr == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        return (IntPtr)mgr->LookupBuddyByOwnerObject((BattleChara*)playerPointer.Value);
+    }
+
+    /// <summary>
+    /// Defaults to the local player if no ptr is passed
+    /// </summary>
+    public IntPtr GetMinionOrMountPtrFromFramework(IntPtr? playerPointer = null)
+    {
+        EnsureIsOnFramework();
+        playerPointer ??= _objectTable.LocalPlayer?.Address;
+        if (playerPointer is null || playerPointer.Value == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        var player = GetCharacterFromObjectTableByAddressWhenAlreadyOnFrameworkThread(playerPointer.Value);
+        if (player == null || player.ObjectIndex + 1 > 199)
+        {
+            return IntPtr.Zero;
+        }
+
+        var character = _objectTable[player.ObjectIndex + 1];
+
+        return character != null && character.IsValid() ? character.Address : IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// Defaults to the local player if no ptr is passed
+    /// </summary>
+    public unsafe IntPtr GetPetPtrFromFramework(IntPtr? playerPointer = null)
+    {
+        EnsureIsOnFramework();
+        playerPointer ??= _objectTable.LocalPlayer?.Address;
+        if (playerPointer is null || playerPointer.Value == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        if (_classJobIdsIgnoredForPets.Contains(((Character*)playerPointer.Value)->CharacterData.ClassJob))
+        {
+            return IntPtr.Zero;
+        }
+
+        var mgr = CharacterManager.Instance();
+        if ((IntPtr)mgr == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        return (IntPtr)mgr->LookupPetByOwnerObject((BattleChara*)playerPointer.Value);
+    }
+
+    public unsafe nint GetObjectAddressByObjectKindAndAddress(API.Data.Enum.ObjectKind kind, nint address)
+    {
+        return kind switch
+        {
+            API.Data.Enum.ObjectKind.Player => address,
+            API.Data.Enum.ObjectKind.Companion => GetCompanionPtrFromFramework(address),
+            API.Data.Enum.ObjectKind.MinionOrMount => GetMinionOrMountPtrFromFramework(address),
+            API.Data.Enum.ObjectKind.Pet => GetPetPtrFromFramework(address),
+            _ => nint.Zero
+        };
     }
 
     public uint GetHomeWorldId()
@@ -895,6 +827,60 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return await RunOnFrameworkThread(GetHomeWorldId).ConfigureAwait(false);
     }
 
+    public unsafe ulong GetContentIdForObjectAddressOnFramework(nint address)
+    {
+        EnsureIsOnFramework();
+        if (address == nint.Zero || _pairedHandlersByContentId.Count == 0)
+        {
+            return 0;
+        }
+        for (int i = 0; i < 200; i += 2)
+        {
+            if (_objectTable[i] is not IBattleChara chara || chara.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc || !chara.IsValid())
+            {
+                continue;
+            }
+
+            nint playerAddress = chara.Address;
+            if (playerAddress == nint.Zero)
+            {
+                continue;
+            }
+
+            ulong contentId = ((BattleChara*)playerAddress)->Character.ContentId;
+            if (!_pairedHandlersByContentId.ContainsKey(contentId))
+            {
+                continue;
+            }
+
+            if (address == playerAddress)
+            {
+                return contentId;
+            }
+
+            var minionOrMount = _objectTable[chara.ObjectIndex + 1];
+            if (minionOrMount != null && minionOrMount.IsValid() && minionOrMount.Address == address)
+            {
+                return contentId;
+            }
+
+            if (address == GetCompanionPtrFromFramework(playerAddress) || address == GetPetPtrFromFramework(playerAddress))
+            {
+                return contentId;
+            }
+        }
+
+        return 0;
+    }
+
+    public void EnsureIsOnFramework()
+    {
+        if (!_framework.IsInFrameworkUpdateThread)
+        {
+            throw new InvalidOperationException("Can only be run on Framework");
+        }
+    }
+
     public async Task RunOnFrameworkThread(System.Action act, [CallerMemberName] string callerMember = "", [CallerFilePath] string callerFilePath = "", [CallerLineNumber] int callerLineNumber = 0)
     {
         var fileName = Path.GetFileNameWithoutExtension(callerFilePath);
@@ -1012,44 +998,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             await Task.Delay(remaining < TimeSpan.FromMilliseconds(100) ? remaining : TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
         }
     }
-
-    //public async Task<DrawWaitResult> WaitWhileCharacterIsDrawing(ILogger logger, ushort objectIndex, ulong gameObjectId, string name, Guid redrawId, int timeOut = 5000, CancellationToken ct = default)
-    //{
-    //    var timer = Stopwatch.StartNew();
-    //    while (true)
-    //    {
-    //        ct.ThrowIfCancellationRequested();
-    //        var state = await RunOnFrameworkThread(() =>
-    //        {
-    //            var character = objectIndex >= GposeFirstObjectIndex ? GetGposeCharacterFromObjectTableByIndex(objectIndex) : GetCharacterFromObjectTableByIndex(objectIndex);
-    //            if (character == null || character.GameObjectId != gameObjectId || !string.Equals(character.Name.ToString(), name, StringComparison.Ordinal))
-    //            {
-    //                return new CharacterDrawState(DrawState.Missing, DrawCondition.ObjectZero);
-    //            }
-
-    //            return GetCharacterDrawStateFromFrameworkInternal(character.Address);
-    //        }).ConfigureAwait(false);
-
-    //        if (state.State == DrawState.Ready)
-    //        {
-    //            return DrawWaitResult.Ready;
-    //        }
-    //        if (state.State == DrawState.Missing)
-    //        {
-    //            return DrawWaitResult.Missing;
-    //        }
-
-    //        TimeSpan remaining = TimeSpan.FromMilliseconds(timeOut) - timer.Elapsed;
-    //        if (remaining <= TimeSpan.Zero)
-    //        {
-    //            logger.LogWarning("[{redrawId}] Timed out waiting for {name}/{objectIndex} condition: {condition}", redrawId, name, objectIndex, state.Condition);
-
-    //            return DrawWaitResult.TimedOut;
-    //        }
-
-    //        await Task.Delay(remaining < TimeSpan.FromMilliseconds(100) ? remaining : TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
-    //    }
-    //}
 
     public API.Data.Enum.ObjectKind? GetOwnedObjectKindOnFramework(nint address)
     {

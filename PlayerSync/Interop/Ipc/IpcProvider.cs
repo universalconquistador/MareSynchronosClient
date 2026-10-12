@@ -85,7 +85,7 @@ public class IpcProvider : IHostedService, IMediatorSubscriber
         {
             return Task.FromResult(false);
         }
-        var actor = _dalamudUtil.GetGposeCharacterFromObjectTableByIndex(character.ObjectIndex);
+        var actor = _dalamudUtil.GetCharacterFromObjectTableByIndex(character.ObjectIndex);
 
         if (actor == null)
         {
@@ -102,7 +102,7 @@ public class IpcProvider : IHostedService, IMediatorSubscriber
         {
             return false;
         }
-        var actor = _dalamudUtil.GetGposeCharacterFromObjectTableByIndex(character.ObjectIndex);
+        var actor = _dalamudUtil.GetCharacterFromObjectTableByIndex(character.ObjectIndex);
         if (actor == null)
         {
             return false;
