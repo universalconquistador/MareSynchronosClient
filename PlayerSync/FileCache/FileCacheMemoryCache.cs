@@ -223,6 +223,7 @@ public sealed class FileCacheMemoryCache : IDisposable
         return new MemoryCacheEntryOptions().SetSize(size).SetSlidingExpiration(_slidingExpiration).SetAbsoluteExpiration(_absoluteExpiration);
     }
 
+    // this is used to prevent spamming the db for file entities that don't exist vs having to use a semaphore/gating
     private MemoryCacheEntryOptions CreateNegativeEntryOptions()
     {
         return new MemoryCacheEntryOptions().SetSize(1).SetAbsoluteExpiration(_negativeAbsoluteExpiration);

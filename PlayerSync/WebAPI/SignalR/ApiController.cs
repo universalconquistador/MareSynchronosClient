@@ -300,11 +300,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
                 if (token.IsCancellationRequested) break;
 
-                if (_dalamudUtil.IsOnFrameworkThread)
-                {
-                    await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
-                }
-
                 if (_serverManager.EnableGatewayDiscovery)
                 {
                     ServerState = ServerState.Discovering;

@@ -1114,11 +1114,6 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
                     $"Character data application deferred because the player draw wait ended with {drawResult}");
             }
 
-            if (_dalamudUtil.IsOnFrameworkThread)
-            {
-                await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
-            }
-
             cancellationToken.ThrowIfCancellationRequested();
 
             var moddedPathsData = moddedPaths.GroupBy(entry => entry.Key.GamePath, StringComparer.Ordinal)

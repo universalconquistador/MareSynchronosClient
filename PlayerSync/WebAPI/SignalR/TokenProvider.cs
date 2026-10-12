@@ -71,10 +71,6 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
                     _logger.LogInformation("Sending SecretKey Request to server with auth {auth}", string.Join("", identifier.SecretKeyOrOAuth.Take(10)));
                     var httpClient = _httpClientProvider.GetHttpClient();
                     string ident = await _dalamudUtil.RunOnFrameworkThread(() => _dalamudUtil.GetHashedCIDFromPlayerPointer()).ConfigureAwait(false);
-                    if (_dalamudUtil.IsOnFrameworkThread)
-                    {
-                        await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
-                    }
                     result = await httpClient.PostAsync(tokenUri, new FormUrlEncodedContent(
                     [
                             new KeyValuePair<string, string>("auth", auth),
@@ -206,10 +202,6 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
     public async Task<string?> GetToken()
     {
         JwtIdentifier? jwtIdentifier = await GetIdentifier().ConfigureAwait(false);
-        if (_dalamudUtil.IsOnFrameworkThread)
-        {
-            await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
-        }
         if (jwtIdentifier == null) return null;
 
         if (_tokenCache.TryGetValue(jwtIdentifier, out var token))
@@ -223,10 +215,6 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
     public async Task<string?> GetOrUpdateToken(CancellationToken ct)
     {
         JwtIdentifier? jwtIdentifier = await GetIdentifier().ConfigureAwait(false);
-        if (_dalamudUtil.IsOnFrameworkThread)
-        {
-            await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
-        }
         if (jwtIdentifier == null) return null;
 
         bool renewal = false;

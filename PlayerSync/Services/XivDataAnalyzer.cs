@@ -78,16 +78,17 @@ public sealed class XivDataAnalyzer
         return (outputIndices.Count != 0 && outputIndices.Values.All(u => u.Count > 0)) ? outputIndices : null;
     }
 
-    public unsafe Dictionary<string, List<ushort>>? GetBoneIndicesFromPap(string hash)
+    public unsafe Dictionary<string, List<ushort>>? GetBoneIndicesFromPap(string hash, string filePath)
     {
         if (_configService.Current.BonesDictionary.TryGetValue(hash, out var bones))
             return bones;
 
-        var cacheEntity = _fileCacheManager.GetFirstFileCacheEntityByHash(hash);
-        if (cacheEntity == null)
-            return null;
+        //var cacheEntity = _fileCacheManager.GetFirstFileCacheEntityByHash(hash);
+        //if (cacheEntity == null)
+        //    return null;
 
-        using BinaryReader reader = new BinaryReader(File.Open(cacheEntity.ResolvedFilepath, FileMode.Open, FileAccess.Read, FileShare.Read));
+        //using BinaryReader reader = new BinaryReader(File.Open(cacheEntity.ResolvedFilepath, FileMode.Open, FileAccess.Read, FileShare.Read));
+        using BinaryReader reader = new BinaryReader(File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read));
 
         // most of this shit is from vfxeditor, surely nothing will change in the pap format :copium:
         reader.ReadInt32(); // ignore

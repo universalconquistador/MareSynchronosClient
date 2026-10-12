@@ -28,7 +28,7 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
     private readonly ILogger<FileCacheManager> _logger;
     private readonly IDatabaseProvider<FileCacheDbContext> _db;
 
-    private readonly FileCacheMemoryCache _memoryCache = new(3000000L, TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(300));
+    private readonly FileCacheMemoryCache _memoryCache = new(3000000L, TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(3000));
     private readonly SemaphoreSlim _databaseWriteSemaphore = new(1, 1);
     private readonly string _oldDataFile;
     private readonly HashSet<long> _dbFilesToUpdateTicks = new HashSet<long>();
@@ -1862,8 +1862,8 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
 
     private async Task PreloadMostRecentlyAccessedFileCacheEntitiesAsync(CancellationToken cancellationToken)
     {
-        const int batchSize = 50000;
-        var preloadCount = 1000000;
+        const int batchSize = 10000;
+        var preloadCount = 100000;
 
         if (!_memoryCache.IsMemoryCacheEnabled || preloadCount <= 0)
         {
