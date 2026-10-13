@@ -200,6 +200,7 @@ namespace MareSynchronos.PlayerData.Pairs
         private async Task StartListeningInternal()
         {
             //var ident = await _dalamudUtilService.GetPlayerNameHashedAsync().ConfigureAwait(false);
+            string ident = await _dalamudUtilService.RunOnFrameworkThread(() => _dalamudUtilService.GetHashedCIDFromPlayerPointer()).ConfigureAwait(false);
             try
             {
                 await _apiController.BroadcastStartListening(ident).ConfigureAwait(false);
@@ -221,6 +222,10 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private async Task StopListeningInternal()
         {
+            if (_dalamudUtilService.IsOnFrameworkThread)
+            {
+                await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+            }
             try
             {
                 await _apiController.BroadcastStopListening().ConfigureAwait(false);

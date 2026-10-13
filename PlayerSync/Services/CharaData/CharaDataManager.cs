@@ -977,7 +977,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
                     {
                         var actor = getActor();
 
-                        return actor == null ? DrawState.Missing : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address, actor.ObjectIndex).State;
+                        return actor == null ? DrawState.Missing : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address).State;
                     }).ConfigureAwait(false);
                     if (state == DrawState.Ready)
                     {
@@ -1017,7 +1017,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
                         {
                             var actor = getActor();
 
-                            return actor == null ? DrawState.Missing : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address, actor.ObjectIndex).State;
+                            return actor == null ? DrawState.Missing : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address).State;
                         }).ConfigureAwait(false);
                         if (state != DrawState.Loading)
                         {
@@ -1052,7 +1052,7 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
                         var actor = getActor();
 
                         return actor == null ? DrawState.Missing
-                            : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address, actor.ObjectIndex).State;
+                            : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address).State;
                     }).ConfigureAwait(false);
                     if (state != DrawState.Loading)
                     {

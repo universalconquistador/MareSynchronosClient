@@ -230,7 +230,7 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
         {
             address = _getAddress();
         }
-        var drawState = _dalamudUtil.GetCharacterDrawStateFromFramework(address.Value, _objectIndex);
+        var drawState = _dalamudUtil.GetCharacterDrawStateFromFramework(address.Value);
         if (drawState.State == DrawState.Missing)
         {
             _objectIndex = ushort.MaxValue;

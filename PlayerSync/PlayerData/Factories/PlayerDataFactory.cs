@@ -163,7 +163,7 @@ public class PlayerDataFactory
                 {
                     var actor = characterFunc();
 
-                    return actor == null ? DrawState.Missing : _dalamudUtil.GetCharacterDrawStateFromFramework(actor.Address, actor.ObjectIndex).State;
+                    return actor == null ? DrawState.Missing : _dalamudUtil.GetCharacterDrawStateFromFramework(actor.Address).State;
                 }).ConfigureAwait(false);
                 if (state != DrawState.Loading || timer.ElapsedMilliseconds >= 30000)
                 {
@@ -201,7 +201,6 @@ public class PlayerDataFactory
 
             return (Bones: objectKind == ObjectKind.Player ? _modelAnalyzer.GetSkeletonBoneIndices(actor.Address) : null, Paths: _ipcManager.Penumbra.GetCharacterDataOnFramework(actor.ObjectIndex));
         }).ConfigureAwait(false);
-
         boneIndices = captured.Bones;
         resolvedPaths = captured.Paths;
         if (resolvedPaths == null)
@@ -298,7 +297,7 @@ public class PlayerDataFactory
 
         ct.ThrowIfCancellationRequested();
 
-        fragment.CustomizePlusScale = string.IsNullOrEmpty(fragment.CustomizePlusScale) ? string.Empty 
+        fragment.CustomizePlusScale = string.IsNullOrEmpty(fragment.CustomizePlusScale) ? string.Empty
             : Convert.ToBase64String(Encoding.UTF8.GetBytes(fragment.CustomizePlusScale));
         if (playerFragment != null)
         {
@@ -367,8 +366,7 @@ public class PlayerDataFactory
         {
             ct.ThrowIfCancellationRequested();
 
-            //var skeletonIndices = await _dalamudUtil.RunOnFrameworkThread(() => _modelAnalyzer.GetBoneIndicesFromPap(file.Hash)).ConfigureAwait(false);
-            var skeletonIndices = await _dalamudUtil.RunOnFrameworkThread(() => _modelAnalyzer.GetBoneIndicesFromPap(file.Hash, file.ResolvedPath)).ConfigureAwait(false);
+            var skeletonIndices = await _modelAnalyzer.GetBoneIndicesFromPap(file.Hash, file.ResolvedPath, ct).ConfigureAwait(false);
             bool validationFailed = false;
             if (skeletonIndices != null)
             {

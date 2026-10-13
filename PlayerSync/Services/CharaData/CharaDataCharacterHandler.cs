@@ -89,8 +89,7 @@ public sealed class CharaDataCharacterHandler : DisposableMediatorSubscriberBase
                         ? _dalamudUtilService.GetGposeCharacterFromObjectTableByName(name)
                         : _dalamudUtilService.GetCharacterFromObjectTableByName(name);
 
-                    return actor == null ? DrawState.Missing
-                        : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address, actor.ObjectIndex).State;
+                    return actor == null ? DrawState.Missing : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address).State;
                 }).ConfigureAwait(false);
                 if (state != DrawState.Loading)
                 {

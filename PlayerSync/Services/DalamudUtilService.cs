@@ -386,25 +386,9 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     /// <summary>
     /// Gets the character's draw state after ensuring the provided address is still valid in the ObjectTable
     /// </summary>
-    public CharacterDrawState GetCharacterDrawStateFromFramework(nint address, ushort objectIndex = ushort.MaxValue, bool requireRenderable = true)
+    public CharacterDrawState GetCharacterDrawStateFromFramework(nint address, bool requireRenderable = true)
     {
         EnsureIsOnFramework();
-        if (address == nint.Zero || GetCharacterFromObjectTableByAddressWhenAlreadyOnFrameworkThread(address) == null)
-        {
-            return new(DrawState.Missing, DrawCondition.ObjectZero);
-        }
-        //if (objectIndex < 200 && _objectTable[objectIndex] is ICharacter character && character.IsValid() && character.Address == address)
-        //{
-        //    return GetCharacterDrawStateFromFrameworkInternal(address, requireRenderable);
-        //}
-        //if (objectIndex >= GposeFirstObjectIndex && GetCharacterFromObjectTableByIndex(objectIndex) is { } gposeCharacter && gposeCharacter.Address == address)
-        //{
-        //    return GetCharacterDrawStateFromFrameworkInternal(address, requireRenderable);
-        //}
-        //if (GetCharacterFromObjectTableByAddressWhenAlreadyOnFrameworkThread(address) == null)
-        //{
-        //    return new(DrawState.Missing, DrawCondition.ObjectZero);
-        //}
 
         return GetCharacterDrawStateFromFrameworkInternal(address, requireRenderable);
     }
@@ -412,7 +396,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     /// <summary>
     /// Gets the character's draw state
     /// </summary>
-    private unsafe CharacterDrawState GetCharacterDrawStateFromFrameworkInternal(nint address, bool requireRenderable)
+    private static unsafe CharacterDrawState GetCharacterDrawStateFromFrameworkInternal(nint address, bool requireRenderable)
     {
         if (address == nint.Zero)
         {
@@ -805,16 +789,11 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return WorldToDataCenterIdData.Value.TryGetValue(worldId, out var dataCenterId) ? dataCenterId : null;
     }
 
-    private unsafe ushort GetZoneId()
+    public unsafe ushort GetZoneId()
     {
         EnsureIsOnFramework();
         var readZoneId = ContentsReplayManager.Instance();
         return readZoneId != null ? readZoneId->ZoneInitPacket.Instance : (ushort)0;
-    }
-
-    public async Task<ushort> GetZoneIdAsync()
-    {
-        return await RunOnFrameworkThread(GetZoneId).ConfigureAwait(false);
     }
 
     public async Task<uint> GetWorldIdAsync()
@@ -966,13 +945,13 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
             ct.ThrowIfCancellationRequested();
             var drawState = await RunOnFrameworkThread(() =>
             {
-                if (!TryGetPlayerAddressAndIndexOnFrameworkByContentId(contentId, out var ownerAddress, out var ownerIndex))
+                if (!TryGetPlayerAddressAndIndexOnFrameworkByContentId(contentId, out var ownerAddress, out _))
                 {
                     return new CharacterDrawState(DrawState.Missing, DrawCondition.ObjectZero);
                 }
 
                 nint address = GetObjectAddressByObjectKindAndAddress(objectKind, ownerAddress);
-                var state = GetCharacterDrawStateFromFramework(address, objectKind == API.Data.Enum.ObjectKind.Player ? ownerIndex : ushort.MaxValue, objectKind == API.Data.Enum.ObjectKind.Player);
+                var state = GetCharacterDrawStateFromFramework(address, requireRenderable: objectKind == API.Data.Enum.ObjectKind.Player);
                 _logger.LogTrace("[{guid}]- Draw state for {contentId}/{objectKind} is {state}", redrawId, contentId, objectKind, state);
 
                 return state;
