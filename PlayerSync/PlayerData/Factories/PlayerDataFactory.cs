@@ -15,7 +15,7 @@ using System.Text;
 
 namespace MareSynchronos.PlayerData.Factories;
 
-public class PlayerDataFactory
+public class PlayerDataFactory : DisposableMediatorSubscriberBase
 {
     private static readonly TimeSpan ReportErrorIntervalMinutes = TimeSpan.FromMinutes(5);
 
@@ -25,7 +25,6 @@ public class PlayerDataFactory
     private readonly ILogger<PlayerDataFactory> _logger;
     private readonly PerformanceCollectorService _performanceCollector;
     private readonly XivDataAnalyzer _modelAnalyzer;
-    private readonly MareMediator _mareMediator;
     private readonly TransientResourceManager _transientResourceManager;
     private bool _isFirstTimeLoading = true;
 
@@ -33,7 +32,7 @@ public class PlayerDataFactory
 
     public PlayerDataFactory(ILogger<PlayerDataFactory> logger, DalamudUtilService dalamudUtil, IpcManager ipcManager,
         TransientResourceManager transientResourceManager, FileCacheManager fileReplacementFactory,
-        PerformanceCollectorService performanceCollector, XivDataAnalyzer modelAnalyzer, MareMediator mareMediator)
+        PerformanceCollectorService performanceCollector, XivDataAnalyzer modelAnalyzer, MareMediator mareMediator) : base(logger, mareMediator)
     {
         _logger = logger;
         _dalamudUtil = dalamudUtil;
@@ -42,8 +41,10 @@ public class PlayerDataFactory
         _fileCacheManager = fileReplacementFactory;
         _performanceCollector = performanceCollector;
         _modelAnalyzer = modelAnalyzer;
-        _mareMediator = mareMediator;
         _logger.LogTrace("Creating {this}", nameof(PlayerDataFactory));
+
+        Mediator.Subscribe<DisconnectedMessage>(this, (_) => _isFirstTimeLoading = true);
+        Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => _isFirstTimeLoading = true);
     }
 
     public Task<CharacterDataFragment?> BuildCharacterData(GameObjectHandler playerRelatedObject, CancellationToken token)
@@ -80,12 +81,22 @@ public class PlayerDataFactory
 
         try
         {
-            if (_isFirstTimeLoading)
+            if (_isFirstTimeLoading && objectKind == ObjectKind.Player && playerRelatedObject != null)
             {
                 await _dalamudUtil.RunOnFrameworkThread(() =>
                 {
                     var address = _dalamudUtil.GetPlayerPtr();
-                    _ipcManager.Penumbra.RedrawOnFramework(_logger, Guid.Empty, address);
+                    playerRelatedObject.IsRedrawingViaIpcRequest = true;
+                    try
+                    {
+                        _ipcManager.Penumbra.RedrawOnFramework(_logger, Guid.Empty, address);
+                    }
+                    catch
+                    {
+                        playerRelatedObject.IsRedrawingViaIpcRequest = false;
+
+                        throw;
+                    }
 
                     var minionOrMount = _dalamudUtil.GetMinionOrMountPtrFromFramework(address);
                     if (minionOrMount != IntPtr.Zero)
@@ -103,6 +114,27 @@ public class PlayerDataFactory
                         _ipcManager.Penumbra.RedrawOnFramework(_logger, Guid.Empty, pet);
                     }
                 }).ConfigureAwait(false);
+
+                var start = Stopwatch.GetTimestamp();
+                try
+                {
+                    // this is unholy required because you can initialize an invalid state in glamourer by fetching data via the IPC while
+                    // the character is mid Penumbra redraw and if you are unlucky you will get a character with all your gear missing (naked)
+                    while (playerRelatedObject.IsRedrawingViaIpcRequest)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        if (Stopwatch.GetElapsedTime(start) >= TimeSpan.FromSeconds(30))
+                        {
+                            throw new TimeoutException("Initial player redraw event was not received!");
+                        }
+
+                        await Task.Delay(20, token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    playerRelatedObject.IsRedrawingViaIpcRequest = false;
+                }
 
                 _isFirstTimeLoading = false;
             }
@@ -131,7 +163,7 @@ public class PlayerDataFactory
                 if (now > _nextErrorTime)
                 {
                     _nextErrorTime = now.Add(ReportErrorIntervalMinutes);
-                    _mareMediator.Publish(new NotificationMessage("Character Data Failed", "One or more errors occurred when creating character data. " +
+                    Mediator.Publish(new NotificationMessage("Character Data Failed", "One or more errors occurred when creating character data. " +
                         "Check the /xllog for more details.", NotificationType.Error));
                 }
             }
@@ -406,7 +438,7 @@ public class PlayerDataFactory
 
         if (noValidationFailed > 0)
         {
-            _mareMediator.Publish(new NotificationMessage("Invalid Skeleton Setup",
+            Mediator.Publish(new NotificationMessage("Invalid Skeleton Setup",
                 $"Your client is attempting to send {noValidationFailed} animation files with invalid bone data. Those animation files have been removed from your sent data. " +
                 $"Verify that you are using the correct skeleton for those animation files (Check /xllog for more information).",
                 NotificationType.Warning, TimeSpan.FromSeconds(10)));

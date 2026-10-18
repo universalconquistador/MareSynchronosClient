@@ -28,7 +28,7 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
     private int _disposed;
     private ushort _objectIndex = ushort.MaxValue;
     private bool _gameObjectPresent;
-    private bool _isRedrawing;
+    private volatile bool _isRedrawing;
     private long _redrawTimeStart = -1;
 
     public GameObjectHandler(ILogger<GameObjectHandler> logger, PerformanceCollectorService performanceCollector, MareMediator mediator,
