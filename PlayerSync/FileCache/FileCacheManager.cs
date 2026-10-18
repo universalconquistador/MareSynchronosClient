@@ -508,8 +508,28 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
     /// This is used for file scans and file downloads, do not use it for player/pair mod lookups!
     /// This method does not use memory caching.
     /// </summary>
-    public async Task<FileCacheEntity?> UpdateOrCreateFileCacheEntityByPath(string path, FileCacheStore store, CancellationToken cancellationToken = default, bool forceUpdate = false, bool markAccessed = false)
+    public async Task<FileCacheEntity?> UpdateOrCreateFileCacheEntityByPath(string path, FileCacheStore store, CancellationToken cancellationToken = default, bool forceUpdate = false, bool markAccessed = false, string? verifiedHash = null)
     {
+        if (verifiedHash != null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var fileInfo = new FileInfo(path);
+            if (!fileInfo.Exists)
+            {
+                return null;
+            }
+            var filePathWithinFileStore = GetFilePathWithinFileStore(fileInfo.FullName, store);
+            if (filePathWithinFileStore == null)
+            {
+                return null;
+            }
+            var fileCache = new FileCacheEntity(verifiedHash, filePathWithinFileStore, store, markAccessed && store == FileCacheStore.Cache ? DateTime.UtcNow.Ticks : fileInfo.LastWriteTimeUtc.Ticks, fileInfo.LastWriteTimeUtc.Ticks, fileInfo.Length);
+            fileCache.SetResolvedFilePath(fileInfo.FullName);
+            var updatedFileCaches = await UpdateOrCreateFileCacheEntitiesAsync([fileCache], store, cancellationToken, markAccessed).ConfigureAwait(false);
+
+            return updatedFileCaches.FirstOrDefault();
+        }
+
         var fileCaches = await UpdateOrCreateFileCacheEntitiesByPathsAsync([path], store, cancellationToken, forceUpdate, markAccessed).ConfigureAwait(false);
 
         return fileCaches.FirstOrDefault();

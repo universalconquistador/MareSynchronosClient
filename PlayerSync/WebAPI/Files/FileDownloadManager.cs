@@ -12,6 +12,7 @@ using PlayerSync.FileCache;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace MareSynchronos.WebAPI.Files;
@@ -510,7 +511,6 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                     }
 
                     // Decompress from tempFilename to finalFilename
-                    // TODO: Really we shouldn't stream to a temp file only to read it all into one buffer to decompress and write back out
                     statusCallback.Invoke(DownloadStatus.Decompressing);
 
                     try
@@ -520,10 +520,13 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                         Logger.LogDebug("Decompressing direct download {hash} from {compressedFile} to {finalFile}", directDownload.Hash, tempFilename, finalFilename);
                         byte[] compressedBytes = await File.ReadAllBytesAsync(tempFilename).ConfigureAwait(false);
                         var decompressedBytes = LZ4Wrapper.Unwrap(compressedBytes);
-                        
+                        var downloadedHash = Convert.ToHexString(SHA1.HashData(decompressedBytes));
+                        if (!string.Equals(downloadedHash, directDownload.Hash, StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidDataException($"Downloaded file hash mismatch: expected {directDownload.Hash}, got {downloadedHash}");
+                        }
                         await _fileCompactor.WriteAllBytesAsync(finalFilename, decompressedBytes, CancellationToken.None).ConfigureAwait(false);
-
-                        if (await PersistFileToStorageAsync(directDownload.Hash, finalFilename, ct).ConfigureAwait(false))
+                        if (await PersistFileToStorageAsync(downloadedHash, finalFilename, ct).ConfigureAwait(false))
                         {
                             Logger.LogDebug("Finished direct download of {hash}.", directDownload.Hash);
                         }
@@ -596,19 +599,17 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
                 return false;
             }
-
             DateTime RandomDayInThePast()
             {
                 DateTime start = new(1995, 1, 1, 1, 1, 1, DateTimeKind.Utc);
                 int range = (DateTime.UtcNow.Date - start.Date).Days;
+
                 return start.AddDays(Random.Shared.Next(range));
             }
-
             fi.CreationTimeUtc = RandomDayInThePast();
             fi.LastAccessTimeUtc = DateTime.UtcNow;
             fi.LastWriteTimeUtc = RandomDayInThePast();
-
-            var entry = await _fileDbManager.UpdateOrCreateFileCacheEntityByPath(filePath, FileCacheStore.Cache, cancellationToken, forceUpdate: true, markAccessed: true).ConfigureAwait(false);
+            var entry = await _fileDbManager.UpdateOrCreateFileCacheEntityByPath(filePath, FileCacheStore.Cache, cancellationToken, forceUpdate: true, markAccessed: true, verifiedHash: fileHash).ConfigureAwait(false);
             if (entry == null)
             {
                 Logger.LogError("Could not create or update the file cache for {path}", filePath);
@@ -616,23 +617,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 return false;
             }
 
-            if (string.Equals(entry.Hash, fileHash, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            Logger.LogError("Hash mismatch got: {hash} expected: {expectedHash} Deleting file", entry.Hash, fileHash);
-
-            try
-            {
-                File.Delete(filePath);
-            }
-            finally
-            {
-                await _fileDbManager.RemoveFileCacheEntity(entry, cancellationToken).ConfigureAwait(false);
-            }
-
-            return false;
+            return true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
