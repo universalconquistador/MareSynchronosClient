@@ -599,7 +599,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         await ValidatePairDataApplicationReadiness(dataApplication, linkedToken).ConfigureAwait(false);
 
         // this is a shortcut for instances where only addon data has changed and we don't want to check mod files again
-        if (dataApplication.CharacterDataToUpdate.TryGetValue(ObjectKind.Player, out var playerChanges) && playerChanges.Count == 1)
+        if (dataApplication.CharacterDataToUpdate.Count == 1 && dataApplication.CharacterDataToUpdate.TryGetValue(ObjectKind.Player, out var playerChanges) && playerChanges.Count == 1)
         {
             var playerChange = playerChanges.First();
             if (_playerChangesToAddonPlugin.ContainsKey(playerChange))
@@ -1514,14 +1514,16 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         }
 
         var result = await _dalamudUtil.WaitWhileCharacterIsDrawing(Logger, Pair.ContendId, objectKind, applicationId, 10000, linkedToken, charaHandler).ConfigureAwait(false);
-        if (result == DrawWaitResult.Missing && objectKind != ObjectKind.Player)
+        if (result == DrawWaitResult.Missing)
         {
-            return null;
-        }
-        if (result != DrawWaitResult.Ready)
-        {
+            if (objectKind != ObjectKind.Player)
+            {
+                return null;
+            }
             throw new PairDataApplicationException(PairDataExceptionReason.InvalidCharacterState, $"Draw wait for {objectKind} ended with {result}");
         }
+        // I wanted to do DrawWaitResult.Ready above but you just have to sit and wait forever or just move on because loading with a ton of playes and the games culling
+        // can cause some wicked player loading loops if we throw and retry over and over again with redraws
 
         return $"{Pair.PairUIDName}/{objectKind}";
     }
