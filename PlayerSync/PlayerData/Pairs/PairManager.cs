@@ -76,6 +76,7 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         Mediator.Subscribe<ConnectedMessage>(this, (_) => _isConnected = true);
         Mediator.Subscribe<CutsceneEndMessage>(this, (_) => ReapplyPairData());
         Mediator.Subscribe<ChangeFilterMessage>(this, (_) => ReapplyPairData());
+        Mediator.Subscribe<UnpauseByReasonMessage>(this, (msg) => _ = UnpauseByReasonAsync(msg.Reason));
         Mediator.Subscribe<ZoneSwitchStartMessage>(this, (_) =>
         {
             _isZoning = true;
@@ -621,6 +622,30 @@ public sealed class PairManager : DisposableMediatorSubscriberBase
         foreach (var pair in _allClientPairs.Select(k => k.Value))
         {
             pair.ApplyLastReceivedData(forced: true);
+        }
+    }
+
+    private async Task UnpauseByReasonAsync(PauseReason reason)
+    {
+        var pairsToUnPause = _allClientPairs.Select(k => k.Value)
+            .Where(p => p.IsPaused && _serverConfigurationManager.GetPauseReasonForUid(p.UserData.UID) == reason)
+            .Select(p => p.UserData)
+            .ToList();
+
+        var feature = reason switch
+        {
+            PauseReason.ThresholdHeight => "Auto height pausing",
+            _ => "Auto pausing"
+        };
+        Mediator.Publish(new NotificationMessage("Auto Unpause", $"{feature} disabled", NotificationType.Info));
+
+        foreach (var userData in pairsToUnPause)
+        {
+            Logger.LogDebug("Automatically removing paused status for UID: {uid} (reason: {reason})", userData.UID, reason);
+            _serverConfigurationManager.RemovePauseReasonForUid(userData.UID);
+            _serverConfigurationManager.RemovePendingPauseForUid(userData.UID);
+            Mediator.Publish(new UnPauseMessage(userData, false));
+            await Task.Delay(250).ConfigureAwait(false);
         }
     }
 

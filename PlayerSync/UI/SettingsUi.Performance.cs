@@ -335,6 +335,10 @@ public partial class SettingsUi
             {
                 Mediator.Publish(new ChangeFilterMessage());
             }
+            else
+            {
+                Mediator.Publish(new UnpauseByReasonMessage(PauseReason.ThresholdHeight));
+            }
         }
         UiSharedService.ColorTextWrapped("Toggle this feature off/on again after changing values to refresh pairs immediately.", ImGuiColors.DalamudRed);
         
