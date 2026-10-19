@@ -8,7 +8,6 @@ using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using PlayerSync.FileCache;
-using PlayerSync.Utils;
 
 namespace MareSynchronos.PlayerData.Factories;
 
@@ -29,7 +28,6 @@ public class PairDataApplicationHandlerFactory
     private readonly MareConfigService _mareConfigService;
     private readonly IDataManager _dataManager;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
-    //private readonly JsonlStreamLogger _jsonlStreamLogger;
 
     public PairDataApplicationHandlerFactory(ILoggerFactory loggerFactory, GameObjectHandlerFactory gameObjectHandlerFactory, IpcManager ipcManager,
         FileDownloadManagerFactory fileDownloadManagerFactory, DalamudUtilService dalamudUtilService,
@@ -53,7 +51,6 @@ public class PairDataApplicationHandlerFactory
         _mareConfigService = mareConfigService;
         _dataManager = dataManager;
         _zoneSyncConfigService = zoneSyncConfigService;
-        //_jsonlStreamLogger = jsonlStreamLogger;
     }
 
     public PairDataApplicationHandler Create(Pair pair)

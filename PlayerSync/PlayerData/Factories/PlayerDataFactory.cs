@@ -214,7 +214,7 @@ public class PlayerDataFactory : DisposableMediatorSubscriberBase
         }
         if (waitResult != DrawWaitResult.Ready)
         {
-            throw new InvalidDataException($"Cannot collect {objectKind}: draw wait ended with {waitResult}.");
+            throw new InvalidDataException($"Cannot collect {objectKind}: draw wait ended with {waitResult}");
         }
 
         ct.ThrowIfCancellationRequested();
@@ -228,7 +228,7 @@ public class PlayerDataFactory : DisposableMediatorSubscriberBase
 
             if (actor == null)
             {
-                throw new InvalidDataException("Character became unavailable during capture.");
+                throw new InvalidDataException("Character became unavailable during capture");
             }
 
             return (Bones: objectKind == ObjectKind.Player ? _modelAnalyzer.GetSkeletonBoneIndices(actor.Address) : null, Paths: _ipcManager.Penumbra.GetCharacterDataOnFramework(actor.ObjectIndex));
@@ -307,7 +307,7 @@ public class PlayerDataFactory : DisposableMediatorSubscriberBase
             var chara = characterFunc == null ? playerRelatedObject!.GetGameObject() as ICharacter : characterFunc();
             if (chara == null)
             {
-                throw new InvalidOperationException("Player character became unavailable while collecting IPC data.");
+                throw new InvalidOperationException("Player character became unavailable while collecting IPC data");
             }
 
             var index = chara.ObjectIndex;
@@ -329,12 +329,10 @@ public class PlayerDataFactory : DisposableMediatorSubscriberBase
 
         ct.ThrowIfCancellationRequested();
 
-        fragment.CustomizePlusScale = string.IsNullOrEmpty(fragment.CustomizePlusScale) ? string.Empty
-            : Convert.ToBase64String(Encoding.UTF8.GetBytes(fragment.CustomizePlusScale));
+        fragment.CustomizePlusScale = string.IsNullOrEmpty(fragment.CustomizePlusScale) ? string.Empty : Convert.ToBase64String(Encoding.UTF8.GetBytes(fragment.CustomizePlusScale));
         if (playerFragment != null)
         {
-            playerFragment.HonorificData = string.IsNullOrEmpty(playerFragment.HonorificData) ? string.Empty
-                : Convert.ToBase64String(Encoding.UTF8.GetBytes(playerFragment.HonorificData));
+            playerFragment.HonorificData = string.IsNullOrEmpty(playerFragment.HonorificData) ? string.Empty : Convert.ToBase64String(Encoding.UTF8.GetBytes(playerFragment.HonorificData));
         }
 
         // remove missing mods files

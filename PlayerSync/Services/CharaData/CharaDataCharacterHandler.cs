@@ -10,7 +10,6 @@ public sealed class CharaDataCharacterHandler : DisposableMediatorSubscriberBase
 {
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly IpcManager _ipcManager;
-    private readonly RedrawManager _redrawManager;
     private readonly HashSet<HandledCharaDataEntry> _handledCharaData = [];
 
     public IEnumerable<HandledCharaDataEntry> HandledCharaData
@@ -24,12 +23,10 @@ public sealed class CharaDataCharacterHandler : DisposableMediatorSubscriberBase
         }
     }
 
-    public CharaDataCharacterHandler(ILogger<CharaDataCharacterHandler> logger, MareMediator mediator, DalamudUtilService dalamudUtilService, IpcManager ipcManager, RedrawManager redrawManager) 
-        : base(logger, mediator)
+    public CharaDataCharacterHandler(ILogger<CharaDataCharacterHandler> logger, MareMediator mediator, DalamudUtilService dalamudUtilService, IpcManager ipcManager) : base(logger, mediator)
     {
         _dalamudUtilService = dalamudUtilService;
         _ipcManager = ipcManager;
-        _redrawManager = redrawManager;
         mediator.Subscribe<GposeEndMessage>(this, (__) =>
         {
             foreach (var chara in HandledCharaData)

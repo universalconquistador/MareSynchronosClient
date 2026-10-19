@@ -25,7 +25,6 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
     private readonly DalamudUtilService _dalamudUtilService;
     private readonly CharaDataFileHandler _fileHandler;
     private readonly IpcManager _ipcManager;
-    private readonly RedrawManager _redrawManager;
     private readonly PairManager _pairManager;
     private readonly CharaDataNearbyManager _nearbyManager;
     private readonly CharaDataCharacterHandler _characterHandler;
@@ -49,12 +48,11 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
         MareMediator mareMediator, IpcManager ipcManager, DalamudUtilService dalamudUtilService,
         FileDownloadManagerFactory fileDownloadManagerFactory,
         CharaDataConfigService charaDataConfigService, CharaDataNearbyManager charaDataNearbyManager,
-        CharaDataCharacterHandler charaDataCharacterHandler, PairManager pairManager, RedrawManager redrawManager) : base(logger, mareMediator)
+        CharaDataCharacterHandler charaDataCharacterHandler, PairManager pairManager) : base(logger, mareMediator)
     {
         _apiController = apiController;
         _fileHandler = charaDataFileHandler;
         _ipcManager = ipcManager;
-        _redrawManager = redrawManager;
         _dalamudUtilService = dalamudUtilService;
         _configService = charaDataConfigService;
         _nearbyManager = charaDataNearbyManager;
@@ -941,7 +939,6 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             }
             token.ThrowIfCancellationRequested();
             string decodedScale = string.IsNullOrEmpty(customizeData) ? "{}" : Encoding.UTF8.GetString(Convert.FromBase64String(customizeData));
-            await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
             try
             {
                 DataApplicationProgress = "Applying Penumbra information";
@@ -1081,17 +1078,10 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             }
             finally
             {
-                try
+                if (penumbraCollection != Guid.Empty)
                 {
-                    if (penumbraCollection != Guid.Empty)
-                    {
-                        await _dalamudUtilService.RunOnFrameworkThread(() =>
-                            _ipcManager.Penumbra.RemoveTemporaryCollectionOnFramework(Logger, applicationId, penumbraCollection)).ConfigureAwait(false);
-                    }
-                }
-                finally
-                {
-                    _redrawManager.RedrawSemaphore.Release();
+                    await _dalamudUtilService.RunOnFrameworkThread(() =>
+                        _ipcManager.Penumbra.RemoveTemporaryCollectionOnFramework(Logger, applicationId, penumbraCollection)).ConfigureAwait(false);
                 }
             }
             if (autoRevert)

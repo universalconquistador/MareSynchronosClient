@@ -15,7 +15,6 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
     private readonly IDalamudPluginInterface _pi;
     private readonly DalamudUtilService _dalamudUtil;
     private readonly MareMediator _mareMediator;
-    private readonly RedrawManager _redrawManager;
     private bool _shownPenumbraUnavailable = false;
     private string? _penumbraModDirectory;
     public string? ModDirectory
@@ -51,13 +50,11 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
     private readonly ResolvePlayerPathsAsync _penumbraResolvePaths;
     private readonly GetGameObjectResourcePaths _penumbraResourcePaths;
 
-    public IpcCallerPenumbra(ILogger<IpcCallerPenumbra> logger, IDalamudPluginInterface pi, DalamudUtilService dalamudUtil,
-        MareMediator mareMediator, RedrawManager redrawManager) : base(logger, mareMediator)
+    public IpcCallerPenumbra(ILogger<IpcCallerPenumbra> logger, IDalamudPluginInterface pi, DalamudUtilService dalamudUtil, MareMediator mareMediator) : base(logger, mareMediator)
     {
         _pi = pi;
         _dalamudUtil = dalamudUtil;
         _mareMediator = mareMediator;
-        _redrawManager = redrawManager;
         _penumbraInit = Initialized.Subscriber(pi, PenumbraInit);
         _penumbraDispose = Disposed.Subscriber(pi, PenumbraDispose);
         _penumbraResolveModDir = new GetModDirectory(pi);
@@ -356,7 +353,6 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
 
         string modKey = uid == null ? "MareChara_Meta" : $"PS_{uid}_Meta";
 
-        //logger.LogTrace("[{applicationId}] Manip: {data}", applicationId, manipulationData);
         var retAdd = _penumbraAddTemporaryMod.Invoke(modKey, collId, [], manipulationData, 0);
         logger.LogTrace("[{applicationId}] Setting temp meta mod for {collId}, Success: {ret}", applicationId, collId, retAdd);
     }
@@ -384,7 +380,6 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
 
     private void PenumbraDispose()
     {
-        //_redrawManager.Cancel();
         _mareMediator.Publish(new PenumbraDisposedMessage());
     }
 

@@ -75,7 +75,7 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
             ZoneSwitchEnd();
         });
 
-        // TODO: do something with this
+        // TODO: do something with this, use or delete it
         Mediator.Subscribe<PenumbraStartRedrawMessage>(this, (msg) =>
         {
             if (string.Equals(msg.Name, Name, StringComparison.OrdinalIgnoreCase))
@@ -84,7 +84,7 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
             }
         });
 
-        // TODO: do something with this
+        // TODO: do something with this, use or delete it
         Mediator.Subscribe<PenumbraEndRedrawMessage>(this, (msg) =>
         {
             if (string.Equals(msg.Name, Name, StringComparison.OrdinalIgnoreCase))
@@ -155,12 +155,9 @@ public sealed class GameObjectHandler : DisposableMediatorSubscriberBase, IHighP
         }
     }
     internal bool IsOwnedObject => _isOwnedObject;
-    //public byte Gender { get; private set; }
     public string Name { get; private set; }
     public ObjectKind ObjectKind { get; }
     public ulong PlayerCharacterId { get; private set; }
-    //public byte RaceId { get; private set; }
-    //public byte TribeId { get; private set; }
     private byte[] CustomizeData { get; set; } = new byte[26];
     private byte[] EquipSlotData { get; set; } = new byte[40];
     private ushort[] MainHandData { get; set; } = new ushort[3];

@@ -202,52 +202,6 @@ public sealed class IpcCallerLoci : IIpcCaller
         }
     }
 
-    /// <inheritdoc cref="LociApi.Ipc.ClearManagerByName"/>
-    //public async Task ClearPlayerManager(string playerNameWorld)
-    //{
-    //    if (!APIAvailable) return;
-
-    //    try
-    //    {
-    //        await _dalamudUtil.RunOnFrameworkThread(() => _lociClearManagerByName.Invoke(playerNameWorld)).ConfigureAwait(false);
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogWarning(ex, "Error clearing status manager for player {PlayerNameWorld}: ", playerNameWorld);
-    //    }
-    //}
-
-    /// <inheritdoc cref="LociApi.Ipc.ClearManagerByName"/>
-    //public async Task ClearBuddyManager(string playerName, string buddyName)
-    //{
-    //    if (!APIAvailable) return;
-
-    //    try
-    //    {
-    //        await _dalamudUtil.RunOnFrameworkThread(() => _lociClearManagerByName.Invoke(playerName, buddyName)).ConfigureAwait(false);
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogWarning(ex, "Error clearing status manager for buddy {BuddyName} of player {PlayerName}: ", buddyName, playerName);
-    //    }
-    //}
-
-    /// <inheritdoc cref="LociApi.Ipc.ConvertLegacyData"/>
-    //public string ConvertToLociData(string legacyStatusManagerBase64)
-    //{
-    //    if (!APIAvailable) return string.Empty;
-
-    //    try
-    //    {
-    //        return _lociConvertLegacyData.Invoke(legacyStatusManagerBase64);
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogWarning(ex, "Error converting legacy data to Loci format: ");
-    //        return string.Empty;
-    //    }
-    //}
-
     private void OnLociReady()
     {
         APIAvailable = true;

@@ -921,8 +921,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
 
                     MissingFiles.TryAdd(missing.Hash, string.Join(", ", missing.GamePaths));
 
-                    Logger.LogWarning(
-                        "[BASE-{appBase}] Missing files for {pair}: Requested Hash: {hash}, Requested Paths: {paths}, DTO entries: {dtoEntries}",
+                    Logger.LogWarning("[BASE-{appBase}] Missing files for {pair}: Requested Hash: {hash}, Requested Paths: {paths}, DTO entries: {dtoEntries}",
                         applicationBase, Pair.PairUIDName, missing.Hash, string.Join(", ", missing.GamePaths), string.Join(" | ", dtoEntries));
                 }
 
@@ -1271,7 +1270,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         {
             orderedCharacterChanges.Where(change => change == PlayerChanges.Glamourer).ToArray(),
             orderedCharacterChanges.Where(change => change != PlayerChanges.Glamourer && change != PlayerChanges.ForcedRedraw).ToArray(),
-            orderedCharacterChanges.Where(change => change == PlayerChanges.ForcedRedraw).Take(1).ToArray(),
+            orderedCharacterChanges.Where(change => change == PlayerChanges.ForcedRedraw).Take(1).ToArray(), // hash set so this should only ever be one, but just in case someone changes it
         };
 
         var penumbraCollection = _penumbraCollection!.Value;
@@ -1497,8 +1496,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
                 }
             }
 
-            Logger.LogTrace(
-                "[{applicationId}] Framework IPC times for {player} {objectKind}: PenumbraAssignTemp {PenumbraAssignTemp:F3}ms PenumbraSetTemp {PenumbraSetTemp:F3}ms PenumbraSetManip {PenumbraSetManip:F3}ms CustomizeSet {CustomizeSetMs:F3}ms CustomizeRevert {CustomizeRevertMs:F3}ms Heels {HeelsMs:F3}ms Honorific {HonorificMs:F3}ms Glamourer {GlamourerMs:F3}ms Moodles {MoodlesMs:F3}ms LociRegister {LociRegisterMs:F3}ms LociSet {LociSetMs:F3}ms PetNames {PetNamesMs:F3}ms Redraw {RedrawMs:F3}ms Total framework time: {TotalMs:F3}ms",
+            Logger.LogTrace("[{applicationId}] Framework IPC times for {player} {objectKind}: PenumbraAssignTemp {PenumbraAssignTemp:F3}ms PenumbraSetTemp {PenumbraSetTemp:F3}ms PenumbraSetManip {PenumbraSetManip:F3}ms CustomizeSet {CustomizeSetMs:F3}ms CustomizeRevert {CustomizeRevertMs:F3}ms Heels {HeelsMs:F3}ms Honorific {HonorificMs:F3}ms Glamourer {GlamourerMs:F3}ms Moodles {MoodlesMs:F3}ms LociRegister {LociRegisterMs:F3}ms LociSet {LociSetMs:F3}ms PetNames {PetNamesMs:F3}ms Redraw {RedrawMs:F3}ms Total framework time: {TotalMs:F3}ms",
                 applicationId, Pair.PairUIDName, objectKind, penumbraAssignTempTime, penumbraSetTempTime, penumbraSetManipTime, customizeSetTime, customizeRevertTime, heelsTime, honorificTime,
                 glamourerTime, moodlesTime, lociRegisterTime, lociSetTime, petNamesTime, redrawTime, totalIpcTime);
         }
@@ -1931,7 +1929,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
                         catch (InvalidOperationException ex)
                         {
                             Logger.LogWarning(ex, "Failed disposing player (not present anymore?)");
-
+                            // TODO: a tracking service to try and revert these players again once seen
                             break;
                         }
                     }
@@ -1941,6 +1939,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Error on disposal of {name}", name);
+            // TODO: a tracking service to try and revert these players again once seen
         }
         finally
         {

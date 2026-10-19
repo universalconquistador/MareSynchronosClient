@@ -37,7 +37,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 {
     public readonly record struct ObjectTablePlayersFrameworkUpdate(ulong ContentId, string Ident, string Name, bool IsVisible);
 
-    // Any class variables defined here with nint or IntPtr will be removed
     private readonly List<uint> _classJobIdsIgnoredForPets = [30];
     public readonly ulong InstalledExpansions; // each bit is whether the corresponding expansion is installed, with bit 0 being the base game
     private readonly IClientState _clientState;

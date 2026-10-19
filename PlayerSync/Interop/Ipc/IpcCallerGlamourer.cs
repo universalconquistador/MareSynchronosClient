@@ -15,7 +15,6 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
     private readonly IDalamudPluginInterface _pi;
     private readonly DalamudUtilService _dalamudUtil;
     private readonly MareMediator _mareMediator;
-    private readonly RedrawManager _redrawManager;
 
     private readonly ApiVersion _glamourerApiVersions;
     private readonly ApplyState? _glamourerApplyAll;
@@ -29,8 +28,7 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
     private bool _shownGlamourerUnavailable = false;
     private readonly uint LockCode = 0x73796E63;
 
-    public IpcCallerGlamourer(ILogger<IpcCallerGlamourer> logger, IDalamudPluginInterface pi, DalamudUtilService dalamudUtil, MareMediator mareMediator,
-        RedrawManager redrawManager) : base(logger, mareMediator)
+    public IpcCallerGlamourer(ILogger<IpcCallerGlamourer> logger, IDalamudPluginInterface pi, DalamudUtilService dalamudUtil, MareMediator mareMediator) : base(logger, mareMediator)
     {
         _glamourerApiVersions = new ApiVersion(pi);
         _glamourerGetAllCustomization = new GetStateBase64(pi);
@@ -44,7 +42,6 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
         _pi = pi;
         _dalamudUtil = dalamudUtil;
         _mareMediator = mareMediator;
-        _redrawManager = redrawManager;
         CheckAPI();
 
         _glamourerStateChanged = StateChanged.Subscriber(pi, GlamourerChanged);
@@ -57,7 +54,6 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
     {
         base.Dispose(disposing);
 
-        //_redrawManager.Cancel();
         _glamourerStateChanged?.Dispose();
     }
 

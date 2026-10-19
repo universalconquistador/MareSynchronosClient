@@ -497,6 +497,7 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
         var pathPrefix = filePathWithinFileStore.TrimEnd('\\') + "\\";
 
         await using var db = _db.CreateDbContext();
+
         return await db.FileCaches
             .AsNoTracking()
             .Where(fileCache => fileCache.Store == store && (fileCache.FilePathWithinFileStore == filePathWithinFileStore 
@@ -2099,7 +2100,6 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
             }
 
             DatabaseStatus = (false, DatabaseState.CacheInit);
-            //_ = Task.Run(async () => await PreloadMostRecentlyAccessedFileCacheEntitiesAsync(_dbLifetimeCts.Token).ConfigureAwait(false), _dbLifetimeCts.Token);
             await PreloadMostRecentlyAccessedFileCacheEntitiesAsync(_dbLifetimeCts.Token).ConfigureAwait(false);
 
             DatabaseStatus = (true, DatabaseState.Ready);
