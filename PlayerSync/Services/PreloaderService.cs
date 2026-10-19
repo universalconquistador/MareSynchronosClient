@@ -78,7 +78,7 @@ public sealed class PreloaderService
         }
     }
 
-    public async Task UploadAsync(PreloadTarget target, IReadOnlySet<string> selectedGroups)
+    public async Task UploadAsync(PreloadTarget target, IReadOnlySet<string> selectedGroups, CancellationToken cancellationToken = default)
     {
         if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
         {
@@ -104,7 +104,7 @@ public sealed class PreloaderService
             _mediator.Publish(new NotificationMessage("Preload Started",
                 $"Found {filePaths.Length} file(s), uploading...", NotificationType.Info));
 
-            var cacheEntries = _fileCacheManager.GetFileCachesByPaths(filePaths);
+            var cacheEntries = await _fileCacheManager.GetOrCreateValidatedFileCachesByPathsAsync(filePaths, cancellationToken).ConfigureAwait(false);
             var hashes = cacheEntries.Values
                 .Where(e => e != null)
                 .Select(e => e!.Hash)
@@ -147,6 +147,10 @@ public sealed class PreloaderService
                     ? $" and {failedNames.Count - MaxReportedFailures} more (see /xllog)" : string.Empty;
                 _mediator.Publish(new NotificationMessage("Preload Failures", $"Failed files: {shown}{more}", NotificationType.Warning));
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Preload was cancelled for {modRoot}", target.ModRoot);
         }
         catch (Exception ex)
         {

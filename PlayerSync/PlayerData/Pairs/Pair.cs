@@ -5,11 +5,11 @@ using MareSynchronos.API.Dto.User;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Factories;
-using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.Services.Events;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.ServerConfiguration;
-using MareSynchronos.Utils;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace MareSynchronos.PlayerData.Pairs;
 
@@ -17,65 +17,70 @@ public class Pair
 {
     private readonly ILogger<Pair> _logger;
     private readonly PairHandlerFactory _cachedPlayerFactory;
+    private readonly PairDataApplicationHandlerFactory _pairDataApplicationHandlerFactory;
     private readonly ServerConfigurationManager _serverConfigurationManager;
     private readonly MareConfigService _configService;
-    private readonly ZoneSyncConfigService _zoneSyncConfig;
+    private readonly MareMediator _mediator;
 
     private readonly SemaphoreSlim _creationSemaphore = new(1);
 
-    private CancellationTokenSource _applicationCts = new();
-    private readonly object _applyDataLock = new();
     private OnlineUserIdentDto? _onlineUserIdentDto = null;
-    private Guid? _dataApplicationId = null;
-    private DateTimeOffset _lastDataApplicationTime = DateTimeOffset.MinValue;
     private bool? _hasProfile = null;
 
-    public Pair(ILogger<Pair> logger, UserFullPairDto userPair, PairHandlerFactory cachedPlayerFactory,
-        MareMediator mediator, ServerConfigurationManager serverConfigurationManager, MareConfigService mareConfigService, ZoneSyncConfigService zoneSyncConfig)
+    public Pair(ILogger<Pair> logger, UserFullPairDto userPair, PairHandlerFactory cachedPlayerFactory, PairDataApplicationHandlerFactory pairDataApplicationHandlerFactory,
+        MareMediator mediator, ServerConfigurationManager serverConfigurationManager, MareConfigService mareConfigService)
     {
         _logger = logger;
         UserPair = userPair;
         _cachedPlayerFactory = cachedPlayerFactory;
+        _pairDataApplicationHandlerFactory = pairDataApplicationHandlerFactory;
         _serverConfigurationManager = serverConfigurationManager;
         _configService = mareConfigService;
-        _zoneSyncConfig = zoneSyncConfig;
+        _mediator = mediator;
     }
 
     public bool HasCachedPlayer => CachedPlayer != null && !string.IsNullOrEmpty(CachedPlayer.PlayerName) && _onlineUserIdentDto != null;
-    public bool HasCachedData => CachedPlayer?.HasCachedData ?? false;
+    public bool HasDataHandler => DataHandler != null;
+    public bool HasCachedData => DataHandler?.HasCachedData ?? false;
     public IndividualPairStatus IndividualPairStatus => UserPair.IndividualPairStatus;
     public bool IsDirectlyPaired => IndividualPairStatus != IndividualPairStatus.None;
     public bool IsOneSidedPair => IndividualPairStatus == IndividualPairStatus.OneSided;
     public bool IsOnline { get; set; } = false;
-
+    public bool IsModelReady => CachedPlayer?.IsModelReady ?? false;
     public bool IsPaired => IndividualPairStatus == IndividualPairStatus.Bidirectional || UserPair.Groups.Any();
     public bool IsZoneSyncOnlyPair => IndividualPairStatus != IndividualPairStatus.Bidirectional && UserPair.Groups.All(g => g.StartsWith(Constants.GroupZoneSyncPrefix));
     public bool IsPaused => UserPair.OwnPermissions.IsPaused();
     public bool IsVisible => CachedPlayer?.IsVisible ?? false;
-    public bool CanApplyModdedData => HasCachedPlayer && IsVisible && DataApplicationId == null && (DateTimeOffset.UtcNow - LastDataApplicationTime > TimeSpan.FromMilliseconds(250));
-    public CharacterData? LastReceivedCharacterData { get; set; }
+    public bool CanApplyModdedData => HasCachedPlayer && HasDataHandler && IsVisible && IsModelReady && !HasDataApplicationTaskRunning &&
+        DateTimeOffset.UtcNow - LastDataApplicationTime > TimeSpan.FromMilliseconds(250);
     public string? PlayerName => CachedPlayer?.PlayerName ?? string.Empty;
     public string PairUIDName => $"{UserData.UID}:{(string.IsNullOrWhiteSpace(PlayerName) ? "NULLPLAYER" : PlayerName)}";
-    public long LastAppliedDataBytes => CachedPlayer?.LastAppliedDataBytes ?? -1;
+    public ConcurrentDictionary<string, string> ActiveCompressionRedirects => DataHandler?.ActiveCompressionRedirects ?? [];
+    public bool HasDataApplicationTaskRunning => DataHandler?.HasDataApplicationTaskRunning ?? false;
+    public long PendingDataSequenceNumber => DataHandler?.PendingDataSequenceNumber ?? 0;
+    public long LastAppliedDataBytes => DataHandler?.LastAppliedDataBytes ?? -1;
+    public DateTimeOffset LastDataApplicationTime => DataHandler?.LastDataApplicationTime ?? DateTimeOffset.MinValue;
+    public IReadOnlyDictionary<ObjectKind, ConcurrentDictionary<PlayerChanges, double>>? DataApplicationTiming => DataHandler?.DataApplicationTiming;
+    public ConcurrentDictionary<string, string> MissingFiles => DataHandler?.MissingFiles ?? [];
     public long LastAppliedDataTris { get; set; } = -1;
     public long LastAppliedApproximateVRAMBytes { get; set; } = -1;
     public int LastAppliedCompressedAlternates { get; set; } = -1;
-    public DateTimeOffset? LastLoadedSoundSinceRedraw { get; set; } = null;
-    public string Ident => _onlineUserIdentDto?.Ident ?? string.Empty;
-   
+    public DateTimeOffset? LastLoadedSoundSinceRedrawTime { get; set; } = null;
+    public string LastLoadedSoundSinceRedraw { get; set; } = string.Empty;
+    public string HashedCID => _onlineUserIdentDto?.Ident ?? string.Empty;
+    public ulong ContendId => CachedPlayer?.ContentId ?? 0;
     public nint Address => CachedPlayer?.PlayerCharacter ?? nint.Zero;
-    
     public UserData UserData => UserPair.User;
-
+    public ulong PlayerCharacterId => CachedPlayer?.PlayerCharacterId ?? ulong.MaxValue;
     public UserFullPairDto UserPair { get; set; }
-    private PairHandler? CachedPlayer { get; set; }
-    public unsafe uint PlayerCharacterId => CachedPlayer?.PlayerCharacterId ?? uint.MaxValue;
+    public PairHandler? CachedPlayer { get; private set; }
+    private PairDataApplicationHandler? DataHandler { get; set; }
 
     public bool HasProfile
     {
         get
         {
-            if (_hasProfile == null) 
+            if (_hasProfile == null)
                 return UserPair.User.HasProfile ?? false;
 
             return _hasProfile.Value;
@@ -86,114 +91,136 @@ public class Pair
         }
     }
 
-    public Guid? DataApplicationId
+    public override string ToString()
     {
-        get
+        return UserData.AliasOrUID + ":" + PlayerName + ":" + (IsVisible ? "HasChar" : "NoChar");
+    }
+
+    public void UpdateVisibility(bool visible)
+    {
+        CachedPlayer?.UpdateVisibility(visible);
+        DataHandler?.UpdateVisibility(visible);
+    }
+
+    public async Task Initialize(string playerName, ulong contendId)
+    {
+        await _creationSemaphore.WaitAsync().ConfigureAwait(false);
+        bool hadErrors = false;
+        try
         {
-            lock (_applyDataLock)
+            CreateCachedPlayer();
+            CreateDataHandler();
+            var cachedPlayer = CachedPlayer;
+            if (cachedPlayer != null && !string.IsNullOrEmpty(playerName))
             {
-                return _dataApplicationId; 
+                await cachedPlayer.Initialize(playerName, contendId).ConfigureAwait(false);
+                var dataHandler = DataHandler;
+                if (dataHandler != null)
+                {
+                    var handler = cachedPlayer.CharacterHandler;
+                    if (handler != null)
+                    {
+                        await dataHandler.Initialize(handler).ConfigureAwait(false);
+                    }
+                }
             }
         }
-        set
+        catch (Exception ex)
         {
-            lock (_applyDataLock)
+            _logger.LogError(ex, "Failed to Initialize pair!");
+            hadErrors = true;
+            try
             {
-                _dataApplicationId = value;
+                DataHandler?.Dispose();
+                CachedPlayer?.Dispose();
             }
+            finally
+            {
+                DataHandler = null;
+                CachedPlayer = null;
+            }
+
+            throw;
+        }
+        finally
+        {
+            _creationSemaphore.Release();
+        }
+        if (!hadErrors)
+        {
+            _mediator.Publish(new EventMessage(new DataApplicationEvent(Guid.Empty, DataApplicationStatus.Waiting, PlayerName, UserData,
+                nameof(Initialize), EventSeverity.Informational, $"Initialized {PairUIDName}, waiting for data from pair...")));
         }
     }
 
-    public DateTimeOffset LastDataApplicationTime
+    public Dictionary<PlayerChanges, bool> GetPairPlayerChanges()
     {
-        get
-        {
-            lock (_applyDataLock)
-            {
-                return _lastDataApplicationTime;
-            }
-        }
-        set
-        {
-            lock (_applyDataLock)
-            {
-                _lastDataApplicationTime = value;
-            }
-        }
+        return DataHandler?.GetPairPlayerChanges() ?? [];
     }
 
-    public void Initialize(string playerName)
+    public CharacterData? GetCopyOfPairCharacterData()
     {
-        CreateCachedPlayer();
+        return DataHandler?.GetCopyOfPairCharacterData();
+    }
 
-        if (CachedPlayer != null && !string.IsNullOrEmpty(playerName))
+    public Task<Dictionary<ObjectKind, List<FileReplacementData>>?> TryGetMissingFileReplacementData()
+    {
+        return DataHandler!.TryGetMissingFileReplacementData();
+    }
+
+    public bool TryStartFullDataApplication(Guid applId, bool overwriteRunningApplication = false)
+    {
+        return DataHandler?.TryStartDataApplication(applId, overwriteRunningApplication) ?? false;
+    }
+
+    public void EndDataApplication(Guid appId)
+    {
+        if (DataHandler != null)
         {
-            CachedPlayer.Initialize(playerName);
+            DataHandler.EndDataApplcation(appId);
         }
     }
 
     public void ApplyAddonPluginUpdate(OnlineUserCharaDataDto data)
     {
-        if (CachedPlayer == null || _configService.Current.FilterMods) // don't try and apply addon data since the cachedData will be null (and we don't want to anyway)
+        if (CachedPlayer == null || DataHandler == null || _configService.Current.FilterMods) // don't try and apply addon data since the cachedData will be null (and we don't want to anyway)
         {
             return;
         }
 
-        _ = CachedPlayer.HandleOptionalPluginDataAsync(data.AddonPlugin!.Value, data.CharaData);
+        _ = DataHandler.HandleOptionalPluginDataAsync(data.AddonPlugin!.Value, data.CharaData);
     }
 
-    public void ApplyData(Guid applicationBase, OnlineUserCharaDataDto data)
+    public Task ApplyDataAsync(Guid applicationBase, OnlineUserCharaDataDto data, long sequence, CancellationToken topLevelToken, bool forced = false)
     {
-        _ = ApplyDataAsync(applicationBase, data, CancellationToken.None);
+        if (CachedPlayer == null || DataHandler == null)
+        {
+            _logger.LogDebug("Called to apply player data but CachedPlayer is null: {player} or DataHandler is null: {hanlder}", CachedPlayer == null, DataHandler == null);
+
+            throw new PairDataApplicationException(PairDataExceptionReason.InvalidCharacterState, $"Cannot apply data for {PairUIDName}, no cached player exists!");
+        }
+
+        return DataHandler.ApplyCharacterDataAsync(applicationBase, data.CharaData, sequence, topLevelToken, forced);
     }
 
-    /// <summary>
-    /// Step 1
-    /// Ensures a cached player exists before applying character data from the received dto.
-    /// There used to be a lot more here...
-    /// </summary>
-    public async Task ApplyDataAsync(Guid applicationBase, OnlineUserCharaDataDto data, CancellationToken topLevelToken)
+    public void ReapplyCachedData(bool forced = false)
     {
-        LastReceivedCharacterData = data.CharaData;
-
-        if (CachedPlayer == null)
+        if (HasCachedData)
         {
-            _logger.LogWarning("Called to apply data for pair {uid} but CachePlayer is null!", UserData.UID);
+            _mediator.Publish(new ReapplyCachedPairDataMessage(this, forced));
         }
-
-        await ApplyLastReceivedDataAsync(topLevelToken, applicationBase: applicationBase).ConfigureAwait(false);
     }
 
-    public void ApplyLastReceivedData(bool forced = false, Guid? applicationBase = null)
+    public Task ApplyCachedDataAync(Guid applicationBase, CancellationToken topLevelToken, bool forceApplyCustomization = false)
     {
-        if (applicationBase == null)
+        if (CachedPlayer == null || DataHandler == null)
         {
-            applicationBase = Guid.NewGuid();
-        }
-        _ = ApplyLastReceivedDataAsync(CancellationToken.None, forced, applicationBase.Value);
-    }
+            _logger.LogDebug("Called to apply player data but CachedPlayer is null: {player} or DataHandler is null: {hanlder}", CachedPlayer == null, DataHandler == null);
 
-    /// <summary>
-    /// Step 2
-    /// This is called as part of the data application pipeline as well as manually to reapply pair data.
-    /// </summary>
-    public Task ApplyLastReceivedDataAsync(CancellationToken topLevelToken, bool forced = false, Guid? applicationBase = null)
-    {
-        if (CachedPlayer == null || LastReceivedCharacterData == null)
-        {
-            _logger.LogDebug("Called to apply last received data but CachedPlayer is null: {player} and CharacterData is null: {data}", CachedPlayer == null, LastReceivedCharacterData == null);
-
-            return Task.CompletedTask;
+            throw new PairDataApplicationException(PairDataExceptionReason.InvalidCharacterState, "Pair was in an invalid state during cached data application");
         }
 
-        if (applicationBase == null)
-        {
-            applicationBase = Guid.NewGuid();
-        }
-
-        // Called from the PairHandler of this pair.
-        // This is kinda hacky as RemoveNotSyncedFiles handles perms/filtering by removing files before they are applied.
-        return CachedPlayer.ApplyCharacterDataAsync(applicationBase.Value, RemoveNotSyncedFiles(LastReceivedCharacterData.DeepClone())!, topLevelToken, forced);
+        return DataHandler.ApplyCachedCharacterDataASync(applicationBase, topLevelToken, forceApplyCustomization);
     }
 
     public bool SetOnlinePlayerDto(OnlineUserIdentDto? dto = null)
@@ -211,6 +238,8 @@ public class Pair
             {
                 CachedPlayer?.Dispose();
                 CachedPlayer = null;
+                DataHandler?.Dispose();
+                DataHandler = null;
 
                 return false;
             }
@@ -234,25 +263,12 @@ public class Pair
 
     public string GetPauseReason()
     {
-        var reasonCode = _serverConfigurationManager.GetPauseReasonForUid(UserData.UID);
-        return reasonCode switch
-        {
-            PauseReason.None => "Unknown",
-            PauseReason.Manual => "Manually paused by user",
-            PauseReason.Permanent => "Permanently paused by user",
-            PauseReason.ThresholdVram => "Exceeded VRAM threshold",
-            PauseReason.ThresholdTriangles => "Exceeded triangles threshold",
-            PauseReason.ThresholdHeight => "Exceeded height threshold",
-            PauseReason.PauseSyncshell => "In a paused syncshell",
-            PauseReason.PauseAllPairs => "User paused all pairs",
-            PauseReason.PauseAllSyncs => "User paused all syncshells",
-            _ => string.Empty
-        };
+        return PauseReasonText.FromPauseReason(_serverConfigurationManager.GetPauseReasonForUid(UserData.UID));
     }
 
     public string GetPlayerNameHash()
     {
-        return CachedPlayer != null ? CachedPlayer.PlayerNameHash : Ident ?? string.Empty;
+        return CachedPlayer != null ? CachedPlayer.PlayerNameHash : HashedCID ?? string.Empty;
     }
 
     public bool HasAnyConnection()
@@ -266,11 +282,15 @@ public class Pair
             _creationSemaphore.Wait();
 
         try
-        {   
-            LastReceivedCharacterData = null;
+        {
+            var dataHandler = DataHandler;
+            DataHandler = null;
+            dataHandler?.Dispose();
+
             var player = CachedPlayer;
             CachedPlayer = null;
             player?.Dispose();
+
             _onlineUserIdentDto = null;
             IsOnline = false;
         }
@@ -288,7 +308,7 @@ public class Pair
 
     internal void SetIsUploading()
     {
-        CachedPlayer?.SetUploading();
+        DataHandler?.SetUploading();
     }
 
     private void CreateCachedPlayer()
@@ -299,76 +319,19 @@ public class Pair
         }
 
         CachedPlayer?.Dispose();
-        _logger.LogTrace("Creating cached player for {pair}", Ident);
+        _logger.LogTrace("Creating cached player for {pair}", HashedCID);
         CachedPlayer = _cachedPlayerFactory.Create(this);
     }
 
-    private CharacterData? RemoveNotSyncedFiles(CharacterData? data)
+    private void CreateDataHandler()
     {
-        _logger.LogTrace("Removing not synced files");
-        if (data == null)
+        if (DataHandler != null || _onlineUserIdentDto == null)
         {
-            _logger.LogTrace("Nothing to remove");
-            return data;
+            return;
         }
 
-        // permissions
-        bool disableIndividualAnimations = UserPair.OtherPermissions.IsDisableAnimations() || UserPair.OwnPermissions.IsDisableAnimations();
-        bool disableIndividualVFX = UserPair.OtherPermissions.IsDisableVFX() || UserPair.OwnPermissions.IsDisableVFX();
-        bool disableIndividualSounds = UserPair.OtherPermissions.IsDisableSounds() || UserPair.OwnPermissions.IsDisableSounds();
-
-        // global filtering
-        bool filterBiDiPairs = _configService.Current.DoFilteringBidirectionDirectPairs;
-        bool isDirectPaired = UserPair.IndividualPairStatus == IndividualPairStatus.Bidirectional;
-        bool overrideFilterPair = !filterBiDiPairs && isDirectPaired;
-
-        bool overrideFilterUid = _configService.Current.UIDsToOverrideFilter.Contains(UserPair.User.UID, StringComparer.OrdinalIgnoreCase) 
-            || _configService.Current.UIDsToOverrideFilter.Contains(UserPair.User.Alias, StringComparer.OrdinalIgnoreCase);
-
-        _logger.LogTrace("Disable: Sounds: {disableIndividualSounds}, Anims: {disableIndividualAnims}; " +
-            "VFX: {disableGroupSounds}", disableIndividualSounds, disableIndividualAnimations, disableIndividualVFX);
-
-        // global filtering
-        bool filterAnimations = _configService.Current.FilterAnimations;
-        bool filterSounds = _configService.Current.FilterSounds;
-        bool filterVfx = _configService.Current.FilterVfx;
-        bool filterMinionsMounts = _configService.Current.FilterMinionsAndMounts;
-        bool filterPets = _configService.Current.FilterPets;
-
-        // zonesync filtering
-        bool filterZoneSyncAnimations = _zoneSyncConfig.Current.ZoneSyncFilterAnimations;
-        bool filterZoneSyncSounds = _zoneSyncConfig.Current.ZoneSyncFilterSounds;
-        bool filterZoneSyncVfx = _zoneSyncConfig.Current.ZoneSyncFilterVfx;
-
-        bool zoneSyncFiltering = IsZoneSyncOnlyPair && (filterZoneSyncAnimations || filterZoneSyncSounds || filterZoneSyncVfx);
-        bool hasDisabledIndevidual = disableIndividualAnimations || disableIndividualSounds || disableIndividualVFX;
-        bool hasDisabledViaFilter = filterAnimations || filterSounds || filterVfx || filterMinionsMounts || filterPets;
-        bool filterUserPerms = hasDisabledViaFilter && !overrideFilterUid && !overrideFilterPair;
-        if (filterUserPerms || hasDisabledIndevidual || zoneSyncFiltering)
-        {
-            _logger.LogTrace("Data cleaned up: Animations disabled: {disableAnimations}, Sounds disabled: {disableSounds}, VFX disabled: {disableVFX}",
-                disableIndividualAnimations, disableIndividualSounds, disableIndividualVFX);
-            foreach (var objectKind in data.FileReplacements.Select(k => k.Key))
-            {
-                if ((filterUserPerms && filterSounds) || disableIndividualSounds || (zoneSyncFiltering && filterZoneSyncSounds))
-                    data.FileReplacements[objectKind] = data.FileReplacements[objectKind]
-                        .Where(f => !f.GamePaths.Any(p => p.EndsWith("scd", StringComparison.OrdinalIgnoreCase)))
-                        .ToList();
-                if ((filterUserPerms && filterAnimations) || disableIndividualAnimations || (zoneSyncFiltering && filterZoneSyncAnimations))
-                    data.FileReplacements[objectKind] = data.FileReplacements[objectKind]
-                        .Where(f => !f.GamePaths.Any(p => p.EndsWith("tmb", StringComparison.OrdinalIgnoreCase) || p.EndsWith("pap", StringComparison.OrdinalIgnoreCase)))
-                        .ToList();
-                if ((filterUserPerms && filterVfx) || disableIndividualVFX || (zoneSyncFiltering && filterZoneSyncVfx))
-                    data.FileReplacements[objectKind] = data.FileReplacements[objectKind]
-                        .Where(f => !f.GamePaths.Any(p => p.EndsWith("atex", StringComparison.OrdinalIgnoreCase) || p.EndsWith("avfx", StringComparison.OrdinalIgnoreCase)))
-                        .ToList();
-                if (filterUserPerms && filterMinionsMounts && objectKind == ObjectKind.MinionOrMount)
-                    data.FileReplacements[objectKind] = [];
-                if (filterUserPerms && filterPets && (objectKind == ObjectKind.Pet || objectKind == ObjectKind.Companion))
-                    data.FileReplacements[objectKind] = [];
-            }
-        }
-
-        return data;
+        DataHandler?.Dispose();
+        _logger.LogTrace("Creating data handler for {pair}", HashedCID);
+        DataHandler = _pairDataApplicationHandlerFactory.Create(this);
     }
 }

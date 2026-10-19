@@ -36,6 +36,7 @@ namespace PlayerSync.Services
         public Task StopAsync(CancellationToken cancellationToken)
         {
             Logger.LogDebug("{name} stopped.", nameof(JsonDataTypeHandlerService));
+            UnsubscribeAll();
 
             return Task.CompletedTask;
         }

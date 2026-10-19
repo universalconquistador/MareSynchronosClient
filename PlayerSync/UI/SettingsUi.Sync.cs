@@ -566,18 +566,16 @@ public partial class SettingsUi
 
         ImGui.TextUnformatted("Max Concurrent Applications");
         ImGui.SetNextItemWidth(200f * ImGuiHelpers.GlobalScale);
-        if (ImGui.SliderInt("##maxConcurrent", ref maxConcurrent, 0, 20))
+        if (ImGui.SliderInt("##maxConcurrent", ref maxConcurrent, 1, 20))
         {
-            if (maxConcurrent < 0 || maxConcurrent > 99)
+            if (maxConcurrent < 1 || maxConcurrent > 99)
             {
-                maxConcurrent = 0;
+                maxConcurrent = 10;
             }
-            _pairManager.MaxConcurrentApplyData = maxConcurrent;
+            _dataManager.MaxConcurrentApplyData = maxConcurrent;
         }
         _uiShared.DrawHelpText("This affects how many pairs you download/apply mods to at the same time." + UiSharedService.TooltipSeparator +
-            "Setting this to any number above 0 will limit the concurrent data applications. A lower number may help smooth loading and prevent lag/lockups for " +
-            "PCs with modest specs.");
-        ImGui.TextUnformatted("0 = Unlimited/Max");
+            "A lower number may help smooth loading and prevent lag/lockups for PCs with modest specs.");
 
         ImGuiHelpers.ScaledDummy(5);
 

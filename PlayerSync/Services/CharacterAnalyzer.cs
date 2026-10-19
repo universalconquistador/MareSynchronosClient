@@ -34,7 +34,7 @@ public sealed class CharacterAnalyzer : MediatorSubscriberBase, IDisposable
     public int CurrentFile { get; internal set; }
     public bool IsAnalysisRunning => _analysisCts != null;
     public int TotalFiles { get; internal set; }
-    internal Dictionary<ObjectKind, Dictionary<string, FileDataEntry>> LastAnalysis { get; } = [];
+    internal Dictionary<ObjectKind, Dictionary<string, FileDataEntry>> LastAnalysis { get; private set; } = [];
 
     public void CancelAnalyze()
     {
@@ -46,60 +46,96 @@ public sealed class CharacterAnalyzer : MediatorSubscriberBase, IDisposable
     {
         Logger.LogDebug("=== Calculating Character Analysis ===");
 
-        _analysisCts = _analysisCts?.CancelRecreate() ?? new();
+        var analysisCts = _analysisCts?.CancelRecreate() ?? new CancellationTokenSource();
+        _analysisCts = analysisCts;
+        var cancelToken = analysisCts.Token;
 
-        var cancelToken = _analysisCts.Token;
-
-        var allFiles = LastAnalysis.SelectMany(v => v.Value.Select(d => d.Value)).ToList();
-        if (allFiles.Exists(c => !c.IsComputed || recalculate))
+        try
         {
-            var remaining = allFiles.Where(c => !c.IsComputed || recalculate).ToList();
+            var allFiles = LastAnalysis.SelectMany(value => value.Value.Select(data => data.Value)).ToList();
+            var remaining = allFiles.GroupBy(file => file.Hash, StringComparer.OrdinalIgnoreCase).Where(group => recalculate || group.Any(file => !file.IsComputed)).ToList();
+
             TotalFiles = remaining.Count;
-            CurrentFile = 1;
-            Logger.LogDebug("=== Computing {amount} remaining files ===", remaining.Count);
+            CurrentFile = 0;
 
-            Mediator.Publish(new HaltScanMessage(nameof(CharacterAnalyzer)));
-            try
+            if (remaining.Count > 0)
             {
-                foreach (var file in remaining)
+                Logger.LogDebug("=== Computing {amount} remaining files ===", remaining.Count);
+
+                Mediator.Publish(new HaltScanMessage(nameof(CharacterAnalyzer)));
+                try
                 {
-                    Logger.LogDebug("Computing file {file}", file.FilePaths[0]);
-                    await file.ComputeSizes(_fileCacheManager, cancelToken).ConfigureAwait(false);
-                    CurrentFile++;
+                    foreach (var fileGroup in remaining)
+                    {
+                        cancelToken.ThrowIfCancellationRequested();
+
+                        var file = fileGroup.First();
+                        Logger.LogDebug("Computing file {file}", file.FilePaths[0]);
+                        await file.ComputeSizes(_fileCacheManager, cancelToken).ConfigureAwait(false);
+
+                        foreach (var matchingFile in fileGroup)
+                        {
+                            matchingFile.OriginalSize = file.OriginalSize;
+                            matchingFile.CompressedSize = file.CompressedSize;
+                        }
+
+                        CurrentFile++;
+                    }
                 }
-
-                _fileCacheManager.WriteOutFullCsvImmediate();
-
+                catch (OperationCanceledException) when (cancelToken.IsCancellationRequested)
+                {
+                    Logger.LogDebug("Character analysis was cancelled");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Failed to analyze files");
+                }
+                finally
+                {
+                    Mediator.Publish(new ResumeScanMessage(nameof(CharacterAnalyzer)));
+                }
             }
-            catch (Exception ex)
+
+            Mediator.Publish(new CharacterDataAnalyzedMessage());
+            LastMetrics = BuildMetrics(LastAnalysis);
+
+            if (print) PrintAnalysis();
+        }
+        finally
+        {
+            if (ReferenceEquals(_analysisCts, analysisCts))
             {
-                Logger.LogWarning(ex, "Failed to analyze files");
-            }
-            finally
-            {
-                Mediator.Publish(new ResumeScanMessage(nameof(CharacterAnalyzer)));
+                analysisCts.CancelDispose();
+                _analysisCts = null;
             }
         }
-
-        Mediator.Publish(new CharacterDataAnalyzedMessage());
-        LastMetrics = BuildMetrics(LastAnalysis);
-
-        _analysisCts.CancelDispose();
-        _analysisCts = null;
-
-        if (print) PrintAnalysis();
     }
 
     public void Dispose()
     {
-        _analysisCts.CancelDispose();
+        _analysisCts?.CancelDispose();
+        _analysisCts = null;
+        _baseAnalysisCts.CancelDispose();
     }
 
     private async Task BaseAnalysis(CharacterData charaData, CancellationToken token)
     {
         if (string.Equals(charaData.DataHash.Value, _lastDataHash, StringComparison.Ordinal)) return;
 
-        LastAnalysis.Clear();
+        Dictionary<ObjectKind, Dictionary<string, FileDataEntry>> lastAnalysis = [];
+        Dictionary<string, long> trianglesByHash = new(StringComparer.OrdinalIgnoreCase);
+
+        List<string> hashes = charaData.FileReplacements.Values
+            .SelectMany(replacements => replacements)
+            .Select(replacement => replacement.Hash)
+            .Where(hash => !string.IsNullOrWhiteSpace(hash))
+            .Distinct(StringComparer.OrdinalIgnoreCase) // is the StringComparer actually needed?
+            .ToList();
+
+        var fileCachesByHash = await _fileCacheManager.GetAllFileCacheEntitiesByHashes(hashes, token).ConfigureAwait(false);
+        // We only want the local mods from Penumbra for the player
+        fileCachesByHash = fileCachesByHash.ToDictionary(fileCache => fileCache.Key, fileCache => fileCache.Value.Where(cache => cache.Store == FileCacheStore.Penumbra).ToList());
 
         foreach (var obj in charaData.FileReplacements)
         {
@@ -108,36 +144,36 @@ public sealed class CharacterAnalyzer : MediatorSubscriberBase, IDisposable
             {
                 token.ThrowIfCancellationRequested();
 
-                var fileCacheEntries = _fileCacheManager.GetAllFileCachesByHash(fileEntry.Hash, ignoreCacheEntries: true, validate: false).ToList();
-                if (fileCacheEntries.Count == 0) continue;
+                if (!fileCachesByHash.TryGetValue(fileEntry.Hash, out var fileCacheEntries) || !fileCacheEntries.Any())
+                {
+                    continue;
+                }
 
                 var filePath = fileCacheEntries[0].ResolvedFilepath;
-                FileInfo fi = new(filePath);
-                string ext = "unk?";
-                try
+                var extension = Path.GetExtension(filePath);
+                var ext = string.IsNullOrEmpty(extension) ? "unk?" : extension[1..];
+
+                if (!trianglesByHash.TryGetValue(fileEntry.Hash, out var tris))
                 {
-                    ext = fi.Extension[1..];
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogWarning(ex, "Could not identify extension for {path}", filePath);
+                    tris = await _xivDataAnalyzer.GetTrianglesByHash(fileEntry.Hash).ConfigureAwait(false);
+                    trianglesByHash[fileEntry.Hash] = tris;
                 }
 
-                var tris = await _xivDataAnalyzer.GetTrianglesByHash(fileEntry.Hash).ConfigureAwait(false);
-
-                foreach (var entry in fileCacheEntries)
-                {
-                    data[fileEntry.Hash] = new FileDataEntry(fileEntry.Hash, ext,
-                        [.. fileEntry.GamePaths],
-                        fileCacheEntries.Select(c => c.ResolvedFilepath).Distinct().ToList(),
-                        entry.Size > 0 ? entry.Size.Value : 0,
-                        entry.CompressedSize > 0 ? entry.CompressedSize.Value : 0,
-                        tris);
-                }
+                var originalSize = fileCacheEntries.Where(entry => entry.Size > 0).Select(entry => entry.Size).DefaultIfEmpty(0).Min();
+                var compressedSize = fileCacheEntries.Where(entry => entry.CompressedSize > 0).Select(entry => entry.CompressedSize).DefaultIfEmpty(0).Min();
+                data[fileEntry.Hash] = new FileDataEntry(fileEntry.Hash, ext,
+                    [.. fileEntry.GamePaths],
+                    fileCacheEntries.Select(fileCache => fileCache.ResolvedFilepath).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    originalSize,
+                    compressedSize,
+                    tris);
             }
 
-            LastAnalysis[obj.Key] = data;
+            lastAnalysis[obj.Key] = data;
         }
+
+        token.ThrowIfCancellationRequested();
+        LastAnalysis = lastAnalysis;
 
         Mediator.Publish(new CharacterDataAnalyzedMessage());
         LastMetrics = BuildMetrics(LastAnalysis);
@@ -196,20 +232,46 @@ public sealed class CharacterAnalyzer : MediatorSubscriberBase, IDisposable
         public bool IsComputed => OriginalSize > 0 && CompressedSize > 0;
         public async Task ComputeSizes(FileCacheManager fileCacheManager, CancellationToken token)
         {
+            token.ThrowIfCancellationRequested();
+
+            var fileCacheEntries = await fileCacheManager.GetAllFileCacheEntitiesByHash(Hash, token).ConfigureAwait(false);
+            fileCacheEntries = fileCacheEntries.Where(caches => caches.Store == FileCacheStore.Penumbra).ToList();
+            List<FileCacheEntity> entries = [];
+
+            foreach (var fileCacheEntry in fileCacheEntries)
+            {
+                token.ThrowIfCancellationRequested();
+
+                var validated = await fileCacheManager.ValidateFileCacheAsync(fileCacheEntry, token).ConfigureAwait(false);
+                if (validated != null && string.Equals(validated.Hash, Hash, StringComparison.OrdinalIgnoreCase))
+                {
+                    entries.Add(validated);
+                }
+            }
+
+            if (entries.Count == 0)
+            {
+                return;
+            }
+
             var compressedsize = await fileCacheManager.GetCompressedFileData(Hash, token).ConfigureAwait(false);
-            var normalSize = new FileInfo(FilePaths[0]).Length;
-            var entries = fileCacheManager.GetAllFileCachesByHash(Hash, ignoreCacheEntries: true, validate: false);
+            var normalSize = new FileInfo(entries[0].ResolvedFilepath).Length;
+            var compressedSize = compressedsize.Item2.LongLength;
+
             foreach (var entry in entries)
             {
+                token.ThrowIfCancellationRequested();
                 entry.Size = normalSize;
-                entry.CompressedSize = compressedsize.Item2.LongLength;
+                entry.CompressedSize = compressedSize;
+                await fileCacheManager.UpdateFileCache(entry, computeProperties: false, cancellationToken: token).ConfigureAwait(false);
             }
+
             OriginalSize = normalSize;
-            CompressedSize = compressedsize.Item2.LongLength;
+            CompressedSize = compressedSize;
         }
-        public long OriginalSize { get; private set; } = OriginalSize;
-        public long CompressedSize { get; private set; } = CompressedSize;
-        public long Triangles { get; private set; } = Triangles;
+        public long OriginalSize { get; set; } = OriginalSize;
+        public long CompressedSize { get; set; } = CompressedSize;
+        public long Triangles { get; set; } = Triangles;
 
         public Lazy<string> Format = new(() =>
         {

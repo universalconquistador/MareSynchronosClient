@@ -8,19 +8,21 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.Interop;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
+using MareSynchronos.PlayerData;
 using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Utils;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -33,6 +35,8 @@ namespace MareSynchronos.Services;
 
 public class DalamudUtilService : IHostedService, IMediatorSubscriber
 {
+    public readonly record struct ObjectTablePlayersFrameworkUpdate(ulong ContentId, string Ident, string Name, bool IsVisible);
+
     private readonly List<uint> _classJobIdsIgnoredForPets = [30];
     public readonly ulong InstalledExpansions; // each bit is whether the corresponding expansion is installed, with bit 0 being the base game
     private readonly IClientState _clientState;
@@ -47,17 +51,24 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     private readonly ITargetManager _targetManager;
     private readonly PerformanceCollectorService _performanceCollector;
     private readonly MareConfigService _configService;
+
+    private readonly Dictionary<ulong, (string Ident, string Name)> _frameworkCharacters = new(100);
+    private readonly List<ObjectTablePlayersFrameworkUpdate> _frameworkCharacterChanges = new(100);
+    private HashSet<ulong> _playersSeenThisFrame = new(100);
+    private HashSet<ulong> _playersSeenPreviousFrame = new(100);
+    private readonly ConcurrentQueue<(GameObjectHandler Handler, bool TrackedOnFramework)> _handlersTrackedOnFrameworkQueue = new();
+    private readonly List<GameObjectHandler> _ownedHandlers = [];
+    private readonly Dictionary<ulong, GameObjectHandler> _pairedHandlersByContentId = [];
+
     private uint? _classJobId = 0;
     private DateTime _delayedFrameworkUpdateCheck = DateTime.UtcNow;
-    private string _lastGlobalBlockPlayer = string.Empty;
-    private string _lastGlobalBlockReason = string.Empty;
     private uint _lastZone = 0;
     private uint _lastWorld = 0;
-    private readonly Dictionary<string, (string Name, nint Address)> _playerCharas = new(StringComparer.Ordinal);
-    private readonly List<string> _notUpdatedCharas = [];
     private bool _sentBetweenAreas = false;
     private Lazy<ulong> _cid;
     private string? _playerName;
+
+    public event Action<IReadOnlyList<ObjectTablePlayersFrameworkUpdate>>? FrameworkCharactersChanged;
 
     // How to find: Look for xrefs to "/ex%d/ex%d.ver"
     [Signature("E8 ?? ?? ?? ?? 48 8B D0 80 38 20")]
@@ -84,13 +95,13 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         gameInteropProvider.InitializeFromAttributes(this);
         WorldData = new(() =>
         {
-            return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
+            return gameData.GetExcelSheet<World>(Dalamud.Game.ClientLanguage.English)!
                 .Where(w => !w.Name.IsEmpty && w.DataCenter.RowId != 0 && (w.IsPublic || char.IsUpper(w.Name.ToString()[0])))
                 .ToDictionary(w => (ushort)w.RowId, w => w.Name.ToString());
         });
         WorldToDataCenterData = new(() =>
         {
-            return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
+            return gameData.GetExcelSheet<World>(Dalamud.Game.ClientLanguage.English)!
                 .Where(w => !w.Name.IsEmpty && w.DataCenter.RowId != 0 && (w.IsPublic || char.IsUpper(w.Name.ToString()[0])))
                 .ToDictionary(
                     w => (ushort)w.RowId,
@@ -98,7 +109,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         });
         WorldToDataCenterIdData = new(() =>
         {
-            return gameData.GetExcelSheet<Lumina.Excel.Sheets.World>(Dalamud.Game.ClientLanguage.English)!
+            return gameData.GetExcelSheet<World>(Dalamud.Game.ClientLanguage.English)!
                 .Where(w => !w.Name.IsEmpty && w.DataCenter.RowId != 0 && (w.IsPublic || char.IsUpper(w.Name.ToString()[0])))
                 .ToDictionary(
                     w => (ushort)w.RowId,
@@ -193,7 +204,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return (InstalledExpansions & (1UL << index)) != 0;
     }
 
-    private Lazy<ulong> RebuildCID() =>  new(GetCID);
+    private Lazy<ulong> RebuildCID() => new(GetCID);
 
     public bool IsWine { get; init; }
 
@@ -237,17 +248,6 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     private unsafe bool HasGposeTarget => GposeTarget != null;
     private unsafe int GPoseTargetIdx => !HasGposeTarget ? -1 : GposeTarget->ObjectIndex;
 
-    public async Task<IGameObject?> GetGposeTargetGameObjectAsync()
-    {
-        return await _framework.RunOnFrameworkThread(() =>
-        {
-            if (!HasGposeTarget)
-                return null;
-
-            return _objectTable[GPoseTargetIdx];
-        }).ConfigureAwait(true);
-    }
-    public bool IsAnythingDrawing { get; private set; } = false;
     public bool IsInCutscene { get; private set; } = false;
     public bool IsOccupiedInCutSceneEvent => _condition[ConditionFlag.OccupiedInCutSceneEvent];
     public bool IsInGpose { get; private set; } = false;
@@ -278,65 +278,240 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         get
         {
             if (_playerName == null)
+            {
                 _playerName = GetPlayerNameAsync().GetAwaiter().GetResult();
+            }
             return _playerName;
         }
     }
 
-    public IGameObject? CreateGameObject(IntPtr reference)
+    // basically just use this 90% of the time
+    public unsafe bool TryGetPlayerAddressAndIndexOnFrameworkByContentId(ulong contentId, out nint address, out ushort index)
     {
         EnsureIsOnFramework();
-        return _objectTable.CreateObjectReference(reference);
+        address = nint.Zero;
+        index = ushort.MaxValue;
+        if (contentId == 0)
+        {
+            return false;
+        }
+        for (int i = 0; i < 200; i += 2)
+        {
+            if (_objectTable[i] is not IBattleChara chara || chara.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc || !chara.IsValid())
+            {
+                continue;
+            }
+            nint currentAddress = chara.Address;
+            if (currentAddress == nint.Zero || ((BattleChara*)currentAddress)->Character.ContentId != contentId)
+            {
+                continue;
+            }
+            address = currentAddress;
+            index = (ushort)i;
+
+            return true;
+        }
+
+        return false;
     }
 
-    public async Task<IGameObject?> CreateGameObjectAsync(IntPtr reference)
+    /// <summary>
+    /// Register a game object handler to be tracked/updated by the main Framework loop
+    /// </summary>
+    public void RegisterGameObjectHandler(GameObjectHandler handler)
     {
-        return await RunOnFrameworkThread(() => _objectTable.CreateObjectReference(reference)).ConfigureAwait(false);
+        _handlersTrackedOnFrameworkQueue.Enqueue((handler, true));
     }
 
-    public void EnsureIsOnFramework()
+    /// <summary>
+    /// Remove a game object handler from being tracked on the main Framework loop
+    /// </summary>
+    public void UnregisterGameObjectHandler(GameObjectHandler handler)
     {
-        if (!_framework.IsInFrameworkUpdateThread) throw new InvalidOperationException("Can only be run on Framework");
+        _handlersTrackedOnFrameworkQueue.Enqueue((handler, false));
+    }
+
+    public CharacterVisibilityUpdate? GetFrameworkCharacterVisibilityByContentId(ulong contentId)
+    {
+        EnsureIsOnFramework();
+        if (!_frameworkCharacters.TryGetValue(contentId, out var character))
+        {
+            return null;
+        }
+        bool visible = _playersSeenThisFrame.Contains(contentId);
+        bool ready = visible && _pairedHandlersByContentId.TryGetValue(contentId, out var handler) && handler.ModelReady;
+
+        return new(character.Name, contentId, visible, ready);
+    }
+
+    public CharacterVisibilityUpdate? GetFrameworkCharacterVisibilityByIdent(string ident)
+    {
+        EnsureIsOnFramework();
+        var id = _frameworkCharacters.FirstOrDefault(chara => chara.Value.Ident == ident);
+        if (id.Key == 0)
+        {
+            return null; // return null here so we don't do another dictionary lookup
+        }
+
+        return GetFrameworkCharacterVisibilityByContentId(id.Key);
+    }
+
+    /// <summary>
+    /// Check if the player exists in the current frame and is able to perform an action before performing it.
+    /// Must be called on the Framework thread
+    /// </summary>
+    public unsafe bool TryActOnFramework(ulong contentId, Action<IBattleChara, nint> action, out string? failureReason)
+    {
+        EnsureIsOnFramework();
+        failureReason = null;
+
+        if (!TryGetPlayerAddressAndIndexOnFrameworkByContentId(contentId, out var address, out var index))
+        {
+            failureReason = "Player lookup failed";
+            return false;
+        }
+
+        if (_objectTable[index] is not IBattleChara player)
+        {
+            failureReason = "Character object not present";
+            return false;
+        }
+
+        action(player, address);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Gets the character's draw state after ensuring the provided address is still valid in the ObjectTable
+    /// </summary>
+    public CharacterDrawState GetCharacterDrawStateFromFramework(nint address, bool requireRenderable = true)
+    {
+        EnsureIsOnFramework();
+
+        return GetCharacterDrawStateFromFrameworkInternal(address, requireRenderable);
+    }
+
+    /// <summary>
+    /// Gets the character's draw state
+    /// </summary>
+    private static unsafe CharacterDrawState GetCharacterDrawStateFromFrameworkInternal(nint address, bool requireRenderable)
+    {
+        if (address == nint.Zero)
+        {
+            return new(DrawState.Missing, DrawCondition.ObjectZero);
+        }
+        var gameObject = (GameObject*)address;
+        if (gameObject->DrawObject == null)
+        {
+            return new(DrawState.Loading, DrawCondition.DrawObjectZero);
+        }
+        var model = gameObject->GetCharacterBase();
+        if (model == null)
+        {
+            return new(DrawState.Loading, DrawCondition.CharacterBaseZero);
+        }
+        if (model->HasModelInSlotLoaded != 0)
+        {
+            return new(DrawState.Loading, DrawCondition.ModelInSlotLoaded);
+        }
+        if (model->HasModelFilesInSlotLoaded != 0)
+        {
+            return new(DrawState.Loading, DrawCondition.ModelFilesInSlotLoaded);
+        }
+        if (requireRenderable && !(gameObject->Visibility == 0 && gameObject->RenderFlags == VisibilityFlags.None))
+        {
+            return new(DrawState.Loading, DrawCondition.NotRenderable);
+        }
+
+        return new(DrawState.Ready, DrawCondition.None);
+    }
+
+    public ICharacter? GetCharacterFromObjectTableByAddressWhenAlreadyOnFrameworkThread(nint address)
+    {
+        EnsureIsOnFramework();
+        if (address == nint.Zero)
+        {
+            return null;
+        }
+        for (int i = 0; i < 200; i++)
+        {
+            if (_objectTable.GetObjectAddress(i) == address && _objectTable[i] is ICharacter character && character.IsValid())
+            {
+                return character;
+            }
+        }
+
+        return null;
     }
 
     public ICharacter? GetCharacterFromObjectTableByIndex(int index)
     {
         EnsureIsOnFramework();
-        var objTableObj = _objectTable[index];
-        if (objTableObj!.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc) return null;
-        return (ICharacter)objTableObj;
+
+        return _objectTable[index] is ICharacter character && character.IsValid() ? character : null;
     }
 
-    public unsafe IntPtr GetCompanionPtr(IntPtr? playerPointer = null)
+    private const int GposeFirstObjectIndex = 201;
+    // Brio can extend beyond 242 so we just scan to the end of the table for gpose 
+
+    public ICharacter? GetCharacterFromObjectTableByName(string name)
     {
         EnsureIsOnFramework();
-        var mgr = CharacterManager.Instance();
-        playerPointer ??= GetPlayerPtr();
-        if (playerPointer == IntPtr.Zero || (IntPtr)mgr == IntPtr.Zero) return IntPtr.Zero;
-        return (IntPtr)mgr->LookupBuddyByOwnerObject((BattleChara*)playerPointer);
+        for (int i = 0; i < 200; i++)
+        {
+            if (_objectTable[i] is ICharacter character && character.IsValid() && string.Equals(character.Name.ToString(), name, StringComparison.Ordinal))
+            {
+                return character;
+            }
+        }
+
+        return null;
     }
 
-    public async Task<IntPtr> GetCompanionAsync(IntPtr? playerPointer = null)
-    {
-        return await RunOnFrameworkThread(() => GetCompanionPtr(playerPointer)).ConfigureAwait(false);
-    }
-
-    public async Task<ICharacter?> GetGposeCharacterFromObjectTableByNameAsync(string name, bool onlyGposeCharacters = false)
-    {
-        return await RunOnFrameworkThread(() => GetGposeCharacterFromObjectTableByName(name, onlyGposeCharacters)).ConfigureAwait(false);
-    }
-
-    public ICharacter? GetGposeCharacterFromObjectTableByName(string name, bool onlyGposeCharacters = false)
+    public ICharacter? GetGposeCharacterFromObjectTableByName(string name) // basically just a slight optimization to start earlier in the table
     {
         EnsureIsOnFramework();
-        return (ICharacter?)_objectTable
-            .FirstOrDefault(i => (!onlyGposeCharacters || i.ObjectIndex >= 200) && string.Equals(i.Name.ToString(), name, StringComparison.Ordinal));
+        for (int i = GposeFirstObjectIndex; i < _objectTable.Length; i++)
+        {
+            if (_objectTable[i] is ICharacter character && character.IsValid() && string.Equals(character.Name.ToString(), name, StringComparison.Ordinal))
+            {
+                return character;
+            }
+        }
+
+        return null;
     }
 
-    public IEnumerable<ICharacter?> GetGposeCharactersFromObjectTable()
+    public IEnumerable<ICharacter?> GetGposeCharactersFromObjectTable() // just a slight optimization to start earlier in the table
     {
-        return _objectTable.Where(o => o.ObjectIndex > 200 && o.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc).Cast<ICharacter>();
+        EnsureIsOnFramework();
+        var characters = new List<ICharacter?>();
+        for (int i = GposeFirstObjectIndex; i < _objectTable.Length; i++)
+        {
+            if (_objectTable[i] is ICharacter character && character.IsValid())
+            {
+                characters.Add(character);
+            }
+        }
+
+        return characters;
     }
+
+    public ICharacter? GetGposeTargetOnFramework()
+    {
+        EnsureIsOnFramework();
+        if (!IsInGpose)
+        {
+            return null;
+        }
+
+        return GetCharacterFromObjectTableByIndex(GPoseTargetIdx);
+    }
+
+    ///////////////////////////
+    ///  Player 'n pet stuff
+    ///////////////////////////
 
     public bool GetIsPlayerPresent()
     {
@@ -349,49 +524,10 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return await RunOnFrameworkThread(GetIsPlayerPresent).ConfigureAwait(false);
     }
 
-    public unsafe IntPtr GetMinionOrMountPtr(IntPtr? playerPointer = null)
-    {
-        EnsureIsOnFramework();
-        playerPointer ??= GetPlayerPtr();
-        if (playerPointer == IntPtr.Zero) return IntPtr.Zero;
-        return _objectTable.GetObjectAddress(((GameObject*)playerPointer)->ObjectIndex + 1);
-    }
-
-    public async Task<IntPtr> GetMinionOrMountAsync(IntPtr? playerPointer = null)
-    {
-        return await RunOnFrameworkThread(() => GetMinionOrMountPtr(playerPointer)).ConfigureAwait(false);
-    }
-
-    public unsafe IntPtr GetPetPtr(IntPtr? playerPointer = null)
-    {
-        EnsureIsOnFramework();
-        if (_classJobIdsIgnoredForPets.Contains(_classJobId ?? 0)) return IntPtr.Zero;
-        var mgr = CharacterManager.Instance();
-        playerPointer ??= GetPlayerPtr();
-        if (playerPointer == IntPtr.Zero || (IntPtr)mgr == IntPtr.Zero) return IntPtr.Zero;
-        return (IntPtr)mgr->LookupPetByOwnerObject((BattleChara*)playerPointer);
-    }
-
-    public async Task<IntPtr> GetPetAsync(IntPtr? playerPointer = null)
-    {
-        return await RunOnFrameworkThread(() => GetPetPtr(playerPointer)).ConfigureAwait(false);
-    }
-
-    public async Task<IPlayerCharacter> GetPlayerCharacterAsync()
-    {
-        return await RunOnFrameworkThread(GetPlayerCharacter).ConfigureAwait(false);
-    }
-
     public IPlayerCharacter GetPlayerCharacter()
     {
         EnsureIsOnFramework();
         return _objectTable.LocalPlayer!;
-    }
-
-    public IntPtr GetPlayerCharacterFromCachedTableByIdent(string characterName)
-    {
-        if (_playerCharas.TryGetValue(characterName, out var pchar)) return pchar.Address;
-        return IntPtr.Zero;
     }
 
     public string GetPlayerName()
@@ -414,16 +550,18 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     {
         EnsureIsOnFramework();
         var playerChar = GetPlayerCharacter();
-        return ((BattleChara*)playerChar.Address)->Character.ContentId;
+
+        return playerChar == null ? 0 : ((BattleChara*)playerChar.Address)->Character.ContentId;
     }
 
-    public async Task<string> GetPlayerNameHashedAsync()
+    public unsafe string GetHashedCIDFromPlayerPointer(nint? ptr = null)
     {
-        return await RunOnFrameworkThread(() => _cid.Value.ToString().GetHash256()).ConfigureAwait(false);
-    }
+        EnsureIsOnFramework();
+        if (ptr == null)
+        {
+            ptr = GetPlayerCharacter().Address;
+        }
 
-    public unsafe static string GetHashedCIDFromPlayerPointer(nint ptr)
-    {
         return ((BattleChara*)ptr)->Character.ContentId.ToString().GetHash256();
     }
 
@@ -433,9 +571,86 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return _objectTable.LocalPlayer?.Address ?? IntPtr.Zero;
     }
 
-    public async Task<IntPtr> GetPlayerPointerAsync()
+    /// <summary>
+    /// Defaults to the local player if no ptr is passed
+    /// </summary>
+    public unsafe IntPtr GetCompanionPtrFromFramework(IntPtr? playerPointer = null)
     {
-        return await RunOnFrameworkThread(GetPlayerPtr).ConfigureAwait(false);
+        EnsureIsOnFramework();
+        playerPointer ??= _objectTable.LocalPlayer?.Address;
+        if (playerPointer is null || playerPointer.Value == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        var mgr = CharacterManager.Instance();
+        if ((IntPtr)mgr == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        return (IntPtr)mgr->LookupBuddyByOwnerObject((BattleChara*)playerPointer.Value);
+    }
+
+    /// <summary>
+    /// Defaults to the local player if no ptr is passed
+    /// </summary>
+    public IntPtr GetMinionOrMountPtrFromFramework(IntPtr? playerPointer = null)
+    {
+        EnsureIsOnFramework();
+        playerPointer ??= _objectTable.LocalPlayer?.Address;
+        if (playerPointer is null || playerPointer.Value == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        var player = GetCharacterFromObjectTableByAddressWhenAlreadyOnFrameworkThread(playerPointer.Value);
+        if (player == null || player.ObjectIndex + 1 > 199)
+        {
+            return IntPtr.Zero;
+        }
+
+        var character = _objectTable[player.ObjectIndex + 1];
+
+        return character != null && character.IsValid() ? character.Address : IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// Defaults to the local player if no ptr is passed
+    /// </summary>
+    public unsafe IntPtr GetPetPtrFromFramework(IntPtr? playerPointer = null)
+    {
+        EnsureIsOnFramework();
+        playerPointer ??= _objectTable.LocalPlayer?.Address;
+        if (playerPointer is null || playerPointer.Value == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        if (_classJobIdsIgnoredForPets.Contains(((Character*)playerPointer.Value)->CharacterData.ClassJob))
+        {
+            return IntPtr.Zero;
+        }
+
+        var mgr = CharacterManager.Instance();
+        if ((IntPtr)mgr == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        return (IntPtr)mgr->LookupPetByOwnerObject((BattleChara*)playerPointer.Value);
+    }
+
+    public unsafe nint GetObjectAddressByObjectKindAndAddress(API.Data.Enum.ObjectKind kind, nint address)
+    {
+        return kind switch
+        {
+            API.Data.Enum.ObjectKind.Player => address,
+            API.Data.Enum.ObjectKind.Companion => GetCompanionPtrFromFramework(address),
+            API.Data.Enum.ObjectKind.MinionOrMount => GetMinionOrMountPtrFromFramework(address),
+            API.Data.Enum.ObjectKind.Pet => GetPetPtrFromFramework(address),
+            _ => nint.Zero
+        };
     }
 
     public uint GetHomeWorldId()
@@ -444,11 +659,12 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return _objectTable.LocalPlayer?.HomeWorld.RowId ?? 0;
     }
 
-    public uint GetWorldId()
+    private uint GetWorldId()
     {
         EnsureIsOnFramework();
         return _objectTable.LocalPlayer!.CurrentWorld.RowId;
     }
+
     public unsafe bool TryGetCurrentPlotInfo(out int ward, out int plot)
     {
         var houseMan = HousingManager.Instance();
@@ -468,12 +684,30 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     public ResidentialAetheryteKind? GetResidentialAetheryteByTerritoryType(uint territoryType)
     {
         var t = _gameData.GetExcelSheet<TerritoryType>().GetRowOrDefault(territoryType);
-        if (t == null) return null;
-        if (t.Value.PlaceNameRegion.RowId == 2402) return ResidentialAetheryteKind.Kugane;
-        if (t.Value.PlaceNameRegion.RowId == 25) return ResidentialAetheryteKind.Foundation;
-        if (t.Value.PlaceNameRegion.RowId == 23) return ResidentialAetheryteKind.Gridania;
-        if (t.Value.PlaceNameRegion.RowId == 24) return ResidentialAetheryteKind.Uldah;
-        if (t.Value.PlaceNameRegion.RowId == 22) return ResidentialAetheryteKind.Limsa;
+        if (t == null)
+        {
+            return null;
+        }
+        if (t.Value.PlaceNameRegion.RowId == 2402)
+        {
+            return ResidentialAetheryteKind.Kugane;
+        }
+        if (t.Value.PlaceNameRegion.RowId == 25)
+        {
+            return ResidentialAetheryteKind.Foundation;
+        }
+        if (t.Value.PlaceNameRegion.RowId == 23)
+        {
+            return ResidentialAetheryteKind.Gridania;
+        }
+        if (t.Value.PlaceNameRegion.RowId == 24)
+        {
+            return ResidentialAetheryteKind.Uldah;
+        }
+        if (t.Value.PlaceNameRegion.RowId == 22)
+        {
+            return ResidentialAetheryteKind.Limsa;
+        }
         return null;
     }
 
@@ -483,7 +717,10 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         var agentMap = AgentMap.Instance();
         var houseMan = HousingManager.Instance();
         uint serverId = 0;
-        if (_objectTable.LocalPlayer == null) serverId = 0;
+        if (_objectTable.LocalPlayer == null)
+        {
+            serverId = 0;
+        }
         else serverId = _objectTable.LocalPlayer.CurrentWorld.RowId;
         uint mapId = agentMap == null ? 0 : agentMap->CurrentMapId;
         uint territoryId = agentMap == null ? 0 : agentMap->CurrentTerritoryId;
@@ -491,13 +728,19 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         uint wardId = houseMan == null ? 0 : (uint)(houseMan->GetCurrentWard() + 1);
         uint houseId = 0;
         var tempHouseId = houseMan == null ? 0 : (houseMan->GetCurrentPlot());
-        if (!houseMan->IsInside()) tempHouseId = 0;
+        if (!houseMan->IsInside())
+        {
+            tempHouseId = 0;
+        }
         if (tempHouseId < -1)
         {
             divisionId = tempHouseId == -127 ? 2 : (uint)1;
             tempHouseId = 100;
         }
-        if (tempHouseId == -1) tempHouseId = 0;
+        if (tempHouseId == -1)
+        {
+            tempHouseId = 0;
+        }
         houseId = (uint)tempHouseId;
         if (houseId != 0)
         {
@@ -521,7 +764,10 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
     {
         EnsureIsOnFramework();
         var agentMap = AgentMap.Instance();
-        if (agentMap == null) return;
+        if (agentMap == null)
+        {
+            return;
+        }
         agentMap->OpenMapByMapId(map.RowId);
         agentMap->SetFlagMapMarker(map.TerritoryType.RowId, map.RowId, position);
     }
@@ -538,7 +784,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
 
     public uint? GetDataCenterIdForWorld(ushort worldId)
     {
-        
+
         return WorldToDataCenterIdData.Value.TryGetValue(worldId, out var dataCenterId) ? dataCenterId : null;
     }
 
@@ -548,12 +794,7 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         var readZoneId = ContentsReplayManager.Instance();
         return readZoneId != null ? readZoneId->ZoneInitPacket.Instance : (ushort)0;
     }
-    
-    public async Task<ushort> GetZoneIdAsync()
-    {
-        return await RunOnFrameworkThread(GetZoneId).ConfigureAwait(false);
-    }
-    
+
     public async Task<uint> GetWorldIdAsync()
     {
         return await RunOnFrameworkThread(GetWorldId).ConfigureAwait(false);
@@ -564,20 +805,58 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return await RunOnFrameworkThread(GetHomeWorldId).ConfigureAwait(false);
     }
 
-    public unsafe bool IsGameObjectPresent(IntPtr key)
-    {
-        return _objectTable.Any(f => f.Address == key);
-    }
-
-    public bool IsObjectPresent(IGameObject? obj)
+    public unsafe ulong GetContentIdForObjectAddressOnFramework(nint address)
     {
         EnsureIsOnFramework();
-        return obj != null && obj.IsValid();
+        if (address == nint.Zero || _pairedHandlersByContentId.Count == 0)
+        {
+            return 0;
+        }
+        for (int i = 0; i < 200; i += 2)
+        {
+            if (_objectTable[i] is not IBattleChara chara || chara.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc || !chara.IsValid())
+            {
+                continue;
+            }
+
+            nint playerAddress = chara.Address;
+            if (playerAddress == nint.Zero)
+            {
+                continue;
+            }
+
+            ulong contentId = ((BattleChara*)playerAddress)->Character.ContentId;
+            if (!_pairedHandlersByContentId.ContainsKey(contentId))
+            {
+                continue;
+            }
+
+            if (address == playerAddress)
+            {
+                return contentId;
+            }
+
+            var minionOrMount = _objectTable[chara.ObjectIndex + 1];
+            if (minionOrMount != null && minionOrMount.IsValid() && minionOrMount.Address == address)
+            {
+                return contentId;
+            }
+
+            if (address == GetCompanionPtrFromFramework(playerAddress) || address == GetPetPtrFromFramework(playerAddress))
+            {
+                return contentId;
+            }
+        }
+
+        return 0;
     }
 
-    public async Task<bool> IsObjectPresentAsync(IGameObject? obj)
+    public void EnsureIsOnFramework()
     {
-        return await RunOnFrameworkThread(() => IsObjectPresent(obj)).ConfigureAwait(false);
+        if (!_framework.IsInFrameworkUpdateThread)
+        {
+            throw new InvalidOperationException("Can only be run on Framework");
+        }
     }
 
     public async Task RunOnFrameworkThread(System.Action act, [CallerMemberName] string callerMember = "", [CallerFilePath] string callerFilePath = "", [CallerLineNumber] int callerLineNumber = 0)
@@ -585,17 +864,12 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         var fileName = Path.GetFileNameWithoutExtension(callerFilePath);
         await _performanceCollector.LogPerformance(this, $"RunOnFramework:Act/{fileName}>{callerMember}:{callerLineNumber}", async () =>
         {
-            if (!_framework.IsInFrameworkUpdateThread)
+            if (_framework.IsInFrameworkUpdateThread)
             {
-                await _framework.RunOnFrameworkThread(act).ContinueWith((_) => Task.CompletedTask).ConfigureAwait(false);
-                while (_framework.IsInFrameworkUpdateThread) // yield the thread again, should technically never be triggered
-                {
-                    _logger.LogTrace("Still on framework");
-                    await Task.Delay(1).ConfigureAwait(false);
-                }
-            }
-            else
                 act();
+                return;
+            }
+            await _framework.RunOnFrameworkThread(act).ConfigureAwait(false);
         }).ConfigureAwait(false);
     }
 
@@ -604,18 +878,11 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         var fileName = Path.GetFileNameWithoutExtension(callerFilePath);
         return await _performanceCollector.LogPerformance(this, $"RunOnFramework:Func<{typeof(T)}>/{fileName}>{callerMember}:{callerLineNumber}", async () =>
         {
-            if (!_framework.IsInFrameworkUpdateThread)
+            if (_framework.IsInFrameworkUpdateThread)
             {
-                var result = await _framework.RunOnFrameworkThread(func).ContinueWith((task) => task.Result).ConfigureAwait(false);
-                while (_framework.IsInFrameworkUpdateThread) // yield the thread again, should technically never be triggered
-                {
-                    _logger.LogTrace("Still on framework");
-                    await Task.Delay(1).ConfigureAwait(false);
-                }
-                return result;
+                return func();
             }
-
-            return func.Invoke();
+            return await _framework.RunOnFrameworkThread(func).ConfigureAwait(false);
         }).ConfigureAwait(false);
     }
 
@@ -641,98 +908,161 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         return Task.CompletedTask;
     }
 
-    public async Task WaitWhileCharacterIsDrawing(ILogger logger, GameObjectHandler handler, Guid redrawId, int timeOut = 5000, bool doGlobalBlocking = true, CancellationToken? ct = null)
+    public async Task<DrawWaitResult> WaitWhileCharacterIsDrawing(ILogger logger, GameObjectHandler handler, Guid redrawId, int timeOut = 5000, CancellationToken ct = default)
     {
-        if (!_clientState.IsLoggedIn) return;
-
-        if (ct == null)
-            ct = CancellationToken.None;
-
-        const int tick = 250;
-        int curWaitTime = 0;
-        try
+        var timer = Stopwatch.StartNew();
+        while (true)
         {
-            logger.LogTrace("[{redrawId}] Starting wait for {handler} to draw", redrawId, handler);
-            await Task.Delay(tick, ct.Value).ConfigureAwait(true);
-            curWaitTime += tick;
-
-            while ((!ct.Value.IsCancellationRequested)
-                   && curWaitTime < timeOut
-                   && await handler.IsBeingDrawnRunOnFrameworkAsync(doGlobalBlocking).ConfigureAwait(false)) // 0b100000000000 is "still rendering" or something
+            ct.ThrowIfCancellationRequested();
+            var state = await RunOnFrameworkThread(() => handler.GetChareacterDrawStateFromFramework()).ConfigureAwait(false);
+            if (state.State == DrawState.Ready)
             {
-                logger.LogTrace("[{redrawId}] Waiting for {handler} to finish drawing", redrawId, handler);
-                curWaitTime += tick;
-                await Task.Delay(tick, ct.Value).ConfigureAwait(false);
+                return DrawWaitResult.Ready;
+            }
+            if (state.State == DrawState.Missing)
+            {
+                return DrawWaitResult.Missing;
             }
 
-            logger.LogTrace("[{redrawId}] Finished drawing after {curWaitTime}ms", redrawId, curWaitTime);
-        }
-        catch (NullReferenceException ex)
-        {
-            logger.LogWarning(ex, "Error accessing {handler}, object does not exist anymore?", handler);
-        }
-        catch (AccessViolationException ex)
-        {
-            logger.LogWarning(ex, "Error accessing {handler}, object does not exist anymore?", handler);
+            TimeSpan remaining = TimeSpan.FromMilliseconds(timeOut) - timer.Elapsed;
+            if (remaining <= TimeSpan.Zero)
+            {
+                logger.LogWarning("[{redrawId}] Timed out waiting for {handler} condition: {condition}", redrawId, handler, state.Condition);
+
+                return DrawWaitResult.TimedOut;
+            }
+
+            await Task.Delay(remaining < TimeSpan.FromMilliseconds(100) ? remaining : TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
         }
     }
 
-    public unsafe void WaitWhileGposeCharacterIsDrawing(IntPtr characterAddress, int timeOut = 5000)
+    public async Task<DrawWaitResult> WaitWhileCharacterIsDrawing(ILogger logger, ulong contentId, API.Data.Enum.ObjectKind objectKind, Guid redrawId, int timeOut = 5000, CancellationToken ct = default, GameObjectHandler? charaHandler = null)
     {
-        Thread.Sleep(500);
-        var obj = (GameObject*)characterAddress;
-        const int tick = 250;
-        int curWaitTime = 0;
-        _logger.LogTrace("RenderFlags: {flags}", obj->RenderFlags.ToString("X"));
-        while (obj->RenderFlags != VisibilityFlags.None && curWaitTime < timeOut)
+        var timer = Stopwatch.StartNew();
+        while (true)
         {
-            _logger.LogTrace($"Waiting for gpose actor to finish drawing");
-            curWaitTime += tick;
-            Thread.Sleep(tick);
+            ct.ThrowIfCancellationRequested();
+            var drawState = await RunOnFrameworkThread(() =>
+            {
+                if (!TryGetPlayerAddressAndIndexOnFrameworkByContentId(contentId, out var ownerAddress, out _))
+                {
+                    return new CharacterDrawState(DrawState.Missing, DrawCondition.ObjectZero);
+                }
+
+                nint address = GetObjectAddressByObjectKindAndAddress(objectKind, ownerAddress);
+                var state = GetCharacterDrawStateFromFramework(address, requireRenderable: objectKind == API.Data.Enum.ObjectKind.Player);
+                _logger.LogTrace("[{guid}]- Draw state for {contentId}/{objectKind} is {state}", redrawId, contentId, objectKind, state);
+
+                return state;
+            }).ConfigureAwait(false);
+
+            if (drawState.State == DrawState.Ready && charaHandler?.IsRedrawingViaIpcRequest != true)
+            {
+                return DrawWaitResult.Ready;
+            }
+            if (drawState.State == DrawState.Missing)
+            {
+                return DrawWaitResult.Missing;
+            }
+
+            TimeSpan remaining = TimeSpan.FromMilliseconds(timeOut) - timer.Elapsed;
+            if (remaining <= TimeSpan.Zero)
+            {
+                logger.LogWarning("[{redrawId}] Timed out waiting for {contentId}/{objectKind} condition: {condition}", redrawId, contentId, objectKind, drawState.Condition);
+
+                return DrawWaitResult.TimedOut;
+            }
+
+            await Task.Delay(remaining < TimeSpan.FromMilliseconds(100) ? remaining : TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
+        }
+    }
+
+    public API.Data.Enum.ObjectKind? GetOwnedObjectKindOnFramework(nint address)
+    {
+        if (!IsOnFrameworkThread || address == nint.Zero)
+        {
+            return null;
+        }
+        nint owner = GetPlayerPtr();
+        if (owner == nint.Zero)
+        {
+            return null;
+        }
+        if (address == owner)
+        {
+            return API.Data.Enum.ObjectKind.Player;
+        }
+        if (address == GetPetPtrFromFramework(owner))
+        {
+            return API.Data.Enum.ObjectKind.Pet;
+        }
+        if (address == GetMinionOrMountPtrFromFramework(owner))
+        {
+            return API.Data.Enum.ObjectKind.MinionOrMount;
+        }
+        if (address == GetCompanionPtrFromFramework(owner))
+        {
+            return API.Data.Enum.ObjectKind.Companion;
         }
 
-        Thread.Sleep(tick * 2);
+        return null;
     }
 
     public Vector2 WorldToScreen(IGameObject? obj)
     {
-        if (obj == null) return Vector2.Zero;
+        if (obj == null)
+        {
+            return Vector2.Zero;
+        }
         return _gameGui.WorldToScreen(obj.Position, out var screenPos) ? screenPos : Vector2.Zero;
     }
 
     public unsafe void OpenContextMenu(IntPtr agentPtr)
     {
+        EnsureIsOnFramework();
         var agentContext = (AgentContext*)agentPtr;
         agentContext->OpenContextMenu();
     }
 
-    internal (string Name, nint Address) FindPlayerByNameHash(string ident)
+    public unsafe IGameObject? GetGameObjectByAddress(nint address)
     {
-        _playerCharas.TryGetValue(ident, out var result);
-        return result;
+        EnsureIsOnFramework();
+        if (address == nint.Zero)
+        {
+            return null;
+        }
+
+        int index = ((GameObject*)address)->ObjectIndex;
+        var gameObject = _objectTable[index];
+
+        return gameObject != null && gameObject.IsValid() ? gameObject : null;
+    }
+
+    public string? FindPlayerByNameHash(string ident)
+    {
+        return _frameworkCharacters.FirstOrDefault(p => p.Value.Ident == ident).Value.Name;
     }
 
     internal IEnumerable<string> GetVisiblePlayerIdents()
     {
-        return _playerCharas.Keys;
+        EnsureIsOnFramework();
+
+        return _playersSeenThisFrame.Select(contentId => _frameworkCharacters[contentId].Ident).ToArray();
     }
 
     internal unsafe List<string> GetVisibleAllianceAndPartyMembers()
     {
-        var result = new List<string>();
-        foreach (string ident in GetVisiblePlayerIdents())
+        EnsureIsOnFramework();
+        List<string> result = [];
+        for (int i = 0; i < 200; i += 2)
         {
-            var (_, address) = FindPlayerByNameHash(ident);
-            if (address == 0)
-                continue;
-
-            BattleChara* playerObject = (BattleChara*)address;
-            if (playerObject == null)
-                continue;
-
-            if (playerObject->IsAllianceMember || playerObject->IsPartyMember)
+            if (_objectTable[i] is IBattleChara chara && chara.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc && chara.IsValid() && chara.Address != nint.Zero)
             {
-                result.Add(GetHashedCIDFromPlayerPointer(address));
+                var pc = (BattleChara*)chara.Address;
+                if (pc->IsAllianceMember || pc->IsPartyMember)
+                {
+                    result.Add(pc->Character.ContentId.ToString().GetHash256());
+                }
             }
         }
 
@@ -745,353 +1075,396 @@ public class DalamudUtilService : IHostedService, IMediatorSubscriber
         {
             return;
         }
-            
+
         _ = RunOnFrameworkThread(() =>
         {
-            nint addr = nint.Zero;
-            string? name = string.Empty;
+            IGameObject? objectToTarget = null;
 
-            if (pair != null)
+            if (pair != null && TryGetPlayerAddressAndIndexOnFrameworkByContentId(pair.ContendId, out _, out var index))
             {
-                name = pair.PlayerName;
-                if (string.IsNullOrEmpty(name))
-                {
-                    return;
-                }
-
-                addr = _playerCharas.FirstOrDefault(f => string.Equals(f.Value.Name, name, StringComparison.Ordinal)).Value.Address;
-                if (addr == nint.Zero)
-                {
-                    return;
-                }
+                objectToTarget = _objectTable[index];
             }
-
-            IGameObject? objectToTarget = pair != null ? CreateGameObject(addr) : null;
 
             switch (targetType)
             {
                 case TargetType.Target:
                     _targetManager.Target = objectToTarget;
                     break;
+
                 case TargetType.SoftTarget:
                     _targetManager.SoftTarget = objectToTarget;
                     break;
+
                 case TargetType.FocusTarget:
                     _targetManager.FocusTarget = objectToTarget;
                     break;
+
                 case TargetType.MouseOverTarget:
                     _targetManager.MouseOverTarget = objectToTarget;
                     break;
-                default:
-                    break;
             }
-        }).ConfigureAwait(false);
+        });
     }
 
-    private unsafe void CheckCharacterForDrawing(nint address, string characterName)
+    private unsafe void ScanFrameworkCharacters()
     {
-        var gameObj = (GameObject*)address;
-        var drawObj = gameObj->DrawObject;
-        bool isDrawing = false;
-        bool isDrawingChanged = false;
-        if ((nint)drawObj != IntPtr.Zero)
+        EnsureIsOnFramework();
+
+        // swap the set before clearing so we don't have to recreate a new one
+        (_playersSeenThisFrame, _playersSeenPreviousFrame) = (_playersSeenPreviousFrame, _playersSeenThisFrame);
+
+        _playersSeenThisFrame.Clear();
+        _frameworkCharacterChanges.Clear();
+
+        var localPlayer = _objectTable.LocalPlayer;
+        bool objectTableAvailable = localPlayer != null && !_condition[ConditionFlag.BetweenAreas] && !_condition[ConditionFlag.BetweenAreas51]
+            && !(localPlayer.IsDead && _condition[ConditionFlag.BoundByDuty]);
+        if (objectTableAvailable)
         {
-            isDrawing = gameObj->RenderFlags == VisibilityFlags.Nameplate;
-            if (!isDrawing)
+            nint localPlayerAddress = localPlayer!.Address;
+            for (int i = 0; i < 199; i += 2) // we only scan players here
             {
-                isDrawing = ((CharacterBase*)drawObj)->HasModelInSlotLoaded != 0;
-                if (!isDrawing)
+                if (_objectTable[i] is not IBattleChara chara || chara.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc || !chara.IsValid())
                 {
-                    isDrawing = ((CharacterBase*)drawObj)->HasModelFilesInSlotLoaded != 0;
-                    if (isDrawing && !string.Equals(_lastGlobalBlockPlayer, characterName, StringComparison.Ordinal)
-                        && !string.Equals(_lastGlobalBlockReason, "HasModelFilesInSlotLoaded", StringComparison.Ordinal))
+                    continue;
+                }
+
+                nint address = chara.Address;
+                if (address == nint.Zero || address == localPlayerAddress || _blockedCharacterHandler.IsCharacterBlocked(address, out _))
+                {
+                    continue;
+                }
+
+                ulong contentId = ((BattleChara*)address)->Character.ContentId;
+                if (contentId == 0)
+                {
+                    continue;
+                }
+
+                _playersSeenThisFrame.Add(contentId);
+
+                if (!_frameworkCharacters.ContainsKey(contentId))
+                {
+                    _frameworkCharacters.Add(contentId, (contentId.ToString().GetHash256(), chara.Name.ToString()));
+                }
+            }
+        }
+
+        // this is for the players we have not seen this frame and were in the previous (no longer visibile)
+        foreach (var contentId in _playersSeenPreviousFrame)
+        {
+            if (!_playersSeenThisFrame.Contains(contentId) && _frameworkCharacters.TryGetValue(contentId, out var player))
+            {
+                _frameworkCharacterChanges.Add(new(contentId, player.Ident, player.Name, false));
+            }
+        }
+
+
+        // this is for the players we have seen this frame and not the previous (now visibile)
+        foreach (var contentId in _playersSeenThisFrame)
+        {
+            if (!_playersSeenPreviousFrame.Contains(contentId))
+            {
+                var player = _frameworkCharacters[contentId];
+                _frameworkCharacterChanges.Add(new(contentId, player.Ident, player.Name, true));
+            }
+        }
+
+        if (_frameworkCharacterChanges.Count > 0)
+        {
+            try
+            {
+                // send this to the PairManager to deal with
+                FrameworkCharactersChanged?.Invoke(_frameworkCharacterChanges);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Framework update failed");
+            }
+        }
+    }
+
+    private void UpdateGameObjectHandlers()
+    {
+        EnsureIsOnFramework();
+
+        while (_handlersTrackedOnFrameworkQueue.TryDequeue(out var handlerUpdate))
+        {
+            var handler = handlerUpdate.Handler;
+
+            if (handler.IsOwnedObject) // we add ourself, minion, mounts, etc.
+            {
+                if (handlerUpdate.TrackedOnFramework)
+                {
+                    if (!_ownedHandlers.Contains(handler))
                     {
-                        _lastGlobalBlockPlayer = characterName;
-                        _lastGlobalBlockReason = "HasModelFilesInSlotLoaded";
-                        isDrawingChanged = true;
+                        _ownedHandlers.Add(handler);
                     }
                 }
                 else
                 {
-                    if (!string.Equals(_lastGlobalBlockPlayer, characterName, StringComparison.Ordinal)
-                        && !string.Equals(_lastGlobalBlockReason, "HasModelInSlotLoaded", StringComparison.Ordinal))
-                    {
-                        _lastGlobalBlockPlayer = characterName;
-                        _lastGlobalBlockReason = "HasModelInSlotLoaded";
-                        isDrawingChanged = true;
-                    }
+                    _ownedHandlers.Remove(handler);
                 }
+
+                continue;
             }
-            else
+
+            if (handler.ContentId == 0)
             {
-                if (!string.Equals(_lastGlobalBlockPlayer, characterName, StringComparison.Ordinal)
-                    && !string.Equals(_lastGlobalBlockReason, "RenderFlags", StringComparison.Ordinal))
+                if (handlerUpdate.TrackedOnFramework)
                 {
-                    _lastGlobalBlockPlayer = characterName;
-                    _lastGlobalBlockReason = "RenderFlags";
-                    isDrawingChanged = true;
+                    _logger.LogWarning("Cannot track paired handler without a content ID: {handler}", handler);
                 }
+
+                continue;
+            }
+
+            if (handlerUpdate.TrackedOnFramework)
+            {
+                _pairedHandlersByContentId[handler.ContentId] = handler;
+            }
+            else if (_pairedHandlersByContentId.TryGetValue(handler.ContentId, out var registeredHandler) && ReferenceEquals(registeredHandler, handler))
+            {
+                _pairedHandlersByContentId.Remove(handler.ContentId);
             }
         }
 
-        if (isDrawingChanged)
+        var localPlayer = _objectTable.LocalPlayer;
+        bool canReadObjects = localPlayer != null && !_condition[ConditionFlag.BetweenAreas] && !_condition[ConditionFlag.BetweenAreas51]
+            && !(localPlayer.IsDead && _condition[ConditionFlag.BoundByDuty]);
+
+        foreach (var handler in _ownedHandlers)
         {
-            _logger.LogTrace("Global draw block: START => {name} ({reason})", characterName, _lastGlobalBlockReason);
+            handler.FrameworkUpdate(canReadObjects);
         }
 
-        IsAnythingDrawing |= isDrawing;
+        foreach (ulong contentId in _playersSeenPreviousFrame)
+        {
+            if (!_playersSeenThisFrame.Contains(contentId) && _pairedHandlersByContentId.TryGetValue(contentId, out var handler))
+            {
+                handler.Invalidate();
+            }
+        }
+
+        if (canReadObjects)
+        {
+            foreach (ulong contentId in _playersSeenThisFrame)
+            {
+                if (_pairedHandlersByContentId.TryGetValue(contentId, out var handler))
+                {
+                    handler.FrameworkUpdate(true);
+                }
+            }
+        }
     }
 
-    private void FrameworkOnUpdate(IFramework framework)
+    private unsafe void FrameworkOnUpdate(IFramework framework)
     {
-        _performanceCollector.LogPerformance(this, $"FrameworkOnUpdate", FrameworkOnUpdateInternal);
-    }
+        bool isNormalFrameworkUpdate = DateTime.UtcNow < _delayedFrameworkUpdateCheck.AddSeconds(1);
 
-    private unsafe void FrameworkOnUpdateInternal()
-    {
-        if ((_objectTable.LocalPlayer?.IsDead ?? false) && _condition[ConditionFlag.BoundByDuty])
+        ScanFrameworkCharacters(); // check if we see/don't see players around us and let PairManager know
+        UpdateGameObjectHandlers(); // update the game objects for the characters objects we are tracking
+
+        // do all the other framework state transition stuff
+
+        if (_clientState.IsGPosing && !IsInGpose)
+        {
+            _logger.LogDebug("Gpose start");
+            IsInGpose = true;
+            Mediator.Publish(new GposeStartMessage());
+        }
+        else if (!_clientState.IsGPosing && IsInGpose)
+        {
+            _logger.LogDebug("Gpose end");
+            IsInGpose = false;
+            Mediator.Publish(new GposeEndMessage());
+        }
+
+        if (_condition[ConditionFlag.InCombat] && !IsInCombat)
+        {
+            _logger.LogTrace("Combat start");
+            IsInCombat = true;
+            Mediator.Publish(new CombatOrPerformanceStartMessage());
+            Mediator.Publish(new HaltScanMessage(nameof(IsInCombatOrPerforming)));
+        }
+        else if (!_condition[ConditionFlag.InCombat] && IsInCombat)
+        {
+            _logger.LogTrace("Combat end");
+            IsInCombat = false;
+            Mediator.Publish(new CombatOrPerformanceEndMessage());
+            Mediator.Publish(new ResumeScanMessage(nameof(IsInCombatOrPerforming)));
+        }
+
+        if (_condition[ConditionFlag.Performing] && !IsPerforming)
+        {
+            _logger.LogTrace("Performance start");
+            IsPerforming = true;
+            Mediator.Publish(new CombatOrPerformanceStartMessage());
+            Mediator.Publish(new HaltScanMessage(nameof(IsInCombatOrPerforming)));
+        }
+        else if (!_condition[ConditionFlag.Performing] && IsPerforming)
+        {
+            _logger.LogTrace("Performance end");
+            IsPerforming = false;
+            Mediator.Publish(new CombatOrPerformanceEndMessage());
+            Mediator.Publish(new ResumeScanMessage(nameof(IsInCombatOrPerforming)));
+        }
+
+        if (_condition[ConditionFlag.BoundByDuty] && !IsBoundByDuty)
+        {
+            _logger.LogDebug("Duty start");
+            IsBoundByDuty = true;
+            if (_configService.Current.DisableSyncDuringDuty)
+            {
+                Mediator.Publish(new PauseSyncMessage());
+                Mediator.Publish(new HaltScanMessage(nameof(IsBoundByDuty)));
+            }
+        }
+        else if (!_condition[ConditionFlag.BoundByDuty] && IsBoundByDuty)
+        {
+            _logger.LogDebug("Duty end");
+            IsBoundByDuty = false;
+            if (_configService.Current.DisableSyncDuringDuty)
+            {
+                Mediator.Publish(new ResumeSyncMessage());
+                Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByDuty)));
+            }
+        }
+
+        if (_clientState.IsPvPExcludingDen && !IsBoundByPvP)
+        {
+            _logger.LogDebug("PvP start");
+            IsBoundByPvP = true;
+            if (_configService.Current.DisableSyncDuringPvP)
+            {
+                Mediator.Publish(new PauseSyncMessage());
+                Mediator.Publish(new HaltScanMessage(nameof(IsBoundByPvP)));
+            }
+        }
+        else if (!_clientState.IsPvPExcludingDen && IsBoundByPvP)
+        {
+            _logger.LogDebug("PvP end");
+            IsBoundByPvP = false;
+            if (_configService.Current.DisableSyncDuringPvP)
+            {
+                Mediator.Publish(new ResumeSyncMessage());
+                Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByPvP)));
+            }
+        }
+
+        if ((_condition[ConditionFlag.WatchingCutscene] || _condition[ConditionFlag.OccupiedInCutSceneEvent]) && !IsInCutscene)
+        {
+            _logger.LogDebug("Cutscene start");
+            IsInCutscene = true;
+            Mediator.Publish(new CutsceneStartMessage());
+            Mediator.Publish(new HaltScanMessage(nameof(IsInCutscene)));
+        }
+        else if (!(_condition[ConditionFlag.WatchingCutscene] || _condition[ConditionFlag.OccupiedInCutSceneEvent]) && IsInCutscene)
+        {
+            _logger.LogDebug("Cutscene end");
+            IsInCutscene = false;
+            Mediator.Publish(new CutsceneEndMessage());
+            Mediator.Publish(new ResumeScanMessage(nameof(IsInCutscene)));
+        }
+
+        if (IsInCutscene)
+        {
+            Mediator.Publish(new CutsceneFrameworkUpdateMessage());
+            return;
+        }
+
+        if (_condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.BetweenAreas51])
+        {
+            var zone = _clientState.TerritoryType;
+            var world = _objectTable.LocalPlayer?.CurrentWorld.RowId ?? 0;
+
+            if (_lastZone != zone || _lastWorld != world)
+            {
+                _lastZone = zone;
+                _lastWorld = world;
+                if (!_sentBetweenAreas)
+                {
+                    _logger.LogDebug("Zone switch start");
+                    _sentBetweenAreas = true;
+                    Mediator.Publish(new ZoneSwitchStartMessage());
+                    Mediator.Publish(new HaltScanMessage(nameof(ConditionFlag.BetweenAreas)));
+                }
+            }
+
+            return;
+        }
+
+        if (_sentBetweenAreas)
+        {
+            _logger.LogDebug("Zone switch end");
+            _sentBetweenAreas = false;
+            Mediator.Publish(new ZoneSwitchEndMessage());
+            Mediator.Publish(new ResumeScanMessage(nameof(ConditionFlag.BetweenAreas)));
+        }
+
+        var localPlayer = _objectTable.LocalPlayer;
+        if (localPlayer != null)
+        {
+            _classJobId = localPlayer.ClassJob.RowId;
+            _playerName = localPlayer.Name.TextValue;
+        }
+
+        if (!((_configService.Current.AutoPauseDataApplicationWhenPerforming && IsPerforming) || IsInCombat))
+        {
+            Mediator.Publish(new FrameworkUpdateMessage());
+        }
+
+        Mediator.Publish(new PriorityFrameworkUpdateMessage());
+
+        if (isNormalFrameworkUpdate)
         {
             return;
         }
 
-        bool isNormalFrameworkUpdate = DateTime.UtcNow < _delayedFrameworkUpdateCheck.AddSeconds(1);
-
-        _performanceCollector.LogPerformance(this, $"FrameworkOnUpdateInternal+{(isNormalFrameworkUpdate ? "Regular" : "Delayed")}", () =>
+        if (localPlayer != null && IsLoggedIn)
         {
-            IsAnythingDrawing = false;
-            _performanceCollector.LogPerformance(this, $"ObjTableToCharas",
-                () =>
-                {
-                    _notUpdatedCharas.AddRange(_playerCharas.Keys);
-
-                    for (int i = 0; i < 200; i += 2)
-                    {
-                        var chara = _objectTable[i];
-                        if (chara == null || chara.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc)
-                            continue;
-
-                        if (_blockedCharacterHandler.IsCharacterBlocked(chara.Address, out bool firstTime) && firstTime)
-                        {
-                            _logger.LogTrace("Skipping character {addr}, blocked/muted", chara.Address.ToString("X"));
-                            continue;
-                        }
-
-                        var charaName = ((GameObject*)chara.Address)->NameString;
-                        var hash = GetHashedCIDFromPlayerPointer(chara.Address);
-                        if (!IsAnythingDrawing)
-                            CheckCharacterForDrawing(chara.Address, charaName);
-                        _notUpdatedCharas.Remove(hash);
-                        _playerCharas[hash] = (charaName, chara.Address);
-                    }
-
-                    foreach (var notUpdatedChara in _notUpdatedCharas)
-                    {
-                        _playerCharas.Remove(notUpdatedChara);
-                    }
-
-                    _notUpdatedCharas.Clear();
-                });
-
-            if (!IsAnythingDrawing && !string.IsNullOrEmpty(_lastGlobalBlockPlayer))
+            var frameworkInstance = Framework.Instance();
+            try
             {
-                _logger.LogTrace("Global draw block: END => {name}", _lastGlobalBlockPlayer);
-                if (_configService.Current.FilterMods)
-                    Mediator.Publish(new PlayerDrawEndMessage(_lastGlobalBlockPlayer));
-                _lastGlobalBlockPlayer = string.Empty;
-                _lastGlobalBlockReason = string.Empty;
+                FPSCounter = frameworkInstance->FrameRate;
             }
-
-            if (_clientState.IsGPosing && !IsInGpose)
+            catch (Exception ex)
             {
-                _logger.LogDebug("Gpose start");
-                IsInGpose = true;
-                Mediator.Publish(new GposeStartMessage());
+                _logger.LogError(ex.Message);
             }
-            else if (!_clientState.IsGPosing && IsInGpose)
-            {
-                _logger.LogDebug("Gpose end");
-                IsInGpose = false;
-                Mediator.Publish(new GposeEndMessage());
-            }
+        }
 
-            if (_condition[ConditionFlag.InCombat] && !IsInCombat)
-            {
-                _logger.LogTrace("Combat start");
-                IsInCombat = true;
-                Mediator.Publish(new CombatOrPerformanceStartMessage());
-                Mediator.Publish(new HaltScanMessage(nameof(IsInCombatOrPerforming)));
-            }
-            else if (!_condition[ConditionFlag.InCombat] && IsInCombat)
-            {
-                _logger.LogTrace("Combat end");
-                IsInCombat = false;
-                Mediator.Publish(new CombatOrPerformanceEndMessage());
-                Mediator.Publish(new ResumeScanMessage(nameof(IsInCombatOrPerforming)));
-            }
+        if (localPlayer != null && !IsLoggedIn)
+        {
+            _logger.LogDebug("Logged in");
+            IsLoggedIn = true;
+            _lastZone = _clientState.TerritoryType;
+            _cid = RebuildCID();
+            Mediator.Publish(new DalamudLoginMessage());
+        }
+        else if (localPlayer == null && IsLoggedIn)
+        {
+            _logger.LogDebug("Logged out");
+            _frameworkCharacters.Clear();
+            IsLoggedIn = false;
+            _playerName = null;
+            Mediator.Publish(new DalamudLogoutMessage());
+        }
 
-            if (_condition[ConditionFlag.Performing] && !IsPerforming)
-            {
-                _logger.LogTrace("Performance start");
-                IsPerforming = true;
-                Mediator.Publish(new CombatOrPerformanceStartMessage());
-                Mediator.Publish(new HaltScanMessage(nameof(IsInCombatOrPerforming)));
-            }
-            else if (!_condition[ConditionFlag.Performing] && IsPerforming)
-            {
-                _logger.LogTrace("Performance end");
-                IsPerforming = false;
-                Mediator.Publish(new CombatOrPerformanceEndMessage());
-                Mediator.Publish(new ResumeScanMessage(nameof(IsInCombatOrPerforming)));
-            }
+        if (_gameConfig != null
+            && _gameConfig.TryGet(Dalamud.Game.Config.SystemConfigOption.LodType_DX11, out bool lodEnabled))
+        {
+            IsLodEnabled = lodEnabled;
+        }
 
-            if (_condition[ConditionFlag.BoundByDuty] && !IsBoundByDuty)
-            {
-                _logger.LogDebug("Duty start");
-                IsBoundByDuty = true;
-                if (_configService.Current.DisableSyncDuringDuty)
-                {
-                    Mediator.Publish(new PauseSyncMessage());
-                    Mediator.Publish(new HaltScanMessage(nameof(IsBoundByDuty)));
-                }
-            }
-            else if (!_condition[ConditionFlag.BoundByDuty] && IsBoundByDuty)
-            {
-                _logger.LogDebug("Duty end");
-                IsBoundByDuty = false;
-                if (_configService.Current.DisableSyncDuringDuty)
-                {
-                    Mediator.Publish(new ResumeSyncMessage());
-                    Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByDuty)));
-                }
-            }
+        if ((_configService.Current.AutoPauseDataApplicationWhenPerforming && IsPerforming) || IsInCombat)
+        {
+            Mediator.Publish(new FrameworkUpdateMessage());
+        }
 
-            if (_clientState.IsPvPExcludingDen && !IsBoundByPvP)
-            {
-                _logger.LogDebug("PvP start");
-                IsBoundByPvP = true;
-                if (_configService.Current.DisableSyncDuringPvP)
-                {
-                    Mediator.Publish(new PauseSyncMessage());
-                    Mediator.Publish(new HaltScanMessage(nameof(IsBoundByPvP)));
-                }
-            }
-            else if (!_clientState.IsPvPExcludingDen && IsBoundByPvP)
-            {
-                _logger.LogDebug("PvP end");
-                IsBoundByPvP = false;
-                if (_configService.Current.DisableSyncDuringPvP)
-                {
-                    Mediator.Publish(new ResumeSyncMessage());
-                    Mediator.Publish(new ResumeScanMessage(nameof(IsBoundByPvP)));
-                }
-            }
+        Mediator.Publish(new DelayedFrameworkUpdateMessage());
 
-            if ((_condition[ConditionFlag.WatchingCutscene] || _condition[ConditionFlag.OccupiedInCutSceneEvent]) && !IsInCutscene)
-            {
-                _logger.LogDebug("Cutscene start");
-                IsInCutscene = true;
-                Mediator.Publish(new CutsceneStartMessage());
-                Mediator.Publish(new HaltScanMessage(nameof(IsInCutscene)));
-            }
-            else if (!(_condition[ConditionFlag.WatchingCutscene] || _condition[ConditionFlag.OccupiedInCutSceneEvent]) && IsInCutscene)
-            {
-                _logger.LogDebug("Cutscene end");
-                IsInCutscene = false;
-                Mediator.Publish(new CutsceneEndMessage());
-                Mediator.Publish(new ResumeScanMessage(nameof(IsInCutscene)));
-            }
+        _delayedFrameworkUpdateCheck = DateTime.UtcNow;
 
-            if (IsInCutscene)
-            {
-                Mediator.Publish(new CutsceneFrameworkUpdateMessage());
-                return;
-            }
-
-            if (_condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.BetweenAreas51])
-            {
-                var zone = _clientState.TerritoryType;
-                var world = _objectTable.LocalPlayer?.CurrentWorld.RowId ?? 0;
-
-                if (_lastZone != zone || _lastWorld != world)
-                {
-                    _lastZone = zone;
-                    _lastWorld = world;
-                    if (!_sentBetweenAreas)
-                    {
-                        _logger.LogDebug("Zone switch start");
-                        _sentBetweenAreas = true;
-                        Mediator.Publish(new ZoneSwitchStartMessage());
-                        Mediator.Publish(new HaltScanMessage(nameof(ConditionFlag.BetweenAreas)));
-                    }
-                }
-
-                return;
-            }
-
-            if (_sentBetweenAreas)
-            {
-                _logger.LogDebug("Zone switch end");
-                _sentBetweenAreas = false;
-                Mediator.Publish(new ZoneSwitchEndMessage());
-                Mediator.Publish(new ResumeScanMessage(nameof(ConditionFlag.BetweenAreas)));
-            }
-
-            var localPlayer = _objectTable.LocalPlayer;
-            if (localPlayer != null)
-            {
-                _classJobId = localPlayer.ClassJob.RowId;
-                _playerName = localPlayer.Name.TextValue;
-            }
-
-            if (!((_configService.Current.AutoPauseDataApplicationWhenPerforming && IsPerforming) || IsInCombat))
-                Mediator.Publish(new FrameworkUpdateMessage());
-
-            Mediator.Publish(new PriorityFrameworkUpdateMessage());
-
-            if (isNormalFrameworkUpdate)
-                return;
-
-            if (localPlayer != null && IsLoggedIn)
-            {
-                var framework = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance();
-                try
-                {
-                    FPSCounter = framework->FrameRate;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex.Message);
-                }
-            }
-
-            if (localPlayer != null && !IsLoggedIn)
-            {
-                _logger.LogDebug("Logged in");
-                IsLoggedIn = true;
-                _lastZone = _clientState.TerritoryType;
-                _cid = RebuildCID();
-                Mediator.Publish(new DalamudLoginMessage());
-            }
-            else if (localPlayer == null && IsLoggedIn)
-            {
-                _logger.LogDebug("Logged out");
-                IsLoggedIn = false;
-                _playerName = null;
-                Mediator.Publish(new DalamudLogoutMessage());
-            }
-
-            if (_gameConfig != null
-                && _gameConfig.TryGet(Dalamud.Game.Config.SystemConfigOption.LodType_DX11, out bool lodEnabled))
-            {
-                IsLodEnabled = lodEnabled;
-            }
-
-            if ((_configService.Current.AutoPauseDataApplicationWhenPerforming && IsPerforming) || IsInCombat)
-                Mediator.Publish(new FrameworkUpdateMessage());
-
-            Mediator.Publish(new DelayedFrameworkUpdateMessage());
-
-            _delayedFrameworkUpdateCheck = DateTime.UtcNow;
-        });
     }
 }

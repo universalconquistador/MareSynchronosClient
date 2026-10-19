@@ -5,6 +5,7 @@ using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto;
 using MareSynchronos.API.Dto.User;
 using MareSynchronos.API.SignalR;
+using MareSynchronos.FileCache;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
@@ -28,11 +29,13 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private readonly DalamudUtilService _dalamudUtil;
     private readonly HubFactory _hubFactory;
     private readonly PairManager _pairManager;
+    private readonly PairDataApplicationManager _pairDataApplicationManager;
     private readonly ServerConfigurationManager _serverManager;
     private readonly TokenProvider _tokenProvider;
     private readonly MareConfigService _mareConfigService;
     private readonly GatewayUtils _gatewayUtils;
     private readonly HttpClientProvider _httpClientProvider;
+    private readonly FileCacheManager _fileCacheManager;
     private CancellationTokenSource _connectionCancellationTokenSource;
     private ConnectionDto? _connectionDto;
     private bool _doNotNotifyOnNextInfo = false;
@@ -41,30 +44,29 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private string? _lastUsedToken;
     private HubConnection? _mareHub;
     private ServerState _serverState;
-    private CensusUpdateMessage? _lastCensus;
 
     public ApiController(ILogger<ApiController> logger, HubFactory hubFactory, DalamudUtilService dalamudUtil,
-        PairManager pairManager, ServerConfigurationManager serverManager, MareMediator mediator,
-        TokenProvider tokenProvider, MareConfigService mareConfigService, HttpClientProvider httpClientProvider) : base(logger, mediator)
+        PairManager pairManager, PairDataApplicationManager pairDataApplicationManager, ServerConfigurationManager serverManager, MareMediator mediator,
+        TokenProvider tokenProvider, MareConfigService mareConfigService, HttpClientProvider httpClientProvider, FileCacheManager fileCacheManager) : base(logger, mediator)
     {
         _hubFactory = hubFactory;
         _dalamudUtil = dalamudUtil;
         _pairManager = pairManager;
+        _pairDataApplicationManager = pairDataApplicationManager;
         _serverManager = serverManager;
         _tokenProvider = tokenProvider;
         _mareConfigService = mareConfigService;
         _connectionCancellationTokenSource = new CancellationTokenSource();
         _gatewayUtils = new(logger);
         _httpClientProvider = httpClientProvider;
+        _fileCacheManager = fileCacheManager;
 
         Mediator.Subscribe<DalamudLoginMessage>(this, (_) => DalamudUtilOnLogIn());
         Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => DalamudUtilOnLogOut());
         Mediator.Subscribe<HubClosedMessage>(this, (msg) => MareHubOnClosed(msg.Exception));
         Mediator.Subscribe<HubReconnectedMessage>(this, (msg) => _ = MareHubOnReconnectedAsync());
         Mediator.Subscribe<HubReconnectingMessage>(this, (msg) => MareHubOnReconnecting(msg.Exception));
-        //Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
-        Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
         Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData, msg.Reason, msg.PauseDuration));
         Mediator.Subscribe<UnPauseMessage>(this, (msg) => _ = UnPauseAsync(msg.UserData, msg.Notification));
         Mediator.Subscribe<UserPairStickyPauseAndRemoveMessage>(this, (msg) => _ = UserPairStickyPauseAndRemove(msg.UserData));
@@ -142,15 +144,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public async Task CreateConnectionsAsync()
     {
-        if (!_serverManager.ShownCensusPopup)
-        {
-            Mediator.Publish(new OpenCensusPopupMessage());
-            while (!_serverManager.ShownCensusPopup)
-            {
-                await Task.Delay(500).ConfigureAwait(false);
-            }
-        }
-
         Logger.LogDebug("CreateConnections called");
 
         // Check if the server is "paused", meaning we're manually disconnected from the service
@@ -162,6 +155,24 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
             _connectionCancellationTokenSource?.Cancel();
             return;
         }
+
+        ServerState previosState = ServerState;
+        while (!_fileCacheManager.DatabaseStatus.IsReady)
+        {
+            if (_fileCacheManager.DatabaseStatus.State == DatabaseState.CacheInit)
+            {
+                ServerState = ServerState.WaitingForCache;
+            }
+            else
+            {
+                ServerState = ServerState.WaitingForDatabase;
+            }
+            Logger.LogTrace("Database is not ready yet, waiting to create server connection...");
+
+            await Task.Delay(250).ConfigureAwait(false);
+        }
+
+        ServerState = previosState;
 
         var proxyServer = _serverManager.UseServiceGatewayProxy ? !string.IsNullOrWhiteSpace(_serverManager.ServiceGatewayProxyHost) ? _serverManager.CurrentProxyServer : null : null;
         if (proxyServer != null)
@@ -664,16 +675,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     private async Task LoadOnlinePairsAsync()
     {
-        CensusDataDto? dto = null;
-        if (_serverManager.SendCensusData && _lastCensus != null)
-        {
-            var world = await _dalamudUtil.GetWorldIdAsync().ConfigureAwait(false);
-            dto = new((ushort)world, _lastCensus.RaceId, _lastCensus.TribeId, _lastCensus.Gender);
-            Logger.LogDebug("Attaching Census Data: {data}", dto);
-        }
-
         _pairManager.DeferRecreate = true;
-        foreach (var entry in await UserGetOnlinePairs(dto).ConfigureAwait(false))
+        foreach (var entry in await UserGetOnlinePairs(null).ConfigureAwait(false))
         {
             Logger.LogDebug("Pair online: {pair}", entry);
             _pairManager.MarkPairOnline(entry, sendNotif: false);

@@ -1,11 +1,8 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Plugin;
+﻿using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
-using Dalamud.Utility;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
-using System.Text;
 
 namespace MareSynchronos.Interop.Ipc;
 
@@ -43,74 +40,62 @@ public sealed class IpcCallerCustomize : IIpcCaller
 
     public bool APIAvailable { get; private set; } = false;
 
-    public async Task RevertAsync(nint character)
+    public Guid? SetBodyScaleOnFramework(ushort index, string decodedScale)
     {
-        if (!APIAvailable) return;
-        await _dalamudUtil.RunOnFrameworkThread(() =>
+        if (!APIAvailable)
         {
-            var gameObj = _dalamudUtil.CreateGameObject(character);
-            if (gameObj is ICharacter c)
-            {
-                _logger.LogTrace("CustomizePlus reverting for {chara}", c.Address.ToString("X"));
-                _customizePlusRevertCharacter!.InvokeFunc(c.ObjectIndex);
-            }
-        }).ConfigureAwait(false);
-    }
+            return null;
+        }
 
-    public async Task<Guid?> SetBodyScaleAsync(nint character, string scale)
-    {
-        if (!APIAvailable) return null;
-        return await _dalamudUtil.RunOnFrameworkThread(() =>
+        if (string.IsNullOrEmpty(decodedScale))
         {
-            var gameObj = _dalamudUtil.CreateGameObject(character);
-            if (gameObj is ICharacter c)
-            {
-                string decodedScale = Encoding.UTF8.GetString(Convert.FromBase64String(scale));
-                _logger.LogTrace("CustomizePlus applying for {chara}", c.Address.ToString("X"));
-                if (scale.IsNullOrEmpty())
-                {
-                    _customizePlusRevertCharacter!.InvokeFunc(c.ObjectIndex);
-                    return null;
-                }
-                else
-                {
-                    var result = _customizePlusSetBodyScaleToCharacter!.InvokeFunc(c.ObjectIndex, decodedScale);
-                    return result.Item2;
-                }
-            }
+            _customizePlusRevertCharacter.InvokeFunc(index);
 
             return null;
-        }).ConfigureAwait(false);
+        }
+
+        return _customizePlusSetBodyScaleToCharacter.InvokeFunc(index, decodedScale).Item2;
+    }
+    public void RevertByIdFromFramework(Guid? profileId)
+    {
+        if (!APIAvailable || profileId == null)
+        {
+            return;
+        }
+
+        _customizePlusDeleteByUniqueId.InvokeFunc(profileId.Value);
     }
 
-    public async Task RevertByIdAsync(Guid? profileId)
+    // This must be called from within a Framework thread
+    public string GetScaleOnFramework(ushort index)
     {
-        if (!APIAvailable || profileId == null) return;
-
-        await _dalamudUtil.RunOnFrameworkThread(() =>
+        if (!APIAvailable)
         {
-            _ = _customizePlusDeleteByUniqueId.InvokeFunc(profileId.Value);
-        }).ConfigureAwait(false);
-    }
+            return string.Empty;
+        }
 
-    public async Task<string?> GetScaleAsync(nint character)
-    {
-        if (!APIAvailable) return null;
-        var scale = await _dalamudUtil.RunOnFrameworkThread(() =>
+        try
         {
-            var gameObj = _dalamudUtil.CreateGameObject(character);
-            if (gameObj is ICharacter c)
+            var res = _customizePlusGetActiveProfile.InvokeFunc(index);
+            if (res.Item1 != 0 || res.Item2 == null)
             {
-                var res = _customizePlusGetActiveProfile.InvokeFunc(c.ObjectIndex);
-                _logger.LogTrace("CustomizePlus GetActiveProfile returned {err}", res.Item1);
-                if (res.Item1 != 0 || res.Item2 == null) return string.Empty;
-                return _customizePlusGetProfileById.InvokeFunc(res.Item2.Value).Item2;
+                return string.Empty;
             }
 
+            var scale = _customizePlusGetProfileById.InvokeFunc(res.Item2.Value).Item2;
+            if (string.IsNullOrEmpty(scale))
+            {
+                return string.Empty;
+            }
+
+            return scale;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Cutomize+ IPC failed!");
+
             return string.Empty;
-        }).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(scale)) return string.Empty;
-        return Convert.ToBase64String(Encoding.UTF8.GetBytes(scale));
+        }
     }
 
     public void CheckAPI()
@@ -128,8 +113,12 @@ public sealed class IpcCallerCustomize : IIpcCaller
 
     private void OnCustomizePlusScaleChange(ushort c, Guid g)
     {
+        if (!_dalamudUtil.IsOnFrameworkThread)
+        {
+            return;
+        }
         var obj = _dalamudUtil.GetCharacterFromObjectTableByIndex(c);
-        _mareMediator.Publish(new CustomizePlusMessage(obj?.Address ?? null));
+        _mareMediator.Publish(new CustomizePlusMessage(obj == null ? null : _dalamudUtil.GetOwnedObjectKindOnFramework(obj.Address), obj == null));
     }
 
     public void Dispose()

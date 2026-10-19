@@ -1,9 +1,8 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Plugin;
+﻿using Dalamud.Plugin;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Glamourer.Api.Helpers;
 using Glamourer.Api.IpcSubscribers;
 using MareSynchronos.MareConfiguration.Models;
-using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
@@ -16,7 +15,6 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
     private readonly IDalamudPluginInterface _pi;
     private readonly DalamudUtilService _dalamudUtil;
     private readonly MareMediator _mareMediator;
-    private readonly RedrawManager _redrawManager;
 
     private readonly ApiVersion _glamourerApiVersions;
     private readonly ApplyState? _glamourerApplyAll;
@@ -28,10 +26,9 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
     private readonly EventSubscriber<nint>? _glamourerStateChanged;
 
     private bool _shownGlamourerUnavailable = false;
-    private readonly uint LockCode = 0x6D617265;
+    private readonly uint LockCode = 0x73796E63;
 
-    public IpcCallerGlamourer(ILogger<IpcCallerGlamourer> logger, IDalamudPluginInterface pi, DalamudUtilService dalamudUtil, MareMediator mareMediator,
-        RedrawManager redrawManager) : base(logger, mareMediator)
+    public IpcCallerGlamourer(ILogger<IpcCallerGlamourer> logger, IDalamudPluginInterface pi, DalamudUtilService dalamudUtil, MareMediator mareMediator) : base(logger, mareMediator)
     {
         _glamourerApiVersions = new ApiVersion(pi);
         _glamourerGetAllCustomization = new GetStateBase64(pi);
@@ -45,7 +42,6 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
         _pi = pi;
         _dalamudUtil = dalamudUtil;
         _mareMediator = mareMediator;
-        _redrawManager = redrawManager;
         CheckAPI();
 
         _glamourerStateChanged = StateChanged.Subscriber(pi, GlamourerChanged);
@@ -58,7 +54,6 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
     {
         base.Dispose(disposing);
 
-        _redrawManager.Cancel();
         _glamourerStateChanged?.Dispose();
     }
 
@@ -103,128 +98,67 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
         }
     }
 
-    public async Task ApplyAllAsync(ILogger logger, GameObjectHandler handler, string? customization, Guid applicationId, CancellationToken token, bool fireAndForget = false)
+    public void ApplyAllOnFramework(ushort index, string customization, Guid applicationId)
     {
         if (!APIAvailable || string.IsNullOrEmpty(customization) || _dalamudUtil.IsZoning)
         {
             return;
         }
 
-        await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            _glamourerApplyAll!.Invoke(customization, index, LockCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[{appid}] Failed to apply Glamourer data", applicationId);
+        }
+    }
+    public string GetCharacterCustomizationOnFramework(ushort index)
+    {
+        if (!APIAvailable)
+        {
+            return string.Empty;
+        }
 
         try
         {
-            await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
-            {
-                try
-                {
-                    logger.LogDebug("[{appid}] Calling on IPC: GlamourerApplyAll", applicationId);
-                    _glamourerApplyAll!.Invoke(customization, chara.ObjectIndex, LockCode);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "[{appid}] Failed to apply Glamourer data", applicationId);
-                }
-            }, token).ConfigureAwait(false);
+            return _glamourerGetAllCustomization!.Invoke(index).Item2 ?? string.Empty;
         }
-        finally
+        catch (Exception ex)
         {
-            _redrawManager.RedrawSemaphore.Release();
-        }
-    }
+            _logger.LogError(ex, "Glamourer IPC failed!");
 
-    public async Task ApplyAllNoWait(ILogger logger, GameObjectHandler handler, string? customization, Guid applicationId, CancellationToken token)
-    {
-        if (!APIAvailable || string.IsNullOrEmpty(customization) || _dalamudUtil.IsZoning || handler.Address == nint.Zero)
-        {
-            return;
-        }
-
-        await _dalamudUtil.RunOnFrameworkThread(() =>
-        {
-            try
-            {
-                var gameObj = _dalamudUtil.CreateGameObject(handler.Address);
-                if (gameObj is ICharacter chara)
-                {
-                    logger.LogDebug("[{appid}] Calling on IPC: ApplyAllNoWait", applicationId);
-                    _glamourerApplyAll!.Invoke(customization, chara.ObjectIndex, LockCode);
-                    logger.LogDebug("[{appid}] Completed IPC: ApplyAllNoWait", applicationId);
-                }   
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "[{appid}] Failed to apply Glamourer data", applicationId);
-            }
-
-        }).ConfigureAwait(false);   
-    }
-
-    public async Task<string> GetCharacterCustomizationAsync(IntPtr character)
-    {
-        if (!APIAvailable) return string.Empty;
-        try
-        {
-            return await _dalamudUtil.RunOnFrameworkThread(() =>
-            {
-                var gameObj = _dalamudUtil.CreateGameObject(character);
-                if (gameObj is ICharacter c)
-                {
-                    return _glamourerGetAllCustomization!.Invoke(c.ObjectIndex).Item2 ?? string.Empty;
-                }
-                return string.Empty;
-            }).ConfigureAwait(false);
-        }
-        catch
-        {
             return string.Empty;
         }
     }
 
-    public async Task RevertAsync(ILogger logger, GameObjectHandler handler, Guid applicationId, CancellationToken token)
+    public unsafe void RevertOnFramework(ILogger logger, Guid applicationId, nint address)
     {
-        if ((!APIAvailable) || _dalamudUtil.IsZoning) return;
-        await _redrawManager.RedrawSemaphore.WaitAsync(token).ConfigureAwait(false);
+        if ((!APIAvailable) || _dalamudUtil.IsZoning)
+        {
+            return;
+        }
+
         try
         {
-            await _redrawManager.PenumbraRedrawInternalAsync(logger, handler, applicationId, (chara) =>
-            {
-                try
-                {
-                    logger.LogDebug("[{appid}] Calling On IPC: GlamourerUnlockName", applicationId);
-                    _glamourerUnlock.Invoke(chara.ObjectIndex, LockCode);
-                    logger.LogDebug("[{appid}] Calling On IPC: GlamourerRevert", applicationId);
-                    _glamourerRevert.Invoke(chara.ObjectIndex, LockCode);
-                    logger.LogDebug("[{appid}] Calling On IPC: PenumbraRedraw", applicationId);
-
-                    _mareMediator.Publish(new PenumbraRedrawCharacterMessage(chara));
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "[{appid}] Error during GlamourerRevert", applicationId);
-                }
-            }, token).ConfigureAwait(false);
+            var chara = (Character*)address;
+            var idx = chara->ObjectIndex;
+            _glamourerUnlock.Invoke(idx, LockCode);
+            _glamourerRevert.Invoke(idx, LockCode);
         }
-        finally
+        catch
         {
-            _redrawManager.RedrawSemaphore.Release();
+            logger.LogWarning("[{appid}] Error during GlamourerRevert for", applicationId);
         }
     }
 
-    public async Task RevertByNameAsync(ILogger logger, string name, Guid applicationId)
+    public void RevertByNameOnFramework(ILogger logger, string name, Guid applicationId)
     {
-        if ((!APIAvailable) || _dalamudUtil.IsZoning) return;
-
-        await _dalamudUtil.RunOnFrameworkThread(() =>
+        if ((!APIAvailable) || _dalamudUtil.IsZoning)
         {
-            RevertByName(logger, name, applicationId);
-
-        }).ConfigureAwait(false);
-    }
-
-    public void RevertByName(ILogger logger, string name, Guid applicationId)
-    {
-        if ((!APIAvailable) || _dalamudUtil.IsZoning) return;
+            return;
+        }
 
         try
         {
@@ -241,6 +175,6 @@ public sealed class IpcCallerGlamourer : DisposableMediatorSubscriberBase, IIpcC
 
     private void GlamourerChanged(nint address)
     {
-        _mareMediator.Publish(new GlamourerChangedMessage(address));
+        _mareMediator.Publish(new GlamourerChangedMessage(_dalamudUtil.GetOwnedObjectKindOnFramework(address)));
     }
 }

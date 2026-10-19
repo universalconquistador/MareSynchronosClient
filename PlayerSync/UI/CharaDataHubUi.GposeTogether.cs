@@ -136,7 +136,7 @@ internal sealed partial class CharaDataHubUi
             var buttonsize2 = _uiSharedService.GetIconButtonSize(FontAwesomeIcon.Plus).X;
             ImGui.SameLine();
             ImGui.SetCursorPosX(availWidth - (buttonsize + buttonsize2 + ImGui.GetStyle().ItemSpacing.X));
-            using (ImRaii.Disabled(!_uiSharedService.IsInGpose || user.CharaData == null || user.Address == nint.Zero))
+            using (ImRaii.Disabled(!_uiSharedService.IsInGpose || user.CharaData == null || string.IsNullOrEmpty(user.AssociatedCharaName)))
             {
                 if (_uiSharedService.IconButton(FontAwesomeIcon.ArrowRight))
                 {
@@ -194,27 +194,29 @@ internal sealed partial class CharaDataHubUi
                     {
                         foreach (var chara in gposeCharas)
                         {
-                            if (chara == null) continue;
-
-                            if (ImGui.Selectable(CharaName(chara.Name.TextValue), chara.Address == user.Address))
+                            if (chara == null)
+                            {
+                                continue;
+                            }
+                            if (ImGui.Selectable(CharaName(chara.Name.TextValue), string.Equals(chara.Name.TextValue, user.AssociatedCharaName, StringComparison.Ordinal)))
                             {
                                 user.AssociatedCharaName = chara.Name.TextValue;
-                                user.Address = chara.Address;
+                                Interlocked.Increment(ref user.PoseRevision);
+                                Interlocked.Increment(ref user.WorldRevision);
                             }
                         }
                     }
                 }
                 ImGui.SameLine();
-                using (ImRaii.Disabled(user.Address == nint.Zero))
+                using (ImRaii.Disabled(string.IsNullOrEmpty(user.AssociatedCharaName)))
                 {
                     if (_uiSharedService.IconButton(FontAwesomeIcon.Trash))
                     {
                         user.AssociatedCharaName = string.Empty;
-                        user.Address = nint.Zero;
                     }
                 }
                 UiSharedService.AttachToolTip("Unassign Actor for this user");
-                if (_uiSharedService.IsInGpose && user.Address == nint.Zero)
+                if (_uiSharedService.IsInGpose && string.IsNullOrEmpty(user.AssociatedCharaName))
                 {
                     ImGui.SameLine();
                     _uiSharedService.IconText(FontAwesomeIcon.ExclamationTriangle, ImGuiColors.DalamudRed);

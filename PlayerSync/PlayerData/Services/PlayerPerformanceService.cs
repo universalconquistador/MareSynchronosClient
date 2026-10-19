@@ -4,7 +4,7 @@ using MareSynchronos.Interop;
 using MareSynchronos.Interop.Meta;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Models;
-using MareSynchronos.PlayerData.Handlers;
+using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.Events;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI;
@@ -34,46 +34,46 @@ public class PlayerPerformanceService
         _xivDataAnalyzer = xivDataAnalyzer;
     }
 
-    public async Task<bool> CheckBothThresholds(PairHandler pairHandler, CharacterData charaData)
+    public async Task<bool> CheckBothThresholds(Pair pair, CharacterData charaData)
     {
         var config = _playerPerformanceConfigService.Current;
-        bool notPausedAfterVram = ComputeAndAutoPauseOnVRAMUsageThresholds(pairHandler, charaData, []);
+        bool notPausedAfterVram = await ComputeAndAutoPauseOnVRAMUsageThresholds(pair, charaData, []).ConfigureAwait(false);
         if (!notPausedAfterVram) return false;
-        bool notPausedAfterTris = await CheckTriangleUsageThresholds(pairHandler, charaData).ConfigureAwait(false);
+        bool notPausedAfterTris = await CheckTriangleUsageThresholds(pair, charaData).ConfigureAwait(false);
         if (!notPausedAfterTris) return false;
 
         if (config.UIDsToIgnore
-            .Exists(uid => string.Equals(uid, pairHandler.Pair.UserData.Alias, StringComparison.Ordinal) || string.Equals(uid, pairHandler.Pair.UserData.UID, StringComparison.Ordinal)))
+            .Exists(uid => string.Equals(uid, pair.UserData.Alias, StringComparison.Ordinal) || string.Equals(uid, pair.UserData.UID, StringComparison.Ordinal)))
             return true;
 
 
-        var vramUsage = pairHandler.Pair.LastAppliedApproximateVRAMBytes;
-        var triUsage = pairHandler.Pair.LastAppliedDataTris;
+        var vramUsage = pair.LastAppliedApproximateVRAMBytes;
+        var triUsage = pair.LastAppliedDataTris;
 
-        bool isPrefPerm = pairHandler.Pair.UserPair.OwnPermissions.HasFlag(API.Data.Enum.UserPermissions.Sticky);
+        bool isPrefPerm = pair.UserPair.OwnPermissions.HasFlag(API.Data.Enum.UserPermissions.Sticky);
 
         bool exceedsTris = CheckForThreshold(config.WarnOnExceedingThresholds, config.TrisWarningThresholdThousands * 1000,
             triUsage, config.WarnOnPreferredPermissionsExceedingThresholds, isPrefPerm);
         bool exceedsVram = CheckForThreshold(config.WarnOnExceedingThresholds, config.VRAMSizeWarningThresholdMiB * 1024 * 1024,
             vramUsage, config.WarnOnPreferredPermissionsExceedingThresholds, isPrefPerm);
 
-        if (_warnedForPlayers.TryGetValue(pairHandler.Pair.UserData.UID, out bool hadWarning) && hadWarning)
+        if (_warnedForPlayers.TryGetValue(pair.UserData.UID, out bool hadWarning) && hadWarning)
         {
-            _warnedForPlayers[pairHandler.Pair.UserData.UID] = exceedsTris || exceedsVram;
+            _warnedForPlayers[pair.UserData.UID] = exceedsTris || exceedsVram;
             return true;
         }
 
-        _warnedForPlayers[pairHandler.Pair.UserData.UID] = exceedsTris || exceedsVram;
+        _warnedForPlayers[pair.UserData.UID] = exceedsTris || exceedsVram;
 
         if (exceedsVram)
         {
-            _mediator.Publish(new EventMessage(new Event(pairHandler.Pair.PlayerName, pairHandler.Pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
+            _mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
                 $"Exceeds VRAM threshold: ({UiSharedService.ByteToString(vramUsage, addSuffix: true)}/{config.VRAMSizeWarningThresholdMiB} MiB)")));
         }
 
         if (exceedsTris)
         {
-            _mediator.Publish(new EventMessage(new Event(pairHandler.Pair.PlayerName, pairHandler.Pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
+            _mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
                 $"Exceeds triangle threshold: ({triUsage}/{config.TrisAutoPauseThresholdThousands * 1000} triangles)")));
         }
 
@@ -82,32 +82,31 @@ public class PlayerPerformanceService
             string warningText = string.Empty;
             if (exceedsTris && !exceedsVram)
             {
-                warningText = $"Player {pairHandler.Pair.PlayerName} ({pairHandler.Pair.UserData.AliasOrUID}) exceeds your configured triangle warning threshold (" +
+                warningText = $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeds your configured triangle warning threshold (" +
                     $"{triUsage}/{config.TrisWarningThresholdThousands * 1000} triangles).";
             }
             else if (!exceedsTris)
             {
-                warningText = $"Player {pairHandler.Pair.PlayerName} ({pairHandler.Pair.UserData.AliasOrUID}) exceeds your configured VRAM warning threshold (" +
+                warningText = $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeds your configured VRAM warning threshold (" +
                     $"{UiSharedService.ByteToString(vramUsage, true)}/{config.VRAMSizeWarningThresholdMiB} MiB).";
             }
             else
             {
-                warningText = $"Player {pairHandler.Pair.PlayerName} ({pairHandler.Pair.UserData.AliasOrUID}) exceeds both VRAM warning threshold (" +
+                warningText = $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeds both VRAM warning threshold (" +
                     $"{UiSharedService.ByteToString(vramUsage, true)}/{config.VRAMSizeWarningThresholdMiB} MiB) and " +
                     $"triangle warning threshold ({triUsage}/{config.TrisWarningThresholdThousands * 1000} triangles).";
             }
 
-            _mediator.Publish(new NotificationMessage($"{pairHandler.Pair.PlayerName} ({pairHandler.Pair.UserData.AliasOrUID}) exceeds performance threshold(s)",
-                warningText, MareConfiguration.Models.NotificationType.Warning));
+            _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeds performance threshold(s)",
+                warningText, NotificationType.Warning));
         }
 
         return true;
     }
 
-    public async Task<bool> CheckTriangleUsageThresholds(PairHandler pairHandler, CharacterData charaData)
+    public async Task<bool> CheckTriangleUsageThresholds(Pair pair, CharacterData charaData)
     {
         var config = _playerPerformanceConfigService.Current;
-        var pair = pairHandler.Pair;
 
         long triUsage = 0;
 
@@ -117,7 +116,9 @@ public class PlayerPerformanceService
             return true;
         }
 
-        var moddedModelHashes = playerReplacements.Where(p => string.IsNullOrEmpty(p.FileSwapPath) && p.GamePaths.Any(g => g.EndsWith("mdl", StringComparison.OrdinalIgnoreCase)))
+        var moddedModelHashes = playerReplacements
+            .Where(p => string.IsNullOrWhiteSpace(p.FileSwapPath) && !string.IsNullOrWhiteSpace(p.Hash)
+            && p.GamePaths.Any(g => g.EndsWith(".mdl", StringComparison.OrdinalIgnoreCase)))
             .Select(p => p.Hash)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -129,7 +130,7 @@ public class PlayerPerformanceService
 
         pair.LastAppliedDataTris = triUsage;
 
-        _logger.LogDebug("Calculated VRAM usage for {p}", pairHandler);
+        _logger.LogDebug("Calculated VRAM usage for {p}", pair.PairUIDName);
 
         // no warning of any kind on ignored pairs
         if (config.UIDsToIgnore
@@ -149,8 +150,7 @@ public class PlayerPerformanceService
                 _mediator.Publish(new NotificationMessage($"{pair.PlayerName} ({pair.UserData.AliasOrUID}) automatically paused",
                     $"Player {pair.PlayerName} ({pair.UserData.AliasOrUID}) exceeded your configured triangle auto pause threshold (" +
                     $"{triUsage}/{config.TrisAutoPauseThresholdThousands * 1000} triangles)" +
-                    $" and has been automatically paused " + GetPauseDurationText(pauseDuration),
-                    MareConfiguration.Models.NotificationType.Warning));
+                    $" and has been automatically paused " + GetPauseDurationText(pauseDuration), NotificationType.Warning));
             }
 
             _mediator.Publish(new EventMessage(new Event(pair.PlayerName, pair.UserData, nameof(PlayerPerformanceService), EventSeverity.Warning,
@@ -164,11 +164,10 @@ public class PlayerPerformanceService
         return true;
     }
 
-    public bool ComputeAndAutoPauseOnVRAMUsageThresholds(PairHandler pairHandler, CharacterData charaData, List<DownloadFileTransfer> toDownloadFiles)
+    public async Task<bool> ComputeAndAutoPauseOnVRAMUsageThresholds(Pair pair, CharacterData charaData, List<DownloadFileTransfer> toDownloadFiles, CancellationToken cancellationToken = default)
     {
         var config = _playerPerformanceConfigService.Current;
-        var pair = pairHandler.Pair;
-        var compressionRedirects = pairHandler.ActiveCompressionRedirects;
+        var compressionRedirects = pair.ActiveCompressionRedirects;
 
         long vramUsage = 0;
 
@@ -178,15 +177,19 @@ public class PlayerPerformanceService
             return true;
         }
 
-        var moddedTextureHashes = playerReplacements.Where(p => string.IsNullOrEmpty(p.FileSwapPath) && p.GamePaths.Any(g => g.EndsWith(".tex", StringComparison.OrdinalIgnoreCase)))
+        var moddedTextureHashes = playerReplacements
+            .Where(p => string.IsNullOrWhiteSpace(p.FileSwapPath)&& !string.IsNullOrWhiteSpace(p.Hash) 
+            && p.GamePaths.Any(g => g.EndsWith(".tex", StringComparison.OrdinalIgnoreCase)))
             .Select(p => compressionRedirects.GetValueOrDefault(p.Hash, p.Hash))
+            .Where(hash => !string.IsNullOrWhiteSpace(hash))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var fileCaches = await _fileCacheManager.GetFirstFileCacheEntitiesByHashes(moddedTextureHashes.Except(toDownloadFiles.Select(file => file.Hash), StringComparer.OrdinalIgnoreCase), cancellationToken).ConfigureAwait(false);
         foreach (var hash in moddedTextureHashes)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             long fileSize = 0;
-
             var download = toDownloadFiles.Find(f => string.Equals(hash, f.Hash, StringComparison.OrdinalIgnoreCase));
             if (download != null)
             {
@@ -194,31 +197,31 @@ public class PlayerPerformanceService
             }
             else
             {
-                var fileEntry = _fileCacheManager.GetFileCacheByHash(hash);
-                if (fileEntry == null) continue;
-
-                if (fileEntry.Size == null)
+                if (!fileCaches.TryGetValue(hash.Trim().ToUpperInvariant(), out var fileEntry) || fileEntry == null)
+                {
+                    continue;
+                }
+                if (fileEntry.Size < 0)
                 {
                     fileEntry.Size = new FileInfo(fileEntry.ResolvedFilepath).Length;
-                    _fileCacheManager.UpdateHashedFile(fileEntry, computeProperties: true);
+                    await _fileCacheManager.UpdateFileCache(fileEntry, computeProperties: false, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
-
-                fileSize = fileEntry.Size.Value;
+                fileSize = fileEntry.Size;
             }
-
             vramUsage += fileSize;
         }
 
         pair.LastAppliedApproximateVRAMBytes = vramUsage;
 
-        _logger.LogDebug("Calculated VRAM usage for {p}", pairHandler);
+        _logger.LogDebug("Calculated VRAM usage for {p}", pair.PairUIDName);
 
         pair.LastAppliedCompressedAlternates = compressionRedirects.Count;
 
         // no warning of any kind on ignored pairs
-        if (config.UIDsToIgnore
-            .Exists(uid => string.Equals(uid, pair.UserData.Alias, StringComparison.Ordinal) || string.Equals(uid, pair.UserData.UID, StringComparison.Ordinal)))
+        if (config.UIDsToIgnore.Exists(uid => string.Equals(uid, pair.UserData.Alias, StringComparison.Ordinal) || string.Equals(uid, pair.UserData.UID, StringComparison.Ordinal)))
+        {
             return true;
+        }
 
         bool isPrefPerm = pair.UserPair.OwnPermissions.HasFlag(API.Data.Enum.UserPermissions.Sticky);
 
@@ -252,7 +255,7 @@ public class PlayerPerformanceService
         thresholdEnabled && threshold > 0 && threshold < value && ((checkForPrefPerm && isPrefPerm) || !isPrefPerm);
 
     // Height check
-    public bool CheckForRspHeight(PairHandler pairHandler, CharacterData charaData)
+    public bool CheckForRspHeight(Pair pair, CharacterData charaData)
     {
         // don't check stuff if it's not needed
         if (!(_playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds || _playerPerformanceConfigService.Current.WarnOnAutoHeightExceedingThreshold))
@@ -260,15 +263,14 @@ public class PlayerPerformanceService
 
         // whitelist check
         if (_playerPerformanceConfigService.Current.UIDsToIgnoreForHeightPausing
-            .Exists(uid => string.Equals(uid, pairHandler.Pair.UserData.Alias, StringComparison.Ordinal) || string.Equals(uid, pairHandler.Pair.UserData.UID, StringComparison.Ordinal)))
+            .Exists(uid => string.Equals(uid, pair.UserData.Alias, StringComparison.Ordinal) || string.Equals(uid, pair.UserData.UID, StringComparison.Ordinal)))
             return true;
 
         // Check if we are pausing direct pairs or not
         bool noAutoPauseDirectPairs = _playerPerformanceConfigService.Current.NoAutoPauseDirectPairs;
-        if ((pairHandler.Pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional) && noAutoPauseDirectPairs)
+        if ((pair.IndividualPairStatus == API.Data.Enum.IndividualPairStatus.Bidirectional) && noAutoPauseDirectPairs)
             return true;
 
-        var pair = pairHandler.Pair;
         var doAutoPausing = _playerPerformanceConfigService.Current.AutoPausePlayersExceedingHeightThresholds;
         var maxHeight = _playerPerformanceConfigService.Current.MaxHeightAbsolute;
         var manualHeight = _playerPerformanceConfigService.Current.MaxHeightManual;
@@ -314,7 +316,7 @@ public class PlayerPerformanceService
 
         if (pauseRspExceeded && doAutoPausing)
         {
-            _logger.LogWarning("Pair {name} exceeds your height min/max threshold and will be paused.", pair.PlayerName);
+            _logger.LogWarning("Pair {name} exceeds your height min/max threshold and will be paused.", pair.PairUIDName);
             var pauseDuration = _playerPerformanceConfigService.Current.PauseDurationAutoPauseExceedingHeightThresholds;
             if (shouldWarnOnPaused)
             {

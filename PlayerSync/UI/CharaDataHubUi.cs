@@ -371,6 +371,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
         ImGuiHelpers.ScaledDummy(5);
         using var indent = ImRaii.PushIndent(10f);
 
+        var gposeTarget = _dalamudUtilService.GetGposeTargetOnFramework();
         foreach (var actor in _dalamudUtilService.GetGposeCharactersFromObjectTable())
         {
             if (actor == null) continue;
@@ -388,7 +389,7 @@ internal sealed partial class CharaDataHubUi : WindowMediatorSubscriberBase
                 UiSharedService.AttachToolTip($"Target the GPose Character {CharaName(actor.Name.TextValue)}");
                 ImGui.AlignTextToFramePadding();
                 var pos = ImGui.GetCursorPosX();
-                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, actor.Address == (_dalamudUtilService.GetGposeTargetGameObjectAsync().GetAwaiter().GetResult()?.Address ?? nint.Zero)))
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, gposeTarget?.ObjectIndex == actor.ObjectIndex))
                 {
                     ImGui.TextUnformatted(CharaName(actor.Name.TextValue));
                 }

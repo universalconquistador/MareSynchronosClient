@@ -22,7 +22,7 @@ using System.Numerics;
 
 namespace MareSynchronos.UI;
 
-internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
+internal class PairAnalysisViewerUI : WindowMediatorSubscriberBase
 {
     private readonly UiSharedService _uiSharedService;
     private readonly PairManager _pairManager;
@@ -42,9 +42,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     private bool _softTargetOnRowSelect = false;
     private bool _pinuserprofiles = false;
 
-    public PlayerAnalysisViewerUI(ILogger<PlayerAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
+    public PairAnalysisViewerUI(ILogger<PairAnalysisViewerUI> logger, MareMediator mediator, PerformanceCollectorService performanceCollector,
         UiSharedService uiSharedService, PairManager pairManager, PlayerPerformanceConfigService playerPerformanceConfigService, ServerConfigurationManager serverConfigurationManager,
-        ApiController apiController, DalamudUtilService dalamudUtilService, UiTheme theme) : base(logger, mediator, "Player Analysis Viewer", performanceCollector)
+        ApiController apiController, DalamudUtilService dalamudUtilService, UiTheme theme) : base(logger, mediator, "Pair Analysis Viewer", performanceCollector)
     {
         _uiSharedService = uiSharedService;
         _pairManager = pairManager;
@@ -73,7 +73,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
     {
         None,
         UID,
-        Alias,
+        Name,
         FileSize,
         VRAM,
         Triangles,
@@ -294,7 +294,7 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
 
                 HeaderCell("", 0, SortByID.None);
                 HeaderCell("UID", 1, SortByID.UID, true);
-                HeaderCell("Alias", 2, SortByID.Alias, true);
+                HeaderCell("Name", 2, SortByID.Name, true);
                 HeaderCell("File Size", 3, SortByID.FileSize);
                 HeaderCell("Approx. VRAM Usage", 4, SortByID.VRAM);
                 HeaderCell("Approx. Triangle Count", 5, SortByID.Triangles);
@@ -325,9 +325,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                         }
                         int cmp = sortBy switch
                         {
-                            SortByID.Sound => Nullable.Compare(a.LastLoadedSoundSinceRedraw, b.LastLoadedSoundSinceRedraw),
+                            SortByID.Sound => Nullable.Compare(a.LastLoadedSoundSinceRedrawTime, b.LastLoadedSoundSinceRedrawTime),
                             SortByID.UID => string.Compare(a.UserData.UID, b.UserData.UID, StringComparison.OrdinalIgnoreCase),
-                            SortByID.Alias => string.Compare(a.UserData.Alias ?? "", b.UserData.Alias ?? "", StringComparison.OrdinalIgnoreCase),
+                            SortByID.Name => string.Compare(a.PlayerName ?? "", b.PlayerName ?? "", StringComparison.OrdinalIgnoreCase),
                             SortByID.FileSize => a.LastAppliedDataBytes.CompareTo(b.LastAppliedDataBytes),
                             SortByID.VRAM => a.LastAppliedApproximateVRAMBytes.CompareTo(b.LastAppliedApproximateVRAMBytes),
                             SortByID.Triangles => a.LastAppliedDataTris.CompareTo(b.LastAppliedDataTris),
@@ -457,11 +457,11 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                             Mediator.Publish(new ProfileOpenStandaloneMessage(pair));
                     }                    
 
-                    // Alias/vanity Column
+                    // Name Column
                     ImGui.TableSetColumnIndex(2);
                     ImGui.AlignTextToFramePadding();
                     using var aliasColor = ImRaii.PushColor(ImGuiCol.Text, UiSharedService.Color(highlighter.Item2), highlighter.Item1);
-                    TableHelper.CText(pair.UserData.Alias ?? "", centerHorizontally: false, leftPadding: 0f);
+                    TableHelper.CText(pair.PlayerName ?? "", centerHorizontally: false, leftPadding: 0f);
                     aliasColor.Dispose();                    
 
                     // file size column
@@ -538,9 +538,9 @@ internal class PlayerAnalysisViewerUI : WindowMediatorSubscriberBase
                     float indent2 = (cellWidth2 - iconSize2.X) * 0.5f;
                     ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent2);
 
-                    if (pair.LastLoadedSoundSinceRedraw != null)
+                    if (pair.LastLoadedSoundSinceRedrawTime != null)
                     {
-                        var timepassed = DateTimeOffset.UtcNow - pair.LastLoadedSoundSinceRedraw.Value;
+                        var timepassed = DateTimeOffset.UtcNow - pair.LastLoadedSoundSinceRedrawTime.Value;
 
                         FontAwesomeIcon icon = FontAwesomeIcon.VolumeOff;
 

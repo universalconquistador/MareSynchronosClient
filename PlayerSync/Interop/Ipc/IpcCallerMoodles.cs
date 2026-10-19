@@ -1,5 +1,6 @@
 ﻿using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
@@ -42,8 +43,29 @@ public sealed class IpcCallerMoodles : IIpcCaller
 
     private void OnMoodlesChange(nint characterPtr)
     {
-        if (characterPtr == nint.Zero) return;
-        _mareMediator.Publish(new MoodlesMessage(characterPtr));
+        if (characterPtr == nint.Zero)
+        {
+            return;
+        }
+
+        _mareMediator.Publish(new MoodlesMessage(_dalamudUtil.GetOwnedObjectKindOnFramework(characterPtr)));
+    }
+
+    public void SetStatusOnFramework(nint address, string status)
+    {
+        if (!APIAvailable || address == nint.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            _moodlesSetStatus.InvokeAction(address, status);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not Set Moodles Status");
+        }
     }
 
     public bool APIAvailable { get; private set; }
@@ -83,46 +105,32 @@ public sealed class IpcCallerMoodles : IIpcCaller
         }
     }
 
-    public async Task<string?> GetStatusAsync(nint address)
+    public string GetStatusOnFramework(nint address)
     {
-        if (!APIAvailable) return null;
+        if (!APIAvailable)
+        {
+            return string.Empty;
+        }
 
         try
         {
-            return await _dalamudUtil.RunOnFrameworkThread(() => _moodlesGetStatus.InvokeFunc(address)).ConfigureAwait(false);
+            return _moodlesGetStatus.InvokeFunc(address);
         }
         catch (Exception e)
         {
             _logger.LogWarning(e, "Could not Get Moodles Status");
-            return null;
+
+            return string.Empty;
         }
     }
 
-    public async Task SetStatusAsync(nint pointer, string status)
+    public unsafe void RevertStatusOnFramework(nint address)
     {
-        if (!APIAvailable) return;
+        if (!APIAvailable)
+        {
+            return;
+        }
 
-        try
-        {
-            await _dalamudUtil.RunOnFrameworkThread(() => _moodlesSetStatus.InvokeAction(pointer, status)).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            _logger.LogWarning(e, "Could not Set Moodles Status");
-        }
-    }
-
-    public async Task RevertStatusAsync(nint pointer)
-    {
-        if (!APIAvailable) return;
-
-        try
-        {
-            await _dalamudUtil.RunOnFrameworkThread(() => _moodlesRevertStatus.InvokeAction(pointer)).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            _logger.LogWarning(e, "Could not Revert Moodles Status");
-        }
+        _moodlesRevertStatus.InvokeAction(((BattleChara*)address)->ObjectIndex);
     }
 }

@@ -1,4 +1,5 @@
-﻿using Dalamud.Game.Gui.NamePlate;
+﻿using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Game.Gui.NamePlate;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -10,7 +11,6 @@ using MareSynchronos.Services.Mediator;
 using MareSynchronos.UI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Collections.Immutable;
 
 namespace PlayerSync.Services
 {
@@ -45,6 +45,7 @@ namespace PlayerSync.Services
         {
             _logger.LogTrace("Stopping NamePlateManager");
             _namePlateGui.OnNamePlateUpdate -= UpdateNamePlate;
+            UnsubscribeAll();
             return Task.CompletedTask;
         }
 
@@ -56,13 +57,23 @@ namespace PlayerSync.Services
                 || _configService.Current.ShowNameHighlights)) return;
 
             var visiblePairs = _pairs.GetVisiblePairs();
-            var visibleByAddress = visiblePairs.Where(p => p.Address != nint.Zero).ToImmutableDictionary(p => p.Address, p => p);
+            Dictionary<nint, Pair> visibleByAddress = new();
+            foreach (var pair in visiblePairs)
+            {
+                var address = pair.Address;
+                if (address == nint.Zero)
+                {
+                    continue;
+                }
+                visibleByAddress.Add(address, pair);
+            }
 
             foreach (var handle in handlers)
             {
                 if (handle.NamePlateKind != NamePlateKind.PlayerCharacter) continue;
                 var addr = handle.PlayerCharacter?.Address ?? nint.Zero;
                 if (addr == nint.Zero) continue;
+                if (!(handle.PlayerCharacter is IPlayerCharacter character && character.IsValid())) continue;
                 if (handle.PlayerCharacter?.ObjectIndex is null or 0) continue;
                 if (!visibleByAddress.TryGetValue(addr, out var pair)) continue;
                 var color = _configService.Current.NameHighlightColor;

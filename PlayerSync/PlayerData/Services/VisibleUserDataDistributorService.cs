@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MareSynchronos.PlayerData.Pairs;
 
-public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
+public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBase
 {
     private readonly TimeSpan _cacheCreationDelay = TimeSpan.FromSeconds(5);
 
@@ -36,7 +36,7 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
     private DateTimeOffset _lastCacheCreationRequest = DateTimeOffset.MinValue;
 
 
-    public VisibleUserDataDistributor(ILogger<VisibleUserDataDistributor> logger, ApiController apiController, DalamudUtilService dalamudUtil,
+    public VisibleUserDataDistributorService(ILogger<VisibleUserDataDistributorService> logger, ApiController apiController, DalamudUtilService dalamudUtil,
         PairManager pairManager, MareMediator mediator, FileUploadManager fileTransferManager, MareConfigService mareConfigService, FileCacheManager fileCacheManager) : base(logger, mediator)
     {
         _apiController = apiController;
@@ -60,7 +60,6 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                 Logger.LogTrace("Data hash {hash} equal to stored data", newData.DataHash.Value);
             }
         });
-
         Mediator.Subscribe<PairOfflineMessage>(this, (msg) =>
         {
             lock (_pushDataLock)
@@ -70,7 +69,6 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             }
             
         });
-
         Mediator.Subscribe<DisconnectedMessage>(this, (_) =>
         {
             lock (_pushDataLock)
@@ -78,9 +76,15 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                 _previouslyVisiblePlayers.Clear();
             }
         });
-
+        Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => // useful if you get disconnected from the game but are able to log back in
+        {
+            lock (_pushDataLock)
+            {
+                _previouslyVisiblePlayers.Clear();
+            }
+        });
         Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, (_) => FrameworkOnUpdate());
-        Mediator.Subscribe<AddonPluginChangesCreatedMessage>(this, (msg) => PushAddonPluginPlayerChanges(msg.PlayerChanges, msg.Data));
+        Mediator.Subscribe<AddonPluginChangesCreatedMessage>(this, (msg) => _ = PushAddonPluginPlayerChanges(msg.PlayerChanges, msg.Data));
         Mediator.Subscribe<ConnectedMessage>(this, (_) => PushToAllVisibleUsers());
         
     }
@@ -178,12 +182,18 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
 
             if (_fileUploadTask == null || (_fileUploadTask?.IsCompleted ?? false) || forced)
             {
-                _uploadingCharacterData = _lastCreatedData.DeepClone();
-                RemoveFilesThatAreTooLargeOrEmpty(); // psync allows for 200 MiB to the server, 300 MiB once decompressed
+                var uploadingCharacterData = _lastCreatedData.DeepClone();
+                _uploadingCharacterData = uploadingCharacterData;
+                var visiblePlayers = _usersToPushDataTo.ToList();
+                var cancellationToken = _runtimeCts.Token;
                 Logger.LogDebug("Starting UploadTask for {hash}, Reason: TaskIsNull: {task}, TaskIsCompleted: {taskCpl}, Forced: {frc}",
                     _lastCreatedData.DataHash, _fileUploadTask == null, _fileUploadTask?.IsCompleted ?? false, forced);
+                _fileUploadTask = Task.Run(async () =>
+                {
+                    await RemoveFilesThatAreTooLargeOrEmpty(uploadingCharacterData, cancellationToken).ConfigureAwait(false);
 
-                _fileUploadTask = _fileTransferManager.UploadFiles(_uploadingCharacterData, [.. _usersToPushDataTo]);
+                    return await _fileTransferManager.UploadFiles(uploadingCharacterData, visiblePlayers).ConfigureAwait(false);
+                }, cancellationToken);
             }
 
             if (_fileUploadTask != null)
@@ -211,31 +221,38 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
         });
     }
 
-    private void RemoveFilesThatAreTooLargeOrEmpty()
+    private async Task RemoveFilesThatAreTooLargeOrEmpty(CharacterData uploadingCharacterData, CancellationToken cancellationToken)
     {
         try
         {
+            var hashes = uploadingCharacterData.FileReplacements.Values
+                .SelectMany(replacements => replacements)
+                .Select(replacement => replacement.Hash)
+                .Where(hash => !string.IsNullOrWhiteSpace(hash))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var fileCachesByHash = await _fileCacheManager.GetFirstFileCacheEntitiesByHashes(hashes, cancellationToken).ConfigureAwait(false);
             Dictionary<ObjectKind, List<FileReplacementData>> filesTooLargeorEmpty = new();
-            foreach (var fileReplacements in _uploadingCharacterData!.FileReplacements)
+            foreach (var fileReplacements in uploadingCharacterData.FileReplacements)
             {
                 foreach (var replacement in fileReplacements.Value)
                 {
-                    bool mustRemoveReplacementData = false;
-
-                    var cache = _fileCacheManager.GetFileCacheByHash(replacement.Hash);
-                    if (cache == null)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (string.IsNullOrWhiteSpace(replacement.Hash)
+                        || !fileCachesByHash.TryGetValue(replacement.Hash, out var cache) || cache == null)
                     {
                         continue;
                     }
 
+                    bool mustRemoveReplacementData = false;
                     // check for empty files
-                    if (cache.Size != null && cache.Size == 0)
+                    if (cache.Size == 0)
                     {
                         mustRemoveReplacementData = true;
                     }
 
                     // check for files that are larger than what the server allows for
-                    else if ((cache.Size != null && cache.Size > 300 * 1024 * 1024) || (cache.CompressedSize != null && cache.CompressedSize > 200 * 1024 * 1024))
+                    else if (cache.Size > 300 * 1024 * 1024 || cache.CompressedSize > 200 * 1024 * 1024)
                     {
                         Logger.LogWarning("File {file} exceeds the size limit to sync and will not be sent. (300 MiB, or 200 MiB compressed)", cache.ResolvedFilepath);
 
@@ -243,7 +260,8 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                         {
                             var isTexFile = cache.ResolvedFilepath.EndsWith(".tex", StringComparison.OrdinalIgnoreCase);
                             var texInfo = isTexFile ? " Ensure it is compressed and consider reducing its resolution." : "";
-                            Mediator.Publish(new NotificationMessage("File Size Error", $"The file {cache.ResolvedFilepath} exceeds the size limit and will not sync. (300 MiB, or 200 MiB compressed)" + texInfo, MareConfiguration.Models.NotificationType.Warning));
+                            Mediator.Publish(new NotificationMessage("File Size Error", $"The file {cache.ResolvedFilepath} exceeds the size limit and will not sync. (300 MiB, or 200 MiB compressed)"
+                                + texInfo, MareConfiguration.Models.NotificationType.Warning));
                             _filesTooLargeOrEmptyHasBeenNotified.Add(cache.Hash);
                         }
 
@@ -268,64 +286,51 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
             {
                 foreach (var replacement in replacements.Value)
                 {
-                    _uploadingCharacterData.FileReplacements[replacements.Key].Remove(replacement);
+                    uploadingCharacterData.FileReplacements[replacements.Key].Remove(replacement);
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Logger.LogError(ex, "Failed to properly detect if files to upload are too large or empty.");
-        }   
-    }
-
-    private void PushAddonPluginPlayerChanges(PlayerChanges playerChanges, string data)
-    {
-        foreach (var user in _pairManager.GetVisibleUsers())
-        {
-            _usersToPushDataTo.Add(user);
-        }
-
-        if (_usersToPushDataTo.Count > 0)
-        {
-            Logger.LogDebug("Pushing only addon plugin changes for {count} users", _usersToPushDataTo.Count);
-            _ = PushAddonPluginPlayerChangesInternal(playerChanges, data);
         }
     }
 
-    // Send full CharacterData for now to maintain backwards compatability.
-    private async Task PushAddonPluginPlayerChangesInternal(PlayerChanges playerChanges, string data)
+    private async Task PushAddonPluginPlayerChanges(PlayerChanges playerChanges, string data)
     {
-        if (_usersToPushDataTo.Count == 0 || !HasCacheOrCreateIfEmpty())
+        if (!HasCacheOrCreateIfEmpty())
         {
             return;
         }
 
-        //CharacterData characterData = new();
+        var updatedData = _lastCreatedData!.DeepClone();
+
+        CharacterData characterData = new();
         AddonPlugin plugin;
         
         switch (playerChanges)
         {
             case PlayerChanges.Honorific:
-                //characterData.HonorificData = data;
-                _lastCreatedData.HonorificData = data;
+                characterData.HonorificData = data;
+                updatedData.HonorificData = data;
                 plugin = AddonPlugin.Honorific;
                 break;
 
             case PlayerChanges.Heels:
-                //characterData.HeelsData = data;
-                _lastCreatedData.HeelsData = data;
+                characterData.HeelsData = data;
+                updatedData.HeelsData = data;
                 plugin = AddonPlugin.Heels;
                 break;
 
             case PlayerChanges.Moodles:
-                //characterData.MoodlesData = data;
-                _lastCreatedData.MoodlesData = data;
+                characterData.MoodlesData = data;
+                updatedData.MoodlesData = data;
                 plugin = AddonPlugin.Moodles;
                 break;
 
             case PlayerChanges.PetNames:
-                //characterData.PetNamesData = data;
-                _lastCreatedData.PetNamesData = data;
+                characterData.PetNamesData = data;
+                updatedData.PetNamesData = data;
                 plugin = AddonPlugin.PetNames;
                 break;
 
@@ -333,14 +338,24 @@ public class VisibleUserDataDistributor : DisposableMediatorSubscriberBase
                 return;
         }
 
+        _lastCreatedData = updatedData; // do this so we don't push again on next DelayedFrameworkUpdate
+
+        await _pushDataSemaphore.WaitAsync(_runtimeCts.Token).ConfigureAwait(false);
         try
         {
-            _uploadingCharacterData = _lastCreatedData.DeepClone(); // do this so we don't push again on next DelayedFrameworkUpdate
+            foreach (var user in _pairManager.GetVisibleUsers())
+            {
+                _usersToPushDataTo.Add(user);
+            }
 
-            await _pushDataSemaphore.WaitAsync(_runtimeCts.Token).ConfigureAwait(false);
-            //await _apiController.UserPushData(new([.. _usersToPushDataTo], characterData, null, plugin)).ConfigureAwait(false);
-            await _apiController.UserPushData(new([.. _usersToPushDataTo], _uploadingCharacterData, null, plugin)).ConfigureAwait(false);
-            
+            if (_usersToPushDataTo.Count == 0)
+            {
+                return;
+            }
+
+            Logger.LogTrace("Pushing only addon plugin changes for {count} users", _usersToPushDataTo.Count);
+
+            await _apiController.UserPushData(new([.. _usersToPushDataTo], characterData, null, plugin)).ConfigureAwait(false);
         }
         finally
         {

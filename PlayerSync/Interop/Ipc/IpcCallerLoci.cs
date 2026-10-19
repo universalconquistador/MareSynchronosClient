@@ -1,4 +1,5 @@
 ﻿using Dalamud.Plugin;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using LociApi.Enums;
 using LociApi.Helpers;
 using LociApi.Ipc;
@@ -94,104 +95,75 @@ public sealed class IpcCallerLoci : IIpcCaller
         }
     }
 
-    // None of these methods really need to be try-catched but doing so to keep with consistency.
-    /// <inheritdoc cref="LociApi.Ipc.RegisterByPtr"/>
-    public async Task<bool> RegisterActor(nint address)
+    public bool RegisterActorOnFramework(nint address)
     {
-        if (!APIAvailable) return false;
+        if (!APIAvailable || address == nint.Zero)
+        {
+            return false;
+        }
 
         try
         {
-            var res = await _dalamudUtil.RunOnFrameworkThread(() => _lociRegister.Invoke(address, IdentifierTag)).ConfigureAwait(false);
-            if (res is not (LociApiEc.Success or LociApiEc.NoChange))
-                _logger.LogWarning("Loci failed to register actor {ActorAddress} with Loci. Error: {ErrorCode}", address.ToString("X"), res);
-            return res is (LociApiEc.Success or LociApiEc.NoChange);
+            var result = _lociRegister.Invoke(address, IdentifierTag);
+
+            if (result is not (LociApiEc.Success or LociApiEc.NoChange))
+            {
+                _logger.LogWarning("Loci failed to register actor {ActorAddress}. Error: {ErrorCode}", address.ToString("X"), result);
+            }
+
+            return result is LociApiEc.Success or LociApiEc.NoChange;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error Registering actor {ActorAddress} with Loci: ", address.ToString("X"));
+            _logger.LogWarning(ex, "Error registering actor {ActorAddress}", address.ToString("X"));
+
             return false;
         }
     }
 
-    /// <inheritdoc cref="LociApi.Ipc.RegisterByName"/>
-    public async Task<bool> RegisterPlayer(string playerNameWorld)
+    public void SetActorManagerOnFramework(nint address, string data)
     {
-        if (!APIAvailable) return false;
+        if (!APIAvailable || address == nint.Zero)
+        {
+            return;
+        }
 
         try
         {
-            var res = await _dalamudUtil.RunOnFrameworkThread(() => _lociRegisterName.Invoke(playerNameWorld, IdentifierTag)).ConfigureAwait(false);
-            if (res is not (LociApiEc.Success or LociApiEc.NoChange))
-                _logger.LogWarning("Loci failed to register player {PlayerNameWorld}. Error: {ErrorCode}", playerNameWorld, res);
-            return res is (LociApiEc.Success or LociApiEc.NoChange);
+            _lociSetManagerByPtr.Invoke(address, data);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error Registering player {PlayerNameWorld}: ", playerNameWorld);
-            return false;
+            _logger.LogWarning(ex, "Error setting status manager for actor {ActorAddress}", address.ToString("X"));
         }
     }
 
-    /// <inheritdoc cref="LociApi.Ipc.RegisterByName"/>
-    public async Task<bool> RegisterBuddy(string playerName, string buddyName)
+    public void UnregisterActorFromFramework(nint address)
     {
-        if (!APIAvailable) return false;
+        _dalamudUtil.EnsureIsOnFramework();
 
-        try
+        if (!APIAvailable || address == nint.Zero)
         {
-            var res = await _dalamudUtil.RunOnFrameworkThread(() => _lociRegisterName.Invoke(playerName, buddyName, IdentifierTag)).ConfigureAwait(false);
-            if (res is not (LociApiEc.Success or LociApiEc.NoChange))
-                _logger.LogWarning("Loci failed to register buddy {BuddyName} of player {PlayerName}. Error: {ErrorCode}", buddyName, playerName, res);
-            return res is (LociApiEc.Success or LociApiEc.NoChange);
+            return;
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error Registering buddy {BuddyName} of player {PlayerName}: ", buddyName, playerName);
-            return false;
-        }
+
+        _lociUnregister.Invoke(address, IdentifierTag);
     }
 
-    /// <inheritdoc cref="LociApi.Ipc.UnregisterByPtr"/>
-    public async Task UnregisterActor(nint address)
+    public unsafe void UnregisterBuddyFromFramework(string playerName, nint address)
     {
-        if (!APIAvailable) return;
+        if (!APIAvailable)
+        {
+            return;
+        }
+
+        var chara = (Character*)address;
+        var buddyName = chara->GameObject.NameString;
 
         try
         {
-            await _dalamudUtil.RunOnFrameworkThread(() => _lociUnregister.Invoke(address, IdentifierTag)).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error Unregistering actor {ActorAddress}: ", address.ToString("X"));
-        }
-    }
+            var res = _lociUnregisterName.Invoke(playerName, buddyName, IdentifierTag, true);
 
-    /// <inheritdoc cref="LociApi.Ipc.UnregisterByName"/>
-    public async Task UnregisterPlayer(string playerNameWorld)
-    {
-        if (!APIAvailable) return;
-
-        try
-        {
-            var res = await _dalamudUtil.RunOnFrameworkThread(() => _lociUnregisterName.Invoke(playerNameWorld, IdentifierTag)).ConfigureAwait(false);
-            if (res is not (LociApiEc.Success or LociApiEc.NoChange))
-                _logger.LogWarning("Failed to unregister player {PlayerNameWorld}. Error: {ErrorCode}", playerNameWorld, res);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error Unregistering player {PlayerNameWorld}: ", playerNameWorld);
-        }
-    }
-
-    /// <inheritdoc cref="LociApi.Ipc.UnregisterByName"/>
-    public async Task UnregisterBuddy(string playerName, string buddyName)
-    {
-        if (!APIAvailable) return;
-
-        try
-        {
-            var res = await _dalamudUtil.RunOnFrameworkThread(() => _lociUnregisterName.Invoke(playerName, buddyName, IdentifierTag, true)).ConfigureAwait(false);
             if (res is not (LociApiEc.Success or LociApiEc.NoChange))
                 _logger.LogWarning("Failed to unregister buddy {BuddyName} of player {PlayerName}. Error: {ErrorCode}", buddyName, playerName, res);
         }
@@ -201,111 +173,31 @@ public sealed class IpcCallerLoci : IIpcCaller
         }
     }
 
-    /// <inheritdoc cref="LociApi.Ipc.GetManager"/>
-    public async Task<string> GetOwnManager()
-    {
-        if (!APIAvailable) return string.Empty;
 
-        try
-        {
-            return await _dalamudUtil.RunOnFrameworkThread(() => _lociGetManager.Invoke().Item2 ?? string.Empty).ConfigureAwait(false);
-        }
-        catch
+
+    /// <inheritdoc cref="LociApi.Ipc.GetManagerByPtr"/>
+    public string GetActorManagerOnFramework(nint actorAddr)
+    {
+        _dalamudUtil.EnsureIsOnFramework();
+
+        if (!APIAvailable || actorAddr == nint.Zero)
         {
             return string.Empty;
         }
-    }
-
-    /// <inheritdoc cref="LociApi.Ipc.GetManagerByPtr"/>
-    public async Task<string> GetActorManager(nint actorAddr)
-    {
-        if (!APIAvailable) return string.Empty;
 
         try
         {
-            var (ec, res) = await _dalamudUtil.RunOnFrameworkThread(() => _lociGetManagerByPtr.Invoke(actorAddr)).ConfigureAwait(false);
+            var (ec, res) = _lociGetManagerByPtr.Invoke(actorAddr);
+
             if (ec != LociApiEc.Success)
+            {
                 _logger.LogWarning("Failed to get status manager for actor {ActorAddress}. Error: {ErrorCode}", actorAddr.ToString("X"), ec);
+            }
+
             return res ?? string.Empty;
         }
         catch
         {
-            return string.Empty;
-        }
-    }
-
-    /// <inheritdoc cref="LociApi.Ipc.SetManagerByPtr"/>
-    public async Task SetActorManager(nint actorAddr, string dataStr)
-    {
-        if (!APIAvailable) return;
-
-        try
-        {
-            await _dalamudUtil.RunOnFrameworkThread(() => _lociSetManagerByPtr.Invoke(actorAddr, dataStr)).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error setting status manager for actor {ActorAddress}: ", actorAddr.ToString("X"));
-        }
-    }
-
-    /// <inheritdoc cref="LociApi.Ipc.ClearManagerByPtr"/>
-    public async Task ClearActorManager(nint actorAddr)
-    {
-        if (!APIAvailable) return;
-
-        try
-        {
-            await _dalamudUtil.RunOnFrameworkThread(() => _lociClearManagerByPtr.Invoke(actorAddr)).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error clearing status manager for actor {ActorAddress}: ", actorAddr.ToString("X"));
-        }
-    }
-
-    /// <inheritdoc cref="LociApi.Ipc.ClearManagerByName"/>
-    public async Task ClearPlayerManager(string playerNameWorld)
-    {
-        if (!APIAvailable) return;
-
-        try
-        {
-            await _dalamudUtil.RunOnFrameworkThread(() => _lociClearManagerByName.Invoke(playerNameWorld)).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error clearing status manager for player {PlayerNameWorld}: ", playerNameWorld);
-        }
-    }
-
-    /// <inheritdoc cref="LociApi.Ipc.ClearManagerByName"/>
-    public async Task ClearBuddyManager(string playerName, string buddyName)
-    {
-        if (!APIAvailable) return;
-
-        try
-        {
-            await _dalamudUtil.RunOnFrameworkThread(() => _lociClearManagerByName.Invoke(playerName, buddyName)).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error clearing status manager for buddy {BuddyName} of player {PlayerName}: ", buddyName, playerName);
-        }
-    }
-
-    /// <inheritdoc cref="LociApi.Ipc.ConvertLegacyData"/>
-    public string ConvertToLociData(string legacyStatusManagerBase64)
-    {
-        if (!APIAvailable) return string.Empty;
-
-        try
-        {
-            return _lociConvertLegacyData.Invoke(legacyStatusManagerBase64);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error converting legacy data to Loci format: ");
             return string.Empty;
         }
     }
@@ -326,6 +218,6 @@ public sealed class IpcCallerLoci : IIpcCaller
 
     private void OnManagerModified(nint address, ManagerChangeType changeType)
     {
-        _mareMediator.Publish(new LociUpdateMessage(address));
+        _mareMediator.Publish(new LociUpdateMessage(_dalamudUtil.GetOwnedObjectKindOnFramework(address)));
     }
 }

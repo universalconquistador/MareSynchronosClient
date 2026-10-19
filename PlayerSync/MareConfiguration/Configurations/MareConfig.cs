@@ -123,8 +123,9 @@ public class MareConfig : IMareConfiguration
     public string LastPreloadMod { get; set; } = string.Empty;
     public bool NoPauseSubmenuForPairsOnMainUi { get; set; } = false;
     public bool ShowFileUnableToSyncNotification { get; set; } = true;
-    public int MaxConcurrentApplications { get; set; } = 0;
+    public int MaxConcurrentApplications { get; set; } = 10;
     public bool DisableIdleCheck { get; set; } = false;
     public bool AutoPauseDataApplicationWhenPerforming {  get; set; } = true;
     public int MaxUploadTimeMinutes { get; set; } = 10;
+    public bool DataHasBeenMigratedToNewDb { get; set; } = false;
 }

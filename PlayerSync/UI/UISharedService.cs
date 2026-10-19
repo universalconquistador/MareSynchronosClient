@@ -547,7 +547,7 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
         ImGui.InputText("Storage Folder##cache", ref cacheDirectory, 255, ImGuiInputTextFlags.ReadOnly);
 
         ImGui.SameLine();
-        using (ImRaii.Disabled(_cacheMonitor.MareWatcher != null))
+        using (ImRaii.Disabled(_cacheMonitor.PlayerSyncWatcher != null))
         {
             if (IconButton(FontAwesomeIcon.Folder))
             {
@@ -589,13 +589,13 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
                     {
                         _configService.Current.CacheFolder = path;
                         _configService.Save();
-                        _cacheMonitor.StartMareWatcher(path);
+                        _cacheMonitor.StartPlayerSyncWatcher(path);
                         _cacheMonitor.InvokeScan();
                     }
                 }, _dalamudUtil.IsWine ? @"Z:\" : @"C:\");
             }
         }
-        if (_cacheMonitor.MareWatcher != null)
+        if (_cacheMonitor.PlayerSyncWatcher != null)
         {
             AttachToolTip("Stop the Monitoring before changing the Storage folder. As long as monitoring is active, you cannot change the Storage folder location.");
         }

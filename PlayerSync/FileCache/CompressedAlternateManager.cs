@@ -59,6 +59,11 @@ namespace PlayerSync.FileCache
 
         public void SetCompressedAlternate(string sourceFileHash, string? compressedAlternateHash, bool neverWillHaveAlternate)
         {
+            if (compressedAlternateHash != null && string.IsNullOrWhiteSpace(compressedAlternateHash))
+            {
+                Logger.LogWarning("Got a compressed alternate hash for source {sourceHash} that was blank/empty, treating the alternate as null.", sourceFileHash);
+                compressedAlternateHash = null;
+            }
             var nextCheckTime = (compressedAlternateHash != null || neverWillHaveAlternate) ? DateTimeOffset.MaxValue : (DateTimeOffset.UtcNow + TimeSpan.FromMinutes(CacheLifespanMinutes));
             _entryDictionary[sourceFileHash] = new CompressedAlternateEntry(compressedAlternateHash, nextCheckTime);
         }
