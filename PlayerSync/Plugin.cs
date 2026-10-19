@@ -279,7 +279,6 @@ public sealed class Plugin : IDalamudPlugin
             collection.AddScoped<WindowMediatorSubscriberBase, PopupHandler>();
             collection.AddScoped<WindowMediatorSubscriberBase, MyStagesWindow>();
             collection.AddScoped<IPopupHandler, BanUserPopupHandler>();
-            //collection.AddScoped<IPopupHandler, CensusPopupHandler>();
             collection.AddScoped<CacheCreationService>();
             collection.AddScoped<PlayerDataFactory>();
             collection.AddScoped<VisibleUserDataDistributorService>();

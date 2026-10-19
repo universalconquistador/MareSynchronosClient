@@ -190,15 +190,7 @@ public partial class ApiController
         }
         Logger.LogDebug("Chara data contained: {nl} {data}", Environment.NewLine, sb.ToString());
 
-        CensusDataDto? censusDto = null;
-        //if (_serverManager.SendCensusData && _lastCensus != null)
-        //{
-        //    var world = await _dalamudUtil.GetWorldIdAsync().ConfigureAwait(false);
-        //    censusDto = new((ushort)world, _lastCensus.RaceId, _lastCensus.TribeId, _lastCensus.Gender);
-        //    Logger.LogDebug("Attaching Census Data: {data}", censusDto);
-        //}
-
-        await UserPushData(new(visibleCharacters, character, censusDto)).ConfigureAwait(false);
+        await UserPushData(new(visibleCharacters, character, null)).ConfigureAwait(false);
     }
 }
 #pragma warning restore MA0040

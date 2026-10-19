@@ -42,12 +42,6 @@ public class PopupHandler : WindowMediatorSubscriberBase
             IsOpen = true;
         });
 
-        //Mediator.Subscribe<OpenCensusPopupMessage>(this, (msg) =>
-        //{
-        //    _openPopup = true;
-        //    _currentHandler = _handlers.OfType<CensusPopupHandler>().Single();
-        //    IsOpen = true;
-        //});
         _uiSharedService = uiSharedService;
         DisableWindowSounds = true;
     }

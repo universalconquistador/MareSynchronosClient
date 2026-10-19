@@ -44,7 +44,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private string? _lastUsedToken;
     private HubConnection? _mareHub;
     private ServerState _serverState;
-    //private CensusUpdateMessage? _lastCensus;
 
     public ApiController(ILogger<ApiController> logger, HubFactory hubFactory, DalamudUtilService dalamudUtil,
         PairManager pairManager, PairDataApplicationManager pairDataApplicationManager, ServerConfigurationManager serverManager, MareMediator mediator,
@@ -67,9 +66,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         Mediator.Subscribe<HubClosedMessage>(this, (msg) => MareHubOnClosed(msg.Exception));
         Mediator.Subscribe<HubReconnectedMessage>(this, (msg) => _ = MareHubOnReconnectedAsync());
         Mediator.Subscribe<HubReconnectingMessage>(this, (msg) => MareHubOnReconnecting(msg.Exception));
-        //Mediator.Subscribe<UserAddPairMessage>(this, (msg) => _ = UserAddPair(new UserDto(msg.UserData), true));
         Mediator.Subscribe<CyclePauseMessage>(this, (msg) => _ = CyclePauseAsync(msg.UserData));
-        //Mediator.Subscribe<CensusUpdateMessage>(this, (msg) => _lastCensus = msg);
         Mediator.Subscribe<PauseMessage>(this, (msg) => _ = PauseAsync(msg.UserData, msg.Reason, msg.PauseDuration));
         Mediator.Subscribe<UnPauseMessage>(this, (msg) => _ = UnPauseAsync(msg.UserData, msg.Notification));
         Mediator.Subscribe<UserPairStickyPauseAndRemoveMessage>(this, (msg) => _ = UserPairStickyPauseAndRemove(msg.UserData));
@@ -147,15 +144,6 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public async Task CreateConnectionsAsync()
     {
-        //if (!_serverManager.ShownCensusPopup)
-        //{
-        //    Mediator.Publish(new OpenCensusPopupMessage());
-        //    while (!_serverManager.ShownCensusPopup)
-        //    {
-        //        await Task.Delay(500).ConfigureAwait(false);
-        //    }
-        //}
-
         Logger.LogDebug("CreateConnections called");
 
         // Check if the server is "paused", meaning we're manually disconnected from the service
@@ -687,16 +675,8 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     private async Task LoadOnlinePairsAsync()
     {
-        CensusDataDto? dto = null;
-        //if (_serverManager.SendCensusData && _lastCensus != null)
-        //{
-        //    var world = await _dalamudUtil.GetWorldIdAsync().ConfigureAwait(false);
-        //    dto = new((ushort)world, _lastCensus.RaceId, _lastCensus.TribeId, _lastCensus.Gender);
-        //    Logger.LogDebug("Attaching Census Data: {data}", dto);
-        //}
-
         _pairManager.DeferRecreate = true;
-        foreach (var entry in await UserGetOnlinePairs(dto).ConfigureAwait(false))
+        foreach (var entry in await UserGetOnlinePairs(null).ConfigureAwait(false))
         {
             Logger.LogDebug("Pair online: {pair}", entry);
             _pairManager.MarkPairOnline(entry, sendNotif: false);
