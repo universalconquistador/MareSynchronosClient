@@ -111,7 +111,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             },
             new TitleBarButton()
             {
-                Icon = FontAwesomeIcon.PersonCircleQuestion,
+                Icon = FontAwesomeIcon.QuestionCircle,
                 Click = (msg) =>
                 {
                     Mediator.Publish(new UiToggleMessage(typeof(HelpUi)));
