@@ -25,6 +25,7 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
     private readonly List<UserData> _previouslyVisiblePlayers = [];
     private readonly object _pushDataLock = new();
     private readonly HashSet<UserData> _usersToPushDataTo = [];
+    private readonly HashSet<UserData> _usersToPushPartialDataTo = [];
     private readonly SemaphoreSlim _pushDataSemaphore = new(1, 1);
     private readonly CancellationTokenSource _runtimeCts = new();
     private readonly HashSet<string> _filesTooLargeOrEmptyHasBeenNotified = new HashSet<string>();
@@ -66,6 +67,7 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
             {
                 _previouslyVisiblePlayers.Remove(msg.Pair.UserData);
                 _usersToPushDataTo.Remove(msg.Pair.UserData);
+                _usersToPushPartialDataTo.Remove(msg.Pair.UserData);
             }
             
         });
@@ -74,6 +76,8 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
             lock (_pushDataLock)
             {
                 _previouslyVisiblePlayers.Clear();
+                _usersToPushDataTo.Clear();
+                _usersToPushPartialDataTo.Clear();
             }
         });
         Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => // useful if you get disconnected from the game but are able to log back in
@@ -81,6 +85,8 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
             lock (_pushDataLock)
             {
                 _previouslyVisiblePlayers.Clear();
+                _usersToPushDataTo.Clear();
+                _usersToPushPartialDataTo.Clear();
             }
         });
         Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, (_) => FrameworkOnUpdate());
@@ -178,7 +184,8 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
 
         _ = Task.Run(async () =>
         {
-            forced |= _uploadingCharacterData?.DataHash != _lastCreatedData!.DataHash;
+            //forced |= _uploadingCharacterData?.DataHash != _lastCreatedData!.DataHash;
+            forced |= !string.Equals(_uploadingCharacterData?.DataHash.Value, _lastCreatedData!.DataHash.Value, StringComparison.Ordinal);
 
             if (_fileUploadTask == null || (_fileUploadTask?.IsCompleted ?? false) || forced)
             {
@@ -198,8 +205,26 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
 
             if (_fileUploadTask != null)
             {
-                var dataToSend = await _fileUploadTask.ConfigureAwait(false);
+                CharacterData dataToSend;
+                try
+                {
+                    dataToSend = await _fileUploadTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    Logger.LogDebug("Character data upload was cancelled");
+
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Character data upload failed");
+
+                    return;
+                }
+
                 await _pushDataSemaphore.WaitAsync(_runtimeCts.Token).ConfigureAwait(false);
+
                 try
                 {
                     if (_usersToPushDataTo.Count == 0)
@@ -207,6 +232,13 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
                         return;
                     }
 
+                    // We need to update our addon data just in case there was a partial sent while we were waiting on uploads
+                    // this may seem hacky but it's way easier than versioning and merging partial changes into a full on the receiver
+                    var latestData = _lastCreatedData!;
+                    dataToSend.HeelsData = latestData.HeelsData;
+                    dataToSend.HonorificData = latestData.HonorificData;
+                    dataToSend.MoodlesData = latestData.MoodlesData;
+                    dataToSend.PetNamesData = latestData.PetNamesData;
                     Logger.LogDebug("Pushing {data} to {users}", dataToSend.DataHash, string.Join(", ", _usersToPushDataTo.Select(k => k.AliasOrUID)));
 
                     await _apiController.PushCharacterData(dataToSend, [.. _usersToPushDataTo]).ConfigureAwait(false);
@@ -276,7 +308,7 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
                             filesTooLargeorEmpty[fileReplacements.Key] = [];
                         }
                         filesTooLargeorEmpty[fileReplacements.Key].Add(replacement);
-                        Logger.LogWarning("File with hash {hash} is too large or empty (0.00B) and will not be uploaded to the server.", replacement.Hash);
+                        Logger.LogWarning("File with hash {hash} is too large, or empty (0.00B), and will not be uploaded to the server.", replacement.Hash);
                     }
                 }
             }
@@ -345,21 +377,21 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
         {
             foreach (var user in _pairManager.GetVisibleUsers())
             {
-                _usersToPushDataTo.Add(user);
+                _usersToPushPartialDataTo.Add(user);
             }
 
-            if (_usersToPushDataTo.Count == 0)
+            if (_usersToPushPartialDataTo.Count == 0)
             {
                 return;
             }
 
-            Logger.LogTrace("Pushing only addon plugin changes for {count} users", _usersToPushDataTo.Count);
+            Logger.LogTrace("Pushing only addon plugin changes for {count} users", _usersToPushPartialDataTo.Count);
 
-            await _apiController.UserPushData(new([.. _usersToPushDataTo], characterData, null, plugin)).ConfigureAwait(false);
+            await _apiController.UserPushData(new([.. _usersToPushPartialDataTo], characterData, null, plugin)).ConfigureAwait(false);
         }
         finally
         {
-            _usersToPushDataTo.Clear();
+            _usersToPushPartialDataTo.Clear();
             _pushDataSemaphore.Release();
         }
     }
