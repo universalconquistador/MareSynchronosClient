@@ -36,7 +36,7 @@ public partial class HelpUi : WindowMediatorSubscriberBase
     private IReadOnlyList<UiNav.Tab<DiagnosticPairsTabs>>? _diagnosticPairsTab;
     private IReadOnlyList<UiNav.Tab<DiagnosticPairsTabs>> DiagnosticPairsTabsList => _diagnosticPairsTab ??=
     [
-        new(DiagnosticPairsTabs.Troubleshooting, "Troubleshooting", DrawPairTroubleshooting),
+        //new(DiagnosticPairsTabs.Troubleshooting, "Troubleshooting", DrawPairTroubleshooting),
         new(DiagnosticPairsTabs.PairStatus, "Pair Status", DrawPairStatus),
         new(DiagnosticPairsTabs.PairLogs, "Pair Logs", DrawPairApplicationLogs),
         new(DiagnosticPairsTabs.PairTiming, "Framework Timing", DrawPairTiming),

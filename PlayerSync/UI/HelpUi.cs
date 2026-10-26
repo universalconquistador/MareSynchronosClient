@@ -99,13 +99,13 @@ public partial class HelpUi : WindowMediatorSubscriberBase
     {
         ("Information", new List<UiNav.NavItem<DiagnosticsNav>>
         {
-            new(DiagnosticsNav.Guides, "Guides", DrawDiagnosticsInformation, FontAwesomeIcon.Info),
+            //new(DiagnosticsNav.Guides, "Guides", DrawDiagnosticsInformation, FontAwesomeIcon.Info),
             new(DiagnosticsNav.Events, "Event Log", DrawDiagnosticsEvents, FontAwesomeIcon.Book),
         }),
         ("Troubleshooting", new List<UiNav.NavItem<DiagnosticsNav>>
         {
             new(DiagnosticsNav.Network, "Network", DrawDiagnosticsNetwork, FontAwesomeIcon.NetworkWired),
-            new(DiagnosticsNav.Character, "Your Character Data", DrawDiagnosticsCharacter, FontAwesomeIcon.CloudUploadAlt),
+            //new(DiagnosticsNav.Character, "Your Character Data", DrawDiagnosticsCharacter, FontAwesomeIcon.CloudUploadAlt),
             new(DiagnosticsNav.Pairs, "Their Pair Data", DrawDiagnosticsPairs, FontAwesomeIcon.CloudDownloadAlt),
         }),
     };
