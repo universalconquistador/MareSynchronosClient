@@ -1141,7 +1141,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
             foreach (var kind in updatedData)
             {
                 Mediator.Publish(new EventMessage(new DataApplicationEvent(applicationBase, DataApplicationStatus.Applying, Pair.PlayerName, 
-                    Pair.UserData, nameof(ApplyDataApplicationAsync), EventSeverity.Informational, $"Applying character data of type {kind.ToString()} for {Pair.PairUIDName}")));
+                    Pair.UserData, nameof(ApplyDataApplicationAsync), EventSeverity.Informational, $"Applying character data of type {kind.Key} for {Pair.PairUIDName}")));
 
                 penumbraApplied = await ApplyCustomizationDataAsync(dataApplication, kind.Key, moddedPathsData, penumbraApplied, cancellationToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
