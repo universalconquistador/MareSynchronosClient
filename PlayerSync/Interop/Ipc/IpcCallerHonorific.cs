@@ -1,6 +1,6 @@
-﻿using Dalamud.Game.ClientState.Objects.SubKinds;
-using Dalamud.Plugin;
+﻿using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
@@ -63,53 +63,56 @@ public sealed class IpcCallerHonorific : IIpcCaller
         _honorificReady.Unsubscribe(OnHonorificReady);
     }
 
-    public async Task ClearTitleAsync(nint character)
+    public unsafe void ClearTitleFromFramework(nint address)
     {
-        if (!APIAvailable) return;
-        await _dalamudUtil.RunOnFrameworkThread(() =>
+        if (!APIAvailable)
         {
-            var gameObj = _dalamudUtil.CreateGameObject(character);
-            if (gameObj is IPlayerCharacter c)
-            {
-                _logger.LogTrace("Honorific removing for {addr}", c.Address.ToString("X"));
-                _honorificClearCharacterTitle!.InvokeAction(c.ObjectIndex);
-            }
-        }).ConfigureAwait(false);
+            return;
+        }
+
+        _honorificClearCharacterTitle!.InvokeAction(((BattleChara*)address)->ObjectIndex);
     }
 
-    public async Task<string> GetTitle()
+    public string GetTitleOnFramework()
     {
-        if (!APIAvailable) return string.Empty;
-        string title = await _dalamudUtil.RunOnFrameworkThread(() => _honorificGetLocalCharacterTitle.InvokeFunc()).ConfigureAwait(false);
-        return string.IsNullOrEmpty(title) ? string.Empty : Convert.ToBase64String(Encoding.UTF8.GetBytes(title));
-    }
+        if (!APIAvailable)
+        {
+            return string.Empty;
+        }
 
-    public async Task SetTitleAsync(IntPtr character, string honorificDataB64)
-    {
-        if (!APIAvailable) return;
-        _logger.LogTrace("Applying Honorific data to {chara}", character.ToString("X"));
         try
         {
-            await _dalamudUtil.RunOnFrameworkThread(() =>
-            {
-                var gameObj = _dalamudUtil.CreateGameObject(character);
-                if (gameObj is IPlayerCharacter pc)
-                {
-                    string honorificData = string.IsNullOrEmpty(honorificDataB64) ? string.Empty : Encoding.UTF8.GetString(Convert.FromBase64String(honorificDataB64));
-                    if (string.IsNullOrEmpty(honorificData))
-                    {
-                        _honorificClearCharacterTitle!.InvokeAction(pc.ObjectIndex);
-                    }
-                    else
-                    {
-                        _honorificSetCharacterTitle!.InvokeAction(pc.ObjectIndex, honorificData);
-                    }
-                }
-            }).ConfigureAwait(false);
+            return _honorificGetLocalCharacterTitle.InvokeFunc();
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            _logger.LogWarning(e, "Could not apply Honorific data");
+            _logger.LogError(ex, "Honorific IPC failed!");
+
+            return string.Empty;
+        }
+    }
+
+    public void SetTitleOnFramework(ushort index, string data)
+    {
+        if (!APIAvailable)
+        {
+            return;
+        }
+
+        try
+        {
+            if (string.IsNullOrEmpty(data))
+            {
+                _honorificClearCharacterTitle.InvokeAction(index);
+            }
+            else
+            {
+                _honorificSetCharacterTitle.InvokeAction(index, data);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not apply Honorific data");
         }
     }
 

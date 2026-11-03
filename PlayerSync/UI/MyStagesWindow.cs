@@ -44,7 +44,7 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
 
     private readonly IReadOnlyList<UiNav.Tab<MyStagesTabs>> _tabs;
     private UiNav.Tab<MyStagesTabs>? _selectedTab = null;
-    
+
     // Stages
     private readonly StageListComponent _myStageList;
 
@@ -257,7 +257,7 @@ public class MyStagesWindow : WindowMediatorSubscriberBase
             doSearch = true;
         }
         ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Search, new (ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.Search, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
         {
             doSearch = true;
         }

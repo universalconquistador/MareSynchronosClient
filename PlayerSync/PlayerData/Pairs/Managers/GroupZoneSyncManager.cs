@@ -1,8 +1,8 @@
 ﻿using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto;
+using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.MareConfiguration;
-using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -133,9 +133,16 @@ public class GroupZoneSyncManager : DisposableMediatorSubscriberBase, IHostedSer
             _logger.LogDebug("Can't call SendGroupZoneSyncInfo when not connected.");
             return;
         }
-        var ownLocation = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
-        var instance = await _dalamudUtilService.GetZoneIdAsync().ConfigureAwait(false);
-        var datacenter = _dalamudUtilService.GetDataCenterIdForWorld((ushort)ownLocation.ServerId);
+        LocationInfo ownLocation;
+        ushort instance;
+        (ownLocation, instance) = await _dalamudUtilService.RunOnFrameworkThread(() =>
+        {
+            ownLocation = _dalamudUtilService.GetMapData();
+            instance = _dalamudUtilService.GetZoneId();
+            return (ownLocation, instance);
+        }).ConfigureAwait(false);
+        uint? datacenter = _dalamudUtilService.GetDataCenterIdForWorld((ushort)ownLocation.ServerId);
+
         var instanceBound = _dalamudUtilService.IsBoundByDuty/*PvE Duty */ || _dalamudUtilService.IsPvPExcludingDen/*PvP Duty*/;
 
         //Exit if Forbidden zone

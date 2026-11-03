@@ -22,9 +22,14 @@ public class GameObjectHandlerFactory
         _dalamudUtilService = dalamudUtilService;
     }
 
-    public async Task<GameObjectHandler> Create(ObjectKind objectKind, Func<nint> getAddressFunc, bool isWatched = false)
+    public async Task<GameObjectHandler> Create(ObjectKind objectKind, Func<nint> getAddressFunc, bool isOwnObject = false)
     {
         return await _dalamudUtilService.RunOnFrameworkThread(() => new GameObjectHandler(_loggerFactory.CreateLogger<GameObjectHandler>(),
-            _performanceCollectorService, _mareMediator, _dalamudUtilService, objectKind, getAddressFunc, isWatched)).ConfigureAwait(false);
+            _performanceCollectorService, _mareMediator, _dalamudUtilService, objectKind, getAddressFunc, isOwnObject)).ConfigureAwait(false);
+    }
+    public async Task<GameObjectHandler> Create(ObjectKind objectKind, Func<nint> getAddressFunc, ulong contentId, bool isOwnObject = false)
+    {
+        return await _dalamudUtilService.RunOnFrameworkThread(() => new GameObjectHandler(_loggerFactory.CreateLogger<GameObjectHandler>(),
+            _performanceCollectorService, _mareMediator, _dalamudUtilService, objectKind, getAddressFunc, false, true, contentId)).ConfigureAwait(false);
     }
 }

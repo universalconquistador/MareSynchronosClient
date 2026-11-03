@@ -70,10 +70,11 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
                     var auth = secretKey.GetHash256();
                     _logger.LogInformation("Sending SecretKey Request to server with auth {auth}", string.Join("", identifier.SecretKeyOrOAuth.Take(10)));
                     var httpClient = _httpClientProvider.GetHttpClient();
+                    string ident = await _dalamudUtil.RunOnFrameworkThread(() => _dalamudUtil.GetHashedCIDFromPlayerPointer()).ConfigureAwait(false);
                     result = await httpClient.PostAsync(tokenUri, new FormUrlEncodedContent(
                     [
                             new KeyValuePair<string, string>("auth", auth),
-                            new KeyValuePair<string, string>("charaIdent", await _dalamudUtil.GetPlayerNameHashedAsync().ConfigureAwait(false)),
+                            new KeyValuePair<string, string>("charaIdent", ident),
                     ]), ct).ConfigureAwait(false);
                 }
                 else
@@ -150,10 +151,17 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
 
     private async Task<JwtIdentifier?> GetIdentifier()
     {
+        if (_dalamudUtil.IsZoning)
+        {
+            _logger.LogDebug("GetIdentifier called while player character unavailable: Using identifier {identifier}", _lastJwtIdentifier);
+            return _lastJwtIdentifier;
+        }
+
         JwtIdentifier jwtIdentifier;
         try
         {
-            var playerIdentifier = await _dalamudUtil.GetPlayerNameHashedAsync().ConfigureAwait(false);
+            // this throws if it's called while zoning, should probably just call this once on login and store in the API controller
+            var playerIdentifier = await _dalamudUtil.RunOnFrameworkThread(() => _dalamudUtil.GetHashedCIDFromPlayerPointer()).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(playerIdentifier))
             {
@@ -163,22 +171,15 @@ public sealed class TokenProvider : IDisposable, IMediatorSubscriber
 
             if (_serverManager.CurrentServer.UseOAuth2)
             {
-                var (OAuthToken, UID) = _serverManager.GetOAuth2(out _)
-                    ?? throw new InvalidOperationException("Requested OAuth2 but received null");
+                var (OAuthToken, UID) = _serverManager.GetOAuth2(out _) ?? throw new InvalidOperationException("Requested OAuth2 but received null");
 
-                jwtIdentifier = new(_serverManager.RealApiUrl,
-                    playerIdentifier,
-                    UID, OAuthToken);
+                jwtIdentifier = new(_serverManager.RealApiUrl, playerIdentifier, UID, OAuthToken);
             }
             else
             {
-                var secretKey = _serverManager.GetSecretKey(out _)
-                    ?? throw new InvalidOperationException("Requested SecretKey but received null");
+                var secretKey = _serverManager.GetSecretKey(out _) ?? throw new InvalidOperationException("Requested SecretKey but received null");
 
-                jwtIdentifier = new(_serverManager.RealApiUrl,
-                                    playerIdentifier,
-                                    string.Empty,
-                                    secretKey);
+                jwtIdentifier = new(_serverManager.RealApiUrl, playerIdentifier, string.Empty, secretKey);
             }
             _lastJwtIdentifier = jwtIdentifier;
         }

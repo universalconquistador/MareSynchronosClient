@@ -7,7 +7,7 @@ public sealed partial class IpcManager : DisposableMediatorSubscriberBase
 {
     public IpcManager(ILogger<IpcManager> logger, MareMediator mediator,
         IpcCallerPenumbra penumbraIpc, IpcCallerGlamourer glamourerIpc, IpcCallerCustomize customizeIpc, IpcCallerHeels heelsIpc,
-        IpcCallerHonorific honorificIpc, IpcCallerMoodles moodlesIpc, IpcCallerPetNames petnamesIpc, IpcCallerBrio brioIpc, 
+        IpcCallerHonorific honorificIpc, IpcCallerMoodles moodlesIpc, IpcCallerPetNames petnamesIpc, IpcCallerBrio brioIpc,
         IpcCallerLoci lociIpc, IpcCallerLifestream lifestreamIpc, IpcCallerStagehand stagehandIpc) : base(logger, mediator)
     {
         CustomizePlus = customizeIpc;

@@ -1,0 +1,423 @@
+﻿using MareSynchronos.API.Data;
+using MareSynchronos.API.Data.Enum;
+using MareSynchronos.FileCache;
+using MareSynchronos.MareConfiguration;
+using MareSynchronos.Services;
+using MareSynchronos.Services.Mediator;
+using MareSynchronos.Utils;
+using MareSynchronos.WebAPI;
+using MareSynchronos.WebAPI.Files;
+using Microsoft.Extensions.Logging;
+
+namespace MareSynchronos.PlayerData.Pairs;
+
+public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBase
+{
+    private readonly TimeSpan _cacheCreationDelay = TimeSpan.FromSeconds(5);
+
+    private readonly ApiController _apiController;
+    private readonly DalamudUtilService _dalamudUtil;
+    private readonly FileUploadManager _fileTransferManager;
+    private readonly PairManager _pairManager;
+    private readonly MareConfigService _configService;
+    private readonly FileCacheManager _fileCacheManager;
+
+    private readonly List<UserData> _previouslyVisiblePlayers = [];
+    private readonly object _pushDataLock = new();
+    private readonly HashSet<UserData> _usersToPushDataTo = [];
+    private readonly HashSet<UserData> _usersToPushPartialDataTo = [];
+    private readonly SemaphoreSlim _pushDataSemaphore = new(1, 1);
+    private readonly CancellationTokenSource _runtimeCts = new();
+    private readonly HashSet<string> _filesTooLargeOrEmptyHasBeenNotified = new HashSet<string>();
+
+    private Task<CharacterData>? _fileUploadTask = null;
+    private CharacterData? _lastCreatedData;
+    private CharacterData? _uploadingCharacterData = null;
+    private int _cacheCreationRequestCount = 0;
+    private DateTimeOffset _lastCacheCreationRequest = DateTimeOffset.MinValue;
+
+
+    public VisibleUserDataDistributorService(ILogger<VisibleUserDataDistributorService> logger, ApiController apiController, DalamudUtilService dalamudUtil,
+        PairManager pairManager, MareMediator mediator, FileUploadManager fileTransferManager, MareConfigService mareConfigService, FileCacheManager fileCacheManager) : base(logger, mediator)
+    {
+        _apiController = apiController;
+        _dalamudUtil = dalamudUtil;
+        _pairManager = pairManager;
+        _fileTransferManager = fileTransferManager;
+        _configService = mareConfigService;
+        _fileCacheManager = fileCacheManager;
+
+        Mediator.Subscribe<CharacterDataCreatedMessage>(this, (msg) =>
+        {
+            var newData = msg.CharacterData;
+            if (_lastCreatedData == null || (!string.Equals(newData.DataHash.Value, _lastCreatedData.DataHash.Value, StringComparison.Ordinal)))
+            {
+                _lastCreatedData = newData;
+                Logger.LogTrace("Storing new data hash {hash}", newData.DataHash.Value);
+                PushToAllVisibleUsers(forced: true);
+            }
+            else
+            {
+                Logger.LogTrace("Data hash {hash} equal to stored data", newData.DataHash.Value);
+            }
+        });
+        Mediator.Subscribe<PairOfflineMessage>(this, (msg) =>
+        {
+            lock (_pushDataLock)
+            {
+                _previouslyVisiblePlayers.Remove(msg.Pair.UserData);
+                _usersToPushDataTo.Remove(msg.Pair.UserData);
+                _usersToPushPartialDataTo.Remove(msg.Pair.UserData);
+            }
+            
+        });
+        Mediator.Subscribe<DisconnectedMessage>(this, (_) =>
+        {
+            lock (_pushDataLock)
+            {
+                _previouslyVisiblePlayers.Clear();
+                _usersToPushDataTo.Clear();
+                _usersToPushPartialDataTo.Clear();
+            }
+        });
+        Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => // useful if you get disconnected from the game but are able to log back in
+        {
+            lock (_pushDataLock)
+            {
+                _previouslyVisiblePlayers.Clear();
+                _usersToPushDataTo.Clear();
+                _usersToPushPartialDataTo.Clear();
+            }
+        });
+        Mediator.Subscribe<DelayedFrameworkUpdateMessage>(this, (_) => FrameworkOnUpdate());
+        Mediator.Subscribe<AddonPluginChangesCreatedMessage>(this, (msg) => _ = PushAddonPluginPlayerChanges(msg.PlayerChanges, msg.Data));
+        Mediator.Subscribe<ConnectedMessage>(this, (_) => PushToAllVisibleUsers());
+        
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _runtimeCts.Cancel();
+            _runtimeCts.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
+
+    private void PushToAllVisibleUsers(bool forced = false)
+    {
+        var visiblePlayers = _pairManager.GetVisibleUsers();
+        if (visiblePlayers.Count > 0)
+        {
+            Logger.LogDebug("Pushing data {hash} for {count} visible players", _lastCreatedData?.DataHash.Value ?? "UNKNOWN", visiblePlayers.Count);
+            PushCharacterData(visiblePlayers, forced);
+        }
+    }
+
+    private void FrameworkOnUpdate()
+    {
+        if (!_dalamudUtil.GetIsPlayerPresent() || !_apiController.IsConnected)
+        {
+            return;
+        }
+
+        var allVisibleUsers = _pairManager.GetVisibleUsers();
+        List<UserData> newVisibleUsers;
+
+        lock (_pushDataLock)
+        {
+            newVisibleUsers = allVisibleUsers.Except(_previouslyVisiblePlayers).ToList();
+
+            _previouslyVisiblePlayers.Clear();
+            _previouslyVisiblePlayers.AddRange(allVisibleUsers);
+        }
+
+        if (newVisibleUsers.Count == 0)
+        {
+            return;
+        }
+
+        Logger.LogDebug("Scheduling character data push of {data} to {users}", _lastCreatedData?.DataHash.Value ?? string.Empty, string.Join(", ", newVisibleUsers.Select(k => k.AliasOrUID)));
+
+        PushCharacterData(newVisibleUsers);
+    }
+
+    private bool HasCacheOrCreateIfEmpty()
+    {
+        if (_lastCreatedData == null || string.IsNullOrEmpty(_lastCreatedData?.DataHash.Value))
+        {
+            _cacheCreationRequestCount++;
+            Logger.LogDebug("Requested to push character data but character data was null. Total requests: {count}.", _cacheCreationRequestCount);
+
+            var now = DateTimeOffset.UtcNow;
+            if (now - _lastCacheCreationRequest < _cacheCreationDelay)
+            {
+                return false;
+            }
+
+            _lastCacheCreationRequest = now;
+            Logger.LogDebug("Sending request to create player cache");
+            Mediator.Publish(new CreateCacheForEverythingMessage()); // this will eventually call back here via CharacterDataCreatedMessage
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private void PushCharacterData(List<UserData> usersToPushDataTo, bool forced = false)
+    {
+        if (usersToPushDataTo.Count == 0 || !HasCacheOrCreateIfEmpty())
+        {
+            return;
+        }
+
+        var cancellationToken = _runtimeCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                Task<CharacterData> fileUploadTask;
+                await _pushDataSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    lock (_pushDataLock)
+                    {
+                        _usersToPushDataTo.UnionWith(usersToPushDataTo);
+                    }
+                    //forced |= _uploadingCharacterData?.DataHash != _lastCreatedData!.DataHash;
+                    forced |= !string.Equals(_uploadingCharacterData?.DataHash.Value, _lastCreatedData!.DataHash.Value, StringComparison.Ordinal);
+
+                    if (_fileUploadTask == null || _fileUploadTask.IsCompleted || forced)
+                    {
+                        if (_fileUploadTask != null && !_fileUploadTask.IsCompleted)
+                        {
+                            _fileTransferManager.CancelUpload();
+                            try
+                            {
+                                await _fileUploadTask.ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                Logger.LogDebug("Previous character data upload was cancelled");
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.LogWarning(ex, "Previous character data upload failed");
+                            }
+                        }
+                        cancellationToken.ThrowIfCancellationRequested();
+                        _uploadingCharacterData = _lastCreatedData;
+                        var uploadingCharacterData = _uploadingCharacterData!.DeepClone();
+                        List<UserData> visiblePlayers;
+                        lock (_pushDataLock)
+                        {
+                            visiblePlayers = [.. _usersToPushDataTo];
+                        }
+                        Logger.LogDebug("Starting UploadTask for {hash}, Reason: TaskIsNull: {task}, TaskIsCompleted: {taskCpl}, Forced: {frc}",
+                            _uploadingCharacterData!.DataHash, _fileUploadTask == null, _fileUploadTask?.IsCompleted ?? false, forced);
+                        await RemoveFilesThatAreTooLargeOrEmpty(uploadingCharacterData, cancellationToken).ConfigureAwait(false);
+                        _fileUploadTask = _fileTransferManager.UploadFiles(uploadingCharacterData, visiblePlayers);
+                    }
+                    fileUploadTask = _fileUploadTask!;
+                }
+                finally
+                {
+                    _pushDataSemaphore.Release();
+                }
+
+                CharacterData dataToSend = await fileUploadTask.ConfigureAwait(false);
+                await _pushDataSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    if (!ReferenceEquals(fileUploadTask, _fileUploadTask))
+                    {
+                        return;
+                    }
+
+                    List<UserData> visiblePlayers;
+                    lock (_pushDataLock)
+                    {
+                        if (_usersToPushDataTo.Count == 0)
+                        {
+                            return;
+                        }
+                        visiblePlayers = [.. _usersToPushDataTo];
+                    }
+                    // We need to update our addon data just in case there was a partial sent while we were waiting on uploads
+                    // this may seem hacky but it's way easier than versioning and merging partial changes into a full on the receiver
+                    var latestData = _lastCreatedData!;
+                    dataToSend.HeelsData = latestData.HeelsData;
+                    dataToSend.HonorificData = latestData.HonorificData;
+                    dataToSend.MoodlesData = latestData.MoodlesData;
+                    dataToSend.PetNamesData = latestData.PetNamesData;
+                    Logger.LogDebug("Pushing {data} to {users}", dataToSend.DataHash, string.Join(", ", visiblePlayers.Select(k => k.AliasOrUID)));
+
+                    await _apiController.PushCharacterData(dataToSend, visiblePlayers).ConfigureAwait(false);
+
+                    lock (_pushDataLock)
+                    {
+                        _usersToPushDataTo.Clear();
+                    }
+                }
+                finally
+                {
+                    _pushDataSemaphore.Release();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogDebug("Character data upload was cancelled");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Character data upload failed");
+            }
+        });
+    }
+
+    private async Task RemoveFilesThatAreTooLargeOrEmpty(CharacterData uploadingCharacterData, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var hashes = uploadingCharacterData.FileReplacements.Values
+                .SelectMany(replacements => replacements)
+                .Select(replacement => replacement.Hash)
+                .Where(hash => !string.IsNullOrWhiteSpace(hash))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var fileCachesByHash = await _fileCacheManager.GetFirstFileCacheEntitiesByHashes(hashes, cancellationToken).ConfigureAwait(false);
+            Dictionary<ObjectKind, List<FileReplacementData>> filesTooLargeorEmpty = new();
+            foreach (var fileReplacements in uploadingCharacterData.FileReplacements)
+            {
+                foreach (var replacement in fileReplacements.Value)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (string.IsNullOrWhiteSpace(replacement.Hash)
+                        || !fileCachesByHash.TryGetValue(replacement.Hash, out var cache) || cache == null)
+                    {
+                        continue;
+                    }
+
+                    bool mustRemoveReplacementData = false;
+                    // check for empty files
+                    if (cache.Size == 0)
+                    {
+                        mustRemoveReplacementData = true;
+                    }
+
+                    // check for files that are larger than what the server allows for
+                    else if (cache.Size > 300 * 1024 * 1024 || cache.CompressedSize > 200 * 1024 * 1024)
+                    {
+                        Logger.LogWarning("File {file} exceeds the size limit to sync and will not be sent. (300 MiB, or 200 MiB compressed)", cache.ResolvedFilepath);
+
+                        if (!_filesTooLargeOrEmptyHasBeenNotified.Contains(cache.Hash) && _configService.Current.ShowFileUnableToSyncNotification)
+                        {
+                            var isTexFile = cache.ResolvedFilepath.EndsWith(".tex", StringComparison.OrdinalIgnoreCase);
+                            var texInfo = isTexFile ? " Ensure it is compressed and consider reducing its resolution." : "";
+                            Mediator.Publish(new NotificationMessage("File Size Error", $"The file {cache.ResolvedFilepath} exceeds the size limit and will not sync. (300 MiB, or 200 MiB compressed)"
+                                + texInfo, MareConfiguration.Models.NotificationType.Warning));
+                            _filesTooLargeOrEmptyHasBeenNotified.Add(cache.Hash);
+                        }
+
+                        mustRemoveReplacementData = true;
+                    }
+
+                    if (mustRemoveReplacementData)
+                    {
+                        if (!filesTooLargeorEmpty.ContainsKey(fileReplacements.Key))
+                        {
+                            // create an empty replacements list for this ObjectKind if ObjectKind not already in the dictionary
+                            filesTooLargeorEmpty[fileReplacements.Key] = [];
+                        }
+                        filesTooLargeorEmpty[fileReplacements.Key].Add(replacement);
+                        Logger.LogWarning("File with hash {hash} is too large, or empty (0.00B), and will not be uploaded to the server.", replacement.Hash);
+                    }
+                }
+            }
+
+            // check each ObjectKind that is present for any items in its replacement list to remove
+            foreach (var replacements in filesTooLargeorEmpty)
+            {
+                foreach (var replacement in replacements.Value)
+                {
+                    uploadingCharacterData.FileReplacements[replacements.Key].Remove(replacement);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogError(ex, "Failed to properly detect if files to upload are too large or empty.");
+        }
+    }
+
+    private async Task PushAddonPluginPlayerChanges(PlayerChanges playerChanges, string data)
+    {
+        if (!HasCacheOrCreateIfEmpty())
+        {
+            return;
+        }
+
+        var updatedData = _lastCreatedData!.DeepClone();
+
+        CharacterData characterData = new();
+        AddonPlugin plugin;
+        
+        switch (playerChanges)
+        {
+            case PlayerChanges.Honorific:
+                characterData.HonorificData = data;
+                updatedData.HonorificData = data;
+                plugin = AddonPlugin.Honorific;
+                break;
+
+            case PlayerChanges.Heels:
+                characterData.HeelsData = data;
+                updatedData.HeelsData = data;
+                plugin = AddonPlugin.Heels;
+                break;
+
+            case PlayerChanges.Moodles:
+                characterData.MoodlesData = data;
+                updatedData.MoodlesData = data;
+                plugin = AddonPlugin.Moodles;
+                break;
+
+            case PlayerChanges.PetNames:
+                characterData.PetNamesData = data;
+                updatedData.PetNamesData = data;
+                plugin = AddonPlugin.PetNames;
+                break;
+
+            default:
+                return;
+        }
+
+        _lastCreatedData = updatedData; // do this so we don't push again on next DelayedFrameworkUpdate
+
+        await _pushDataSemaphore.WaitAsync(_runtimeCts.Token).ConfigureAwait(false);
+        try
+        {
+            foreach (var user in _pairManager.GetVisibleUsers())
+            {
+                _usersToPushPartialDataTo.Add(user);
+            }
+
+            if (_usersToPushPartialDataTo.Count == 0)
+            {
+                return;
+            }
+
+            Logger.LogTrace("Pushing only addon plugin changes for {count} users", _usersToPushPartialDataTo.Count);
+
+            await _apiController.UserPushData(new([.. _usersToPushPartialDataTo], characterData, null, plugin)).ConfigureAwait(false);
+        }
+        finally
+        {
+            _usersToPushPartialDataTo.Clear();
+            _pushDataSemaphore.Release();
+        }
+    }
+}

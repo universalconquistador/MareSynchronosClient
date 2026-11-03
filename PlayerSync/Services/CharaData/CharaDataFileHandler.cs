@@ -1,12 +1,10 @@
-﻿using Dalamud.Game.ClientState.Objects.SubKinds;
-using K4os.Compression.LZ4.Legacy;
+﻿using K4os.Compression.LZ4.Legacy;
 using MareSynchronos.API.Data;
 using MareSynchronos.API.Data.Enum;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.FileCache;
 using MareSynchronos.MareConfiguration.Configurations;
 using MareSynchronos.PlayerData.Factories;
-using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.CharaData;
 using MareSynchronos.Services.CharaData.Models;
 using MareSynchronos.Services.Mediator;
@@ -22,21 +20,19 @@ public sealed class CharaDataFileHandler : IDisposable
     private readonly FileCacheManager _fileCacheManager;
     private readonly FileDownloadManager _fileDownloadManager;
     private readonly FileUploadManager _fileUploadManager;
-    private readonly GameObjectHandlerFactory _gameObjectHandlerFactory;
     private readonly ILogger<CharaDataFileHandler> _logger;
     private readonly MareCharaFileDataFactory _mareCharaFileDataFactory;
     private readonly PlayerDataFactory _playerDataFactory;
     private int _globalFileCounter = 0;
 
     public CharaDataFileHandler(ILogger<CharaDataFileHandler> logger, FileDownloadManagerFactory fileDownloadManagerFactory, FileUploadManager fileUploadManager, FileCacheManager fileCacheManager,
-            DalamudUtilService dalamudUtilService, GameObjectHandlerFactory gameObjectHandlerFactory, PlayerDataFactory playerDataFactory)
+            DalamudUtilService dalamudUtilService, PlayerDataFactory playerDataFactory)
     {
         _fileDownloadManager = fileDownloadManagerFactory.Create();
         _logger = logger;
         _fileUploadManager = fileUploadManager;
         _fileCacheManager = fileCacheManager;
         _dalamudUtilService = dalamudUtilService;
-        _gameObjectHandlerFactory = gameObjectHandlerFactory;
         _playerDataFactory = playerDataFactory;
         _mareCharaFileDataFactory = new(fileCacheManager);
     }
@@ -48,7 +44,7 @@ public sealed class CharaDataFileHandler : IDisposable
         missingFiles = [];
         foreach (var file in charaDataDownloadDto.FileGamePaths)
         {
-            var localCacheFile = _fileCacheManager.GetFileCacheByHash(file.HashOrFileSwap);
+            var localCacheFile = _fileCacheManager.GetFirstFileCacheEntityByHash(file.HashOrFileSwap);
             if (localCacheFile == null)
             {
                 var existingFile = missingFiles.Find(f => string.Equals(f.Hash, file.HashOrFileSwap, StringComparison.Ordinal));
@@ -79,22 +75,12 @@ public sealed class CharaDataFileHandler : IDisposable
 
     public async Task<CharacterData?> CreatePlayerData()
     {
-        var chara = await _dalamudUtilService.GetPlayerCharacterAsync().ConfigureAwait(false);
-        var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
-        if (_dalamudUtilService.IsInGpose)
-        {
-            chara = (IPlayerCharacter?)(await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(playerName, _dalamudUtilService.IsInGpose).ConfigureAwait(false));
-        }
-
-        if (chara == null)
-            return null;
-
-        var charaObjectIndex = await _dalamudUtilService.RunOnFrameworkThread(
-            () => chara.ObjectIndex).ConfigureAwait(false);
-        using var tempHandler = await _gameObjectHandlerFactory.Create(ObjectKind.Player,
-                        () => _dalamudUtilService.GetCharacterFromObjectTableByIndex(charaObjectIndex)?.Address ?? IntPtr.Zero, isWatched: false).ConfigureAwait(false);
         PlayerData.Data.CharacterData newCdata = new();
-        var fragment = await _playerDataFactory.BuildCharacterData(tempHandler, CancellationToken.None).ConfigureAwait(false);
+        var fragment = await _playerDataFactory.BuildLocalCharacterData(CancellationToken.None).ConfigureAwait(false);
+        if (fragment == null)
+        {
+            return null;
+        }
         newCdata.SetFragment(ObjectKind.Player, fragment);
         if (newCdata.FileReplacements.TryGetValue(ObjectKind.Player, out var playerData) && playerData != null)
         {
@@ -122,17 +108,18 @@ public sealed class CharaDataFileHandler : IDisposable
         _fileDownloadManager.Dispose();
     }
 
-    public async Task DownloadFilesAsync(GameObjectHandler tempHandler, List<FileReplacementData> missingFiles, Dictionary<string, string> modPaths, CompressedAlternateUsage compressedAlternateUsage, CancellationToken token)
+    public async Task DownloadFilesAsync(string charaName, List<FileReplacementData> missingFiles, Dictionary<string, string> modPaths, CompressedAlternateUsage compressedAlternateUsage, CancellationToken token)
     {
         // TODO: Get these from _fileHandler.ComputeMissingFiles
         Dictionary<string, string> compressedSubstitutions = new Dictionary<string, string>();
         HashSet<string> locallyPresentFiles = new HashSet<string>();
-        await _fileDownloadManager.InitiateDownloadList(tempHandler.Name, missingFiles.Select(f => f.Hash).Distinct(StringComparer.Ordinal).ToList(), compressedAlternateUsage, compressedSubstitutions, locallyPresentFiles, 0, token).ConfigureAwait(false);
-        await _fileDownloadManager.DownloadFiles(new DownloadBatchInfo(tempHandler.Name, "Character", tempHandler), missingFiles, compressedSubstitutions, token).ConfigureAwait(false);
+        await _fileDownloadManager.InitiateDownloadList(charaName, missingFiles.Select(f => f.Hash).Distinct(StringComparer.Ordinal).ToList(),
+            compressedAlternateUsage, compressedSubstitutions, locallyPresentFiles, 0, token).ConfigureAwait(false);
+        await _fileDownloadManager.DownloadFiles(new DownloadBatchInfo(charaName, "Character", null), missingFiles, compressedSubstitutions, token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
         foreach (var file in missingFiles.SelectMany(m => m.GamePaths, (FileEntry, GamePath) => (Hash: compressedSubstitutions.GetValueOrDefault(FileEntry.Hash, FileEntry.Hash), GamePath)))
         {
-            var localFile = _fileCacheManager.GetFileCacheByHash(file.Hash)?.ResolvedFilepath;
+            var localFile = _fileCacheManager.GetFirstFileCacheEntityByHash(file.Hash)?.ResolvedFilepath;
             if (localFile == null)
             {
                 throw new FileNotFoundException("File not found locally.");
@@ -275,7 +262,7 @@ public sealed class CharaDataFileHandler : IDisposable
 
             foreach (var item in output.CharaFileData.Files)
             {
-                var file = _fileCacheManager.GetFileCacheByHash(item.Hash)!;
+                var file = _fileCacheManager.GetFirstFileCacheEntityByHash(item.Hash)!;
                 _logger.LogDebug("Saving to MCDF: {hash}:{file}", item.Hash, file.ResolvedFilepath);
                 _logger.LogDebug("\tAssociated GamePaths:");
                 foreach (var path in item.GamePaths)

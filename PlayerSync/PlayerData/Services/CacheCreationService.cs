@@ -37,13 +37,13 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         PlayerDataFactory characterDataFactory, DalamudUtilService dalamudUtil) : base(logger, mediator)
     {
         _characterDataFactory = characterDataFactory;
-        _playerRelatedObjects[ObjectKind.Player] = gameObjectHandlerFactory.Create(ObjectKind.Player, dalamudUtil.GetPlayerPtr, isWatched: true)
+        _playerRelatedObjects[ObjectKind.Player] = gameObjectHandlerFactory.Create(ObjectKind.Player, dalamudUtil.GetPlayerPtr, isOwnObject: true)
             .GetAwaiter().GetResult();
-        _playerRelatedObjects[ObjectKind.MinionOrMount] = gameObjectHandlerFactory.Create(ObjectKind.MinionOrMount, () => dalamudUtil.GetMinionOrMountPtr(), isWatched: true)
+        _playerRelatedObjects[ObjectKind.MinionOrMount] = gameObjectHandlerFactory.Create(ObjectKind.MinionOrMount, () => dalamudUtil.GetMinionOrMountPtrFromFramework(), isOwnObject: true)
             .GetAwaiter().GetResult();
-        _playerRelatedObjects[ObjectKind.Pet] = gameObjectHandlerFactory.Create(ObjectKind.Pet, () => dalamudUtil.GetPetPtr(), isWatched: true)
+        _playerRelatedObjects[ObjectKind.Pet] = gameObjectHandlerFactory.Create(ObjectKind.Pet, () => dalamudUtil.GetPetPtrFromFramework(), isOwnObject: true)
             .GetAwaiter().GetResult();
-        _playerRelatedObjects[ObjectKind.Companion] = gameObjectHandlerFactory.Create(ObjectKind.Companion, () => dalamudUtil.GetCompanionPtr(), isWatched: true)
+        _playerRelatedObjects[ObjectKind.Companion] = gameObjectHandlerFactory.Create(ObjectKind.Companion, () => dalamudUtil.GetCompanionPtrFromFramework(), isOwnObject: true)
             .GetAwaiter().GetResult();
 
         Mediator.Subscribe<ZoneSwitchStartMessage>(this, (msg) => _isZoning = true);
@@ -103,11 +103,11 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         Mediator.Subscribe<GlamourerChangedMessage>(this, (msg) =>
         {
             if (_isZoning) return;
-            var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
-            if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType))
+            var changedType = msg.ObjectKind;
+            if (changedType != null)
             {
                 Logger.LogDebug("Received GlamourerChangedMessage for {kind}", changedType);
-                AddCacheToCreate(changedType.Key);
+                AddCacheToCreate(changedType.Value);
             }
         });
 
@@ -115,9 +115,7 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
         Mediator.Subscribe<CustomizePlusMessage>(this, (msg) =>
         {
             if (_isZoning) return;
-            foreach (var item in _playerRelatedObjects
-                .Where(item => msg.Address == null
-                || item.Value.Address == msg.Address).Select(k => k.Key))
+            foreach (var item in _playerRelatedObjects.Keys.Where(kind => msg.All || kind == msg.ObjectKind))
             {
                 Logger.LogDebug("Received CustomizePlus change, updating {obj}", item);
                 AddCacheToCreate(item);
@@ -175,8 +173,8 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
                 return;
             }
 
-            var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
-            if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType) && changedType.Key == ObjectKind.Player)
+            var changedType = msg.ObjectKind;
+            if (changedType == ObjectKind.Player)
             {
                 Logger.LogDebug("Received Moodles change, updating player changes");
                 AddPlayerAddonPluginChangesToUpdate(PlayerChanges.Moodles);
@@ -191,11 +189,11 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
                 return;
             }
 
-            var changedType = _playerRelatedObjects.FirstOrDefault(f => f.Value.Address == msg.Address);
-            if (!default(KeyValuePair<ObjectKind, GameObjectHandler>).Equals(changedType))
+            var changedType = msg.ObjectKind;
+            if (changedType != null)
             {
                 Logger.LogDebug("Received Loci change for {kind}", changedType);
-                AddCacheToCreate(changedType.Key);
+                AddCacheToCreate(changedType.Value);
             }
         });
 
@@ -257,8 +255,7 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
 
         if (_cachesToCreate.Count == 0) return;
 
-        if (_playerRelatedObjects.Any(p => p.Value.CurrentDrawCondition is
-            not (GameObjectHandler.DrawCondition.None or GameObjectHandler.DrawCondition.DrawObjectZero or GameObjectHandler.DrawCondition.ObjectZero)))
+        if (_playerRelatedObjects.Any(p => p.Value.CurrentDrawCondition is not (DrawCondition.None or DrawCondition.DrawObjectZero or DrawCondition.ObjectZero)))
         {
             Logger.LogDebug("Waiting for draw to finish before executing cache creation");
 
@@ -386,10 +383,9 @@ public sealed class CacheCreationService : DisposableMediatorSubscriberBase
             Logger.LogDebug("Object Cache already contains ObjectKind.Player, skipping update.");
             // If an addon plugin is ever not fully updated when ObjectKind == Player, this will need to be updated.
             fullPlayerUpdateQueued = true;
-        } 
+        }
 
-        if (_playerRelatedObjects.Any(p => p.Value.CurrentDrawCondition is
-            not (GameObjectHandler.DrawCondition.None or GameObjectHandler.DrawCondition.DrawObjectZero or GameObjectHandler.DrawCondition.ObjectZero)))
+        if (_playerRelatedObjects.Any(p => p.Value.CurrentDrawCondition is not (DrawCondition.None or DrawCondition.DrawObjectZero or DrawCondition.ObjectZero)))
         {
             Logger.LogDebug("Waiting for draw to finish before processing player changes");
             return;

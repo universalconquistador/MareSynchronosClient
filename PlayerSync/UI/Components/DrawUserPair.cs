@@ -138,7 +138,7 @@ public class DrawUserPair
         {
             if (_uiSharedService.IconTextButton(FontAwesomeIcon.Sync, "Reload last data", _menuWidth, true))
             {
-                _pair.ApplyLastReceivedData(forced: true);
+                _pair.ReapplyCachedData(forced: true);
                 ImGui.CloseCurrentPopup();
             }
             UiSharedService.AttachToolTip("This reapplies the last received character data to this character");
@@ -730,14 +730,14 @@ public class DrawUserPair
             }
         }
 
-        if (Pair.LastLoadedSoundSinceRedraw != null)
+        if (Pair.LastLoadedSoundSinceRedrawTime != null)
         {
             var individualSoundsDisabled = (_pair.UserPair?.OwnPermissions.IsDisableSounds() ?? false) || (_pair.UserPair?.OtherPermissions.IsDisableSounds() ?? false);
             var individualAnimDisabled = (_pair.UserPair?.OwnPermissions.IsDisableAnimations() ?? false) || (_pair.UserPair?.OtherPermissions.IsDisableAnimations() ?? false);
             var individualVFXDisabled = (_pair.UserPair?.OwnPermissions.IsDisableVFX() ?? false) || (_pair.UserPair?.OtherPermissions.IsDisableVFX() ?? false);
             var individualIsSticky = _pair.UserPair!.OwnPermissions.IsSticky();
             var individualIcon = individualIsSticky ? FontAwesomeIcon.ArrowCircleUp : FontAwesomeIcon.InfoCircle;
-            var timepassed = DateTimeOffset.UtcNow - Pair.LastLoadedSoundSinceRedraw.Value;
+            var timepassed = DateTimeOffset.UtcNow - Pair.LastLoadedSoundSinceRedrawTime.Value;
 
             FontAwesomeIcon icon = FontAwesomeIcon.VolumeOff;
             float iconspacing = _uiSharedService.GetIconSize(individualIcon).X + spacingX;
