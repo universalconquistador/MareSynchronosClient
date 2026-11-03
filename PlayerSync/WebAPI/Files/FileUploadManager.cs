@@ -69,12 +69,12 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
 
     public bool CancelUpload()
     {
+        _uploadCancellationTokenSource?.Cancel();
         foreach (var upload in _pendingUploads.Values)
         {
             upload.Cancel();
             _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(upload.Hash, upload));
         }
-        _uploadCancellationTokenSource?.Cancel();
 
         return false;
     }
@@ -294,11 +294,12 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
         return (failed.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), actuallyUploaded);
     }
 
-        public async Task<CharacterData> UploadFiles(CharacterData data, List<UserData> visiblePlayers)
+    public async Task<CharacterData> UploadFiles(CharacterData data, List<UserData> visiblePlayers)
     {
-        SkipUnstartedFiles();
+        //SkipUnstartedFiles();
 
-        _uploadCancellationTokenSource = new CancellationTokenSource();
+        //_uploadCancellationTokenSource = new CancellationTokenSource();
+        _uploadCancellationTokenSource = _uploadCancellationTokenSource.CancelRecreate();
         var uploadToken = _uploadCancellationTokenSource.Token;
         Logger.LogDebug("Sending Character data {hash} to service {url}", data.DataHash.Value, _serverManager.CurrentApiUrl);
 
@@ -435,9 +436,13 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             {
                 Logger.LogWarning(ex, "[{hash}] Error during file upload", fileHash);
             }
+            else if (uploadToken.IsCancellationRequested)
+            {
+                Logger.LogDebug("[{hash}] File upload cancelled", fileHash);
+            }
             else
             {
-                Logger.LogWarning(ex, "[{hash}] File upload cancelled", fileHash);
+                Logger.LogWarning("[{hash}] File upload cancelled or timed out", fileHash);
             }
 
             return false;
@@ -506,7 +511,14 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "UploadUnverifiedFiles() wait for slot encountered exception for {hash}", transfer.Hash);
+                if (ex is OperationCanceledException && token.IsCancellationRequested)
+                {
+                    Logger.LogDebug("UploadUnverifiedFiles() wait for slot cancelled for {hash}", transfer.Hash);
+                }
+                else
+                {
+                    Logger.LogError(ex, "UploadUnverifiedFiles() wait for slot encountered exception for {hash}", transfer.Hash);
+                }
                 _pendingUploads.TryRemove(new KeyValuePair<string, UploadFileTransfer>(transfer.Hash, transfer));
                 throw;
             }
@@ -608,7 +620,8 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
 
                             return transfer;
                         });
-                        await upload.CompletionTask.WaitAsync(token).ConfigureAwait(false);
+                        //await upload.CompletionTask.WaitAsync(token).ConfigureAwait(false);
+                        await upload.CompletionTask.ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (uploadToken.IsCancellationRequested)
                     {

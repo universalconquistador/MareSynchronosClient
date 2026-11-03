@@ -108,15 +108,11 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
 
     private void PushToAllVisibleUsers(bool forced = false)
     {
-        foreach (var user in _pairManager.GetVisibleUsers())
+        var visiblePlayers = _pairManager.GetVisibleUsers();
+        if (visiblePlayers.Count > 0)
         {
-            _usersToPushDataTo.Add(user);
-        }
-
-        if (_usersToPushDataTo.Count > 0)
-        {
-            Logger.LogDebug("Pushing data {hash} for {count} visible players", _lastCreatedData?.DataHash.Value ?? "UNKNOWN", _usersToPushDataTo.Count);
-            PushCharacterData(forced);
+            Logger.LogDebug("Pushing data {hash} for {count} visible players", _lastCreatedData?.DataHash.Value ?? "UNKNOWN", visiblePlayers.Count);
+            PushCharacterData(visiblePlayers, forced);
         }
     }
 
@@ -144,12 +140,8 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
         }
 
         Logger.LogDebug("Scheduling character data push of {data} to {users}", _lastCreatedData?.DataHash.Value ?? string.Empty, string.Join(", ", newVisibleUsers.Select(k => k.AliasOrUID)));
-        foreach (var user in newVisibleUsers)
-        {
-            _usersToPushDataTo.Add(user);
-        }
 
-        PushCharacterData();
+        PushCharacterData(newVisibleUsers);
     }
 
     private bool HasCacheOrCreateIfEmpty()
@@ -175,63 +167,85 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
         return true;
     }
 
-    private void PushCharacterData(bool forced = false)
+    private void PushCharacterData(List<UserData> usersToPushDataTo, bool forced = false)
     {
-        if (_usersToPushDataTo.Count == 0 || !HasCacheOrCreateIfEmpty())
+        if (usersToPushDataTo.Count == 0 || !HasCacheOrCreateIfEmpty())
         {
             return;
         }
 
+        var cancellationToken = _runtimeCts.Token;
         _ = Task.Run(async () =>
         {
-            //forced |= _uploadingCharacterData?.DataHash != _lastCreatedData!.DataHash;
-            forced |= !string.Equals(_uploadingCharacterData?.DataHash.Value, _lastCreatedData!.DataHash.Value, StringComparison.Ordinal);
-
-            if (_fileUploadTask == null || (_fileUploadTask?.IsCompleted ?? false) || forced)
+            try
             {
-                var uploadingCharacterData = _lastCreatedData.DeepClone();
-                _uploadingCharacterData = uploadingCharacterData;
-                var visiblePlayers = _usersToPushDataTo.ToList();
-                var cancellationToken = _runtimeCts.Token;
-                Logger.LogDebug("Starting UploadTask for {hash}, Reason: TaskIsNull: {task}, TaskIsCompleted: {taskCpl}, Forced: {frc}",
-                    _lastCreatedData.DataHash, _fileUploadTask == null, _fileUploadTask?.IsCompleted ?? false, forced);
-                _fileUploadTask = Task.Run(async () =>
-                {
-                    await RemoveFilesThatAreTooLargeOrEmpty(uploadingCharacterData, cancellationToken).ConfigureAwait(false);
-
-                    return await _fileTransferManager.UploadFiles(uploadingCharacterData, visiblePlayers).ConfigureAwait(false);
-                }, cancellationToken);
-            }
-
-            if (_fileUploadTask != null)
-            {
-                CharacterData dataToSend;
+                Task<CharacterData> fileUploadTask;
+                await _pushDataSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    dataToSend = await _fileUploadTask.ConfigureAwait(false);
+                    lock (_pushDataLock)
+                    {
+                        _usersToPushDataTo.UnionWith(usersToPushDataTo);
+                    }
+                    //forced |= _uploadingCharacterData?.DataHash != _lastCreatedData!.DataHash;
+                    forced |= !string.Equals(_uploadingCharacterData?.DataHash.Value, _lastCreatedData!.DataHash.Value, StringComparison.Ordinal);
+
+                    if (_fileUploadTask == null || _fileUploadTask.IsCompleted || forced)
+                    {
+                        if (_fileUploadTask != null && !_fileUploadTask.IsCompleted)
+                        {
+                            _fileTransferManager.CancelUpload();
+                            try
+                            {
+                                await _fileUploadTask.ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                Logger.LogDebug("Previous character data upload was cancelled");
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.LogWarning(ex, "Previous character data upload failed");
+                            }
+                        }
+                        cancellationToken.ThrowIfCancellationRequested();
+                        _uploadingCharacterData = _lastCreatedData;
+                        var uploadingCharacterData = _uploadingCharacterData!.DeepClone();
+                        List<UserData> visiblePlayers;
+                        lock (_pushDataLock)
+                        {
+                            visiblePlayers = [.. _usersToPushDataTo];
+                        }
+                        Logger.LogDebug("Starting UploadTask for {hash}, Reason: TaskIsNull: {task}, TaskIsCompleted: {taskCpl}, Forced: {frc}",
+                            _uploadingCharacterData!.DataHash, _fileUploadTask == null, _fileUploadTask?.IsCompleted ?? false, forced);
+                        await RemoveFilesThatAreTooLargeOrEmpty(uploadingCharacterData, cancellationToken).ConfigureAwait(false);
+                        _fileUploadTask = _fileTransferManager.UploadFiles(uploadingCharacterData, visiblePlayers);
+                    }
+                    fileUploadTask = _fileUploadTask!;
                 }
-                catch (OperationCanceledException)
+                finally
                 {
-                    Logger.LogDebug("Character data upload was cancelled");
-
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogWarning(ex, "Character data upload failed");
-
-                    return;
+                    _pushDataSemaphore.Release();
                 }
 
-                await _pushDataSemaphore.WaitAsync(_runtimeCts.Token).ConfigureAwait(false);
-
+                CharacterData dataToSend = await fileUploadTask.ConfigureAwait(false);
+                await _pushDataSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    if (_usersToPushDataTo.Count == 0)
+                    if (!ReferenceEquals(fileUploadTask, _fileUploadTask))
                     {
                         return;
                     }
 
+                    List<UserData> visiblePlayers;
+                    lock (_pushDataLock)
+                    {
+                        if (_usersToPushDataTo.Count == 0)
+                        {
+                            return;
+                        }
+                        visiblePlayers = [.. _usersToPushDataTo];
+                    }
                     // We need to update our addon data just in case there was a partial sent while we were waiting on uploads
                     // this may seem hacky but it's way easier than versioning and merging partial changes into a full on the receiver
                     var latestData = _lastCreatedData!;
@@ -239,16 +253,27 @@ public class VisibleUserDataDistributorService : DisposableMediatorSubscriberBas
                     dataToSend.HonorificData = latestData.HonorificData;
                     dataToSend.MoodlesData = latestData.MoodlesData;
                     dataToSend.PetNamesData = latestData.PetNamesData;
-                    Logger.LogDebug("Pushing {data} to {users}", dataToSend.DataHash, string.Join(", ", _usersToPushDataTo.Select(k => k.AliasOrUID)));
+                    Logger.LogDebug("Pushing {data} to {users}", dataToSend.DataHash, string.Join(", ", visiblePlayers.Select(k => k.AliasOrUID)));
 
-                    await _apiController.PushCharacterData(dataToSend, [.. _usersToPushDataTo]).ConfigureAwait(false);
+                    await _apiController.PushCharacterData(dataToSend, visiblePlayers).ConfigureAwait(false);
 
-                    _usersToPushDataTo.Clear();
+                    lock (_pushDataLock)
+                    {
+                        _usersToPushDataTo.Clear();
+                    }
                 }
                 finally
                 {
                     _pushDataSemaphore.Release();
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogDebug("Character data upload was cancelled");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Character data upload failed");
             }
         });
     }
