@@ -1,5 +1,6 @@
 ﻿using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
@@ -40,38 +41,40 @@ public sealed class IpcCallerHeels : IIpcCaller
         _mareMediator.Publish(new HeelsOffsetMessage());
     }
 
-    public async Task<string> GetOffsetAsync()
+    public string GetOffsetOnFramework()
     {
-        if (!APIAvailable) return string.Empty;
-        return await _dalamudUtil.RunOnFrameworkThread(_heelsGetOffset.InvokeFunc).ConfigureAwait(false);
+        if (!APIAvailable)
+        {
+            return string.Empty;
+        }
+        try
+        {
+            return _heelsGetOffset.InvokeFunc();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Heels IPC failed!");
+
+            return string.Empty;
+        }
     }
 
-    public async Task RestoreOffsetForPlayerAsync(IntPtr character)
+    public void SetOffsetForPlayerOnFramework(ushort index, string data)
     {
-        if (!APIAvailable) return;
-        await _dalamudUtil.RunOnFrameworkThread(() =>
+        if (APIAvailable)
         {
-            var gameObj = _dalamudUtil.CreateGameObject(character);
-            if (gameObj != null)
-            {
-                _logger.LogTrace("Restoring Heels data to {chara}", character.ToString("X"));
-                _heelsUnregisterPlayer.InvokeAction(gameObj.ObjectIndex);
-            }
-        }).ConfigureAwait(false);
+            _heelsRegisterPlayer.InvokeAction(index, data);
+        }
     }
 
-    public async Task SetOffsetForPlayerAsync(IntPtr character, string data)
+    public unsafe void RestoreOffsetForPlayerFromFramework(nint address)
     {
-        if (!APIAvailable) return;
-        await _dalamudUtil.RunOnFrameworkThread(() =>
+        if (!APIAvailable)
         {
-            var gameObj = _dalamudUtil.CreateGameObject(character);
-            if (gameObj != null)
-            {
-                _logger.LogTrace("Applying Heels data to {chara}", character.ToString("X"));
-                _heelsRegisterPlayer.InvokeAction(gameObj.ObjectIndex, data);
-            }
-        }).ConfigureAwait(false);
+            return;
+        }
+
+        _heelsUnregisterPlayer.InvokeAction(((BattleChara*)address)->ObjectIndex);
     }
 
     public void CheckAPI()

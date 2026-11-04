@@ -154,7 +154,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
             {
                 var hash = hashes[i];
 
-                var fileCache = _fileCacheManager.GetFileCacheByHash(hash.Hash);
+                var fileCache = _fileCacheManager.GetFirstFileCacheEntityByHash(hash.Hash);
 
                 bool compressedAlternateConfirmed = _compressedAlternateManager.TryGetCachedCompressedAlternate(hash.Hash, out string? compressedAlternateHash);
 
@@ -170,7 +170,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
                     {
                         _logger.LogTrace("CompressSubstitution[{character}]: {old} is {new} (TryCalculateModdedDictionary)", UniqueId, hash, compressedAlternateHash);
                         hashToCompAltHash[hash.Hash] = compressedAlternateHash;
-                        fileCache = _fileCacheManager.GetFileCacheByHash(compressedAlternateHash);
+                        fileCache = _fileCacheManager.GetFirstFileCacheEntityByHash(compressedAlternateHash);
                         hash.Hash = compressedAlternateHash;
 
                     }
@@ -184,7 +184,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
                         {
                             _logger.LogTrace("CompressSubstitution[{character}]: {old} is {new} (TryCalculateModdedDictionary)", UniqueId, hash, compressedAlternateHash);
                             hashToCompAltHash[hash.Hash] = compressedAlternateHash;
-                            fileCache = _fileCacheManager.GetFileCacheByHash(compressedAlternateHash);
+                            fileCache = _fileCacheManager.GetFirstFileCacheEntityByHash(compressedAlternateHash);
                             hash.Hash = compressedAlternateHash;
                         }
                     }
@@ -232,12 +232,12 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
             // Now fill in the downloaded path for each of the hashes we tried to download
             foreach (var hash in hashes)
             {
-                var fileCache = _fileCacheManager.GetFileCacheByHash(hash.Hash);
+                var fileCache = _fileCacheManager.GetFirstFileCacheEntityByHash(hash.Hash);
 
                 // Was a comp alt was found that we didn't anticipate from the compression cache service?
                 if (fileCache == null && hashToCompAltHash.TryGetValue(hash.Hash, out var compHash))
                 {
-                    fileCache = _fileCacheManager.GetFileCacheByHash(compHash);
+                    fileCache = _fileCacheManager.GetFirstFileCacheEntityByHash(compHash);
                     if (fileCache != null)
                     {
                         hashToDiskPath[compHash] = fileCache.ResolvedFilepath;
@@ -714,7 +714,7 @@ internal class StageDisplayService : MediatorSubscriberBase, IStageDisplayServic
             if (stages.Length > 0)
             {
                 long timestampStart = Stopwatch.GetTimestamp();
-                
+
                 // Load/reload any stages that are in the server response
                 foreach (var stage in stages)
                 {

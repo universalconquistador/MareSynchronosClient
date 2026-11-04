@@ -5,8 +5,8 @@ using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Configurations;
+using MareSynchronos.PlayerData;
 using MareSynchronos.PlayerData.Factories;
-using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services.CharaData.Models;
 using MareSynchronos.Services.Mediator;
@@ -148,24 +148,35 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
 
     private const CompressedAlternateUsage _gposeCompressedAlternateUsage = CompressedAlternateUsage.AlwaysSourceQuality;
 
-    public Task ApplyCharaDataToGposeTarget(CharaDataMetaInfoDto dataMetaInfoDto)
+    public async Task ApplyCharaDataToGposeTarget(CharaDataMetaInfoDto dataMetaInfoDto)
     {
-        return UiBlockingComputation = DataApplicationTask = Task.Run(async () =>
+        var charaName = await _dalamudUtilService.RunOnFrameworkThread(() => _dalamudUtilService.GetGposeTargetOnFramework()?.Name.ToString()).ConfigureAwait(false);
+        if (charaName == null)
         {
-            var obj = await _dalamudUtilService.GetGposeTargetGameObjectAsync().ConfigureAwait(false);
-            var charaName = await _dalamudUtilService.RunOnFrameworkThread(
-                () => obj?.Name.TextValue ?? string.Empty).ConfigureAwait(false);
-            if (string.IsNullOrEmpty(charaName)) return;
+            return;
+        }
+        UiBlockingComputation = DataApplicationTask = Task.Run(async () =>
+        {
+            var download = await _apiController.CharaDataDownload(dataMetaInfoDto.Uploader.UID + ":" + dataMetaInfoDto.Id).ConfigureAwait(false);
+            if (download == null)
+            {
+                DataApplicationTask = null;
 
-            await ApplyCharaData(dataMetaInfoDto, charaName).ConfigureAwait(false);
+                return;
+            }
+            await DownloadAndAplyDataAsync(charaName, download, dataMetaInfoDto, _gposeCompressedAlternateUsage, false,
+                () => _dalamudUtilService.GetGposeCharacterFromObjectTableByName(charaName), gposeTarget: true).ConfigureAwait(false);
         });
+        await DataApplicationTask.ConfigureAwait(false);
     }
 
     public async Task ApplyOwnDataToGposeTarget(CharaDataFullExtendedDto dataDto)
     {
-        var chara = await _dalamudUtilService.GetGposeTargetGameObjectAsync().ConfigureAwait(false);
-        var charaName = await _dalamudUtilService.RunOnFrameworkThread(
-            () => chara?.Name.TextValue ?? string.Empty).ConfigureAwait(false);
+        var charaName = await _dalamudUtilService.RunOnFrameworkThread(() => _dalamudUtilService.GetGposeTargetOnFramework()?.Name.ToString()).ConfigureAwait(false);
+        if (charaName == null)
+        {
+            return;
+        }
         CharaDataDownloadDto downloadDto = new(dataDto.Id, dataDto.Uploader)
         {
             CustomizeData = dataDto.CustomizeData,
@@ -185,21 +196,31 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             UpdatedDate = dataDto.UpdatedDate,
         };
 
-        UiBlockingComputation = DataApplicationTask = DownloadAndAplyDataAsync(charaName, downloadDto, metaInfoDto, _gposeCompressedAlternateUsage, false);
+        UiBlockingComputation = DataApplicationTask = DownloadAndAplyDataAsync(charaName, downloadDto, metaInfoDto, _gposeCompressedAlternateUsage, false,
+            () => _dalamudUtilService.GetGposeCharacterFromObjectTableByName(charaName), gposeTarget: true);
     }
 
     public Task ApplyPoseData(PoseEntry pose, string targetName)
     {
         return UiBlockingComputation = Task.Run(async () =>
         {
-            if (string.IsNullOrEmpty(pose.PoseData) || !(await CanApplyInGpose().ConfigureAwait(false)).CanApply) return;
-            var gposeChara = await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(targetName, true).ConfigureAwait(false);
-            if (gposeChara == null) return;
-
+            if (string.IsNullOrEmpty(pose.PoseData))
+            {
+                return;
+            }
             var poseJson = Encoding.UTF8.GetString(LZ4Wrapper.Unwrap(Convert.FromBase64String(pose.PoseData)));
-            if (string.IsNullOrEmpty(poseJson)) return;
-
-            await _ipcManager.Brio.SetPoseAsync(gposeChara.Address, poseJson).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(poseJson))
+            {
+                return;
+            }
+            await _dalamudUtilService.RunOnFrameworkThread(() =>
+            {
+                var actor = _dalamudUtilService.GetGposeCharacterFromObjectTableByName(targetName);
+                if (actor != null)
+                {
+                    _ipcManager.Brio.SetPose(actor, poseJson);
+                }
+            }).ConfigureAwait(false);
         });
     }
 
@@ -207,40 +228,46 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
     {
         return UiBlockingComputation = Task.Run(async () =>
         {
-            var apply = await CanApplyInGpose().ConfigureAwait(false);
-
-            if (apply.CanApply)
+            if (string.IsNullOrEmpty(pose.PoseData))
             {
-                await ApplyPoseData(pose, apply.TargetName).ConfigureAwait(false);
+                return;
             }
+            var poseJson = Encoding.UTF8.GetString(LZ4Wrapper.Unwrap(Convert.FromBase64String(pose.PoseData)));
+            await _dalamudUtilService.RunOnFrameworkThread(() =>
+            {
+                var actor = _dalamudUtilService.GetGposeTargetOnFramework();
+                if (actor?.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc)
+                {
+                    _ipcManager.Brio.SetPose(actor, poseJson);
+                }
+            }).ConfigureAwait(false);
         });
     }
 
     public Task ApplyWorldDataToTarget(PoseEntry pose, string targetName)
     {
-        return UiBlockingComputation = Task.Run(async () =>
+        return UiBlockingComputation = _dalamudUtilService.RunOnFrameworkThread(() =>
         {
-            var apply = await CanApplyInGpose().ConfigureAwait(false);
-            if (pose.WorldData == default || !(await CanApplyInGpose().ConfigureAwait(false)).CanApply) return;
-            var gposeChara = await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(targetName, true).ConfigureAwait(false);
-            if (gposeChara == null) return;
-
-            if (pose.WorldData == null || pose.WorldData == default) return;
-
-            Logger.LogDebug("Applying World data {data}", pose.WorldData);
-
-            await _ipcManager.Brio.ApplyTransformAsync(gposeChara.Address, pose.WorldData.Value).ConfigureAwait(false);
+            if (pose.WorldData == null)
+            {
+                return;
+            }
+            var actor = _dalamudUtilService.GetGposeCharacterFromObjectTableByName(targetName);
+            if (actor != null)
+            {
+                _ipcManager.Brio.ApplyTransform(actor, pose.WorldData.Value);
+            }
         });
     }
 
     public Task ApplyWorldDataToGPoseTarget(PoseEntry pose)
     {
-        return UiBlockingComputation = Task.Run(async () =>
+        return UiBlockingComputation = _dalamudUtilService.RunOnFrameworkThread(() =>
         {
-            var apply = await CanApplyInGpose().ConfigureAwait(false);
-            if (apply.CanApply)
+            var actor = _dalamudUtilService.GetGposeTargetOnFramework();
+            if (actor?.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc && pose.WorldData is { } worldData)
             {
-                await ApplyPoseData(pose, apply.TargetName).ConfigureAwait(false);
+                _ipcManager.Brio.ApplyTransform(actor, worldData);
             }
         });
     }
@@ -249,39 +276,44 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
     {
         AttachingPoseTask = Task.Run(async () =>
         {
-            ICharacter? playerChar = await _dalamudUtilService.GetPlayerCharacterAsync().ConfigureAwait(false);
-            if (playerChar == null) return;
-            if (_dalamudUtilService.IsInGpose)
+            var worldData = await _dalamudUtilService.RunOnFrameworkThread(() =>
             {
-                var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
-                playerChar = await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(playerName, true).ConfigureAwait(false);
+                var local = _dalamudUtilService.GetPlayerCharacter();
+                if (local == null)
+                {
+                    return default;
+                }
+                ICharacter? actor = _dalamudUtilService.IsInGpose ? _dalamudUtilService.GetGposeCharacterFromObjectTableByName(local.Name.ToString()) : local;
+                if (actor == null)
+                {
+                    return default;
+                }
+                var data = _ipcManager.Brio.GetTransform(actor);
+                if (data != default)
+                {
+                    data.LocationInfo = _dalamudUtilService.GetMapData();
+                }
+
+                return data;
+            }).ConfigureAwait(false);
+            if (worldData == default)
+            {
+                return;
             }
-            if (playerChar == null) return;
-            var worldData = await _ipcManager.Brio.GetTransformAsync(playerChar.Address).ConfigureAwait(false);
-            if (worldData == default) return;
-
-            Logger.LogTrace("Attaching World data {data}", worldData);
-
-            worldData.LocationInfo = await _dalamudUtilService.GetMapDataAsync().ConfigureAwait(false);
-
             Logger.LogTrace("World data serialized: {data}", worldData);
-
             pose.WorldData = worldData;
-
             updateDto.UpdatePoseList();
         });
     }
 
-    public async Task<(bool CanApply, string TargetName)> CanApplyInGpose()
+    public Task<(bool CanApply, string TargetName)> CanApplyInGpose()
     {
-        var obj = await _dalamudUtilService.GetGposeTargetGameObjectAsync().ConfigureAwait(false);
-        if (!_dalamudUtilService.IsInGpose || obj == null)
-            return (false, "Invalid Target");
+        return _dalamudUtilService.RunOnFrameworkThread(() =>
+        {
+            var actor = _dalamudUtilService.GetGposeTargetOnFramework();
 
-        return await _dalamudUtilService.RunOnFrameworkThread(() =>
-            obj.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc
-                ? (true, obj.Name.TextValue)
-                : (false, "Invalid Target")).ConfigureAwait(false);
+            return (_dalamudUtilService.IsInGpose && actor?.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc, actor?.Name.ToString() ?? "Invalid Target");
+        });
     }
 
     public void CancelDataApplication()
@@ -447,7 +479,10 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
     public CharaDataExtendedUpdateDto? GetUpdateDto(string id)
     {
         if (_updateDtos.TryGetValue(id, out var dto))
+        {
             return dto;
+        }
+
         return null;
     }
 
@@ -457,14 +492,20 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
         return !task?.IsCompleted ?? false;
     }
 
-    public void LoadMcdf(string filePath)
+    public Task<(MareCharaFileHeader LoadedFile, long ExpectedLength)> LoadMcdf(string filePath)
     {
         LoadedMcdfHeader = _fileHandler.LoadCharaFileHeader(filePath);
+
+        return LoadedMcdfHeader;
     }
 
-    public void McdfApplyToTarget(string charaName)
+    public void McdfApplyToTarget(string charaName, (MareCharaFileHeader LoadedFile, long ExpectedLength)? loadedHeader = null)
     {
-        if (LoadedMcdfHeader == null || !LoadedMcdfHeader.IsCompletedSuccessfully) return;
+        if (loadedHeader == null && (LoadedMcdfHeader == null || !LoadedMcdfHeader.IsCompletedSuccessfully))
+        {
+            return;
+        }
+        var header = loadedHeader ?? LoadedMcdfHeader!.Result;
 
         List<string> actuallyExtractedFiles = [];
 
@@ -473,13 +514,15 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             Guid applicationId = Guid.NewGuid();
             try
             {
-                using GameObjectHandler? tempHandler = await _characterHandler.TryCreateGameObjectHandler(charaName, true).ConfigureAwait(false);
-                if (tempHandler == null) return;
-                var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
-                bool isSelf = string.Equals(playerName, tempHandler.Name, StringComparison.Ordinal);
-
-                long expectedExtractedSize = LoadedMcdfHeader.Result.ExpectedLength;
-                var charaFile = LoadedMcdfHeader.Result.LoadedFile;
+                var target = await _dalamudUtilService.RunOnFrameworkThread(() =>
+                    (Present: _dalamudUtilService.GetGposeCharacterFromObjectTableByName(charaName) != null,
+                        IsSelf: string.Equals(_dalamudUtilService.GetPlayerName(), charaName, StringComparison.Ordinal))).ConfigureAwait(false);
+                if (!target.Present)
+                {
+                    return;
+                }
+                long expectedExtractedSize = header.ExpectedLength;
+                var charaFile = header.LoadedFile;
                 DataApplicationProgress = "Extracting MCDF data";
 
                 var extractedFiles = _fileHandler.McdfExtractFiles(charaFile, expectedExtractedSize, actuallyExtractedFiles);
@@ -493,7 +536,8 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
 
                 var extended = await CharaDataMetaInfoExtendedDto.Create(new(charaFile.FilePath, new UserData(string.Empty)), _dalamudUtilService)
                     .ConfigureAwait(false);
-                await ApplyDataAsync(applicationId, tempHandler, isSelf, autoRevert: false, extended,
+                await ApplyDataAsync(applicationId, charaName, () => _dalamudUtilService.GetGposeCharacterFromObjectTableByName(charaName),
+                    target.IsSelf, true, false, extended,
                     extractedFiles, charaFile.CharaFileData.ManipulationData, charaFile.CharaFileData.GlamourerData,
                     charaFile.CharaFileData.CustomizePlusData, CancellationToken.None).ConfigureAwait(false);
             }
@@ -519,6 +563,10 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
         if (apply.CanApply)
         {
             McdfApplyToTarget(apply.TargetName);
+            if (McdfApplicationTask != null)
+            {
+                await McdfApplicationTask.ConfigureAwait(false);
+            }
         }
     }
 
@@ -545,17 +593,18 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
     {
         var task = Task.Run(async () =>
         {
-            var newActor = await _ipcManager.Brio.SpawnActorAsync().ConfigureAwait(false);
-            if (newActor == null) return null;
+            var newActor = await _dalamudUtilService.RunOnFrameworkThread(() => _ipcManager.Brio.SpawnActor()?.Name.ToString()).ConfigureAwait(false);
+            if (newActor == null)
+            {
+                return null;
+            }
             await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            await ApplyCharaData(charaDataDownloadDto, newActor).ConfigureAwait(false);
 
-            var actorName = await _dalamudUtilService.RunOnFrameworkThread(
-                () => newActor.Name.TextValue).ConfigureAwait(false);
-            await ApplyCharaData(charaDataDownloadDto, actorName).ConfigureAwait(false);
-
-            return _characterHandler.HandledCharaData.FirstOrDefault(f => string.Equals(f.Name, actorName, StringComparison.Ordinal));
+            return _characterHandler.HandledCharaData.FirstOrDefault(f => string.Equals(f.Name, newActor, StringComparison.Ordinal));
         });
         UiBlockingComputation = task;
+
         return task;
     }
 
@@ -563,17 +612,18 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
     {
         var task = Task.Run(async () =>
         {
-            var newActor = await _ipcManager.Brio.SpawnActorAsync().ConfigureAwait(false);
-            if (newActor == null) return null;
+            var newActor = await _dalamudUtilService.RunOnFrameworkThread(() => _ipcManager.Brio.SpawnActor()?.Name.ToString()).ConfigureAwait(false);
+            if (newActor == null)
+            {
+                return null;
+            }
             await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            await ApplyCharaData(charaDataMetaInfoDto, newActor).ConfigureAwait(false);
 
-            var actorName = await _dalamudUtilService.RunOnFrameworkThread(
-                () => newActor.Name.TextValue).ConfigureAwait(false);
-            await ApplyCharaData(charaDataMetaInfoDto, actorName).ConfigureAwait(false);
-
-            return _characterHandler.HandledCharaData.FirstOrDefault(f => string.Equals(f.Name, actorName, StringComparison.Ordinal));
+            return _characterHandler.HandledCharaData.FirstOrDefault(f => string.Equals(f.Name, newActor, StringComparison.Ordinal));
         });
         UiBlockingComputation = task;
+
         return task;
     }
 
@@ -693,7 +743,6 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
 
     internal void ApplyDataToSelf(CharaDataFullExtendedDto dataDto)
     {
-        var chara = _dalamudUtilService.GetPlayerName();
         CharaDataDownloadDto downloadDto = new(dataDto.Id, dataDto.Uploader)
         {
             CustomizeData = dataDto.CustomizeData,
@@ -713,24 +762,32 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             UpdatedDate = dataDto.UpdatedDate,
         };
 
-        UiBlockingComputation = DataApplicationTask = DownloadAndAplyDataAsync(chara, downloadDto, metaInfoDto, _gposeCompressedAlternateUsage);
+        UiBlockingComputation = DataApplicationTask = Task.Run(async () =>
+        {
+            var chara = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
+            await DownloadAndAplyDataAsync(chara, downloadDto, metaInfoDto, _gposeCompressedAlternateUsage).ConfigureAwait(false);
+        });
     }
 
     internal void AttachPoseData(PoseEntry pose, CharaDataExtendedUpdateDto updateDto)
     {
         AttachingPoseTask = Task.Run(async () =>
         {
-            ICharacter? playerChar = await _dalamudUtilService.GetPlayerCharacterAsync().ConfigureAwait(false);
-            if (playerChar == null) return;
-            if (_dalamudUtilService.IsInGpose)
+            var poseData = await _dalamudUtilService.RunOnFrameworkThread(() =>
             {
-                var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
-                playerChar = await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(playerName, true).ConfigureAwait(false);
-            }
-            if (playerChar == null) return;
-            var poseData = await _ipcManager.Brio.GetPoseAsync(playerChar.Address).ConfigureAwait(false);
-            if (poseData == null) return;
+                var local = _dalamudUtilService.GetPlayerCharacter();
+                if (local == null)
+                {
+                    return null;
+                }
+                ICharacter? actor = _dalamudUtilService.IsInGpose ? _dalamudUtilService.GetGposeCharacterFromObjectTableByName(local.Name.ToString()) : local;
 
+                return actor == null ? null : _ipcManager.Brio.GetPose(actor);
+            }).ConfigureAwait(false);
+            if (poseData == null)
+            {
+                return;
+            }
             var compressedByteData = LZ4Wrapper.WrapHC(Encoding.UTF8.GetBytes(poseData));
             pose.PoseData = Convert.ToBase64String(compressedByteData);
             updateDto.UpdatePoseList();
@@ -741,40 +798,73 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
     {
         UiBlockingComputation = Task.Run(async () =>
         {
-            var newActor = await _ipcManager.Brio.SpawnActorAsync().ConfigureAwait(false);
-            if (newActor == null) return;
-            await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
-            await _dalamudUtilService.RunOnFrameworkThread(() =>
+            var newActor = await _dalamudUtilService.RunOnFrameworkThread(() =>
             {
+                var actor = _ipcManager.Brio.SpawnActor();
+                if (actor == null)
+                {
+                    return null;
+                }
                 unsafe
                 {
-                    _dalamudUtilService.GposeTarget = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)newActor.Address;
+                    _dalamudUtilService.GposeTarget = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)actor.Address;
                 }
-            }).ConfigureAwait(false);
 
-            await McdfApplyToGposeTarget().ConfigureAwait(false);
+                return actor.Name.ToString();
+            }).ConfigureAwait(false);
+            if (newActor == null)
+            {
+                return;
+            }
+            await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            McdfApplyToTarget(newActor);
+            if (McdfApplicationTask != null)
+            {
+                await McdfApplicationTask.ConfigureAwait(false);
+            }
         });
     }
 
     internal void ApplyFullPoseDataToTarget(PoseEntry value, string targetName)
     {
-        UiBlockingComputation = Task.Run(async () =>
-        {
-            await ApplyPoseData(value, targetName).ConfigureAwait(false);
-            await ApplyWorldDataToTarget(value, targetName).ConfigureAwait(false);
-        });
+        UiBlockingComputation = ApplyFullPoseData(value, targetName);
     }
 
     internal void ApplyFullPoseDataToGposeTarget(PoseEntry value)
     {
-        UiBlockingComputation = Task.Run(async () =>
+        UiBlockingComputation = ApplyFullPoseData(value, null);
+    }
+
+    private Task ApplyFullPoseData(PoseEntry value, string? targetName)
+    {
+        return Task.Run(async () =>
         {
-            var apply = await CanApplyInGpose().ConfigureAwait(false);
-            if (apply.CanApply)
+            string? poseJson = string.IsNullOrEmpty(value.PoseData) ? null
+                : Encoding.UTF8.GetString(LZ4Wrapper.Unwrap(Convert.FromBase64String(value.PoseData)));
+            await _dalamudUtilService.RunOnFrameworkThread(() =>
             {
-                await ApplyPoseData(value, apply.TargetName).ConfigureAwait(false);
-                await ApplyWorldDataToTarget(value, apply.TargetName).ConfigureAwait(false);
-            }
+                if (!_dalamudUtilService.IsInGpose)
+                {
+                    return;
+                }
+                var actor = targetName == null ? _dalamudUtilService.GetGposeTargetOnFramework() : _dalamudUtilService.GetGposeCharacterFromObjectTableByName(targetName);
+                if (actor == null || (targetName == null && actor.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc))
+                {
+                    return;
+                }
+                if (!string.IsNullOrEmpty(poseJson))
+                {
+                    _ipcManager.Brio.SetPose(actor, poseJson);
+                }
+                if (value.WorldData is { } worldData)
+                {
+                    var currentActor = targetName == null ? _dalamudUtilService.GetGposeTargetOnFramework() : _dalamudUtilService.GetGposeCharacterFromObjectTableByName(targetName);
+                    if (currentActor != null)
+                    {
+                        _ipcManager.Brio.ApplyTransform(currentActor, worldData);
+                    }
+                }
+            }).ConfigureAwait(false);
         });
     }
 
@@ -783,22 +873,22 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
         UiBlockingComputation = Task.Run(async () =>
         {
             var actor = await SpawnAndApplyData(metaInfo).ConfigureAwait(false);
-            if (actor == null) return;
-            await ApplyPoseData(value, actor.Name).ConfigureAwait(false);
-            await ApplyWorldDataToTarget(value, actor.Name).ConfigureAwait(false);
+            if (actor == null)
+            {
+                return;
+            }
+            await ApplyFullPoseData(value, actor.Name).ConfigureAwait(false);
         });
     }
 
     internal unsafe void TargetGposeActor(HandledCharaDataEntry actor)
     {
-        _dalamudUtilService.RunOnFrameworkThread(() =>
+        _dalamudUtilService.EnsureIsOnFramework();
+        var gposeActor = _dalamudUtilService.GetGposeCharacterFromObjectTableByName(actor.Name);
+        if (gposeActor != null)
         {
-            var gposeActor = _dalamudUtilService.GetGposeCharacterFromObjectTableByName(actor.Name, true);
-            if (gposeActor != null)
-            {
-                _dalamudUtilService.GposeTarget = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gposeActor.Address;
-            }
-        }).GetAwaiter().GetResult();
+            _dalamudUtilService.GposeTarget = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)gposeActor.Address;
+        }
     }
 
     protected override void Dispose(bool disposing)
@@ -831,53 +921,172 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
         await CacheData(_ownCharaData[dto.Id]).ConfigureAwait(false);
     }
 
-    private async Task ApplyDataAsync(Guid applicationId, GameObjectHandler tempHandler, bool isSelf, bool autoRevert,
+    private async Task ApplyDataAsync(Guid applicationId, string charaName, Func<ICharacter?> getActor, bool isSelf, bool isGpose, bool autoRevert,
         CharaDataMetaInfoExtendedDto metaInfo, Dictionary<string, string> modPaths, string? manipData, string? glamourerData, string? customizeData, CancellationToken token)
     {
         Guid? cPlusId = null;
-        Guid penumbraCollection;
+        Guid penumbraCollection = Guid.Empty;
+        bool startedApplying = false;
+        bool succeeded = false;
         try
         {
             DataApplicationProgress = "Reverting previous Application";
-
-            Logger.LogTrace("[{appId}] Reverting chara {chara}", applicationId, tempHandler.Name);
-            bool reverted = await _characterHandler.RevertHandledChara(tempHandler.Name).ConfigureAwait(false);
+            Logger.LogTrace("[{appId}] Reverting chara {chara}", applicationId, charaName);
+            bool reverted = await _characterHandler.RevertHandledChara(charaName, isGpose).ConfigureAwait(false);
             if (reverted)
-                await Task.Delay(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
-
-            Logger.LogTrace("[{appId}] Applying data in Penumbra", applicationId);
-
-            DataApplicationProgress = "Applying Penumbra information";
-            penumbraCollection = await _ipcManager.Penumbra.CreateTemporaryCollectionAsync(Logger, metaInfo.Uploader.UID + metaInfo.Id).ConfigureAwait(false);
-            var idx = await _dalamudUtilService.RunOnFrameworkThread(() => tempHandler.GetGameObject()?.ObjectIndex).ConfigureAwait(false) ?? 0;
-            await _ipcManager.Penumbra.AssignTemporaryCollectionAsync(Logger, penumbraCollection, idx).ConfigureAwait(false);
-            await _ipcManager.Penumbra.SetTemporaryModsAsync(Logger, applicationId, penumbraCollection, modPaths, metaInfo.Uploader.UID).ConfigureAwait(false);
-            await _ipcManager.Penumbra.SetManipulationDataAsync(Logger, applicationId, penumbraCollection, manipData ?? string.Empty).ConfigureAwait(false);
-
-            Logger.LogTrace("[{appId}] Applying Glamourer data and Redrawing", applicationId);
-            DataApplicationProgress = "Applying Glamourer and redrawing Character";
-            await _ipcManager.Glamourer.ApplyAllAsync(Logger, tempHandler, glamourerData, applicationId, token).ConfigureAwait(false);
-            await _ipcManager.Penumbra.RedrawAsync(Logger, tempHandler, applicationId, token).ConfigureAwait(false);
-            await _dalamudUtilService.WaitWhileCharacterIsDrawing(Logger, tempHandler, applicationId, 5000, false, ct: token).ConfigureAwait(false);
-            Logger.LogTrace("[{appId}] Removing collection", applicationId);
-            await _ipcManager.Penumbra.RemoveTemporaryCollectionAsync(Logger, applicationId, penumbraCollection).ConfigureAwait(false);
-
-            DataApplicationProgress = "Applying Customize+ data";
-            Logger.LogTrace("[{appId}] Appplying C+ data", applicationId);
-
-            if (!string.IsNullOrEmpty(customizeData))
             {
-                cPlusId = await _ipcManager.CustomizePlus.SetBodyScaleAsync(tempHandler.Address, customizeData).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(3), token).ConfigureAwait(false);
             }
-            else
+            token.ThrowIfCancellationRequested();
+            string decodedScale = string.IsNullOrEmpty(customizeData) ? "{}" : Encoding.UTF8.GetString(Convert.FromBase64String(customizeData));
+            try
             {
-                cPlusId = await _ipcManager.CustomizePlus.SetBodyScaleAsync(tempHandler.Address, Convert.ToBase64String(Encoding.UTF8.GetBytes("{}"))).ConfigureAwait(false);
-            }
+                DataApplicationProgress = "Applying Penumbra information";
+                bool present = await _dalamudUtilService.RunOnFrameworkThread(() =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    var actor = getActor();
+                    if (actor == null)
+                    {
+                        return false;
+                    }
+                    penumbraCollection = _ipcManager.Penumbra.CreateTemporaryCollectionOnFramework(Logger, metaInfo.Uploader.UID + metaInfo.Id);
+                    if (penumbraCollection == Guid.Empty)
+                    {
+                        throw new InvalidDataException($"Cannot create temporary collection for {charaName}.");
+                    }
+                    startedApplying = true;
+                    _ipcManager.Penumbra.AssignTemporaryCollectionOnFramework(penumbraCollection, actor.ObjectIndex);
+                    _ipcManager.Penumbra.SetTemporaryModsOnFramework(Logger, applicationId, penumbraCollection, modPaths, metaInfo.Uploader.UID);
+                    _ipcManager.Penumbra.SetManipulationDataOnFramework(Logger, applicationId, penumbraCollection, manipData ?? string.Empty);
 
+                    return true;
+                }).ConfigureAwait(false);
+                if (!present)
+                {
+                    return;
+                }
+                var readyTimer = System.Diagnostics.Stopwatch.StartNew();
+                while (true)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var state = await _dalamudUtilService.RunOnFrameworkThread(() =>
+                    {
+                        var actor = getActor();
+
+                        return actor == null ? DrawState.Missing : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address).State;
+                    }).ConfigureAwait(false);
+                    if (state == DrawState.Ready)
+                    {
+                        break;
+                    }
+                    if (state == DrawState.Missing || readyTimer.ElapsedMilliseconds >= 15000)
+                    {
+                        return;
+                    }
+                    await Task.Delay(100, token).ConfigureAwait(false);
+                }
+                DataApplicationProgress = "Applying Glamourer and redrawing Character";
+                if (!string.IsNullOrEmpty(glamourerData))
+                {
+                    present = await _dalamudUtilService.RunOnFrameworkThread(() =>
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var actor = getActor();
+                        if (actor == null)
+                        {
+                            return false;
+                        }
+                        _ipcManager.Glamourer.ApplyAllOnFramework(actor.ObjectIndex, glamourerData, applicationId);
+
+                        return true;
+                    }).ConfigureAwait(false);
+                    if (!present)
+                    {
+                        return;
+                    }
+                    await Task.Delay(20, token).ConfigureAwait(false);
+                    var glamourerTimer = System.Diagnostics.Stopwatch.StartNew();
+                    while (glamourerTimer.ElapsedMilliseconds < 3000)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var state = await _dalamudUtilService.RunOnFrameworkThread(() =>
+                        {
+                            var actor = getActor();
+
+                            return actor == null ? DrawState.Missing : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address).State;
+                        }).ConfigureAwait(false);
+                        if (state != DrawState.Loading)
+                        {
+                            break;
+                        }
+                        await Task.Delay(100, token).ConfigureAwait(false);
+                    }
+                }
+                present = await _dalamudUtilService.RunOnFrameworkThread(() =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    var actor = getActor();
+                    if (actor == null)
+                    {
+                        return false;
+                    }
+                    _ipcManager.Penumbra.RedrawOnFramework(Logger, applicationId, actor.Address);
+
+                    return true;
+                }).ConfigureAwait(false);
+                if (!present)
+                {
+                    return;
+                }
+                await Task.Delay(20, token).ConfigureAwait(false);
+                var timer = System.Diagnostics.Stopwatch.StartNew();
+                while (timer.ElapsedMilliseconds < 5000)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var state = await _dalamudUtilService.RunOnFrameworkThread(() =>
+                    {
+                        var actor = getActor();
+
+                        return actor == null ? DrawState.Missing
+                            : _dalamudUtilService.GetCharacterDrawStateFromFramework(actor.Address).State;
+                    }).ConfigureAwait(false);
+                    if (state != DrawState.Loading)
+                    {
+                        break;
+                    }
+                    await Task.Delay(100, token).ConfigureAwait(false);
+                }
+                DataApplicationProgress = "Applying Customize+ data";
+                present = await _dalamudUtilService.RunOnFrameworkThread(() =>
+                {
+                    var actor = getActor();
+                    _ipcManager.Penumbra.RemoveTemporaryCollectionOnFramework(Logger, applicationId, penumbraCollection);
+                    penumbraCollection = Guid.Empty;
+                    if (actor == null)
+                    {
+                        return false;
+                    }
+                    cPlusId = _ipcManager.CustomizePlus.SetBodyScaleOnFramework(actor.ObjectIndex, decodedScale);
+
+                    return true;
+                }).ConfigureAwait(false);
+                if (!present)
+                {
+                    return;
+                }
+            }
+            finally
+            {
+                if (penumbraCollection != Guid.Empty)
+                {
+                    await _dalamudUtilService.RunOnFrameworkThread(() =>
+                        _ipcManager.Penumbra.RemoveTemporaryCollectionOnFramework(Logger, applicationId, penumbraCollection)).ConfigureAwait(false);
+                }
+            }
             if (autoRevert)
             {
                 Logger.LogTrace("[{appId}] Starting wait for auto revert", applicationId);
-
                 int i = 15;
                 while (i > 0)
                 {
@@ -888,31 +1097,34 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
             }
             else
             {
-                Logger.LogTrace("[{appId}] Adding {name} to handled objects", applicationId, tempHandler.Name);
-
-                _characterHandler.AddHandledChara(new HandledCharaDataEntry(tempHandler.Name, isSelf, cPlusId, metaInfo));
+                Logger.LogTrace("[{appId}] Adding {name} to handled objects", applicationId, charaName);
+                _characterHandler.AddHandledChara(new HandledCharaDataEntry(charaName, isSelf, cPlusId, metaInfo, isGpose));
+                succeeded = true;
             }
         }
         finally
         {
             if (token.IsCancellationRequested)
-                DataApplicationProgress = "Application aborted. Reverting Character...";
-            else if (autoRevert)
-                DataApplicationProgress = "Application finished. Reverting Character...";
-            if (autoRevert)
             {
-                await _characterHandler.RevertChara(tempHandler.Name, cPlusId).ConfigureAwait(false);
+                DataApplicationProgress = "Application aborted. Reverting Character...";
             }
-
+            else if (autoRevert)
+            {
+                DataApplicationProgress = "Application finished. Reverting Character...";
+            }
+            if (autoRevert || (startedApplying && !succeeded))
+            {
+                await _characterHandler.RevertChara(charaName, cPlusId, isGpose).ConfigureAwait(false);
+            }
             if (!_dalamudUtilService.IsInGpose)
+            {
                 Mediator.Publish(new HaltCharaDataCreation(Resume: true));
-
-            if (metaInfo != null && _configService.Current.FavoriteCodes.TryGetValue(metaInfo.Uploader.UID + ":" + metaInfo.Id, out var favorite) && favorite != null)
+            }
+            if (_configService.Current.FavoriteCodes.TryGetValue(metaInfo.Uploader.UID + ":" + metaInfo.Id, out var favorite) && favorite != null)
             {
                 favorite.LastDownloaded = DateTime.UtcNow;
                 _configService.Save();
             }
-
             DataApplicationTask = null;
             DataApplicationProgress = string.Empty;
         }
@@ -940,66 +1152,57 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
         await AddOrUpdateDto(res).ConfigureAwait(false);
     }
 
-    private async Task DownloadAndAplyDataAsync(string charaName, CharaDataDownloadDto charaDataDownloadDto, CharaDataMetaInfoDto metaInfo, CompressedAlternateUsage compressedAlternateUsage, bool autoRevert = true)
+    private async Task DownloadAndAplyDataAsync(string charaName, CharaDataDownloadDto charaDataDownloadDto, CharaDataMetaInfoDto metaInfo,
+        CompressedAlternateUsage compressedAlternateUsage, bool autoRevert = true, Func<ICharacter?>? getActor = null, bool gposeTarget = false)
     {
         _applicationCts = _applicationCts.CancelRecreate();
         var token = _applicationCts.Token;
-        ICharacter? chara = (await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(charaName, _dalamudUtilService.IsInGpose).ConfigureAwait(false));
+        bool isGpose = gposeTarget || _dalamudUtilService.IsInGpose;
+        getActor ??= isGpose
+            ? () => _dalamudUtilService.GetGposeCharacterFromObjectTableByName(charaName)
+            : () => _dalamudUtilService.GetCharacterFromObjectTableByName(charaName);
+        var isSelf = await _dalamudUtilService.RunOnFrameworkThread(() =>
+        {
+            var actor = getActor();
 
-        if (chara == null)
+            return actor == null ? (bool?)null : string.Equals(_dalamudUtilService.GetPlayerName(), actor.Name.ToString(), StringComparison.Ordinal);
+        }).ConfigureAwait(false);
+        if (isSelf == null)
+        {
             return;
-
-        var charaObjectIndex = await _dalamudUtilService.RunOnFrameworkThread(
-            () => chara.ObjectIndex).ConfigureAwait(false);
-
+        }
         var applicationId = Guid.NewGuid();
-
-        var playerName = await _dalamudUtilService.GetPlayerNameAsync().ConfigureAwait(false);
-        var charaNameSnapshot = await _dalamudUtilService.RunOnFrameworkThread(
-            () => chara.Name.TextValue).ConfigureAwait(false);
-        bool isSelf = string.Equals(playerName, charaNameSnapshot, StringComparison.Ordinal);
-
         DataApplicationProgress = "Checking local files";
-
-        Logger.LogTrace("[{appId}] Computing local missing files", applicationId);
-
-        Dictionary<string, string> modPaths;
-        List<FileReplacementData> missingFiles;
-        _fileHandler.ComputeMissingFiles(charaDataDownloadDto, compressedAlternateUsage, out modPaths, out missingFiles);
-
-        Logger.LogTrace("[{appId}] Computing local missing files", applicationId);
-
-        using GameObjectHandler? tempHandler = await _characterHandler.TryCreateGameObjectHandler(charaObjectIndex).ConfigureAwait(false);
-        if (tempHandler == null) return;
-
+        _fileHandler.ComputeMissingFiles(charaDataDownloadDto, compressedAlternateUsage, out var modPaths, out var missingFiles);
         if (missingFiles.Any())
         {
             try
             {
                 DataApplicationProgress = "Downloading Missing Files. Please be patient.";
-                await _fileHandler.DownloadFilesAsync(tempHandler, missingFiles, modPaths, compressedAlternateUsage, token).ConfigureAwait(false);
+                await _fileHandler.DownloadFilesAsync(charaName, missingFiles, modPaths, compressedAlternateUsage, token).ConfigureAwait(false);
             }
             catch (FileNotFoundException)
             {
                 DataApplicationProgress = "Failed to download one or more files. Aborting.";
                 DataApplicationTask = null;
+
                 return;
             }
             catch (OperationCanceledException)
             {
                 DataApplicationProgress = "Application aborted.";
                 DataApplicationTask = null;
+
                 return;
             }
         }
-
         if (!_dalamudUtilService.IsInGpose)
+        {
             Mediator.Publish(new HaltCharaDataCreation());
-
+        }
         var extendedMetaInfo = await CacheData(metaInfo).ConfigureAwait(false);
-
-        await ApplyDataAsync(applicationId, tempHandler, isSelf, autoRevert, extendedMetaInfo, modPaths, charaDataDownloadDto.ManipulationData, charaDataDownloadDto.GlamourerData,
-            charaDataDownloadDto.CustomizeData, token).ConfigureAwait(false);
+        await ApplyDataAsync(applicationId, charaName, getActor, isSelf.Value, isGpose, autoRevert, extendedMetaInfo, modPaths,
+            charaDataDownloadDto.ManipulationData, charaDataDownloadDto.GlamourerData, charaDataDownloadDto.CustomizeData, token).ConfigureAwait(false);
     }
 
     public async Task<(string Result, bool Success)> UploadFiles(List<GamePathEntry> missingFileList, Func<Task>? postUpload = null)
@@ -1042,13 +1245,21 @@ public sealed partial class CharaDataManager : DisposableMediatorSubscriberBase
 
     internal void RemoveChara(string handledActor)
     {
-        if (string.IsNullOrEmpty(handledActor)) return;
+        if (string.IsNullOrEmpty(handledActor))
+        {
+            return;
+        }
         UiBlockingComputation = Task.Run(async () =>
         {
-            await _characterHandler.RevertHandledChara(handledActor).ConfigureAwait(false);
-            var gposeChara = await _dalamudUtilService.GetGposeCharacterFromObjectTableByNameAsync(handledActor, true).ConfigureAwait(false);
-            if (gposeChara != null)
-                await _ipcManager.Brio.DespawnActorAsync(gposeChara.Address).ConfigureAwait(false);
+            await _characterHandler.RevertHandledChara(handledActor, true).ConfigureAwait(false);
+            await _dalamudUtilService.RunOnFrameworkThread(() =>
+            {
+                var character = _dalamudUtilService.GetGposeCharacterFromObjectTableByName(handledActor);
+                if (character != null)
+                {
+                    _ipcManager.Brio.DespawnActor(character);
+                }
+            }).ConfigureAwait(false);
         });
     }
 }

@@ -87,6 +87,7 @@ namespace MareSynchronos.PlayerData.Handlers
         {
             Logger.LogDebug("Context Menu Handler stopped.");
             _dalamudContextMenu.OnMenuOpened -= DalamudContextMenuOnOnOpenGameObjectContextMenu;
+            UnsubscribeAll();
 
             return Task.CompletedTask;
         }
@@ -190,7 +191,7 @@ namespace MareSynchronos.PlayerData.Handlers
                         args.AddMenuItem(new MenuItem()
                         {
                             Name = new SeStringBuilder().AddText("Reapply Last Data").Build(),
-                            OnClicked = (a) => pair.ApplyLastReceivedData(forced: true),
+                            OnClicked = (a) => pair.ReapplyCachedData(forced: true),
                             UseDefaultPrefix = false,
                             PrefixChar = 'P',
                             PrefixColor = 530,
@@ -232,7 +233,7 @@ namespace MareSynchronos.PlayerData.Handlers
             menuItems.Add(new MenuItem()
             {
                 Name = new SeStringBuilder().AddText("Reapply Last Data").Build(),
-                OnClicked = (a) => pair.ApplyLastReceivedData(forced: true)
+                OnClicked = (a) => pair.ReapplyCachedData(forced: true)
             });
 
             menuItems.Add(new MenuItem()

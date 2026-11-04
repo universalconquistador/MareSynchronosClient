@@ -20,6 +20,18 @@ public class ConfigurationMigrator(ILogger<ConfigurationMigrator> logger, Transi
             mareConfigService.Save();
         }
 
+        // update for exp 1.15.6
+        if (mareConfigService.Current.Version == 2)
+        {
+            if (mareConfigService.Current.MaxConcurrentApplications == 0)
+            {
+                mareConfigService.Current.MaxConcurrentApplications = 10;
+            }
+
+            mareConfigService.Current.Version = 3;
+            mareConfigService.Save();
+        }
+
         if (transientConfigService.Current.Version == 0)
         {
             _logger.LogInformation("Migrating Transient Config V0 => V1");

@@ -5,60 +5,23 @@ using Dalamud.Interface.Utility.Raii;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Services.Models;
-using MareSynchronos.UI.ModernUi;
-using MareSynchronos.WebAPI;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
 using System.Numerics;
 
 namespace MareSynchronos.UI;
 
-public class DiagnosticsUi : WindowMediatorSubscriberBase
+public partial class HelpUi : WindowMediatorSubscriberBase
 {
-    private readonly Progress<(DiagnosticsTestState State, string Status)> _diagnosticsProgress = new();
-    private readonly HttpClientProvider _httpClientProvider;
-    private readonly ConcurrentQueue<(DiagnosticsTestState State, string Status)> _pendingResultTexts = new();
-    private CancellationTokenSource? _diagnosticsCancellationTokenSource;
-    private Task? _diagnosticsRunTask;
-    private bool _isDiagTaskRunning = false;
-    private readonly List<(DiagnosticsTestState State, string Status)> _resultTexts = new();
-    private string _finalResults = "";
-    private readonly UiTheme _theme;
-
-    public DiagnosticsUi(ILogger<DiagnosticsUi> logger, MareMediator mediator, 
-        PerformanceCollectorService performanceCollectorService, HttpClientProvider httpClientProvider, UiTheme theme)
-        : base(logger, mediator, "PlayerSync Diagnostics", performanceCollectorService)
+    private void DrawDiagnosticsNetwork()
     {
-        _httpClientProvider = httpClientProvider;
-        _theme = theme;
-
-        SizeConstraints = new()
-        {
-            MinimumSize = new()
-            {
-                X = 600,
-                Y = 400
-            },
-            MaximumSize = new()
-            {
-                X = 600,
-                Y = 400
-            }
-        };
-
-        Flags |= ImGuiWindowFlags.NoResize;
-
-        _diagnosticsProgress.ProgressChanged += DiagnosticsProgress_ProgressChanged;
-
-    }
-
-    protected override void DrawInternal()
-    {
-        using var _ = _theme.PushWindowStyle();
+        _uiShared.BigText("Network Diagnostics");
+        ImGuiHelpers.ScaledDummy(2);
 
         // drain the queue to draw out the results
         while (_pendingResultTexts.TryDequeue(out var pendingText))
+        {
             _resultTexts.Add(pendingText);
+        }
 
         var btnText = _isDiagTaskRunning ? "Cancel Run" : "Run Diagnostics";
         if (ImGui.Button(btnText))
@@ -151,21 +114,5 @@ public class DiagnosticsUi : WindowMediatorSubscriberBase
     {
         // keep the UI thread safe
         _pendingResultTexts.Enqueue(pending);
-    }
-
-    public override void OnClose()
-    {
-        CancelDiagnostics();
-        _resultTexts.Clear();
-        _pendingResultTexts.Clear();
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-        _resultTexts.Clear();
-        _pendingResultTexts.Clear();
-        CancelDiagnostics();
-        _diagnosticsProgress.ProgressChanged -= DiagnosticsProgress_ProgressChanged;
     }
 }

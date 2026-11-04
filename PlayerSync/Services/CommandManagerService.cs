@@ -106,9 +106,10 @@ public sealed class CommandManagerService : IDisposable
     private string BuildFullHelpForAlias(string alias) =>
         "Opens the PlayerSync UI" + Environment.NewLine + Environment.NewLine +
         "Additionally possible commands:" + Environment.NewLine +
-        $"\t {alias} diag - Opens the PlayerSync Diagnostics window" + Environment.NewLine +
+        $"\t {alias} help - Opens the PlayerSync Help window" + Environment.NewLine +
         $"\t {alias} toggle - Disconnects from PlayerSync, if connected. Connects to PlayerSync, if disconnected" + Environment.NewLine +
         $"\t {alias} toggle on|off - Connects or disconnects to PlayerSync respectively" + Environment.NewLine +
+        $"\t {alias} pav - Opens the PlayerSync Pair Analysis Viewer window" + Environment.NewLine +
         $"\t {alias} gpose - Opens the PlayerSync Character Data Hub window" + Environment.NewLine +
         $"\t {alias} analyze - Opens the PlayerSync Character Data Analysis window" + Environment.NewLine +
         $"\t {alias} broadcast - Toggles the Syncshell Broadcast feature" + Environment.NewLine +
@@ -118,8 +119,7 @@ public sealed class CommandManagerService : IDisposable
         $"\t {alias} settings - Opens the PlayerSync Settings window";
 
     // Build the help string for the secondary if both commands are available
-    private string BuildMinimalHelpForAlias(string alias) =>
-        "Opens the PlayerSync UI";
+    private string BuildMinimalHelpForAlias(string alias) => "Opens the PlayerSync UI";
 
     // Dalamud won't raise an error, we need to check if the command is registered
     private bool IsAliasTaken(string alias)
@@ -174,9 +174,9 @@ public sealed class CommandManagerService : IDisposable
         if (!_mareConfigService.Current.HasValidSetup())
             return;
 
-        if (string.Equals(splitArgs[0], "diag", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(splitArgs[0], "help", StringComparison.OrdinalIgnoreCase))
         {
-            _mediator.Publish(new UiToggleMessage(typeof(DiagnosticsUi)));
+            _mediator.Publish(new UiToggleMessage(typeof(HelpUi)));
         }
         else if (string.Equals(splitArgs[0], "emote", StringComparison.OrdinalIgnoreCase))
         {
@@ -207,6 +207,10 @@ public sealed class CommandManagerService : IDisposable
                 _serverConfigurationManager.Save();
                 _ = _apiController.CreateConnectionsAsync();
             }
+        }
+        else if (string.Equals(splitArgs[0], "pav", StringComparison.OrdinalIgnoreCase))
+        {
+            _mediator.Publish(new UiToggleMessage(typeof(PairAnalysisViewerUI)));
         }
         else if (string.Equals(splitArgs[0], "gpose", StringComparison.OrdinalIgnoreCase))
         {

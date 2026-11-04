@@ -20,10 +20,14 @@ namespace MareSynchronos.Services
 
         private static readonly IReadOnlyList<string> TestEndpoints = new[]
         {
-            "sync.playersync.io",
             "playersync.io",
+            "sync.playersync.io",
+            "auth.playersync.io",
+            "files.playersync.io",
+            "files-eu.playersync.io",
+            "files-oce.playersync.io",
             "mirror.playersync.io",
-            "gw-us-east-1.playersync.io",
+            "gw-us-east-1.playersync.io", // these should be resolved from DNS TXT record
             "gw-us-west-1.playersync.io",
             "gw-eu-west-1.playersync.io",
             "fs-na-01.playersync.io",
@@ -287,6 +291,11 @@ namespace MareSynchronos.Services
             {
                 if (cancellationToken.IsCancellationRequested)
                     throw new OperationCanceledException(cancellationToken);
+
+                if (string.Equals(endpoint, "sync.playersync.io", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue; // this is not ping-able and people think there is a connection issue
+                }
 
                 progress.Report((State: DiagnosticsTestState.Testing, Status: $"Ping Test: {endpoint}"));
                 var result = await ExecutePingTestAsync(endpoint, cancellationToken).ConfigureAwait(false);

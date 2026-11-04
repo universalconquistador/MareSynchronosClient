@@ -240,7 +240,7 @@ public sealed class EmoteSyncManagerService : MediatorSubscriberBase, IHostedSer
             var pairToCheck = _pairManager.GetPairByUID(user.UID);
             if (pairToCheck == null) continue;
 
-            if (visibleAllianceAndPartyMemberSet.Contains(pairToCheck.Ident))
+            if (visibleAllianceAndPartyMemberSet.Contains(pairToCheck.HashedCID))
             {
                 pairsToSync.Add(user);
             }

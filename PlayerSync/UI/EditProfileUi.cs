@@ -22,6 +22,7 @@ using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using System.Numerics;
+using Rectangle = SixLabors.ImageSharp.Rectangle;
 
 namespace MareSynchronos.UI;
 

@@ -1,6 +1,6 @@
-﻿using Dalamud.Game.ClientState.Objects.SubKinds;
-using Dalamud.Plugin;
+﻿using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using Microsoft.Extensions.Logging;
@@ -76,13 +76,17 @@ public sealed class IpcCallerPetNames : IIpcCaller
         _mareMediator.Publish(new PetNamesMessage(string.Empty));
     }
 
-    public string GetLocalNames()
+    public string GetLocalNamesOnFramework()
     {
-        if (!APIAvailable) return string.Empty;
+        if (!APIAvailable)
+        {
+            return string.Empty;
+        }
 
         try
         {
             string localNameData = _getPlayerData.InvokeFunc();
+
             return string.IsNullOrEmpty(localNameData) ? string.Empty : localNameData;
         }
         catch (Exception e)
@@ -93,55 +97,38 @@ public sealed class IpcCallerPetNames : IIpcCaller
         return string.Empty;
     }
 
-    public async Task SetPlayerData(nint character, string playerData)
+    public void SetPlayerDataOnFramework(ushort index, string playerData)
     {
-        if (!APIAvailable) return;
-
-        _logger.LogTrace("Applying Pet Nicknames data to {chara}", character.ToString("X"));
+        if (!APIAvailable)
+        {
+            return;
+        }
 
         try
         {
-            await _dalamudUtil.RunOnFrameworkThread(() =>
+            if (string.IsNullOrEmpty(playerData))
             {
-                if (string.IsNullOrEmpty(playerData))
-                {
-                    var gameObj = _dalamudUtil.CreateGameObject(character);
-                    if (gameObj is IPlayerCharacter pc)
-                    {
-                        _clearPlayerData.InvokeAction(pc.ObjectIndex);
-                    }
-                }
-                else
-                {
-                    _setPlayerData.InvokeAction(playerData);
-                }
-            }).ConfigureAwait(false);
+                _clearPlayerData.InvokeAction(index);
+            }
+            else
+            {
+                _setPlayerData.InvokeAction(playerData);
+            }
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            _logger.LogWarning(e, "Could not apply Pet Nicknames data");
+            _logger.LogWarning(ex, "Could not apply Pet Nicknames data");
         }
     }
 
-    public async Task ClearPlayerData(nint characterPointer)
+    public unsafe void ClearPlayerDataOnFramework(nint address)
     {
-        if (!APIAvailable) return;
-        try
+        if (!APIAvailable)
         {
-            await _dalamudUtil.RunOnFrameworkThread(() =>
-            {
-                var gameObj = _dalamudUtil.CreateGameObject(characterPointer);
-                if (gameObj is IPlayerCharacter pc)
-                {
-                    _logger.LogTrace("Pet Nicknames removing for {addr}", pc.Address.ToString("X"));
-                    _clearPlayerData.InvokeAction(pc.ObjectIndex);
-                }
-            }).ConfigureAwait(false);
+            return;
         }
-        catch (Exception e)
-        {
-            _logger.LogWarning(e, "Could not clear Pet Nicknames data");
-        }
+
+        _clearPlayerData.InvokeAction(((BattleChara*)address)->ObjectIndex);
     }
 
     private void OnLocalPetNicknamesDataChange(string data)

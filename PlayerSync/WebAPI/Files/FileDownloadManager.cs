@@ -5,7 +5,6 @@ using MareSynchronos.API.Dto.Files;
 using MareSynchronos.API.Routes;
 using MareSynchronos.FileCache;
 using MareSynchronos.MareConfiguration.Configurations;
-using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.WebAPI.Files.Models;
 using Microsoft.Extensions.Logging;
@@ -13,6 +12,7 @@ using PlayerSync.FileCache;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace MareSynchronos.WebAPI.Files;
@@ -41,16 +41,44 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         _compressedAlternateManager = compressedAlternateManager;
         _activeDownloadStreams = [];
 
+        //Mediator.Subscribe<DownloadLimitChangedMessage>(this, (msg) =>
+        //{
+        //    lock (_downloadInfoLock)
+        //    {
+        //        if (!_activeDownloadStreams.Any()) return;
+        //        var newLimit = _orchestrator.DownloadLimitPerSlot();
+        //        Logger.LogTrace("Setting new Download Speed Limit to {newLimit}", newLimit);
+        //        foreach (var stream in _activeDownloadStreams)
+        //        {
+        //            stream.BandwidthLimit = newLimit;
+        //        }
+        //    }
+        //});
         Mediator.Subscribe<DownloadLimitChangedMessage>(this, (msg) =>
         {
             lock (_downloadInfoLock)
             {
-                if (!_activeDownloadStreams.Any()) return;
+                if (!_activeDownloadStreams.Any())
+                {
+                    return;
+                }
+
                 var newLimit = _orchestrator.DownloadLimitPerSlot();
-                Logger.LogTrace("Setting new Download Speed Limit to {newLimit}", newLimit);
+                var changedStreams = 0;
+
                 foreach (var stream in _activeDownloadStreams)
                 {
+                    if (stream.BandwidthLimit == newLimit)
+                    {
+                        continue;
+                    }
                     stream.BandwidthLimit = newLimit;
+                    changedStreams++;
+                }
+
+                if (changedStreams > 0)
+                {
+                    Logger.LogTrace("Set Download Speed Limit to {newLimit} for {count} active streams", newLimit, changedStreams);
                 }
             }
         });
@@ -223,7 +251,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                 throw new InvalidDataException($"Http error {ex.StatusCode} (cancelled: {ct.IsCancellationRequested}): {requestUrl}", ex);
             }
 
-            return;
+            throw;
         }
 
         ThrottledStream? stream = null;
@@ -290,6 +318,8 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
                 await stream.DisposeAsync().ConfigureAwait(false);
             }
+
+            response?.Dispose();
         }
     }
 
@@ -338,7 +368,13 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                     downloadFileInfoFromService[i] = file.CompressedAlternateFileDownload;
                     compressedSubstitutions[file.Hash] = file.CompressedAlternateFileDownload.Hash;
 
-                    if (!locallyPresentFiles.Contains(file.CompressedAlternateFileDownload.Hash) && _fileDbManager.GetFileCacheByHash(file.CompressedAlternateFileDownload.Hash) != null)
+                    //if (!locallyPresentFiles.Contains(file.CompressedAlternateFileDownload.Hash) && _fileDbManager.GetFirstFileCacheEntityByHash(file.CompressedAlternateFileDownload.Hash) != null)
+                    //{
+                    //    Logger.LogDebug("But compressed alternate {file} is already downloaded! Not downloading again.", file.CompressedAlternateFileDownload.Hash);
+                    //    locallyPresentFiles.Add(file.CompressedAlternateFileDownload.Hash);
+                    //}
+                    if (!locallyPresentFiles.Contains(file.CompressedAlternateFileDownload.Hash) 
+                        && (await _fileDbManager.GetFirstFileCacheEntityByHash(file.CompressedAlternateFileDownload.Hash, ct).ConfigureAwait(false)) != null)
                     {
                         Logger.LogDebug("But compressed alternate {file} is already downloaded! Not downloading again.", file.CompressedAlternateFileDownload.Hash);
                         locallyPresentFiles.Add(file.CompressedAlternateFileDownload.Hash);
@@ -364,7 +400,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
             // ok, listen, the timing on some of this is so tight, this check is actually needed
             // the 60-90ms timing is real between different pairs and when they get the response for FilesGetSizes
             // someone else may have already downloaded the file before they even got here
-            if (_fileDbManager.GetFileCacheByHash(download.Hash) != null)
+            if (await _fileDbManager.GetFirstFileCacheEntityByHash(download.Hash, ct).ConfigureAwait(false) != null)
             {
                 continue;
             }
@@ -429,7 +465,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                         return;
                     }
 
-                    var tempFilename = _fileDbManager.GetCacheFilePath(directDownload.Hash, "bin");
+                    var tempFilename = _fileDbManager.GetCacheFilePath(directDownload.Hash, $"{Guid.NewGuid():N}.bin");
                     try
                     {
                         // Download the compressed file directly
@@ -460,7 +496,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                     {
                         Logger.LogDebug("{hash}: Detected cancellation of direct download, discarding file.", directDownload.Hash);
                         _orchestrator.ReleaseDownloadSlot();
-                        File.Delete(tempFilename);
+                        DeleteTemporaryDownloadFile(tempFilename);
                         Logger.LogDebug(ex, "{hash}: Error during direct download.", directDownload.Hash);
                         ClearDownload();
                         return;
@@ -468,14 +504,13 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                     catch (Exception ex)
                     {
                         _orchestrator.ReleaseDownloadSlot();
-                        File.Delete(tempFilename);
+                        DeleteTemporaryDownloadFile(tempFilename);
                         Logger.LogError(ex, "{hash}: Error during direct download.", directDownload.Hash);
                         ClearDownload();
                         return;
                     }
 
                     // Decompress from tempFilename to finalFilename
-                    // TODO: Really we shouldn't stream to a temp file only to read it all into one buffer to decompress and write back out
                     statusCallback.Invoke(DownloadStatus.Decompressing);
 
                     try
@@ -485,9 +520,16 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                         Logger.LogDebug("Decompressing direct download {hash} from {compressedFile} to {finalFile}", directDownload.Hash, tempFilename, finalFilename);
                         byte[] compressedBytes = await File.ReadAllBytesAsync(tempFilename).ConfigureAwait(false);
                         var decompressedBytes = LZ4Wrapper.Unwrap(compressedBytes);
+                        var downloadedHash = Convert.ToHexString(SHA1.HashData(decompressedBytes));
+                        if (!string.Equals(downloadedHash, directDownload.Hash, StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidDataException($"Downloaded file hash mismatch: expected {directDownload.Hash}, got {downloadedHash}");
+                        }
                         await _fileCompactor.WriteAllBytesAsync(finalFilename, decompressedBytes, CancellationToken.None).ConfigureAwait(false);
-                        PersistFileToStorage(directDownload.Hash, finalFilename);
-                        Logger.LogDebug("Finished direct download of {hash}.", directDownload.Hash);
+                        if (await PersistFileToStorageAsync(downloadedHash, finalFilename, ct).ConfigureAwait(false))
+                        {
+                            Logger.LogDebug("Finished direct download of {hash}.", directDownload.Hash);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -496,7 +538,7 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
                     finally
                     {
                         _orchestrator.ReleaseDownloadSlot();
-                        File.Delete(tempFilename);
+                        DeleteTemporaryDownloadFile(tempFilename);
                     }
 
                 }).ConfigureAwait(true);
@@ -509,6 +551,18 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         Logger.LogDebug("Download end: {id}", batchInfo.DisplayName);
 
         ClearDownload();
+    }
+
+    private void DeleteTemporaryDownloadFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Logger.LogWarning(ex, "Could not delete temporary download file {path}", path);
+        }
     }
 
     private async Task<List<DownloadFileDto>> FilesGetSizes(List<string> hashes, int storeId, CancellationToken ct)
@@ -534,33 +588,48 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
         await _orchestrator.SendRequestAsync(HttpMethod.Post, MareFiles.ServerFilesReportFile(_orchestrator.FilesCdnUri!), hash, ct).ConfigureAwait(false);
     }
 
-    private void PersistFileToStorage(string fileHash, string filePath)
+    private async Task<bool> PersistFileToStorageAsync(string fileHash, string filePath, CancellationToken cancellationToken)
     {
-        var fi = new FileInfo(filePath);
-        Func<DateTime> RandomDayInThePast()
-        {
-            DateTime start = new(1995, 1, 1, 1, 1, 1, DateTimeKind.Local);
-            Random gen = new();
-            int range = (DateTime.Today - start).Days;
-            return () => start.AddDays(gen.Next(range));
-        }
-
-        fi.CreationTime = RandomDayInThePast().Invoke();
-        fi.LastAccessTime = DateTime.Today;
-        fi.LastWriteTime = RandomDayInThePast().Invoke();
         try
         {
-            var entry = _fileDbManager.CreateCacheEntry(filePath);
-            if (entry != null && !string.Equals(entry.Hash, fileHash, StringComparison.OrdinalIgnoreCase))
+            var fi = new FileInfo(filePath);
+            if (!fi.Exists)
             {
-                Logger.LogError("Hash mismatch after extracting, got {hash}, expected {expectedHash}, deleting file", entry.Hash, fileHash);
-                File.Delete(filePath);
-                _fileDbManager.RemoveHashedFile(entry.Hash, entry.PrefixedFilePath);
+                Logger.LogError("Could not persist downloaded file {path} because it does not exist?", filePath);
+
+                return false;
             }
+            DateTime RandomDayInThePast()
+            {
+                DateTime start = new(1995, 1, 1, 1, 1, 1, DateTimeKind.Utc);
+                int range = (DateTime.UtcNow.Date - start.Date).Days;
+
+                return start.AddDays(Random.Shared.Next(range));
+            }
+            fi.CreationTimeUtc = RandomDayInThePast();
+            fi.LastAccessTimeUtc = DateTime.UtcNow;
+            fi.LastWriteTimeUtc = RandomDayInThePast();
+            var entry = await _fileDbManager.UpdateOrCreateFileCacheEntityByPath(filePath, FileCacheStore.Cache, cancellationToken, forceUpdate: true, markAccessed: true, verifiedHash: fileHash).ConfigureAwait(false);
+            if (entry == null)
+            {
+                Logger.LogError("Could not create or update the file cache for {path}", filePath);
+
+                return false;
+            }
+
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            Logger.LogWarning("File cache creation was cancelled");
+
+            return false;
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Error creating cache entry");
+            Logger.LogWarning(ex, "Error creating file cache");
+
+            return false;
         }
     }
 }

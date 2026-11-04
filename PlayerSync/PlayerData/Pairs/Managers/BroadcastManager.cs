@@ -1,5 +1,5 @@
-﻿using MareSynchronos.API.Data.Extensions;
-using MareSynchronos.API.Data.Comparer;
+﻿using MareSynchronos.API.Data.Comparer;
+using MareSynchronos.API.Data.Extensions;
 using MareSynchronos.API.Dto.CharaData;
 using MareSynchronos.API.Dto.Group;
 using MareSynchronos.MareConfiguration;
@@ -199,8 +199,8 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private async Task StartListeningInternal()
         {
-            var ident = await _dalamudUtilService.GetPlayerNameHashedAsync().ConfigureAwait(false);
-
+            //var ident = await _dalamudUtilService.GetPlayerNameHashedAsync().ConfigureAwait(false);
+            string ident = await _dalamudUtilService.RunOnFrameworkThread(() => _dalamudUtilService.GetHashedCIDFromPlayerPointer()).ConfigureAwait(false);
             try
             {
                 await _apiController.BroadcastStartListening(ident).ConfigureAwait(false);
@@ -222,6 +222,10 @@ namespace MareSynchronos.PlayerData.Pairs
 
         private async Task StopListeningInternal()
         {
+            if (_dalamudUtilService.IsOnFrameworkThread)
+            {
+                await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+            }
             try
             {
                 await _apiController.BroadcastStopListening().ConfigureAwait(false);
@@ -260,7 +264,7 @@ namespace MareSynchronos.PlayerData.Pairs
         {
             if (Interlocked.CompareExchange(ref _pollingBroadcasts, 1, 0) == 0)
             {
-                _ = PollBroadcastsInternal().ConfigureAwait(false);
+                _ = Task.Run(PollBroadcastsInternal);
             }
         }
 
@@ -274,12 +278,12 @@ namespace MareSynchronos.PlayerData.Pairs
             }
             try
             {
-                WorldData location = await _dalamudUtilService.RunOnFrameworkThread(() =>
+                var (visibleIdents, location) = await _dalamudUtilService.RunOnFrameworkThread(() =>
                 {
                     var player = _dalamudUtilService.GetPlayerCharacter();
-
+                    var idents = _dalamudUtilService.GetVisiblePlayerIdents().ToList();
                     var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, player?.Rotation ?? 0.0f);
-                    WorldData result = new WorldData
+                    var worldData = new WorldData
                     {
                         LocationInfo = _dalamudUtilService.GetMapData(),
                         PositionX = player?.Position.X ?? 0.0f,
@@ -294,13 +298,12 @@ namespace MareSynchronos.PlayerData.Pairs
                         ScaleZ = 1.0f,
                     };
 
-                    return result;
+                    return (idents, worldData);
                 }).ConfigureAwait(false);
                 string locationString = $"Server {location.LocationInfo.ServerId} / Map {location.LocationInfo.MapId} / Territory {location.LocationInfo.TerritoryId} / Division {location.LocationInfo.DivisionId} / Ward {location.LocationInfo.WardId} / House {location.LocationInfo.HouseId} / Room {location.LocationInfo.RoomId}";
-
                 string? broadcastGroupId = BroadcastingGroupId;
                 List<GroupBroadcastDto> broadcasts;
-                List<string> visibleIdents = _dalamudUtilService.GetVisiblePlayerIdents().ToList();
+                //List<string> visibleIdents = _dalamudUtilService.GetVisiblePlayerIdents().ToList();
                 if (broadcastGroupId != null)
                 {
                     Logger.LogTrace("Sending and receiving broadcast groups for {location}...", locationString);

@@ -349,7 +349,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         {
             UiSharedService.TextWrapped("• Have both Penumbra and Glamourer installed");
             UiSharedService.TextWrapped("• Have a file storage location set for Penumbra, i.e.\"C:\\PenumbraMods\"");
-            UiSharedService.TextWrapped("• Have registered a service account on the PlayeSync Discord");
+            UiSharedService.TextWrapped("• Have registered a service account on the PlayerSync Discord");
         }
         ImGuiHelpers.ScaledDummy(5);
 

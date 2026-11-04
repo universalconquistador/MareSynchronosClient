@@ -2,28 +2,45 @@
 
 namespace MareSynchronos.FileCache;
 
+public enum FileCacheStore
+{
+    Penumbra = 0, //less volitile, makes sense to preserve cache space for other user's data
+    Cache = 1
+}
+
 public class FileCacheEntity
 {
-    public FileCacheEntity(string hash, string path, string lastModifiedDateTicks, long? size = null, long? compressedSize = null)
+    private FileCacheEntity()
     {
-        Size = size;
-        CompressedSize = compressedSize;
-        Hash = hash;
-        PrefixedFilePath = path;
-        LastModifiedDateTicks = lastModifiedDateTicks;
+        // used for EF
     }
 
-    public long? CompressedSize { get; set; }
-    public string CsvEntry => $"{Hash}{FileCacheManager.CsvSplit}{PrefixedFilePath}{FileCacheManager.CsvSplit}{LastModifiedDateTicks}|{Size ?? -1}|{CompressedSize ?? -1}";
+    public FileCacheEntity(string hash, string path, FileCacheStore store, long lastAccessedDateTicks, long lastModifiedDateTicks, long? size = null, long? compressedSize = null)
+    {
+        Size = size ?? -1;
+        CompressedSize = compressedSize ?? -1;
+        Hash = hash.ToUpperInvariant();
+        FilePathWithinFileStore = string.Join("\\", path.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
+        LastModifiedDateTicks = lastModifiedDateTicks;
+        LastAccessedDateTicks = lastAccessedDateTicks;
+        Store = store;
+    }
+
+    // db properties
+    public long Id { get; private set; }
     public string Hash { get; set; }
-    public bool IsCacheEntry => PrefixedFilePath.StartsWith(FileCacheManager.CachePrefix, StringComparison.OrdinalIgnoreCase);
-    public string LastModifiedDateTicks { get; set; }
-    public string PrefixedFilePath { get; init; }
+    public long LastAccessedDateTicks { get; set; }
+    public long LastModifiedDateTicks { get; set; }
+    public string FilePathWithinFileStore { get; set; }
+    public FileCacheStore Store { get; private set; }
+    public long Size { get; set; } = -1;
+    public long CompressedSize { get; set; } = -1;
+    // not in the db
+    public bool IsCacheEntry => Store == FileCacheStore.Cache;
     public string ResolvedFilepath { get; private set; } = string.Empty;
-    public long? Size { get; set; }
 
     public void SetResolvedFilePath(string filePath)
     {
-        ResolvedFilepath = filePath.ToLowerInvariant().Replace("\\\\", "\\", StringComparison.Ordinal);
+        ResolvedFilepath = Path.GetFullPath(filePath).Replace('/', '\\').ToLowerInvariant();
     }
 }

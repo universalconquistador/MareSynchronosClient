@@ -16,7 +16,8 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     private readonly HttpClientProvider _httpClientProvider;
     private readonly MareConfigService _mareConfig;
     private readonly TokenProvider _tokenProvider;
-
+    private readonly object _runningDownloadsLock = new();
+    private readonly ConcurrentDictionary<string, DownloadTask> _runningDownloads = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte> _hashesReportedError404 = new(StringComparer.OrdinalIgnoreCase);
 
     // Download slots
@@ -133,7 +134,6 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
             CurrentStatus = status;
         }
     }
-    private readonly ConcurrentDictionary<string, DownloadTask> _runningDownloads = new();
 
     /// <summary>
     /// Starts the given download function if none is currently running for the given hash, or just
@@ -146,39 +146,50 @@ public class FileTransferOrchestrator : DisposableMediatorSubscriberBase
     /// <returns>A Task that can be used to wait for the download to complete.</returns>
     public Task GetOrStartDownloadTask(string hash, EventHandler<long> progressCallback, Action<DownloadStatus> statusCallback, Func<string, IProgress<long>, Action<DownloadStatus>, Task> downloadFunc)
     {
-        var result = _runningDownloads.AddOrUpdate(hash, (hash) =>
+        DownloadTask result;
+        bool joined;
+
+        lock (_runningDownloadsLock)
         {
-            // If we are starting a new download, set up the Progress, attach handlers, and kick off the download
-            var progress = new Progress<long>(value => progressCallback.Invoke(null, value));
-            var result = new DownloadTask() { Progress = progress };
-            result.StatusUpdated += statusCallback;
-            Func<string, Progress<long>, Task> func = async (hash, progress) =>
+            if (_runningDownloads.TryGetValue(hash, out var active))
             {
-                try
+                result = active;
+                result.Progress.ProgressChanged += progressCallback;
+                result.StatusUpdated += statusCallback;
+                joined = true;
+            }
+            else
+            {
+                var progress = new Progress<long>(value => progressCallback.Invoke(null, value));
+                result = new DownloadTask { Progress = progress };
+                result.StatusUpdated += statusCallback;
+                _runningDownloads.TryAdd(hash, result);
+                result.Task = Task.Run(async () =>
                 {
-                    await downloadFunc.Invoke(hash, progress, status => result.RaiseStatusUpdated(status));
-                }
-                finally
-                {
-                    _runningDownloads.TryRemove(hash, out _);
-                }
-            };
-            result.Task = func.Invoke(hash, progress);
+                    try
+                    {
+                        await downloadFunc.Invoke(hash, progress, status => result.RaiseStatusUpdated(status)).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        lock (_runningDownloadsLock)
+                        {
+                            if (_runningDownloads.TryGetValue(hash, out var current) && ReferenceEquals(current, result))
+                            {
+                                _runningDownloads.TryRemove(hash, out _);
+                            }
+                        }
+                    }
+                });
+                joined = false;
+            }
+        }
 
-            return result;
-        }, (hash, task) =>
+        if (joined)
         {
-            Logger.LogDebug("Additional character waiting on {hash}!", hash);
-
-            // Otherwise just attach to the callbacks on the existing download
-            task.Progress.ProgressChanged += progressCallback;
-            task.StatusUpdated += statusCallback;
-
-            // If we're joining the existing download late, notify about its status
-            statusCallback.Invoke(task.CurrentStatus);
-
-            return task;
-        });
+            Logger.LogDebug("Additional character waiting on {hash}", hash);
+            statusCallback.Invoke(result.CurrentStatus);
+        }
 
         return result.Task;
     }

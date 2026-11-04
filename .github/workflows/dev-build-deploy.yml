@@ -36,12 +36,12 @@ jobs:
         env:
           DALAMUD_HOME: /home/runner/.xlcore/dalamud/Hooks/dev
       - name: Prepare artifact
-        run: unzip PlayerSync/bin/x64/Release/MareSempiterne/latest.zip -d PlayerSync/bin/x64/Release/MareSempiterne/MareSempiterne
+        run: unzip PlayerSync/bin/x64/Release/win-x64/MareSempiterne/latest.zip -d PlayerSync/bin/x64/Release/win-x64/MareSempiterne/MareSempiterne
       - uses: actions/upload-artifact@v4
         with:
           name: MareSempiterne
-          path: PlayerSync/bin/x64/Release/MareSempiterne/MareSempiterne/
+          path: PlayerSync/bin/x64/Release/win-x64/MareSempiterne/MareSempiterne/
       - name: Deploy plugin to dev environment
         run: >
-          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_DEV_SECRET }}" --request POST --data-binary "@PlayerSync/bin/x64/Release/MareSempiterne/MareSempiterne.json" https://sync.playersync.dev/redux/deploy/client-manifest &&
-          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_DEV_SECRET }}" --request POST --data-binary "@PlayerSync/bin/x64/Release/MareSempiterne/latest.zip" https://sync.playersync.dev/redux/deploy/client-package/install
+          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_DEV_SECRET }}" --request POST --data-binary "@PlayerSync/bin/x64/Release/win-x64/MareSempiterne/MareSempiterne.json" https://sync.playersync.dev/redux/deploy/client-manifest &&
+          curl --header "X-Deploy-Secret: ${{ secrets.DEPLOY_DEV_SECRET }}" --request POST --data-binary "@PlayerSync/bin/x64/Release/win-x64/MareSempiterne/latest.zip" https://sync.playersync.dev/redux/deploy/client-package/install

@@ -10,7 +10,6 @@ using MareSynchronos.FileCache;
 using MareSynchronos.Interop.Ipc;
 using MareSynchronos.MareConfiguration;
 using MareSynchronos.MareConfiguration.Configurations;
-using MareSynchronos.PlayerData.Handlers;
 using MareSynchronos.PlayerData.Pairs;
 using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
@@ -44,6 +43,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     private readonly FileTransferOrchestrator _fileTransferOrchestrator;
     private readonly IpcManager _ipcManager;
     private readonly PairManager _pairManager;
+    private readonly PairDataApplicationManager _dataManager;
     private readonly PerformanceCollectorService _performanceCollector;
     private readonly PlayerPerformanceConfigService _playerPerformanceConfigService;
     private readonly ZoneSyncConfigService _zoneSyncConfigService;
@@ -89,6 +89,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     public SettingsUi(ILogger<SettingsUi> logger,
         UiSharedService uiShared, MareConfigService configService, StageConfigService stageConfigService,
         PairManager pairManager,
+        PairDataApplicationManager dataManager,
         ServerConfigurationManager serverConfigurationManager,
         PlayerPerformanceConfigService playerPerformanceConfigService,
         MareMediator mediator, PerformanceCollectorService performanceCollector,
@@ -105,6 +106,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         _configService = configService;
         _stageConfigService = stageConfigService;
         _pairManager = pairManager;
+        _dataManager = dataManager;
         _serverConfigurationManager = serverConfigurationManager;
         _playerPerformanceConfigService = playerPerformanceConfigService;
         _zoneSyncConfigService = zoneSyncConfigService;
@@ -197,6 +199,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         General,
         Pairing,
         Performance,
+        Viewer,
         Analysis,
         Hub,
         Profile,
@@ -204,6 +207,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         Transfers,
         Service,
         Vanity,
+        Help,
         Debug,
         About
     }
@@ -220,6 +224,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         }),
         ("Character", new List<UiNav.NavItem<SettingsNav>>
         {
+            new(SettingsNav.Viewer, "Pair Viewer", OpenPairViewerUi, FontAwesomeIcon.Eye),
             new(SettingsNav.Analysis, "Analysis (Compress Mods)", OpenCharaDataAnalysisUi, FontAwesomeIcon.PersonCircleQuestion),
             new(SettingsNav.Hub, "Hub (MCDF/MCDO)", OpenCharaDataHubUi, FontAwesomeIcon.Running),
             new(SettingsNav.Profile, "Profile", OpenCharaProfileUi, FontAwesomeIcon.UserCircle),
@@ -233,6 +238,7 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
         {
             new(SettingsNav.Service, "Service Settings", DrawServiceSettings, FontAwesomeIcon.Server),
             new(SettingsNav.Vanity, "Vanity/Alias", DrawVanitySettings, FontAwesomeIcon.PersonHalfDress),
+            new(SettingsNav.Help, "Guides/Help", OpenHelpUi, FontAwesomeIcon.PersonCircleQuestion),
             new(SettingsNav.Debug, "Debug", DrawDebugSettings, FontAwesomeIcon.Bug),
             new(SettingsNav.About, "About", DrawAboutSettings, FontAwesomeIcon.QuestionCircle),
         }),
@@ -357,6 +363,20 @@ public partial class SettingsUi : WindowMediatorSubscriberBase
     {
         _selectedNavItem = null;
         Mediator.Publish(new UiToggleMessage(typeof(EditProfileUi)));
+        this.IsOpen = false;
+    }
+
+    private void OpenPairViewerUi()
+    {
+        _selectedNavItem = null;
+        Mediator.Publish(new UiToggleMessage(typeof(PairAnalysisViewerUI)));
+        this.IsOpen = false;
+    }
+
+    private void OpenHelpUi()
+    {
+        _selectedNavItem = null;
+        Mediator.Publish(new UiToggleMessage(typeof(HelpUi)));
         this.IsOpen = false;
     }
 
