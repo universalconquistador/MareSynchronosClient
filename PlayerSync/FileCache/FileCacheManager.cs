@@ -2088,6 +2088,8 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
 
             DatabaseStatus = (false, DatabaseState.Validating);
 
+            await RemoveInvalidFileCachePathsAsync(cancellationToken).ConfigureAwait(false);
+
             await using (var db = _db.CreateDbContext())
             {
                 var hasPenumbraEntries = await db.FileCaches.AsNoTracking().AnyAsync(fileCache => fileCache.Store == FileCacheStore.Penumbra, cancellationToken).ConfigureAwait(false);
@@ -2307,6 +2309,31 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[DATABASE] Legacy CSV migration failed after processing {count} entries, migration will run again next startup", processedEntries);
+        }
+    }
+
+    private async Task RemoveInvalidFileCachePathsAsync(CancellationToken cancellationToken)
+    {
+        await _databaseWriteSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            await using var db = _db.CreateDbContext();
+            var nulCharacter = "\0";
+            var removedEntries = await db.FileCaches
+                .Where(fileCache => fileCache.FilePathWithinFileStore.Contains(nulCharacter))
+                .ExecuteDeleteAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (removedEntries > 0)
+            {
+                _memoryCache.Clear();
+                _logger.LogWarning("[DATABASE] Removed {count} file cache entries containing NUL characters in their paths", removedEntries);
+            }
+        }
+        finally
+        {
+            _databaseWriteSemaphore.Release();
         }
     }
 }
