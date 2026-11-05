@@ -2088,16 +2088,29 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
 
             DatabaseStatus = (false, DatabaseState.Validating);
 
+            await RemoveInvalidFileCachePathsAsync(cancellationToken).ConfigureAwait(false);
+
             await using (var db = _db.CreateDbContext())
             {
                 var hasPenumbraEntries = await db.FileCaches.AsNoTracking().AnyAsync(fileCache => fileCache.Store == FileCacheStore.Penumbra, cancellationToken).ConfigureAwait(false);
-                if (hasPenumbraEntries && (!_ipcManager.Penumbra.APIAvailable || string.IsNullOrEmpty(_ipcManager.Penumbra.ModDirectory)))
+                if (hasPenumbraEntries)
                 {
-                    Mediator.Publish(new NotificationMessage("Penumbra not connected", "Could not load local file cache data. " +
-                        "Penumbra is not connected or not properly set up. Please enable and/or configure Penumbra properly to use PlayerSync. " +
-                        "After, reload PlayerSync in the Plugin installer.", MareConfiguration.Models.NotificationType.Error));
+                    var waitForPenumbraStartTime = Stopwatch.GetTimestamp();
+                    while (!_ipcManager.Penumbra.APIAvailable || string.IsNullOrWhiteSpace(_ipcManager.Penumbra.ModDirectory))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        if (Stopwatch.GetElapsedTime(waitForPenumbraStartTime) >= TimeSpan.FromSeconds(30))
+                        {
+                            throw new TimeoutException("Penumbra API, or mod directory, was not available! Try toggling PlayerSync off/on again in Dalamud or restart your game.");
+                        }
+
+                        await Task.Delay(250, cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
+
+            RefreshFileStoreRoots();
 
             DatabaseStatus = (false, DatabaseState.CacheInit);
             await PreloadMostRecentlyAccessedFileCacheEntitiesAsync(_dbLifetimeCts.Token).ConfigureAwait(false);
@@ -2307,6 +2320,31 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[DATABASE] Legacy CSV migration failed after processing {count} entries, migration will run again next startup", processedEntries);
+        }
+    }
+
+    private async Task RemoveInvalidFileCachePathsAsync(CancellationToken cancellationToken)
+    {
+        await _databaseWriteSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            await using var db = _db.CreateDbContext();
+            var nulCharacter = "\0";
+            var removedEntries = await db.FileCaches
+                .Where(fileCache => fileCache.FilePathWithinFileStore.Contains(nulCharacter))
+                .ExecuteDeleteAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (removedEntries > 0)
+            {
+                _memoryCache.Clear();
+                _logger.LogWarning("[DATABASE] Removed {count} file cache entries containing NUL characters in their paths", removedEntries);
+            }
+        }
+        finally
+        {
+            _databaseWriteSemaphore.Release();
         }
     }
 }

@@ -17,6 +17,13 @@ namespace PlayerSync.Utils
 
         public static string NormalizeFilePathWithinFileStore(string path)
         {
+            ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+            if (path.Contains('\0'))
+            {
+                throw new ArgumentException("Path contains a NUL character, how did this happen??", nameof(path));
+            }
+
             return string.Join("\\", path.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
         }
     }
