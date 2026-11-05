@@ -212,9 +212,9 @@ public class PlayerDataFactory : DisposableMediatorSubscriberBase
         {
             return null;
         }
-        if (waitResult != DrawWaitResult.Ready)
+        if (waitResult == DrawWaitResult.TimedOut)
         {
-            throw new InvalidDataException($"Cannot collect {objectKind}: draw wait ended with {waitResult}");
+            _logger.LogWarning("Draw wait timed out for {object}! Trying to continue with character data collection", playerRelatedObject);
         }
 
         ct.ThrowIfCancellationRequested();

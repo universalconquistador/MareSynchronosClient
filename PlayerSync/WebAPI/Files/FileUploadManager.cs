@@ -580,7 +580,26 @@ public sealed class FileUploadManager : DisposableMediatorSubscriberBase
 
         Logger.LogDebug("Verifying {count} files sequentially", hashesToExtensions.Count);
 
-        var filesToUpload = await FilesSend([.. hashesToExtensions.Keys], visiblePlayers.Select(p => p.UID).ToList(), hashesToExtensions, fileStoreId, uploadToken).ConfigureAwait(false);
+        //var filesToUpload = await FilesSend([.. hashesToExtensions.Keys], visiblePlayers.Select(p => p.UID).ToList(), hashesToExtensions, fileStoreId, uploadToken).ConfigureAwait(false);
+        int maxRetries = 3;
+        int retryDelayMs = 1000;
+        List<UploadFileDto> filesToUpload;
+        for (int retry = 0; ; retry++)
+        {
+            try
+            {
+                filesToUpload = await FilesSend([.. hashesToExtensions.Keys], visiblePlayers.Select(p => p.UID).ToList(), hashesToExtensions, fileStoreId, uploadToken).ConfigureAwait(false);
+
+                break;
+            }
+            // we catch this exception 3 times before letting it fail up the call stack
+            catch (Exception ex) when (retry < maxRetries && !uploadToken.IsCancellationRequested && (ex is HttpRequestException or HttpIOException or OperationCanceledException { InnerException: TimeoutException }))
+            {
+                Logger.LogError("FilesSend failed with reason: {reason} after {retries} retries", ex.Message, maxRetries);
+
+                await Task.Delay(retryDelayMs, uploadToken).ConfigureAwait(false);
+            }
+        }
         if (filesToUpload.Count > 0)
         {
             using (ProfiledScope.BeginLoggedScope(Logger, "UploadUnverifiedFiles() parallel v2 upload"))
