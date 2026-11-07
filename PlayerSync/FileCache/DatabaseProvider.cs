@@ -70,6 +70,11 @@ namespace PlayerSync.FileCache
 
             try
             {
+                using (var versionConnection = new SqliteConnection())
+                {
+                    _logger.LogInformation("Using SQLite version: {version}", versionConnection.ServerVersion);
+                }
+
                 var databaseExists = File.Exists(_databasePath);
                 _logger.LogInformation(databaseExists ? "Opening existing file cache database db {db}" : "Creating new file cache database db {db}", _databasePath);
 
