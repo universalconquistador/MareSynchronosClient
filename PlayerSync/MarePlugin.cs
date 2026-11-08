@@ -101,7 +101,7 @@ public class MarePlugin : MediatorSubscriberBase, IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         var version = Assembly.GetExecutingAssembly().GetName().Version!;
-        Logger.LogInformation("Launching {name} {major}.{minor}.{build}", "PlayerSync", version.Major, version.Minor, version.Build);
+        Logger.LogInformation("Launching {name} {major}.{minor}.{build}.{revision}", "PlayerSync", version.Major, version.Minor, version.Build, version.Revision);
         Mediator.Publish(new EventMessage(new Services.Events.Event(nameof(MarePlugin), Services.Events.EventSeverity.Informational,
             $"Starting PlayerSync {version.Major}.{version.Minor}.{version.Build}")));
 
