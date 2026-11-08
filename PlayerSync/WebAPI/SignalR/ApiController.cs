@@ -16,6 +16,7 @@ using MareSynchronos.WebAPI.SignalR;
 using MareSynchronos.WebAPI.SignalR.Utils;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 using System.Reflection;
 
 namespace MareSynchronos.WebAPI;
@@ -36,6 +37,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
     private readonly GatewayUtils _gatewayUtils;
     private readonly HttpClientProvider _httpClientProvider;
     private readonly FileCacheManager _fileCacheManager;
+    private readonly CancellationToken _applicationStopping;
     private CancellationTokenSource _connectionCancellationTokenSource;
     private ConnectionDto? _connectionDto;
     private bool _doNotNotifyOnNextInfo = false;
@@ -47,7 +49,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public ApiController(ILogger<ApiController> logger, HubFactory hubFactory, DalamudUtilService dalamudUtil,
         PairManager pairManager, PairDataApplicationManager pairDataApplicationManager, ServerConfigurationManager serverManager, MareMediator mediator,
-        TokenProvider tokenProvider, MareConfigService mareConfigService, HttpClientProvider httpClientProvider, FileCacheManager fileCacheManager) : base(logger, mediator)
+        TokenProvider tokenProvider, MareConfigService mareConfigService, HttpClientProvider httpClientProvider, FileCacheManager fileCacheManager, IHostApplicationLifetime applicationLifetime) : base(logger, mediator)
     {
         _hubFactory = hubFactory;
         _dalamudUtil = dalamudUtil;
@@ -60,6 +62,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         _gatewayUtils = new(logger);
         _httpClientProvider = httpClientProvider;
         _fileCacheManager = fileCacheManager;
+        _applicationStopping = applicationLifetime.ApplicationStopping;
 
         Mediator.Subscribe<DalamudLoginMessage>(this, (_) => DalamudUtilOnLogIn());
         Mediator.Subscribe<DalamudLogoutMessage>(this, (_) => DalamudUtilOnLogOut());
@@ -144,6 +147,11 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
     public async Task CreateConnectionsAsync()
     {
+        if (_applicationStopping.IsCancellationRequested)
+        {
+            return;
+        }
+
         Logger.LogDebug("CreateConnections called");
 
         // Check if the server is "paused", meaning we're manually disconnected from the service
@@ -157,19 +165,47 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
         }
 
         ServerState previosState = ServerState;
-        while (!_fileCacheManager.DatabaseStatus.IsReady)
+        try
         {
-            if (_fileCacheManager.DatabaseStatus.State == DatabaseState.CacheInit)
+            while (!_applicationStopping.IsCancellationRequested)
             {
-                ServerState = ServerState.WaitingForCache;
-            }
-            else
-            {
-                ServerState = ServerState.WaitingForDatabase;
-            }
-            Logger.LogTrace("Database is not ready yet, waiting to create server connection...");
+                var databaseStatus = _fileCacheManager.DatabaseStatus;
+                if (databaseStatus.State is DatabaseState.Stopping or DatabaseState.Stopped)
+                {
+                    return;
+                }
 
-            await Task.Delay(250).ConfigureAwait(false);
+                if (databaseStatus.State == DatabaseState.Failed)
+                {
+                    Logger.LogWarning("Not connecting: the file cache database failed to initialize.");
+                    ServerState = ServerState.Disconnected;
+
+                    return;
+                }
+
+                if (databaseStatus.IsReady)
+                {
+                    break;
+                }
+
+                var waitingState = databaseStatus.State == DatabaseState.CacheInit ? ServerState.WaitingForCache : ServerState.WaitingForDatabase;
+                if (ServerState != waitingState)
+                {
+                    ServerState = waitingState;
+                    Logger.LogTrace("Database is not ready yet, waiting to create server connection...");
+                }
+
+                await Task.Delay(250, _applicationStopping).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (_applicationStopping.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (_applicationStopping.IsCancellationRequested)
+        {
+            return;
         }
 
         ServerState = previosState;
@@ -257,7 +293,7 @@ public sealed partial class ApiController : DisposableMediatorSubscriberBase, IM
 
         _connectionCancellationTokenSource?.Cancel();
         _connectionCancellationTokenSource?.Dispose();
-        _connectionCancellationTokenSource = new CancellationTokenSource();
+        _connectionCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_applicationStopping);
         var token = _connectionCancellationTokenSource.Token;
         while (ServerState is not ServerState.Connected && !token.IsCancellationRequested)
         {

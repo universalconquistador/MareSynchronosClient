@@ -773,7 +773,7 @@ public class CompactUi : WindowMediatorSubscriberBase
             ServerState.OAuthLoginTokenStale => "Your OAuth2 login token is stale and cannot be used to renew. Go to the Settings -> Service Settings and unlink then relink your OAuth2 configuration.",
             ServerState.NoAutoLogon => "This character has automatic login into PlayerSync disabled. Press the connect button to connect to PlayerSync.",
             ServerState.Discovering => "Auto discovering the best PlayerSync gateway...",
-            ServerState.WaitingForDatabase => "Database migration in progress, this can take a minute and should only happen one time.",
+            ServerState.WaitingForDatabase => "Database migration in progress, this can take a minute and should only happen one time. If this has been running for several minutes, check /xllog for activity.",
             ServerState.WaitingForCache => "Prepopulating database cache...",
             _ => string.Empty
         };
