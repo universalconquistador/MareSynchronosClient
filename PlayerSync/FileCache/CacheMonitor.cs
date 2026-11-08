@@ -4,6 +4,7 @@ using MareSynchronos.Services;
 using MareSynchronos.Services.Mediator;
 using MareSynchronos.Utils;
 using Microsoft.Extensions.Logging;
+using PlayerSync.Utils;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -29,7 +30,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
     private static readonly HashSet<string> AllowedFileExtension = new(AllowedFileExtensions, StringComparer.OrdinalIgnoreCase);
     private static readonly TimeSpan ScannerDebounce = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan WatcherMaximumDebounce = TimeSpan.FromSeconds(30);
-    private const int ScanBatchSize = 500;
+    private const int ScanBatchSize = 5000;
     private const int WatcherBufferSize = 64 * 1024;
     private int _disposed;
     private int _isScanRunning;
@@ -133,6 +134,23 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
     }
 
     public bool StorageisNTFS { get; private set; } = false;
+
+    public static bool IsScannablePenumbraFile(string path)
+    {
+        var normalizedPath = path.Replace('/', '\\');
+
+        return IsAllowedFile(path)
+            && !normalizedPath.Contains(@"\bg\", StringComparison.OrdinalIgnoreCase)
+            && !normalizedPath.Contains(@"\bgcommon\", StringComparison.OrdinalIgnoreCase)
+            && !normalizedPath.Contains(@"\ui\", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsCacheFileName(string path)
+    {
+        var fileName = Path.GetFileName(path);
+
+        return fileName.Length == 40 || (fileName.Length > 40 && fileName[40] == '.');
+    }
 
     public void StartPlayerSyncWatcher(string? playerSyncPath)
     {
@@ -756,7 +774,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
 
         var processedFiles = 0;
 
-        await RunOnLowestPriorityThread(() =>
+        await ThreadingUtils.RunOnLowestPriorityThread(() =>
         {
             try
             {
@@ -865,7 +883,8 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
                 await Task.Delay(100, ct).ConfigureAwait(false);
             }
 
-            if (!_hasFirstScanCompleted)
+            var isInitialSetupScan = !_configService.Current.InitialScanComplete;
+            if (!_hasFirstScanCompleted && !isInitialSetupScan)
             {
                 Logger.LogDebug("First file scan scheduled, waiting 30 seconds before starting...");
                 await Task.Delay(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
@@ -877,7 +896,17 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
             Interlocked.Exchange(ref _currentFileProgress, 0);
 
             Logger.LogDebug("Starting Full File Scan");
-            await RunOnLowestPriorityThread(() => _performanceCollector.LogPerformance(this, $"FullFileScan", () => FullFileScan(ct)), ct).ConfigureAwait(false);
+            var maxDegreeOfParallelism = isInitialSetupScan ? 8 : 4;
+            Action scan = () => _performanceCollector.LogPerformance(this, $"FullFileScan", () => FullFileScan(ct, maxDegreeOfParallelism));
+
+            if (isInitialSetupScan)
+            {
+                await Task.Run(scan, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                await ThreadingUtils.RunOnLowestPriorityThread(scan, ct).ConfigureAwait(false);
+            }
 
             _hasFirstScanCompleted = true;
         }
@@ -928,7 +957,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
 
                     _fileDbManager.RefreshFileStoreRoots();
                     Logger.LogDebug("File storage scan starting...");
-                    await RunOnLowestPriorityThread(() => RecalculateFileCacheSize(ct), ct).ConfigureAwait(false);
+                    await ThreadingUtils.RunOnLowestPriorityThread(() => RecalculateFileCacheSize(ct), ct).ConfigureAwait(false);
                     Logger.LogDebug("File storage scan finished...");
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -951,23 +980,6 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
         {
             Logger.LogError(ex, "Periodic storage calculation task stopped");
         }
-    }
-
-    private static Task RunOnLowestPriorityThread(Action action, CancellationToken ct)
-    {
-        return Task.Factory.StartNew(() =>
-        {
-            var previousThreadPriority = Thread.CurrentThread.Priority;
-            try
-            {
-                Thread.CurrentThread.Priority = ThreadPriority.Lowest;
-                action();
-            }
-            finally
-            {
-                Thread.CurrentThread.Priority = previousThreadPriority;
-            }
-        }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
 
     public void RecalculateFileCacheSize(CancellationToken token)
@@ -1121,7 +1133,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
         }
     }
 
-    private void FullFileScan(CancellationToken ct)
+    private void FullFileScan(CancellationToken ct, int maxDegreeOfParallelism)
     {
         TotalFiles = 0;
         var penumbraDir = _ipcManager.Penumbra.ModDirectory;
@@ -1182,7 +1194,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
 
             try
             {
-                _fileDbManager.UpdateOrCreateFileCacheEntitiesByPathsAsync(filesToUpdateOrCreate, store, ct).GetAwaiter().GetResult();
+                _fileDbManager.UpdateOrCreateFileCacheEntitiesByPathsAsync(filesToUpdateOrCreate, store, ct, maxDegreeOfParallelism: maxDegreeOfParallelism).GetAwaiter().GetResult();
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -1419,7 +1431,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
 
                 try
                 {
-                    _fileDbManager.UpdateOrCreateFileCacheEntitiesByPathsAsync(updateBatch.ToList(), storeGroup.Key, ct).GetAwaiter().GetResult();
+                    _fileDbManager.UpdateOrCreateFileCacheEntitiesByPathsAsync(updateBatch.ToList(), storeGroup.Key, ct, maxDegreeOfParallelism: maxDegreeOfParallelism).GetAwaiter().GetResult();
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -1496,22 +1508,5 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
     private static bool IsAllowedFile(string path)
     {
         return AllowedFileExtension.Contains(Path.GetExtension(path));
-    }
-
-    private static bool IsScannablePenumbraFile(string path)
-    {
-        var normalizedPath = path.Replace('/', '\\');
-
-        return IsAllowedFile(path)
-            && !normalizedPath.Contains(@"\bg\", StringComparison.OrdinalIgnoreCase)
-            && !normalizedPath.Contains(@"\bgcommon\", StringComparison.OrdinalIgnoreCase)
-            && !normalizedPath.Contains(@"\ui\", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsCacheFileName(string path)
-    {
-        var fileName = Path.GetFileName(path);
-
-        return fileName.Length == 40 || (fileName.Length > 40 && fileName[40] == '.');
     }
 }
