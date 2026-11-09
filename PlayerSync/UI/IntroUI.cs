@@ -479,7 +479,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
                                     "Additionally, a local storage folder must be set where PlayerSync will download other character files to. ");
             UiSharedService.TextWrapped("Note: The initial scan, depending on the amount of mods you have, might take a while. Please wait until it is completed.");
             ImGuiHelpers.ScaledDummy(5);
-            UiSharedService.ColorTextWrapped("Warning: once past this step you should not delete the FileCache.csv of PlayerSync in the Plugin Configurations folder of Dalamud. " +
+            UiSharedService.ColorTextWrapped("Warning: once past this step you should not delete the FileCache.db of PlayerSync in the Plugin Configurations folder of Dalamud. " +
                                         "Otherwise on the next launch a full re-scan of the file cache database will be initiated.", ImGuiColors.DalamudYellow);
             UiSharedService.ColorTextWrapped("Warning: if the scan is hanging and does nothing for a long time, chances are high your Penumbra folder is not set up properly.", ImGuiColors.DalamudYellow);
             _uiShared.DrawCacheDirectorySetting();
