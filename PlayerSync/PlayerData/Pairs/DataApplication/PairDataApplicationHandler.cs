@@ -39,7 +39,7 @@ public sealed class PairDataApplicationHandler : DisposableMediatorSubscriberBas
     }
 
     private static readonly SemaphoreSlim _dataApplicationGate = new(4, 4);
-    private static readonly IImmutableList<string> FileExtensionsToValidate = [".avfx", ".tmb"];
+    private static readonly IImmutableList<string> FileExtensionsToValidate = [".avfx", ".tmb", ".pap"];
     private static readonly ConcurrentDictionary<string, byte> _filesThatHaveBeenVerifiedGood = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, byte> _filesThatHaveBeenVerifiedBad = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<PlayerChanges, AddonPlugin> _playerChangesToAddonPlugin = new()

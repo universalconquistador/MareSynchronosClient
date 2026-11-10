@@ -9,5 +9,6 @@ public enum DatabaseState
     Failed,
     Validating,
     CacheInit,
-    Migrating
+    Migrating,
+    Rebuilding
 }

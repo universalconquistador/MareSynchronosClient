@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Authors></Authors>
     <Company></Company>
-    <Version>1.15.5.16</Version>
+    <Version>1.15.6.0</Version>
     <Description></Description>
     <Copyright></Copyright>
     <PackageProjectUrl>https://github.com/MareSynchronos/client</PackageProjectUrl>
@@ -57,8 +57,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Stagehand.Api" Version="0.5.4" />
-    <PackageReference Include="Stagehand.Definitions" Version="0.5.4" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.14" />
+    <PackageReference Include="Stagehand.Api" Version="0.5.5" />
+    <PackageReference Include="Stagehand.Definitions" Version="0.5.5" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
 
