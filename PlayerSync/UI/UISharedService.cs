@@ -587,9 +587,20 @@ public partial class UiSharedService : DisposableMediatorSubscriberBase
                         && !_cacheDirectoryHasOtherFilesThanCache
                         && _cacheDirectoryIsValidPath)
                     {
+                        var firstStorageSelection = !_configService.Current.FirstTimeSetupComplete && string.IsNullOrWhiteSpace(_configService.Current.CacheFolder);
                         _configService.Current.CacheFolder = path;
-                        _configService.Save();
                         _cacheMonitor.StartPlayerSyncWatcher(path);
+
+                        if (!OperatingSystem.IsWindows() || _dalamudUtil.IsWine)
+                        {
+                            _configService.Current.UseCompactor = false;
+                        }
+                        else if (_cacheMonitor.PlayerSyncWatcher != null)
+                        {
+                            _configService.Current.UseCompactor = _cacheMonitor.StorageisNTFS && (firstStorageSelection || _configService.Current.UseCompactor);
+                        }
+
+                        _configService.Save();
                         _cacheMonitor.InvokeScan();
                     }
                 }, _dalamudUtil.IsWine ? @"Z:\" : @"C:\");

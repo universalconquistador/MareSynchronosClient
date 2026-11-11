@@ -10,6 +10,10 @@ namespace MareSynchronos.UI;
 
 public partial class SettingsUi
 {
+    private string? _lastStorageFolderChecked;
+    private long _lastStorageFolderCheckMs;
+    private bool _storageFolderExists;
+
     private UiNav.Tab<StorageTabs>? _selectedTabStorage;
 
     private IReadOnlyList<UiNav.Tab<StorageTabs>>? _storageTabs;
@@ -103,23 +107,37 @@ public partial class SettingsUi
         else
             ImGui.TextUnformatted($"Currently utilized local storage: Calculating...");
         ImGui.TextUnformatted($"Remaining space free on drive: {UiSharedService.ByteToString(_cacheMonitor.FileCacheDriveFree)}");
-        bool useFileCompactor = _configService.Current.UseCompactor;
-        bool isLinux = _dalamudUtilService.IsWine;
-        if (!useFileCompactor && !isLinux)
+        var now = Environment.TickCount64;
+        if (!string.Equals(_lastStorageFolderChecked, _configService.Current.CacheFolder, StringComparison.Ordinal) || now - _lastStorageFolderCheckMs >= 3000)
+        {
+            _lastStorageFolderChecked = _configService.Current.CacheFolder;
+            _lastStorageFolderCheckMs = now;
+            _storageFolderExists = Directory.Exists(_configService.Current.CacheFolder);
+        }
+
+        bool canCompact = !_dalamudUtilService.IsWine && _storageFolderExists && _cacheMonitor.StorageisNTFS;
+        var useFileCompactor = _configService.Current.UseCompactor;
+
+        if (!useFileCompactor && canCompact)
         {
             UiSharedService.ColorTextWrapped("Hint: To free up space when using PlayerSync consider enabling the File Compactor", ImGuiColors.DalamudYellow);
         }
-        if (isLinux || !_cacheMonitor.StorageisNTFS) ImGui.BeginDisabled();
-        if (ImGui.Checkbox("Use file compactor", ref useFileCompactor))
+        using (ImRaii.Disabled(!canCompact))
         {
-            _configService.Current.UseCompactor = useFileCompactor;
-            _configService.Save();
+            if (ImGui.Checkbox("Use file compactor", ref useFileCompactor))
+            {
+                _configService.Current.UseCompactor = useFileCompactor;
+                _configService.Save();
+            }
         }
-        _uiShared.DrawHelpText("The file compactor can massively reduce your saved files. It might incur a minor penalty on loading files on a slow CPU." + Environment.NewLine
-            + "It is recommended to leave it enabled to save on space.");
+        _uiShared.DrawHelpText("The file compactor can massively reduce the file size of your saved files. It might incur a minor penalty on loading files on a slow CPU." 
+            + Environment.NewLine + "It is recommended to leave it enabled to save on space.");
         ImGui.SameLine();
+
         if (!_fileCompactor.MassCompactRunning)
         {
+            using var disabled = ImRaii.Disabled(!canCompact);
+
             if (_uiShared.IconTextButton(FontAwesomeIcon.FileArchive, "Compact all files in storage"))
             {
                 _ = Task.Run(() =>
@@ -128,9 +146,11 @@ public partial class SettingsUi
                     _cacheMonitor.RecalculateFileCacheSize(CancellationToken.None);
                 });
             }
-            UiSharedService.AttachToolTip("This will run compression on all files in your current PlayerSync Storage." + Environment.NewLine
-                + "You do not need to run this manually if you keep the file compactor enabled.");
+
+            UiSharedService.AttachToolTip("This will run compression on all files in your current PlayerSync Storage." 
+                + Environment.NewLine + "You do not need to run this manually if you keep the file compactor enabled.");
             ImGui.SameLine();
+
             if (_uiShared.IconTextButton(FontAwesomeIcon.File, "Decompact all files in storage"))
             {
                 _ = Task.Run(() =>
@@ -139,15 +159,16 @@ public partial class SettingsUi
                     _cacheMonitor.RecalculateFileCacheSize(CancellationToken.None);
                 });
             }
+
             UiSharedService.AttachToolTip("This will run decompression on all files in your current PlayerSync Storage.");
         }
         else
         {
             UiSharedService.ColorText($"File compactor currently running ({_fileCompactor.Progress})", ImGuiColors.DalamudYellow);
         }
-        if (isLinux || !_cacheMonitor.StorageisNTFS)
+
+        if (!canCompact)
         {
-            ImGui.EndDisabled();
             ImGui.TextUnformatted("The file compactor is only available on Windows and NTFS drives.");
         }
         UiSharedService.ColorText("Note: This is not the same thing as compressing/converting your mods.", ImGuiColors.DalamudYellow);
@@ -214,13 +235,6 @@ public partial class SettingsUi
         if (_uiShared.IconTextButton(FontAwesomeIcon.Trash, "Clear local storage") && UiSharedService.CtrlPressed() && _readClearCache)
         {
             _ = _fileCacheManager.ClearLocalStorageAsync();
-            //_ = Task.Run(() =>
-            //{
-            //    foreach (var file in Directory.GetFiles(_configService.Current.CacheFolder))
-            //    {
-            //        File.Delete(file);
-            //    }
-            //});
         }
         UiSharedService.AttachToolTip("You normally do not need to do this. THIS IS NOT SOMETHING YOU SHOULD BE DOING REGULARLY TO TRY TO FIX SYNC ISSUES." + Environment.NewLine
             + "This will solely remove all downloaded data from all players and will require you to re-download everything again." + Environment.NewLine
