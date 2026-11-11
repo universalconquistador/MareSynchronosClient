@@ -35,6 +35,7 @@ public partial class IntroUi : WindowMediatorSubscriberBase
     private int _currentLanguage;
     private long _lastFsCheckMs = 0;
     private bool _cacheFolderExists = false;
+    private string? _lastCheckedCacheFolder;
 
     private string _secretKey = string.Empty;
     private string[]? _tosParagraphs;
@@ -101,26 +102,17 @@ public partial class IntroUi : WindowMediatorSubscriberBase
 
         GetToSLocalization();
 
-        // situations where a user might copy their config folder to another PC
-        if (!string.IsNullOrEmpty(_configService.Current.CacheFolder) || _configService.Current.InitialScanComplete)
-        {
-            _cacheFolderExists = Directory.Exists(_configService.Current.CacheFolder);
-            if (!_cacheFolderExists)
-            {
-                _configService.Current.CacheFolder = string.Empty;
-                _configService.Current.InitialScanComplete = false;
-                _configService.Save();
-            }
-        }
+        _cacheFolderExists = Directory.Exists(_configService.Current.CacheFolder);
 
         Mediator.Subscribe<SwitchToMainUiMessage>(this, (_) => IsOpen = false);
         Mediator.Subscribe<SwitchToIntroUiMessage>(this, (_) =>
         {
-            _configService.Current.UseCompactor = !dalamudUtilService.IsWine;
+            _cacheFolderExists = Directory.Exists(_configService.Current.CacheFolder);
+            _lastFsCheckMs = Environment.TickCount64;
             IntroUiPages page = IntroUiPages.Welcome;
             if (_configService.Current.FirstTimeSetupComplete)
             {
-                if (string.IsNullOrEmpty(_configService.Current.CacheFolder) || !_configService.Current.InitialScanComplete || !Directory.Exists(_configService.Current.CacheFolder))
+                if (!_configService.Current.InitialScanComplete || !_cacheFolderExists)
                 {
                     page = IntroUiPages.Storage;
                     Mediator.Publish(new NotificationMessage("Configuration Error", "PlayerSync has detected an issue with your local storage folder. Ensure it exists on your computer and is configured correctly within the plugin. " +
@@ -234,6 +226,15 @@ public partial class IntroUi : WindowMediatorSubscriberBase
     protected override void DrawInternal()
     {
         if (_uiShared.IsInGpose) return;
+
+        var cacheFolder = _configService.Current.CacheFolder;
+        var now = Environment.TickCount64;
+        if (!string.Equals(cacheFolder, _lastCheckedCacheFolder, StringComparison.Ordinal) || now - _lastFsCheckMs > 3000)
+        {
+            _lastCheckedCacheFolder = cacheFolder;
+            _lastFsCheckMs = now;
+            _cacheFolderExists = Directory.Exists(cacheFolder);
+        }
 
         if (_configService.Current.AcceptedAgreement 
             && _uiShared.ApiController.ServerAlive
@@ -459,16 +460,6 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         _uiShared.BigText("File Storage Setup");
         ImGui.Separator();
 
-        var now = Environment.TickCount64;
-        if (now - _lastFsCheckMs > 3000)
-        {
-            _lastFsCheckMs = now;
-            if (!string.IsNullOrEmpty(_configService.Current.CacheFolder))
-            {
-                _cacheFolderExists = Directory.Exists(_configService.Current.CacheFolder);
-            }
-        }
-
         if (!_uiShared.HasValidPenumbraModPath)
         {
             UiSharedService.ColorTextWrapped("You do not have a valid Penumbra path set. Open Penumbra and set up a valid path for the mod directory.", ImGuiColors.DalamudRed);
@@ -501,17 +492,27 @@ public partial class IntroUi : WindowMediatorSubscriberBase
         {
             _uiShared.DrawFileScanState();
         }
-        if (!_dalamudUtilService.IsWine)
+        var canCompact = _cacheFolderExists && !_dalamudUtilService.IsWine && _cacheMonitor.StorageisNTFS;
+        var useFileCompactor = _configService.Current.UseCompactor;
+
+        ImGuiHelpers.ScaledDummy(5);
+        using (ImRaii.Disabled(!canCompact))
         {
-            var useFileCompactor = _configService.Current.UseCompactor;
-            ImGuiHelpers.ScaledDummy(5);
             if (ImGui.Checkbox("Use File Compactor", ref useFileCompactor))
             {
                 _configService.Current.UseCompactor = useFileCompactor;
                 _configService.Save();
             }
-            UiSharedService.ColorTextWrapped("The File Compactor can save a tremendeous amount of space on the hard disk for downloads through PlayerSync. It will incur a minor CPU penalty on download but can speed up " +
-                "loading of other characters. It is recommended to keep it enabled. You can change this setting later anytime in the PlayerSync settings.", ImGuiColors.DalamudYellow);
+        }
+
+        if (canCompact)
+        {
+            UiSharedService.ColorTextWrapped("The File Compactor reduces the disk space used by downloaded files at a small CPU cost during downloads. " +
+                "You can change this setting later in PlayerSync's Storage settings.", ImGuiColors.DalamudYellow);
+        }
+        else
+        {
+            UiSharedService.TextWrapped("The File Compactor requires an available NTFS storage folder on Windows.");
         }
     }
 
