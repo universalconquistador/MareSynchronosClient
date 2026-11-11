@@ -55,6 +55,28 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
         _performanceCollector = performanceCollector;
         _dalamudUtil = dalamudUtil;
         _fileCompactor = fileCompactor;
+
+        if (_configService.Current.UseCompactor && OperatingSystem.IsWindows() && !_dalamudUtil.IsWine && Directory.Exists(_configService.Current.CacheFolder))
+        {
+            string? driveFormat = null;
+            try
+            {
+                var drive = new DriveInfo(new DirectoryInfo(_configService.Current.CacheFolder).Root.FullName);
+                driveFormat = drive.DriveFormat;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                Logger.LogWarning(ex, "Could not determine the drive format for {folder}!", _configService.Current.CacheFolder);
+            }
+
+            if (!string.IsNullOrWhiteSpace(driveFormat) && !string.Equals(driveFormat, "NTFS", StringComparison.OrdinalIgnoreCase))
+            {
+                _configService.Current.UseCompactor = false;
+                _configService.Save();
+                Logger.LogInformation("Disabling File Compactor because the storage folder {folder} is not on an NTFS drive", _configService.Current.CacheFolder);
+            }
+        }
+
         Mediator.Subscribe<PenumbraInitializedMessage>(this, (_) =>
         {
             StartPenumbraWatcher(_ipcManager.Penumbra.ModDirectory);
@@ -847,7 +869,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
 
     private async Task RunFullFileScanAsync(CancellationToken ct)
     {
-        Stopwatch stopwatch = Stopwatch.StartNew();
+        Stopwatch stopwatch = new();
         var isAbleToRun = false;
 
         try
@@ -895,6 +917,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
             TotalFilesStorage = 0;
             Interlocked.Exchange(ref _currentFileProgress, 0);
 
+            stopwatch.Start();
             Logger.LogDebug("Starting Full File Scan");
             var maxDegreeOfParallelism = isInitialSetupScan ? 8 : 4;
             Action scan = () => _performanceCollector.LogPerformance(this, $"FullFileScan", () => FullFileScan(ct, maxDegreeOfParallelism));
@@ -920,10 +943,9 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
         }
         finally
         {
-            stopwatch.Stop();
-
             if (isAbleToRun)
             {
+                stopwatch.Stop();
                 Logger.LogInformation("Full file scan of {files} files and {entry} cache entries finished in {ms}ms",
                     TotalFiles.ToString(), TotalFilesStorage.ToString(), stopwatch.ElapsedMilliseconds);
                 TotalFiles = 0;
