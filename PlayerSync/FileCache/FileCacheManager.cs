@@ -77,19 +77,27 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
             var rebuildIfMissing = _configService.Current.InitialScanComplete && (_configService.Current.DataHasBeenMigratedToNewDb || !File.Exists(_oldDataFile));
             databaseWasReset = await _db.StartAsync(cancellationToken, rebuildIfMissing).ConfigureAwait(false);
         }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            DatabaseStatus = (false, DatabaseState.Failed);
+            _logger.LogError(ex, "File cache database startup failed! Syncing will not function properly.");
+            Mediator.Publish(new NotificationMessage("File cache unavailable", "Startup has failed due to a database error. Please report this to the devs.",
+                MareConfiguration.Models.NotificationType.Error));
+
+            return;
+        }
         finally
         {
             _databaseWriteSemaphore.Release();
         }
 
+        _dbLifetimeCts = _dbLifetimeCts.CancelRecreate();
         _startupCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         // Must run this on a different threae to not block Dalamud init
         _startupTask = Task.Run(() => RunStartupAsync(_startupCancellationTokenSource.Token, databaseWasReset), CancellationToken.None);
 
         _dbFilesToUpdateTicksTokenSource = _dbFilesToUpdateTicksTokenSource.CancelRecreate();
         _dbFilesToUpdateTicksTask = UpdateFileCacheTicks(_dbFilesToUpdateTicksTokenSource.Token);
-
-        _dbLifetimeCts = _dbLifetimeCts.CancelRecreate();
 
         _logger.LogInformation("Started FileCacheManager startup sequence");
     }
