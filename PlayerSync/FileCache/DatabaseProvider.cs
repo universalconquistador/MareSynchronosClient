@@ -60,7 +60,6 @@ namespace PlayerSync.FileCache
             _contextFactory = contextFactory;
 
             var dbFolder = Path.Combine(Path.GetFullPath(databaseDirectory), databaseName);
-            Directory.CreateDirectory(dbFolder);
             _databasePath = Path.Combine(dbFolder, $"{databaseName}.db");
 
             var connectionString = new SqliteConnectionStringBuilder
@@ -82,9 +81,13 @@ namespace PlayerSync.FileCache
 
         public async Task<bool> StartAsync(CancellationToken cancellationToken, bool rebuildIfMissing = false)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            Directory.CreateDirectory(Path.GetDirectoryName(_databasePath)!);
+
             _logger.LogDebug("Starting SQLite using database {db}", _databasePath);
 
-            if (!FileExists(_databasePath))
+            bool databaseExisted = FileExists(_databasePath);
+            if (!databaseExisted)
             {
                 if (await TryRestoreDatabaseAsync(cancellationToken).ConfigureAwait(false))
                 {
@@ -94,7 +97,6 @@ namespace PlayerSync.FileCache
                 if (FileExists(RebuildPendingPath)) // this is a marker if the game crashes or the user turns off the plugin before completion
                 {
                     await DeleteAndResetDatabase(cancellationToken).ConfigureAwait(false);
-
                     return true;
                 }
 
@@ -138,15 +140,14 @@ namespace PlayerSync.FileCache
                 }
             }
 
-            if (await TryRestoreDatabaseAsync(cancellationToken).ConfigureAwait(false))
+            if (databaseExisted && await TryRestoreDatabaseAsync(cancellationToken).ConfigureAwait(false))
             {
                 return false;
             }
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            await File.WriteAllTextAsync(RebuildPendingPath, string.Empty).ConfigureAwait(false);
-
+            await File.WriteAllTextAsync(RebuildPendingPath, string.Empty, cancellationToken).ConfigureAwait(false);
             await DeleteAndResetDatabase(cancellationToken).ConfigureAwait(false);
 
             return true;
@@ -211,7 +212,6 @@ namespace PlayerSync.FileCache
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            File.Delete(RebuildPendingPath);
             var tempPath = GoodDatabasePath + ".tmp";
             File.Delete(tempPath);
 
@@ -231,6 +231,7 @@ namespace PlayerSync.FileCache
             ValidateDbBackup(tempPath, cancellationToken);
 
             File.Move(tempPath, GoodDatabasePath, overwrite: true);
+            File.Delete(RebuildPendingPath);
 
             _logger.LogInformation("Saved file cache backup to {path}", GoodDatabasePath);
         }
@@ -244,43 +245,48 @@ namespace PlayerSync.FileCache
                 return false;
             }
 
+            var tempPath = $"{_databasePath}.restore-{Guid.NewGuid():N}.tmp";
+            string? badPath = null;
             try
             {
-                var tempPath = _databasePath + ".tmp";
-                File.Copy(GoodDatabasePath, tempPath, overwrite: true);
-
-                ValidateDbBackup(tempPath, cancellationToken);
+                try
+                {
+                    File.Copy(GoodDatabasePath, tempPath);
+                    ValidateDbBackup(tempPath, cancellationToken);
+                    await MigrateDatabaseAsync(cancellationToken, tempPath).ConfigureAwait(false);
+                    if (FileExists(tempPath + "-wal") || FileExists(tempPath + "-journal"))
+                    {
+                        throw new InvalidDataException($"Restored database {tempPath} still has an active journal");
+                    }
+                }
+                catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning(ex, "Cannot prepare file cache backup {backup} for restore", GoodDatabasePath);
+                    return false;
+                }
 
                 await StopAsync(cancellationToken).ConfigureAwait(false);
-
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var badPath = Path.ChangeExtension(_databasePath, ".BAD.bak");
+                badPath = Path.ChangeExtension(_databasePath, $".BAD-{Guid.NewGuid():N}.bak");
                 var databaseExists = FileExists(_databasePath);
                 if (databaseExists)
                 {
-                    File.Move(_databasePath, badPath, overwrite: true);
+                    File.Move(_databasePath, badPath);
                 }
 
-                // these files must go with the same db file if they exist
                 foreach (var suffix in new[] { "-wal", "-journal" })
                 {
                     if (FileExists(_databasePath + suffix))
                     {
-                        File.Move(_databasePath + suffix, badPath + suffix, overwrite: true);
-                    }
-                    else if (databaseExists)
-                    {
-                        File.Delete(badPath + suffix);
+                        File.Move(_databasePath + suffix, badPath + suffix);
                     }
                 }
 
                 File.Delete(_databasePath + "-shm");
                 File.Move(tempPath, _databasePath);
 
-                _logger.LogWarning("Starting file cache database restore from {backup} Previous database: {bad}", GoodDatabasePath, badPath);
-                await MigrateDatabaseAsync(cancellationToken).ConfigureAwait(false);
-
+                _logger.LogWarning("Restored file cache database from {backup}. Previous database: {bad}", GoodDatabasePath, badPath);
                 File.Delete(RebuildPendingPath);
 
                 return true;
@@ -289,27 +295,79 @@ namespace PlayerSync.FileCache
             {
                 _logger.LogCritical(ex, "Failed to restore file cache database {db} from {backup}!", _databasePath, GoodDatabasePath);
 
+                if (badPath != null && FileExists(badPath) && !FileExists(_databasePath))
+                {
+                    // these files are specific to the specific .db
+                    foreach (var suffix in new[] { "-wal", "-journal" })
+                    {
+                        if (FileExists(badPath + suffix))
+                        {
+                            File.Move(badPath + suffix, _databasePath + suffix);
+                        }
+                    }
+
+                    File.Move(badPath, _databasePath);
+                }
+
                 throw;
+            }
+            finally
+            {
+                try
+                {
+                    // these files are specific to the specific .db
+                    foreach (var suffix in new[] { "", "-wal", "-shm", "-journal" })
+                    {
+                        File.Delete(tempPath + suffix);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _logger.LogWarning(ex, "Cannot delete temporary database {db}", tempPath);
+                }
             }
         }
 
-        private async Task MigrateDatabaseAsync(CancellationToken cancellationToken)
+        private async Task MigrateDatabaseAsync(CancellationToken cancellationToken, string? restorePath = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            using var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            combinedCts.CancelAfter(TimeSpan.FromSeconds(10)); // don't let a stalled/locked migration prevent the startup
             await using var context = CreateDbContext();
+            var database = context.Database;
 
-            await context.Database.MigrateAsync(combinedCts.Token).ConfigureAwait(false);
+            if (restorePath != null)
+            {
+                var connectionString = new SqliteConnectionStringBuilder(database.GetConnectionString())
+                {
+                    DataSource = restorePath,
+                    Mode = SqliteOpenMode.ReadWrite,
+                    Pooling = false
+                };
+                database.SetConnectionString(connectionString.ToString());
+
+                // Remove any migration locks that got stuck
+                await database.ExecuteSqlRawAsync("""DROP TABLE IF EXISTS "__EFMigrationsLock";""", cancellationToken).ConfigureAwait(false);
+            }
+
+            var pendingMigrations = await database.GetPendingMigrationsAsync(cancellationToken).ConfigureAwait(false);
+            if (pendingMigrations.Any())
+            {
+                using var migrationCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                if (restorePath == null && FileExists(_databasePath))
+                {
+                    migrationCts.CancelAfter(TimeSpan.FromSeconds(10)); // don't let a stalled/locked migration prevent the startup
+                }
+
+                await database.MigrateAsync(migrationCts.Token).ConfigureAwait(false);
+            }
 
             // this is a check for table validity, if it errors we'll catch it and restore the db
             if (context is FileCacheDbContext fileCacheContext)
             {
-                _ = await fileCacheContext.FileCaches.AsNoTracking().OrderBy(fileCache => fileCache.Id).FirstOrDefaultAsync(combinedCts.Token).ConfigureAwait(false);
+                _ = await fileCacheContext.FileCaches.AsNoTracking().OrderBy(fileCache => fileCache.Id).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
             }
         }
-
+        
         private static void ValidateDbBackup(string path, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
