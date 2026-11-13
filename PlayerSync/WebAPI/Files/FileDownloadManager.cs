@@ -567,10 +567,28 @@ public partial class FileDownloadManager : DisposableMediatorSubscriberBase
 
     private async Task<List<DownloadFileDto>> FilesGetSizes(List<string> hashes, int storeId, CancellationToken ct)
     {
-        if (!_orchestrator.IsInitialized) throw new InvalidOperationException("FileTransferManager is not initialized");
-        var response = await _orchestrator.SendRequestAsync(HttpMethod.Get, MareFiles.ServerFilesGetSizesFullPath(_orchestrator.FilesCdnUri!, _orchestrator.TimeZoneUtcOffsetMinutes, storeId), hashes, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<List<DownloadFileDto>>(cancellationToken: ct).ConfigureAwait(false) ?? [];
+        int maxRetries = 3;
+        int staggerSeconds = 4;
+        int delayBySecodns = 1;
+        var cdnUri = _orchestrator.FilesCdnUri ?? throw new InvalidOperationException("FileTransferManager is not initialized");
+        var requestUri = MareFiles.ServerFilesGetSizesFullPath(cdnUri, _orchestrator.TimeZoneUtcOffsetMinutes, storeId);
+
+        for (var retry = 0; ; retry++)
+        {
+            try
+            {
+                using var response = await _orchestrator.SendRequestAsync(HttpMethod.Get, requestUri, hashes, ct).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<List<DownloadFileDto>>(cancellationToken: ct).ConfigureAwait(false) ?? [];
+            }
+            // catch 3 times then let it explode
+            catch (HttpRequestException ex) when (retry < maxRetries && ex.StatusCode is null && !ct.IsCancellationRequested)
+            {
+                Logger.LogDebug("Retrying {method} {retry}/{maxRetries}", nameof(FilesGetSizes), retry + 1, maxRetries);
+                await Task.Delay(TimeSpan.FromSeconds(delayBySecodns), ct).ConfigureAwait(false);
+                delayBySecodns += staggerSeconds;
+            }
+        }
     }
 
     private async Task ReportFileMissing(string hash, CancellationToken ct)
