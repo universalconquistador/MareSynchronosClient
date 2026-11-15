@@ -2122,13 +2122,13 @@ public sealed class FileCacheManager : MediatorSubscriberBase, IHostedService, I
                 if (databaseWasReset || hasPenumbraEntries)
                 {
                     var waitForPenumbraStartTime = Stopwatch.GetTimestamp();
-                    while (!_ipcManager.Penumbra.APIAvailable || string.IsNullOrWhiteSpace(_ipcManager.Penumbra.ModDirectory))
+                    while (!Directory.Exists(_ipcManager.Penumbra.ModDirectory))
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
                         if (Stopwatch.GetElapsedTime(waitForPenumbraStartTime) >= TimeSpan.FromSeconds(30))
                         {
-                            throw new TimeoutException("Penumbra API, or mod directory, was not available! Try toggling PlayerSync off/on again in Dalamud or restart your game.");
+                            throw new TimeoutException("Penumbra mod directory was not available! Try toggling PlayerSync off/on again in Dalamud or restart your game.");
                         }
 
                         await Task.Delay(250, cancellationToken).ConfigureAwait(false);

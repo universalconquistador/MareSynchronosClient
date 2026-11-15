@@ -83,6 +83,7 @@ public class PlayerDataFactory : DisposableMediatorSubscriberBase
         {
             if (_isFirstTimeLoading && objectKind == ObjectKind.Player && playerRelatedObject != null)
             {
+                Logger.LogInformation("Doing one-time forced redraw to ensure transient data is complete. If you see a duplicate building character log message, that is normal.");
                 await _dalamudUtil.RunOnFrameworkThread(() =>
                 {
                     var address = _dalamudUtil.GetPlayerPtr();
