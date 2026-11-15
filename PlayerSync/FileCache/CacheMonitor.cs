@@ -96,9 +96,10 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
             StartPenumbraWatcher(msg.ModDirectory);
             InvokeScan();
         });
-        if (_ipcManager.Penumbra.APIAvailable && !string.IsNullOrEmpty(_ipcManager.Penumbra.ModDirectory))
+        var penumbraDir = _ipcManager.Penumbra.ModDirectory;
+        if (Directory.Exists(penumbraDir))
         {
-            StartPenumbraWatcher(_ipcManager.Penumbra.ModDirectory);
+            StartPenumbraWatcher(penumbraDir);
         }
         if (configService.Current.HasValidSetup())
         {
@@ -1169,12 +1170,6 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
         if (string.IsNullOrEmpty(_configService.Current.CacheFolder) || !Directory.Exists(_configService.Current.CacheFolder))
         {
             Logger.LogWarning("PlayerSync Cache directory is not set or does not exist.");
-            return;
-        }
-
-        if (!_ipcManager.Penumbra.APIAvailable)
-        {
-            Logger.LogWarning("Penumbra not available");
             return;
         }
 

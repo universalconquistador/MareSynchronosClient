@@ -1,4 +1,5 @@
 ﻿using Dalamud.Plugin;
+using Dalamud.Plugin.Ipc.Exceptions;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using MareSynchronos.MareConfiguration.Models;
 using MareSynchronos.Services;
@@ -145,14 +146,17 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
 
     public void CheckModDirectory()
     {
-        if (!APIAvailable)
+        string? modDirectory;
+        try
         {
-            ModDirectory = string.Empty;
+            modDirectory = _penumbraResolveModDir.Invoke();
         }
-        else
+        catch (IpcNotReadyError)
         {
-            ModDirectory = _penumbraResolveModDir!.Invoke().ToLowerInvariant();
+            modDirectory = null;
         }
+
+        ModDirectory = modDirectory?.ToLowerInvariant() ?? string.Empty;
     }
 
     protected override void Dispose(bool disposing)
@@ -380,6 +384,7 @@ public sealed class IpcCallerPenumbra : DisposableMediatorSubscriberBase, IIpcCa
 
     private void PenumbraDispose()
     {
+        ModDirectory = string.Empty;
         _mareMediator.Publish(new PenumbraDisposedMessage());
     }
 
