@@ -1061,7 +1061,7 @@ public sealed class CacheMonitor : DisposableMediatorSubscriberBase
                     Mediator.Publish(new NotificationMessage("Local Storage Full", $"Your PlayerSync storage drive is almost 100% full! Please check: {di.Name}", 
                         MareConfiguration.Models.NotificationType.Error));
                 }
-                else
+                else if (freeSpace >= 0.01 || !buffer)
                 {
                     if (_haveNotifiedLowDiskSpace)
                     {
