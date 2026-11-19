@@ -162,23 +162,23 @@ public static class VariousExtensions
                         }
                     }
 
-                    try
-                    {
-                        if (TryGetMtrlTexHashChanges(existingFileReplacements, newFileReplacements, out var changed))
-                        {
-                            logger.LogDebug("[BASE-{appBase}] {object}/{kind} .mtrl/.tex hash changes={Count}. Changes: {Changes}",
-                                    applicationBase, cachedPlayer, objectKind, changed.Count, string.Join(", ", changed.Select(c => $"{c.Path} {c.OldHash} -> {c.NewHash}")));
+                    //try
+                    //{
+                    //    if (TryGetMtrlTexHashChanges(existingFileReplacements, newFileReplacements, out var changed))
+                    //    {
+                    //        logger.LogDebug("[BASE-{appBase}] {object}/{kind} .mtrl/.tex hash change count: {count}. Changes: {changes}",
+                    //                applicationBase, cachedPlayer, objectKind, changed.Count, string.Join(", ", changed.Select(c => $"{c.Path} {c.OldHash} -> {c.NewHash}")));
 
-                            if (changed.Count > 0)
-                            {
-                                changes.Add(PlayerChanges.ForcedRedraw);
-                            }
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        logger.LogDebug("[BASE-{appBase}] {object}/{kind} .mtrl/.tex failed to calculate changes", applicationBase, cachedPlayer, objectKind);
-                    }
+                    //        if (changed.Count > 0)
+                    //        {
+                    //            changes.Add(PlayerChanges.ForcedRedraw);
+                    //        }
+                    //    }
+                    //}
+                    //catch (Exception)
+                    //{
+                    //    logger.LogDebug("[BASE-{appBase}] {object}/{kind} .mtrl/.tex failed to calculate changes", applicationBase, cachedPlayer, objectKind);
+                    //}
                 }
 
                 if (existingGlamourerData != null && newGlamourerData != null && (!string.Equals(existingGlamourerData, newGlamourerData, StringComparison.Ordinal) || forceApplyCustomization))
